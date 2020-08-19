@@ -1,0 +1,100 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    tools:context=".MainActivity">
+
+    <Button
+        android:id="@+id/consumeButtonViewId"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="consume"
+        app:layout_constraintLeft_toLeftOf="parent"
+        app:layout_constraintRight_toRightOf="parent"
+        app:layout_constraintTop_toTopOf="parent"/>
+
+    <Button
+        android:id="@+id/acknowledgeButtonId"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="acknowledge"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@+id/consumeButtonViewId" />
+
+    <Button
+        android:id="@+id/skuDetailsButtonId"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="skuDetails"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@+id/acknowledgeButtonId" />
+
+    <Button
+        android:id="@+id/purchaseHistoryId"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="PurchaseHistory"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@+id/skuDetailsButtonId" />
+
+    <EditText
+        android:id="@+id/editTextViewId"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="16dp"
+        android:layout_marginEnd="16dp"
+        android:layout_marginBottom="16dp"
+        android:hint="input message"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent" />
+
+    <RadioGroup
+        android:id="@+id/radioGroupContainerId"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="16dp"
+        android:layout_marginEnd="16dp"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@+id/purchaseHistoryId">
+
+        <RadioButton
+            android:id="@+id/inAppViewId"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="InApp" />
+
+        <RadioButton
+            android:id="@+id/subscriptionViewId"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Subscription" />
+    </RadioGroup>
+
+    <Button
+        android:id="@+id/requestViewId"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Button"
+        app:layout_constraintBottom_toTopOf="@+id/editTextViewId"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@+id/radioGroupContainerId" />
+
+    <Button
+        android:id="@+id/flowViewId"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="start flow"
+        app:layout_constraintBottom_toTopOf="@+id/requestViewId"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@+id/radioGroupContainerId" />
+
+</androidx.constraintlayout.widget.ConstraintLayout>
