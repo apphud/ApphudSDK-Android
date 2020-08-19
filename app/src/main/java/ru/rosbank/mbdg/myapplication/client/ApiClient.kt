@@ -1,11 +1,12 @@
-package ru.rosbank.mbdg.myapplication
+package ru.rosbank.mbdg.myapplication.client
 
 import android.os.Build
 import android.util.Log
 import androidx.annotation.RequiresApi
+import ru.rosbank.mbdg.myapplication.client.dto.ResponseDto
+import ru.rosbank.mbdg.myapplication.isSuccess
 import java.io.BufferedReader
 import java.io.InputStreamReader
-import java.io.OutputStreamWriter
 import java.net.HttpURLConnection
 import java.net.URL
 import java.util.stream.Collectors
@@ -14,10 +15,11 @@ object ApiClient {
 
     const val API_KEY = "app_oBcXz2z9j8spKPL2T7sZwQaQN5Jzme"
 
+    val url = URL("https://api.appfist.com/v1/customers")
+
     @RequiresApi(Build.VERSION_CODES.N)
     fun registration(body: String) {
 
-        val url = URL("https://api.appfist.com/v1/customers")
         val connection = url.openConnection() as HttpURLConnection
         connection.requestMethod = "POST"
 
@@ -26,12 +28,6 @@ object ApiClient {
         connection.setRequestProperty("Content-Type", "application/json; utf-8")
 //        connection.doInput = true
         connection.doOutput = true
-
-        Log.e("WOW", "requestProperties: ${connection.requestProperties}")
-        Log.e("WOW", "body: $body")
-
-//        val output = connection.outputStream
-//        output.write(body.toByteArray(Charsets.UTF_8))
 
         connection.outputStream.use { os ->
             os.write(body.toByteArray(Charsets.UTF_8))

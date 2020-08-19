@@ -13,11 +13,9 @@ import androidx.appcompat.app.AppCompatActivity
 import com.android.billingclient.api.*
 import com.google.gson.Gson
 import com.google.gson.reflect.TypeToken
-import ru.rosbank.mbdg.myapplication.dto.RegistrationBody
+import ru.rosbank.mbdg.myapplication.client.ApiClient
+import ru.rosbank.mbdg.myapplication.body.RegistrationBody
 import java.util.concurrent.Executors
-import java.util.logging.ConsoleHandler
-import java.util.logging.Level
-import java.util.logging.LogManager
 
 class MainActivity : AppCompatActivity() {
 

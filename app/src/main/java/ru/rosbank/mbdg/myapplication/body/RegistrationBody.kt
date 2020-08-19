@@ -1,4 +1,4 @@
-package ru.rosbank.mbdg.myapplication.dto
+package ru.rosbank.mbdg.myapplication.body
 
 data class RegistrationBody(
     val locale: String?,
