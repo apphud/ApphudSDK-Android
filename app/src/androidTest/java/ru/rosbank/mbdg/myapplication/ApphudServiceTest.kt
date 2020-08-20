@@ -13,7 +13,7 @@ class ApphudServiceTest {
     private lateinit var service: ApphudService
 
     @Before
-    fun before() {
+    fun setup() {
         val executor = HttpUrlConnectionExecutor(
             url = ApiClient.url,
             parser = GsonParser(Gson())

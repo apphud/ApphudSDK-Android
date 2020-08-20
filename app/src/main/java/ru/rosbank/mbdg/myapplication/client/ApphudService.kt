@@ -19,23 +19,46 @@ class ApphudService(
      * Регистрация юзера
      */
     fun registration(body: RegistrationBody): ResponseDto<CustomerDto> =
-        executor.call(RequestConfig(path = "/v1/customers", requestType = RequestType.POST), body)
+        executor.call(
+            RequestConfig(
+                path = "/v1/customers",
+                requestType = RequestType.POST
+            ),
+            body
+        )
 
     /**
      * Получение идентификаторов продуктов
      */
     fun products(): ResponseDto<List<ProductDto>> =
-        executor.call(RequestConfig(path = "/v1/products", requestType = RequestType.GET))
+        executor.call(
+            RequestConfig(
+                path = "/v1/products",
+                requestType = RequestType.GET
+            )
+        )
 
     /**
      * Отправка атрибуции
      */
     fun send(body: AttributionBody): ResponseDto<AttributionDto> =
-        executor.call(RequestConfig(path = "/v1/customers/attribution ", requestType = RequestType.POST), body)
+        executor.call(
+            RequestConfig(
+                path = "/v1/customers/attribution",
+                requestType = RequestType.POST
+            ),
+            body
+        )
 
     /**
      * Отправка пуш токена
      */
     fun send(body: PushBody): ResponseDto<AttributionDto> =
-        executor.call(RequestConfig(path = "/v1/customers/push_token", requestType = RequestType.POST), body)
+        executor.call(
+            RequestConfig(
+                path = "/v1/customers/push_token",
+                requestType = RequestType.POST
+            ),
+            body
+        )
 }

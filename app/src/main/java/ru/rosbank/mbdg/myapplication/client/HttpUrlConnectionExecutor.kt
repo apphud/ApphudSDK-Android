@@ -13,9 +13,7 @@ class HttpUrlConnectionExecutor(
     private val parser: Parser
 ) : NetworkExecutor {
 
-    override fun <O> call(config: RequestConfig): O {
-        TODO("Not yet implemented")
-    }
+    override fun <O> call(config: RequestConfig): O = TODO("Not yet implemented")
 
     override fun <I, O> call(config: RequestConfig, input: I): O {
 
@@ -57,6 +55,7 @@ class HttpUrlConnectionExecutor(
         }
         connection.disconnect()
 
-        return parser.fromJson(response) ?: error("Something wrong")
+        val res = parser.fromJson<O>(response)
+        return res ?: error("Something wrong")
     }
 }
