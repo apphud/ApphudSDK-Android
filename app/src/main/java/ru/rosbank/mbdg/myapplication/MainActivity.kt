@@ -1,6 +1,5 @@
 package ru.rosbank.mbdg.myapplication
 
-import android.os.Build
 import android.os.Bundle
 import android.text.Editable
 import android.text.TextWatcher
@@ -10,12 +9,12 @@ import android.widget.EditText
 import android.widget.RadioButton
 import android.widget.RadioGroup
 import androidx.appcompat.app.AppCompatActivity
+import androidx.recyclerview.widget.RecyclerView
 import com.android.billingclient.api.*
-import com.google.gson.Gson
-import com.google.gson.reflect.TypeToken
 import ru.rosbank.mbdg.myapplication.client.ApiClient
-import ru.rosbank.mbdg.myapplication.body.RegistrationBody
-import java.util.concurrent.Executors
+import ru.rosbank.mbdg.myapplication.client.dto.ProductDto
+import ru.rosbank.mbdg.myapplication.mappers.ProductMapper
+import ru.rosbank.mbdg.myapplication.view.ProductsAdapter
 
 class MainActivity : AppCompatActivity() {
 
@@ -26,46 +25,34 @@ class MainActivity : AppCompatActivity() {
 
     lateinit var billing: BillingClient
 
-    private val api = ApiClient
+
+    private val mapper = ProductMapper()
+    private val adapter = ProductsAdapter()
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
 
-//        val handler = ConsoleHandler()
-//        handler.level = Level.ALL
-//        val log = LogManager.getLogManager().getLogger("")
-//        log.addHandler(handler)
-//        log.level = Level.ALL
+        Apphud.onLoaded = { products ->
+            Log.e("WOW", "MainActivity loaded products: $products")
+            runOnUiThread { adapter.products = products.map { mapper.map(it) } }
 
-        val flowButton: Button = findViewById(R.id.flowViewId)
-        flowButton.setOnClickListener { flowOnClick() }
-
-        val consume = findViewById<Button>(R.id.consumeButtonViewId)
-        consume.setOnClickListener { onConsumeClick() }
-        val acknowledge = findViewById<Button>(R.id.acknowledgeButtonId)
-        acknowledge.setOnClickListener { onAcknowledgeClick() }
-        val skuDetails = findViewById<Button>(R.id.skuDetailsButtonId)
-        skuDetails.setOnClickListener { onSkuDetailsButtonIdClick() }
-        val purchaseHistory = findViewById<Button>(R.id.purchaseHistoryId)
-        purchaseHistory.setOnClickListener { onPurchaseHistoryClick() }
-
-        groupContainer = findViewById(R.id.radioGroupContainerId)
-        groupContainer.setOnCheckedChangeListener { _, checkedId ->
-
+            val consume = products.filter { it.product_id.contains("subscription") }.map { it.product_id }
+            val nonConsume = products.filter { it.product_id.contains("sell") }.map { it.product_id }
+            onSkuDetailsButtonIdClick(BillingClient.SkuType.SUBS, consume)
+            onSkuDetailsButtonIdClick(BillingClient.SkuType.INAPP, nonConsume)
         }
 
-        inAppButton = findViewById(R.id.inAppViewId)
-        subscriptionButton = findViewById(R.id.subscriptionViewId)
-
-        editText = findViewById(R.id.editTextViewId)
-        editText.addTextChangedListener(object : TextWatcher {
-            override fun afterTextChanged(s: Editable?) {
-                Log.e("WOW", "afterTextChanged s: $s")
+        adapter.onClick = { model ->
+            Log.e("WOW", "onClick model: $model")
+            when (model.details) {
+                null -> Log.e("WOW", "details is empty")
+                else -> flowOnClick(model.details)
             }
-            override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) = Unit
-            override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) = Unit
-        })
+        }
+
+        val recyclerView = findViewById<RecyclerView>(R.id.recyclerViewId)
+        recyclerView.adapter = adapter
 
         billing = BillingClient.newBuilder(App.app)
             .setListener { result: BillingResult, purchases: MutableList<Purchase>? ->
@@ -92,44 +79,14 @@ class MainActivity : AppCompatActivity() {
             else -> Log.e("WOW", "billing is not Ready")
         }
 
-        val request = findViewById<Button>(R.id.requestViewId)
-        request.setOnClickListener {
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
-                val body = RegistrationBody(
-                    locale = "ru_RU",
-//                    country_iso_code = "RU",
-                    sdk_version = "1.0",
-                    app_version = "1.0.0",
-                    device_family = "Android",
-                    platform = "Android",
-                    device_type = "DEVICE_TYPE",
-                    os_version = "6.0.1",
-                    start_app_version = "1.0",
-                    idfv = "11112222",
-                    idfa = "22221111",
-                    user_id = "1234567890",
-                    device_id = "9876543210",
-                    time_zone = "UTF",
-                    api_key = ApiClient.API_KEY
-                )
-                executor.execute {
-
-                    val type = object : TypeToken<RegistrationBody>() {}.type
-                    val r = gson.toJson(body, type)
-                    api.registration(r)
-                }
-            }
-        }
+        Apphud.start(ApiClient.API_KEY)
     }
-
-    private val gson = Gson()
-    private val executor = Executors.newSingleThreadExecutor()
 
     private lateinit var skuDetails: SkuDetails
 
-    private fun flowOnClick() {
+    private fun flowOnClick(details: SkuDetails) {
         val params = BillingFlowParams.newBuilder()
-            .setSkuDetails(skuDetails)
+            .setSkuDetails(details)
             .build()
 
         val result = billing.launchBillingFlow(this, params)
@@ -166,15 +123,18 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    private fun onSkuDetailsButtonIdClick() {
-        val skuType = when {
-            inAppButton.isChecked        -> BillingClient.SkuType.INAPP
-            subscriptionButton.isChecked -> BillingClient.SkuType.SUBS
-            else                         -> error("Not select skuType")
-        }
-        val sku = editText.text.toString()
+    private fun onSkuDetailsButtonIdClick(
+        @BillingClient.SkuType skuType: String,
+        skus: List<String>
+    ) {
+//        val skuType = when {
+//            inAppButton.isChecked        -> BillingClient.SkuType.INAPP
+//            subscriptionButton.isChecked -> BillingClient.SkuType.SUBS
+//            else                         -> error("Not select skuType")
+//        }
+//        val sku = editText.text.toString()
         val skuParams = SkuDetailsParams.newBuilder()
-            .setSkusList(listOf(sku))
+            .setSkusList(skus)
             .setType(skuType)
             .build()
         billing.querySkuDetailsAsync(skuParams) { result: BillingResult, details: List<SkuDetails>? ->
@@ -182,6 +142,9 @@ class MainActivity : AppCompatActivity() {
             Log.e("WOW", "querySkuDetails debugMessage: ${result.debugMessage}")
             Log.e("WOW", "querySkuDetails responseCode: ${result.responseCode}")
             printAllDetails(details ?: emptyList())
+            val values = details ?: emptyList()
+            val products =  values.map { mapper.map(it) }
+            adapter.products = adapter.products.filter { it.details != null } + products
         }
     }
 

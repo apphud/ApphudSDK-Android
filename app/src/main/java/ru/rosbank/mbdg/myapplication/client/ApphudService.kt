@@ -1,15 +1,19 @@
 package ru.rosbank.mbdg.myapplication.client
 
+import com.google.gson.reflect.TypeToken
 import ru.rosbank.mbdg.myapplication.body.AttributionBody
 import ru.rosbank.mbdg.myapplication.body.PushBody
+import ru.rosbank.mbdg.myapplication.body.RegistrationBody
 import ru.rosbank.mbdg.myapplication.client.dto.AttributionDto
 import ru.rosbank.mbdg.myapplication.client.dto.CustomerDto
 import ru.rosbank.mbdg.myapplication.client.dto.ProductDto
 import ru.rosbank.mbdg.myapplication.client.dto.ResponseDto
-import ru.rosbank.mbdg.myapplication.body.RegistrationBody
+
 
 /**
  * Сервис для работы с apphud api
+ *
+ * Пока используется TypeToken из библиотеки Gson. Нужно будет посмотреть как от этого уйти
  */
 class ApphudService(
     private val executor: NetworkExecutor
@@ -18,22 +22,23 @@ class ApphudService(
     /**
      * Регистрация юзера
      */
-    fun registration(body: RegistrationBody): ResponseDto<CustomerDto> =
-        executor.call(
-            RequestConfig(
-                path = "/v1/customers",
-                requestType = RequestType.POST
-            ),
-            body
-        )
+    fun registration(body: RegistrationBody): ResponseDto<CustomerDto> = executor.call(
+        RequestConfig(
+            path = "/v1/customers",
+            type = object : TypeToken<ResponseDto<CustomerDto>>() {}.type,
+            requestType = RequestType.POST
+        ),
+        body
+    )
 
     /**
      * Получение идентификаторов продуктов
      */
-    fun products(): ResponseDto<List<ProductDto>> =
+    fun products(apiKey: String): ResponseDto<List<ProductDto>> =
         executor.call(
             RequestConfig(
-                path = "/v1/products",
+                path = "/v1/products?api_key=$apiKey",
+                type = object : TypeToken<ResponseDto<List<ProductDto>>>(){}.type,
                 requestType = RequestType.GET
             )
         )
@@ -45,6 +50,7 @@ class ApphudService(
         executor.call(
             RequestConfig(
                 path = "/v1/customers/attribution",
+                type = object : TypeToken<ResponseDto<AttributionDto>>(){}.type,
                 requestType = RequestType.POST
             ),
             body
@@ -57,6 +63,7 @@ class ApphudService(
         executor.call(
             RequestConfig(
                 path = "/v1/customers/push_token",
+                type = object : TypeToken<ResponseDto<AttributionDto>>(){}.type,
                 requestType = RequestType.POST
             ),
             body

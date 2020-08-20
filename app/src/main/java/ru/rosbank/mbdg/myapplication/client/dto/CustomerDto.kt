@@ -6,6 +6,6 @@ data class CustomerDto(
     val locale: String,
     val created_at: String,
     val subscriptions: List<SubscriptionDto>,
-    val currency: CurrencyDto,
+    val currency: CurrencyDto?,
     val devices: List<DeviceDto>
 )

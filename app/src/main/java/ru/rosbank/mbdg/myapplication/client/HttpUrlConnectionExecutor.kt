@@ -9,14 +9,14 @@ import java.net.HttpURLConnection
 import java.net.URL
 
 class HttpUrlConnectionExecutor(
-    private val url: URL,
+    private val host: String,
     private val parser: Parser
 ) : NetworkExecutor {
 
-    override fun <O> call(config: RequestConfig): O = TODO("Not yet implemented")
+    override fun <O> call(config: RequestConfig): O = call(config, null)
+    override fun <I, O> call(config: RequestConfig, input: I?): O {
 
-    override fun <I, O> call(config: RequestConfig, input: I): O {
-
+        val url = URL(host + config.path)
         val connection = url.openConnection() as HttpURLConnection
         connection.requestMethod = config.requestType.name
         //TODO вынести в настройку
@@ -24,11 +24,17 @@ class HttpUrlConnectionExecutor(
         connection.setRequestProperty("Content-Type", "application/json; utf-8")
 
         when (config.requestType) {
-            RequestType.GET -> Unit
+            RequestType.GET -> {
+                config.headers.forEach { entry ->
+                    connection.setRequestProperty(entry.key, entry.value)
+                }
+            }
             else            -> {
-                connection.doOutput = true
-                connection.outputStream.use { stream ->
-                    stream.write(parser.toJson(input).toByteArray(Charsets.UTF_8))
+                input?.let { source ->
+                    connection.doOutput = true
+                    connection.outputStream.use { stream ->
+                        stream.write(parser.toJson(source).toByteArray(Charsets.UTF_8))
+                    }
                 }
             }
         }
@@ -55,7 +61,6 @@ class HttpUrlConnectionExecutor(
         }
         connection.disconnect()
 
-        val res = parser.fromJson<O>(response)
-        return res ?: error("Something wrong")
+        return parser.fromJson<O>(response, config.type) ?: error("Something wrong")
     }
 }

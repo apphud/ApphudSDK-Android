@@ -12,7 +12,7 @@ data class RegistrationBody(
     val start_app_version: String,
     val idfv: String?,
     val idfa: String?,
-    val user_id: String,
+    val user_id: String?,
     val device_id: String,
     val time_zone: String,
     val api_key: String
