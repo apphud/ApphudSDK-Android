@@ -24,7 +24,7 @@ class ApphudService(
      */
     fun registration(body: RegistrationBody): ResponseDto<CustomerDto> = executor.call(
         RequestConfig(
-            path = "/v1/customers",
+            path = "customers",
             type = object : TypeToken<ResponseDto<CustomerDto>>() {}.type,
             requestType = RequestType.POST
         ),
@@ -37,8 +37,9 @@ class ApphudService(
     fun products(apiKey: String): ResponseDto<List<ProductDto>> =
         executor.call(
             RequestConfig(
-                path = "/v1/products?api_key=$apiKey",
+                path = "products",
                 type = object : TypeToken<ResponseDto<List<ProductDto>>>(){}.type,
+                queries = mapOf("api_key" to apiKey),
                 requestType = RequestType.GET
             )
         )
@@ -46,11 +47,12 @@ class ApphudService(
     /**
      * Отправка атрибуции
      */
-    fun send(body: AttributionBody): ResponseDto<AttributionDto> =
+    fun send(apiKey: String, body: AttributionBody): ResponseDto<AttributionDto> =
         executor.call(
             RequestConfig(
-                path = "/v1/customers/attribution",
+                path = "customers/attribution",
                 type = object : TypeToken<ResponseDto<AttributionDto>>(){}.type,
+                queries = mapOf("api_key" to apiKey),
                 requestType = RequestType.POST
             ),
             body
@@ -59,12 +61,13 @@ class ApphudService(
     /**
      * Отправка пуш токена
      */
-    fun send(body: PushBody): ResponseDto<AttributionDto> =
+    fun send(apiKey: String, body: PushBody): ResponseDto<AttributionDto> =
         executor.call(
             RequestConfig(
-                path = "/v1/customers/push_token",
+                path = "customers/push_token",
                 type = object : TypeToken<ResponseDto<AttributionDto>>(){}.type,
-                requestType = RequestType.POST
+                queries = mapOf("api_key" to apiKey),
+                requestType = RequestType.PUT
             ),
             body
         )

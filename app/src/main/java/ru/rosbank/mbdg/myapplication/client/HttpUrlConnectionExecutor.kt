@@ -10,17 +10,25 @@ import java.net.URL
 
 class HttpUrlConnectionExecutor(
     private val host: String,
+    private val version: String,
     private val parser: Parser
 ) : NetworkExecutor {
 
     override fun <O> call(config: RequestConfig): O = call(config, null)
     override fun <I, O> call(config: RequestConfig, input: I?): O {
 
-        val url = URL(host + config.path)
+        val apphudUrl = ApphudUrl.Builder()
+            .host(host)
+            .version(version)
+            .path(config.path)
+            .params(config.queries)
+            .build()
+
+        val url = URL(apphudUrl.url)
         val connection = url.openConnection() as HttpURLConnection
         connection.requestMethod = config.requestType.name
         //TODO вынести в настройку
-        connection.setRequestProperty("Accept", "application/json")
+        connection.setRequestProperty("Accept", "application/json; utf-8")
         connection.setRequestProperty("Content-Type", "application/json; utf-8")
 
         when (config.requestType) {

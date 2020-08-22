@@ -4,6 +4,7 @@ import android.util.Log
 import com.google.gson.Gson
 import org.junit.Before
 import org.junit.Test
+import ru.rosbank.mbdg.myapplication.body.*
 import ru.rosbank.mbdg.myapplication.client.ApiClient
 import ru.rosbank.mbdg.myapplication.client.ApphudService
 import ru.rosbank.mbdg.myapplication.client.HttpUrlConnectionExecutor
@@ -19,6 +20,7 @@ class ApphudServiceTest {
     fun setup() {
         val executor = HttpUrlConnectionExecutor(
             host = ApiClient.host,
+            version = ApphudVersion.V1,
             parser = GsonParser(Gson())
         )
         service = ApphudService(executor)
@@ -39,5 +41,40 @@ class ApphudServiceTest {
     fun productsTest() {
         val products = service.products(ApiClient.API_KEY)
         Log.e("WOW", "load products: ${products.data.results}")
+    }
+
+    @Test
+    fun adjustTest() {
+        val body = AttributionBody(deviceId, adjust_data = AdjustData("key", "value"))
+        val response = service.send(ApiClient.API_KEY, body)
+        Log.e("WOW", "send attribution result: ${response.data.results}")
+    }
+
+    @Test
+    fun facebookTest() {
+        val body = AttributionBody(deviceId, facebook_data = FacebookData())
+        val response = service.send(ApiClient.API_KEY, body)
+        Log.e("WOW", "send attribution result: ${response.data.results}")
+    }
+
+    @Test
+    fun appsflyerTest() {
+        val body = AttributionBody(
+            deviceId,
+            appsflyer_data = AppsflyerData("key", "value"),
+            appsflyer_id = "AppsflyerId"
+        )
+        val response = service.send(ApiClient.API_KEY, body)
+        Log.e("WOW", "send attribution result: ${response.data.results}")
+    }
+
+    @Test
+    fun pushTest() {
+        val body = PushBody(
+            device_id = deviceId,
+            push_token = "This is push token."
+        )
+        val response = service.send(ApiClient.API_KEY, body)
+        Log.e("WOW", "send push result: ${response.data.results}")
     }
 }

@@ -25,7 +25,7 @@ object Apphud {
         .serializeNulls()
         .create())
     private val executor = Executors.newSingleThreadExecutor()
-    private val manager: NetworkExecutor = HttpUrlConnectionExecutor(ApiClient.host, parser)
+    private val manager: NetworkExecutor = HttpUrlConnectionExecutor(ApiClient.host, ApphudVersion.V1, parser)
     private val service = ApphudService(manager)
     private val storage: Storage = SharedPreferencesStorage(App.app, parser)
     private val mapper = CustomerMapper(SubscriptionMapper())
