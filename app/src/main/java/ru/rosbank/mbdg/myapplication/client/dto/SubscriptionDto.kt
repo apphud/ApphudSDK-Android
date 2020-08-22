@@ -1,5 +1,7 @@
 package ru.rosbank.mbdg.myapplication.client.dto
 
+import ru.rosbank.mbdg.myapplication.domain.ApphudSubscriptionStatus
+
 data class SubscriptionDto(
     val id: String,
     val unit: String,
@@ -14,5 +16,5 @@ data class SubscriptionDto(
     val active_till: String,
     val kind: String, //autorenewable enum?
     val units_count: Int,
-    val status: String //expired enum?
+    val status: ApphudSubscriptionStatus
 )

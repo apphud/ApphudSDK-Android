@@ -1,6 +1,6 @@
 package ru.rosbank.mbdg.myapplication.domain
 
-enum class Kind {
+enum class ApphudKind {
     NONRENEWABLE,
     AUTORENEWABLE
 }
