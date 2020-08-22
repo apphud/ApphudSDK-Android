@@ -7,15 +7,12 @@ import androidx.recyclerview.widget.RecyclerView
 import com.android.billingclient.api.BillingClient
 import com.android.billingclient.api.Purchase
 import com.android.billingclient.api.PurchaseHistoryRecord
-import com.android.billingclient.api.SkuDetails
 import ru.rosbank.mbdg.myapplication.client.ApiClient
 import ru.rosbank.mbdg.myapplication.internal.BillingWrapper
 import ru.rosbank.mbdg.myapplication.mappers.ProductMapper
 import ru.rosbank.mbdg.myapplication.view.ProductsAdapter
 
 class MainActivity : AppCompatActivity() {
-
-//    lateinit var billing: BillingClient
 
     private val mapper = ProductMapper()
     private val adapter = ProductsAdapter()
@@ -36,7 +33,8 @@ class MainActivity : AppCompatActivity() {
 
         Apphud.onLoaded = { products ->
             Log.e("WOW", "MainActivity loaded products: $products")
-            runOnUiThread { adapter.products = products.map { mapper.map(it) } }
+
+            adapter.products = products.map { mapper.map(it) }
 
             val consume = products.filter { it.product_id.contains("subscription") }.map { it.product_id }
             val nonConsume = products.filter { it.product_id.contains("sell") }.map { it.product_id }
@@ -58,8 +56,6 @@ class MainActivity : AppCompatActivity() {
 
         Apphud.start(ApiClient.API_KEY)
     }
-
-    private lateinit var skuDetails: SkuDetails
 
 //    private fun onPurchaseHistoryClick() {
 ////        val skuType = when {

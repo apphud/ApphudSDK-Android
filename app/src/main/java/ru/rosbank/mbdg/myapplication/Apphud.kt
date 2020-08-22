@@ -1,5 +1,7 @@
 package ru.rosbank.mbdg.myapplication
 
+import android.os.Handler
+import android.os.Looper
 import android.util.Log
 import com.google.gson.GsonBuilder
 import ru.rosbank.mbdg.myapplication.body.RegistrationBody
@@ -27,6 +29,7 @@ object Apphud {
     private val service = ApphudService(manager)
     private val storage: Storage = SharedPreferencesStorage(App.app, parser)
     private val mapper = CustomerMapper(SubscriptionMapper())
+    private val handler = Handler(Looper.getMainLooper())
 
     var onLoaded: ((List<ProductDto>) -> Unit)? = null
 
@@ -77,7 +80,7 @@ object Apphud {
         val response = service.products(ApiClient.API_KEY)
         when {
             response.errors != null       -> Log.e("WOW", "Failed load products from Apphud")
-            response.data.results != null -> onLoaded?.invoke(response.data.results)
+            response.data.results != null -> handler.post { onLoaded?.invoke(response.data.results) }
             else -> Log.e("WOW", "load products full data response: $response")
         }
     }
