@@ -1,7 +1,5 @@
 package ru.rosbank.mbdg.myapplication.client
 
-import java.net.URL
-
 class ApphudUrl private constructor(val url: String) {
 
     companion object {

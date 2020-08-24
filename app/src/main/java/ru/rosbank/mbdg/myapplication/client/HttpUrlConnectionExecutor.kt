@@ -4,6 +4,7 @@ import android.util.Log
 import ru.rosbank.mbdg.myapplication.isSuccess
 import ru.rosbank.mbdg.myapplication.parser.Parser
 import java.io.BufferedReader
+import java.io.InputStream
 import java.io.InputStreamReader
 import java.net.HttpURLConnection
 import java.net.URL
@@ -30,6 +31,8 @@ class HttpUrlConnectionExecutor(
         //TODO вынести в настройку
         connection.setRequestProperty("Accept", "application/json; utf-8")
         connection.setRequestProperty("Content-Type", "application/json; utf-8")
+        connection.readTimeout = 30_000
+        connection.connectTimeout = 30_000
 
         when (config.requestType) {
             RequestType.GET -> {
@@ -50,25 +53,28 @@ class HttpUrlConnectionExecutor(
         connection.connect()
 
         val response = when (connection.isSuccess) {
-            true -> {
-                val reader = InputStreamReader(connection.inputStream, Charsets.UTF_8)
-                BufferedReader(reader).use { buffer ->
-                    val response = StringBuilder()
-                    var line: String?
-                    while (buffer.readLine().also { line = it } != null) {
-                        response.append(line)
-                    }
-                    response.toString()
-                }
-            }
+            true -> buildStringBy(connection.inputStream)
             else -> {
+                val response = buildStringBy(connection.errorStream)
+                Log.e("WOW", "error response: $response")
                 Log.e("WOW", "failed code: ${connection.responseCode}")
-                Log.e("WOW", "failed message: ${connection.responseMessage}")
                 null
             }
         }
         connection.disconnect()
 
         return parser.fromJson<O>(response, config.type) ?: error("Something wrong")
+    }
+
+    private fun buildStringBy(stream: InputStream): String {
+        val reader = InputStreamReader(stream, Charsets.UTF_8)
+        return BufferedReader(reader).use { buffer ->
+            val response = StringBuilder()
+            var line: String?
+            while (buffer.readLine().also { line = it } != null) {
+                response.append(line)
+            }
+            response.toString()
+        }
     }
 }

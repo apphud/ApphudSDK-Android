@@ -12,8 +12,11 @@ import ru.rosbank.mbdg.myapplication.parser.GsonParser
 
 class ApphudServiceTest {
 
-    private val userId = "987654321"
-    private val deviceId = "123456789"
+//    private val userId = "987654321"
+//    private val deviceId = "123456789"
+
+    private val userId = "cleaner_303"
+    private val deviceId = "cleaner_303"
     private lateinit var service: ApphudService
 
     @Before
@@ -23,14 +26,13 @@ class ApphudServiceTest {
             version = ApphudVersion.V1,
             parser = GsonParser(Gson())
         )
-        service = ApphudService(executor)
+        service = ApphudService(ApiClient.API_KEY, executor)
     }
 
     @Test
     fun registrationTest() {
 
         val body = mkRegistrationBody(
-            apiKey = ApiClient.API_KEY,
             userId = userId,
             deviceId = deviceId
         )
@@ -39,21 +41,21 @@ class ApphudServiceTest {
 
     @Test
     fun productsTest() {
-        val products = service.products(ApiClient.API_KEY)
+        val products = service.products()
         Log.e("WOW", "load products: ${products.data.results}")
     }
 
     @Test
     fun adjustTest() {
         val body = AttributionBody(deviceId, adjust_data = AdjustData("key", "value"))
-        val response = service.send(ApiClient.API_KEY, body)
+        val response = service.send(body)
         Log.e("WOW", "send attribution result: ${response.data.results}")
     }
 
     @Test
     fun facebookTest() {
         val body = AttributionBody(deviceId, facebook_data = FacebookData())
-        val response = service.send(ApiClient.API_KEY, body)
+        val response = service.send(body)
         Log.e("WOW", "send attribution result: ${response.data.results}")
     }
 
@@ -64,7 +66,7 @@ class ApphudServiceTest {
             appsflyer_data = AppsflyerData("key", "value"),
             appsflyer_id = "AppsflyerId"
         )
-        val response = service.send(ApiClient.API_KEY, body)
+        val response = service.send(body)
         Log.e("WOW", "send attribution result: ${response.data.results}")
     }
 
@@ -74,7 +76,7 @@ class ApphudServiceTest {
             device_id = deviceId,
             push_token = "This is push token."
         )
-        val response = service.send(ApiClient.API_KEY, body)
+        val response = service.send(body)
         Log.e("WOW", "send push result: ${response.data.results}")
     }
 }

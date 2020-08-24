@@ -11,5 +11,7 @@ class App : Application() {
     override fun onCreate() {
         super.onCreate()
         app = this
+
+        ApphudSdk.init(this)
     }
 }

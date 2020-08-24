@@ -1,6 +1,7 @@
 package ru.rosbank.mbdg.myapplication.client
 
 import com.google.gson.reflect.TypeToken
+import ru.rosbank.mbdg.myapplication.ApiKey
 import ru.rosbank.mbdg.myapplication.body.AttributionBody
 import ru.rosbank.mbdg.myapplication.body.PushBody
 import ru.rosbank.mbdg.myapplication.body.RegistrationBody
@@ -16,8 +17,13 @@ import ru.rosbank.mbdg.myapplication.client.dto.ResponseDto
  * Пока используется TypeToken из библиотеки Gson. Нужно будет посмотреть как от этого уйти
  */
 class ApphudService(
+    private val apiKey: ApiKey,
     private val executor: NetworkExecutor
 ) {
+
+    companion object {
+        private const val API_KEY = "api_key"
+    }
 
     /**
      * Регистрация юзера
@@ -26,6 +32,7 @@ class ApphudService(
         RequestConfig(
             path = "customers",
             type = object : TypeToken<ResponseDto<CustomerDto>>() {}.type,
+            queries = mapOf(API_KEY to apiKey),
             requestType = RequestType.POST
         ),
         body
@@ -34,12 +41,12 @@ class ApphudService(
     /**
      * Получение идентификаторов продуктов
      */
-    fun products(apiKey: String): ResponseDto<List<ProductDto>> =
+    fun products(): ResponseDto<List<ProductDto>> =
         executor.call(
             RequestConfig(
                 path = "products",
                 type = object : TypeToken<ResponseDto<List<ProductDto>>>(){}.type,
-                queries = mapOf("api_key" to apiKey),
+                queries = mapOf(API_KEY to apiKey),
                 requestType = RequestType.GET
             )
         )
@@ -47,12 +54,12 @@ class ApphudService(
     /**
      * Отправка атрибуции
      */
-    fun send(apiKey: String, body: AttributionBody): ResponseDto<AttributionDto> =
+    fun send(body: AttributionBody): ResponseDto<AttributionDto> =
         executor.call(
             RequestConfig(
                 path = "customers/attribution",
                 type = object : TypeToken<ResponseDto<AttributionDto>>(){}.type,
-                queries = mapOf("api_key" to apiKey),
+                queries = mapOf(API_KEY to apiKey),
                 requestType = RequestType.POST
             ),
             body
@@ -61,12 +68,12 @@ class ApphudService(
     /**
      * Отправка пуш токена
      */
-    fun send(apiKey: String, body: PushBody): ResponseDto<AttributionDto> =
+    fun send(body: PushBody): ResponseDto<AttributionDto> =
         executor.call(
             RequestConfig(
                 path = "customers/push_token",
                 type = object : TypeToken<ResponseDto<AttributionDto>>(){}.type,
-                queries = mapOf("api_key" to apiKey),
+                queries = mapOf(API_KEY to apiKey),
                 requestType = RequestType.PUT
             ),
             body

@@ -26,6 +26,7 @@ class MainActivity : AppCompatActivity() {
         wrapper.skuCallback = { details ->
             val products =  details.map { mapper.map(it) }
             adapter.products = adapter.products.filter { it.details != null } + products
+            Log.e("Billing", "details: $details")
         }
         wrapper.purchasesCallback = { purchases ->
             printAllPurchases(purchases)
@@ -34,13 +35,11 @@ class MainActivity : AppCompatActivity() {
         Apphud.onLoaded = { products ->
             Log.e("WOW", "MainActivity loaded products: $products")
 
+            val productIds = products.map { it.product_id }
             adapter.products = products.map { mapper.map(it) }
 
-            val consume = products.filter { it.product_id.contains("subscription") }.map { it.product_id }
-            val nonConsume = products.filter { it.product_id.contains("sell") }.map { it.product_id }
-
-            wrapper.details(BillingClient.SkuType.SUBS, consume)
-            wrapper.details(BillingClient.SkuType.INAPP, nonConsume)
+            wrapper.details(BillingClient.SkuType.SUBS, productIds)
+            wrapper.details(BillingClient.SkuType.INAPP, productIds)
         }
 
         adapter.onClick = { model ->
@@ -54,7 +53,12 @@ class MainActivity : AppCompatActivity() {
         val recyclerView = findViewById<RecyclerView>(R.id.recyclerViewId)
         recyclerView.adapter = adapter
 
-        Apphud.start(ApiClient.API_KEY)
+//        Apphud.start(ApiClient.API_KEY)
+
+        //TODO Тест на то, если будем слишком часто вызывать этот метод
+        ApphudSdk.start(ApiClient.API_KEY)
+        ApphudSdk.start(ApiClient.API_KEY)
+        ApphudSdk.start(ApiClient.API_KEY)
     }
 
 //    private fun onPurchaseHistoryClick() {

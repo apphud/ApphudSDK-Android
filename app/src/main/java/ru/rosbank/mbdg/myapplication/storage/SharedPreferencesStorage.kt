@@ -21,9 +21,8 @@ class SharedPreferencesStorage(
 
     private val preferences = context.getSharedPreferences(NAME, MODE)
 
-    override var userId: String
+    override var userId: String?
         get() = preferences.getString(USER_ID_KEY, null)
-            ?: error("Not found userId from $this")
         set(value) {
             val editor = preferences.edit()
             editor.putString(USER_ID_KEY, value)
@@ -44,8 +43,8 @@ class SharedPreferencesStorage(
             editor.apply()
         }
 
-    override var deviceId: String
-        get() = preferences.getString(DEVICE_ID_KEY, null) ?: error("Not found userId from $this")
+    override var deviceId: String?
+        get() = preferences.getString(DEVICE_ID_KEY, null)
         set(value) {
             val editor = preferences.edit()
             editor.putString(DEVICE_ID_KEY, value)

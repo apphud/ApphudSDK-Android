@@ -16,17 +16,19 @@ import ru.rosbank.mbdg.myapplication.parser.GsonParser
 import ru.rosbank.mbdg.myapplication.parser.Parser
 import ru.rosbank.mbdg.myapplication.storage.SharedPreferencesStorage
 import ru.rosbank.mbdg.myapplication.storage.Storage
+import java.util.concurrent.ExecutorService
 import java.util.concurrent.Executors
 
+@Deprecated("Don't use it")
 object Apphud {
 
     private const val deviceId = "123456789"
     private val parser: Parser = GsonParser(GsonBuilder()
         .serializeNulls()
         .create())
-    private val executor = Executors.newSingleThreadExecutor()
+    private val executor: ExecutorService = Executors.newSingleThreadExecutor()
     private val manager: NetworkExecutor = HttpUrlConnectionExecutor(ApiClient.host, ApphudVersion.V1, parser)
-    private val service = ApphudService(manager)
+    private val service = ApphudService(ApiClient.API_KEY, manager)
     private val storage: Storage = SharedPreferencesStorage(App.app, parser)
     private val mapper = CustomerMapper(SubscriptionMapper())
     private val handler = Handler(Looper.getMainLooper())
@@ -58,8 +60,7 @@ object Apphud {
             idfa = "22221111",
             user_id = userId,
             device_id = deviceId,
-            time_zone = "UTF",
-            api_key = apiKey
+            time_zone = "UTF"
         )
         val response = service.registration(body)
         when {
@@ -77,7 +78,7 @@ object Apphud {
     }
 
     private fun loadProducts() {
-        val response = service.products(ApiClient.API_KEY)
+        val response = service.products()
         when {
             response.errors != null       -> Log.e("WOW", "Failed load products from Apphud")
             response.data.results != null -> handler.post { onLoaded?.invoke(response.data.results) }

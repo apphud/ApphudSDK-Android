@@ -2,7 +2,6 @@ package ru.rosbank.mbdg.myapplication.body
 
 data class RegistrationBody(
     val locale: String?,
-//    val country_iso_code: String,
     val sdk_version: String,
     val app_version: String,
     val device_family: String,
@@ -14,6 +13,5 @@ data class RegistrationBody(
     val idfa: String?,
     val user_id: String?,
     val device_id: String,
-    val time_zone: String,
-    val api_key: String
+    val time_zone: String
 )
