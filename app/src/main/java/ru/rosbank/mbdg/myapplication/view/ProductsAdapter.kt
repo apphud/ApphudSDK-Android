@@ -31,7 +31,7 @@ class ProductsAdapter : RecyclerView.Adapter<ProductHolder>() {
         val inflater = LayoutInflater.from(parent.context)
         val view = inflater.inflate(R.layout.product_item, parent, false)
         return productHolder(view).also { holder ->
-            holder.view.setOnClickListener {
+            holder.button.setOnClickListener {
                 when (val position = holder.adapterPosition) {
                     RecyclerView.NO_POSITION -> Unit
                     else                     -> onClick?.invoke(products[position])

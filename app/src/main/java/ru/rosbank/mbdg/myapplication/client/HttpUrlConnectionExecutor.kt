@@ -7,7 +7,9 @@ import java.io.BufferedReader
 import java.io.InputStream
 import java.io.InputStreamReader
 import java.net.HttpURLConnection
+import java.net.SocketTimeoutException
 import java.net.URL
+import java.net.UnknownHostException
 
 class HttpUrlConnectionExecutor(
     private val host: String,
@@ -16,7 +18,7 @@ class HttpUrlConnectionExecutor(
 ) : NetworkExecutor {
 
     override fun <O> call(config: RequestConfig): O = call(config, null)
-    override fun <I, O> call(config: RequestConfig, input: I?): O {
+    override fun <I, O> call(config: RequestConfig, input: I?): O = try {
 
         val apphudUrl = ApphudUrl.Builder()
             .host(host)
@@ -31,8 +33,8 @@ class HttpUrlConnectionExecutor(
         //TODO вынести в настройку
         connection.setRequestProperty("Accept", "application/json; utf-8")
         connection.setRequestProperty("Content-Type", "application/json; utf-8")
-        connection.readTimeout = 30_000
-        connection.connectTimeout = 30_000
+        connection.readTimeout = 10_000
+        connection.connectTimeout = 10_000
 
         when (config.requestType) {
             RequestType.GET -> {
@@ -63,7 +65,14 @@ class HttpUrlConnectionExecutor(
         }
         connection.disconnect()
 
-        return parser.fromJson<O>(response, config.type) ?: error("Something wrong")
+        parser.fromJson<O>(response, config.type) ?: error("Something wrong parse")
+    } catch (e: Exception) {
+        when (e) {
+            is UnknownHostException,
+            is SocketTimeoutException -> Log.e("WOW", "${e.message}")
+            else                      -> error("other exception $e")
+        }
+        error("Something wrong ???")
     }
 
     private fun buildStringBy(stream: InputStream): String {

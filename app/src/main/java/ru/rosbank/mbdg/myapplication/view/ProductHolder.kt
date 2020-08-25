@@ -3,6 +3,7 @@ package ru.rosbank.mbdg.myapplication.view
 import android.annotation.SuppressLint
 import android.util.Log
 import android.view.View
+import android.widget.Button
 import android.widget.TextView
 import androidx.recyclerview.widget.RecyclerView
 import com.android.billingclient.api.SkuDetails
@@ -26,7 +27,8 @@ class ProductHolder(
     val priceAmountMicros: TextView,
     val priceCurrencyCode: TextView,
     val sku: TextView,
-    val subscriptionPeriod: TextView
+    val subscriptionPeriod: TextView,
+    val button: Button
 ) : RecyclerView.ViewHolder(view) {
     
     @SuppressLint("SetTextI18n")
@@ -68,5 +70,6 @@ fun productHolder(view: View) =
         priceAmountMicros = view.findViewById(R.id.priceAmountMicrosId),
         priceCurrencyCode = view.findViewById(R.id.priceCurrencyCodeID),
         sku = view.findViewById(R.id.skuId),
-        subscriptionPeriod = view.findViewById(R.id.subscriptionPeriodId)
+        subscriptionPeriod = view.findViewById(R.id.subscriptionPeriodId),
+        button = view.findViewById(R.id.buyButtonId)
     )
