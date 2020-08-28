@@ -53,10 +53,10 @@ class MainActivity : AppCompatActivity() {
         val recyclerView = findViewById<RecyclerView>(R.id.recyclerViewId)
         recyclerView.adapter = adapter
 
-        Apphud.start(ApiClient.API_KEY)
+//        Apphud.start(ApiClient.API_KEY)
 
         //TODO Тест на то, если будем слишком часто вызывать этот метод
-//        ApphudSdk.start(ApiClient.API_KEY)
+        ApphudSdk.start(ApiClient.API_KEY)
 //        ApphudSdk.start(ApiClient.API_KEY)
 //        ApphudSdk.start(ApiClient.API_KEY)
     }
