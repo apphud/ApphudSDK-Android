@@ -5,6 +5,8 @@ import android.net.ConnectivityManager
 import android.os.Handler
 import android.os.Looper
 import com.google.gson.Gson
+import ru.rosbank.mbdg.myapplication.body.AttributionBody
+import ru.rosbank.mbdg.myapplication.body.PushBody
 import ru.rosbank.mbdg.myapplication.body.RegistrationBody
 import ru.rosbank.mbdg.myapplication.client.ApphudClient
 import ru.rosbank.mbdg.myapplication.parser.GsonParser
@@ -48,6 +50,14 @@ internal object ApphudInternal {
             time_zone = "UTF"
         )
         client?.registrationUser(body)
+        client?.allProducts()
+        client?.send(PushBody(
+            device_id = ApphudInternal.deviceId,
+            push_token = "This is the push token"
+        ))
+        client?.send(AttributionBody(
+            device_id = ApphudInternal.deviceId
+        ))
     }
 
     private fun updateUser(id: UserId?): UserId {
@@ -78,16 +88,4 @@ internal object ApphudInternal {
             client = ApphudClient(apiKey, parser)
         }
     }
-
-//    private fun connection() : () -> Boolean = {
-//        val manager = context.getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
-//        manager.activeNetworkInfo != null && manager.activeNetworkInfo?.isConnected ?: false
-//        true
-//    }
-
-    //private boolean isNetworkConnected() {
-    //    ConnectivityManager cm = (ConnectivityManager) getSystemService(Context.CONNECTIVITY_SERVICE);
-    //
-    //    return cm.getActiveNetworkInfo() != null && cm.getActiveNetworkInfo().isConnected();
-    //}
 }
