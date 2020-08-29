@@ -1,6 +1,5 @@
 package ru.rosbank.mbdg.myapplication.client
 
-import android.util.Log
 import ru.rosbank.mbdg.myapplication.*
 import ru.rosbank.mbdg.myapplication.body.AttributionBody
 import ru.rosbank.mbdg.myapplication.body.PushBody
@@ -45,7 +44,7 @@ internal class ApphudClient(apiKey: ApiKey, parser: Parser) {
         val callable = RegistrationCallable(body, service)
         pool.execute(LoopRunnable(callable) { response ->
             when (response.data.results) {
-                null -> Log.e("WOW", "Response success but result is null")
+                null -> ApphudLog.log("Response success but result is null")
                 else -> callback.invoke(mapper.map(response.data.results))
             }
         })
@@ -55,7 +54,7 @@ internal class ApphudClient(apiKey: ApiKey, parser: Parser) {
         val callable = ProductsCallable(service)
         pool.execute(LoopRunnable(callable) { response ->
             when (response.data.results) {
-                null -> Log.e("WOW", "Response success but result is null")
+                null -> ApphudLog.log("Response success but result is null")
                 else -> callback.invoke(response.data.results.map(productMapper::map))
             }
         })
@@ -65,7 +64,7 @@ internal class ApphudClient(apiKey: ApiKey, parser: Parser) {
         val callable = AttributionCallable(body, service)
         pool.execute(LoopRunnable(callable) { response ->
             when (response.data.results) {
-                null -> Log.e("WOW", "Response success but result is null")
+                null -> ApphudLog.log("Response success but result is null")
                 else -> callback.invoke(attributionMapper.map(response.data.results))
             }
         })
@@ -75,7 +74,7 @@ internal class ApphudClient(apiKey: ApiKey, parser: Parser) {
         val callable = PushCallable(body, service)
         pool.execute(LoopRunnable(callable) { response ->
             when (response.data.results) {
-                null -> Log.e("WOW", "Response success but result is null")
+                null -> ApphudLog.log("Response success but result is null")
                 else -> callback.invoke(attributionMapper.map(response.data.results))
             }
         })

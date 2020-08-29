@@ -4,7 +4,6 @@ import android.app.Activity
 import android.content.Context
 import android.os.Handler
 import android.os.Looper
-import android.util.Log
 import com.android.billingclient.api.BillingClient
 import com.android.billingclient.api.Purchase
 import com.android.billingclient.api.SkuDetails
@@ -61,7 +60,7 @@ object ApphudInternal {
 
     internal fun purchase(activity: Activity, details: SkuDetails, callback: (Purchase) -> Unit) {
         billing.purchasesCallback = { purchases ->
-            Log.e("WOW", "purchases: $purchases")
+            ApphudLog.log("purchases: $purchases")
             purchases
                 .firstOrNull { it.orderId == details.sku }
                 ?.let { purchase -> callback.invoke(purchase) }
@@ -71,11 +70,11 @@ object ApphudInternal {
 
     private fun fetchProducts() {
         billing.skuCallback = { details ->
-            Log.e("WOW", "details: $details")
+            ApphudLog.log("details: $details")
             apphudListener?.apphudFetchSkuDetailsProducts(details)
         }
         client.allProducts { products ->
-            Log.e("WOW", "products: $products")
+            ApphudLog.log("products: $products")
             val ids = products.map { it.productId }
             billing.details(BillingClient.SkuType.SUBS, ids)
             billing.details(BillingClient.SkuType.INAPP, ids)

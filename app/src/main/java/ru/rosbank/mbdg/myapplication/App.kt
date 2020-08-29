@@ -14,5 +14,6 @@ class App : Application() {
         app = this
 
         ApphudSdk.init(this, ApiClient.API_KEY)
+        ApphudSdk.enableDebugLogs()
     }
 }

@@ -1,6 +1,6 @@
 package ru.rosbank.mbdg.myapplication.tasks
 
-import android.util.Log
+import ru.rosbank.mbdg.myapplication.ApphudLog
 
 class LoopRunnable<T>(
     private val callable: PriorityCallable<T>,
@@ -12,15 +12,15 @@ class LoopRunnable<T>(
         try {
             callback.invoke(callable.call())
         } catch (e: Exception) {
-            Log.e("WOW", "CallbackCallable with $e")
+            ApphudLog.log("CallbackCallable with $e")
             try {
-                Log.e("WOW", "CallbackCallable BEFORE sleep")
+                ApphudLog.log("CallbackCallable BEFORE sleep")
                 Thread.sleep(10_000)
-                Log.e("WOW", "CallbackCallable AFTER sleep")
+                ApphudLog.log("CallbackCallable AFTER sleep")
             } catch (e: InterruptedException) {
-                Log.e("WOW", "CallbackCallable InterruptedException: $e")
+                ApphudLog.log("CallbackCallable InterruptedException: $e")
             } finally {
-                Log.e("WOW", "CallbackCallable FINALLY")
+                ApphudLog.log("CallbackCallable FINALLY")
                 run()
             }
         }
