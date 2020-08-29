@@ -1,6 +1,7 @@
 package ru.rosbank.mbdg.myapplication.client
 
 import android.util.Log
+import ru.rosbank.mbdg.myapplication.ApphudLog
 import ru.rosbank.mbdg.myapplication.isSuccess
 import ru.rosbank.mbdg.myapplication.parser.Parser
 import java.io.BufferedReader
@@ -27,6 +28,7 @@ class HttpUrlConnectionExecutor(
             .params(config.queries)
             .build()
 
+        ApphudLog.log("build url: ${apphudUrl.url}")
         val url = URL(apphudUrl.url)
         val connection = url.openConnection() as HttpURLConnection
         connection.requestMethod = config.requestType.name
@@ -43,6 +45,7 @@ class HttpUrlConnectionExecutor(
                 }
             }
             else            -> {
+                ApphudLog.log("body for response $input")
                 input?.let { source ->
                     connection.doOutput = true
                     connection.outputStream.use { stream ->
@@ -58,8 +61,8 @@ class HttpUrlConnectionExecutor(
             true -> buildStringBy(connection.inputStream)
             else -> {
                 val response = buildStringBy(connection.errorStream)
-                Log.e("WOW", "error response: $response")
-                Log.e("WOW", "failed code: ${connection.responseCode}")
+                ApphudLog.log("error response: $response")
+                ApphudLog.log("failed code: ${connection.responseCode}")
                 null
             }
         }
@@ -69,7 +72,7 @@ class HttpUrlConnectionExecutor(
     } catch (e: Exception) {
         when (e) {
             is UnknownHostException,
-            is SocketTimeoutException -> Log.e("WOW", "${e.message}")
+            is SocketTimeoutException -> ApphudLog.log("${e.message}")
             else                      -> error("other exception $e")
         }
         error("Something wrong ???")

@@ -2,6 +2,7 @@ package ru.rosbank.mbdg.myapplication.client
 
 import ru.rosbank.mbdg.myapplication.*
 import ru.rosbank.mbdg.myapplication.body.AttributionBody
+import ru.rosbank.mbdg.myapplication.body.PurchaseBody
 import ru.rosbank.mbdg.myapplication.body.PushBody
 import ru.rosbank.mbdg.myapplication.body.RegistrationBody
 import ru.rosbank.mbdg.myapplication.mappers.AttributionMapper
@@ -76,6 +77,16 @@ internal class ApphudClient(apiKey: ApiKey, parser: Parser) {
             when (response.data.results) {
                 null -> ApphudLog.log("Response success but result is null")
                 else -> callback.invoke(attributionMapper.map(response.data.results))
+            }
+        })
+    }
+
+    fun purchased(body: PurchaseBody, callback: PurchasedCallback) {
+        val callable = PurchaseCallable(body, service)
+        pool.execute(LoopRunnable(callable) { response ->
+            when (response.data.results) {
+                null -> ApphudLog.log("Response success but result is null")
+                else -> callback.invoke(response.data.results)
             }
         })
     }

@@ -79,4 +79,19 @@ class ApphudServiceTest {
         val response = service.send(body)
         Log.e("WOW", "send push result: ${response.data.results}")
     }
+
+    @Test
+    fun purchaseTest() {
+        val body = PurchaseBody(
+            order_id = "test order_id",
+            device_id = deviceId,
+            product_id = "test product_id",
+            purchase_token = "test purchase_token",
+            price_currency_code = "RUB",
+            price_amount_micros = 111,
+            subscription_period = "test subscription_period"
+        )
+        val response = service.purchase(body)
+        Log.e("WOW", "send push result: ${response.data.results}")
+    }
 }

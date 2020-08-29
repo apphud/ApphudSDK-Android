@@ -18,7 +18,7 @@ class MainActivity : AppCompatActivity() {
     private val mapper = ProductModelMapper()
     private val adapter = ProductsAdapter()
 
-    private val wrapper = BillingWrapper(App.app)
+//    private val wrapper = BillingWrapper(App.app)
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -26,33 +26,35 @@ class MainActivity : AppCompatActivity() {
 
         val listener = object : ApphudListener {
             override fun apphudFetchSkuDetailsProducts(details: List<SkuDetails>) {
-                Log.e("WOW", "inner details")
+                val products =  details.map { mapper.map(it) }
+                adapter.products = adapter.products.filter { it.details != null } + products
+                Log.e("WOW", "details: $details")
             }
         }
         ApphudSdk.setListener(listener)
 
-        wrapper.skuCallback = { details ->
-            val products =  details.map { mapper.map(it) }
-            adapter.products = adapter.products.filter { it.details != null } + products
-            Log.e("WOW", "details: $details")
-        }
-        wrapper.purchasesCallback = { purchases ->
-            printAllPurchases(purchases)
-        }
+//        wrapper.skuCallback = { details ->
+//            val products =  details.map { mapper.map(it) }
+//            adapter.products = adapter.products.filter { it.details != null } + products
+//            Log.e("WOW", "details: $details")
+//        }
+//        wrapper.purchasesCallback = { purchases ->
+//            printAllPurchases(purchases)
+//        }
 
-        Apphud.onLoaded = { products ->
-            val ids = products.map { it.product_id }
-            wrapper.details(BillingClient.SkuType.SUBS, ids)
-            wrapper.details(BillingClient.SkuType.INAPP, ids)
-        }
+//        Apphud.onLoaded = { products ->
+//            val ids = products.map { it.product_id }
+//            wrapper.details(BillingClient.SkuType.SUBS, ids)
+//            wrapper.details(BillingClient.SkuType.INAPP, ids)
+//        }
 
         adapter.onClick = { model ->
             Log.e("WOW", "onClick model: $model")
             when (model.details) {
                 null -> Log.e("WOW", "details is empty")
                 else -> {
-                    wrapper.purchase(this, model.details)
-//                    ApphudSdk.purchase(this, model.details) { purchase -> }
+//                    wrapper.purchase(this, model.details)
+                    ApphudSdk.purchase(this, model.details) { purchase -> }
                 }
             }
         }
@@ -60,7 +62,7 @@ class MainActivity : AppCompatActivity() {
         val recyclerView = findViewById<RecyclerView>(R.id.recyclerViewId)
         recyclerView.adapter = adapter
 
-        Apphud.start(ApiClient.API_KEY)
+//        Apphud.start(ApiClient.API_KEY)
 
         //TODO Тест на то, если будем слишком часто вызывать этот метод
         ApphudSdk.start()

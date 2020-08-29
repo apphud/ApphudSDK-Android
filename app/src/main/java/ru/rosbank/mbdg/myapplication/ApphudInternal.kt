@@ -8,6 +8,7 @@ import com.android.billingclient.api.BillingClient
 import com.android.billingclient.api.Purchase
 import com.android.billingclient.api.SkuDetails
 import com.google.gson.Gson
+import ru.rosbank.mbdg.myapplication.body.PurchaseBody
 import ru.rosbank.mbdg.myapplication.body.RegistrationBody
 import ru.rosbank.mbdg.myapplication.client.ApphudClient
 import ru.rosbank.mbdg.myapplication.domain.Customer
@@ -61,9 +62,13 @@ object ApphudInternal {
     internal fun purchase(activity: Activity, details: SkuDetails, callback: (Purchase) -> Unit) {
         billing.purchasesCallback = { purchases ->
             ApphudLog.log("purchases: $purchases")
-            purchases
-                .firstOrNull { it.orderId == details.sku }
-                ?.let { purchase -> callback.invoke(purchase) }
+            purchases.firstOrNull { it.sku == details.sku }
+                ?.let { purchase ->
+                    client.purchased(mkPurchaseBody(details, purchase)) {
+                        ApphudLog.log("Response from server after success purchase")
+                    }
+                    callback.invoke(purchase)
+                }
         }
         billing.purchase(activity, details)
     }
@@ -102,6 +107,17 @@ object ApphudInternal {
 
         return deviceId
     }
+
+    private fun mkPurchaseBody(details: SkuDetails, purchase: Purchase) =
+        PurchaseBody(
+            order_id = purchase.orderId,
+            device_id = deviceId,
+            product_id = purchase.sku,
+            purchase_token = purchase.purchaseToken,
+            price_currency_code = details.priceCurrencyCode,
+            price_amount_micros = details.priceAmountMicros,
+            subscription_period = details.subscriptionPeriod
+        )
 
     private fun mkRegistrationBody(userId: UserId, deviceId: DeviceId) =
         RegistrationBody(

@@ -3,12 +3,10 @@ package ru.rosbank.mbdg.myapplication.client
 import com.google.gson.reflect.TypeToken
 import ru.rosbank.mbdg.myapplication.ApiKey
 import ru.rosbank.mbdg.myapplication.body.AttributionBody
+import ru.rosbank.mbdg.myapplication.body.PurchaseBody
 import ru.rosbank.mbdg.myapplication.body.PushBody
 import ru.rosbank.mbdg.myapplication.body.RegistrationBody
-import ru.rosbank.mbdg.myapplication.client.dto.AttributionDto
-import ru.rosbank.mbdg.myapplication.client.dto.CustomerDto
-import ru.rosbank.mbdg.myapplication.client.dto.ProductDto
-import ru.rosbank.mbdg.myapplication.client.dto.ResponseDto
+import ru.rosbank.mbdg.myapplication.client.dto.*
 
 
 /**
@@ -75,6 +73,20 @@ class ApphudService(
                 type = object : TypeToken<ResponseDto<AttributionDto>>(){}.type,
                 queries = mapOf(API_KEY to apiKey),
                 requestType = RequestType.PUT
+            ),
+            body
+        )
+
+    /**
+     * Отправка данных после успешной покупки
+     */
+    fun purchase(body: PurchaseBody): ResponseDto<PurchaseResponseDto> =
+        executor.call(
+            RequestConfig(
+                path = "subscriptions",
+                type = object : TypeToken<ResponseDto<PurchaseResponseDto>>(){}.type,
+                queries = mapOf(API_KEY to apiKey),
+                requestType = RequestType.POST
             ),
             body
         )
