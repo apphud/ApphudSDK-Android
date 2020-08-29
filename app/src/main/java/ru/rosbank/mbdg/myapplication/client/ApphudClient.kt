@@ -1,24 +1,31 @@
 package ru.rosbank.mbdg.myapplication.client
 
 import android.util.Log
-import ru.rosbank.mbdg.myapplication.ApiKey
-import ru.rosbank.mbdg.myapplication.ApphudVersion
+import ru.rosbank.mbdg.myapplication.*
 import ru.rosbank.mbdg.myapplication.body.AttributionBody
 import ru.rosbank.mbdg.myapplication.body.PushBody
 import ru.rosbank.mbdg.myapplication.body.RegistrationBody
-import ru.rosbank.mbdg.myapplication.client.dto.AttributionDto
-import ru.rosbank.mbdg.myapplication.client.dto.CustomerDto
-import ru.rosbank.mbdg.myapplication.client.dto.ProductDto
-import ru.rosbank.mbdg.myapplication.client.dto.ResponseDto
+import ru.rosbank.mbdg.myapplication.mappers.AttributionMapper
+import ru.rosbank.mbdg.myapplication.mappers.CustomerMapper
+import ru.rosbank.mbdg.myapplication.mappers.ProductMapper
+import ru.rosbank.mbdg.myapplication.mappers.SubscriptionMapper
 import ru.rosbank.mbdg.myapplication.parser.Parser
 import ru.rosbank.mbdg.myapplication.tasks.*
-import java.util.concurrent.*
+import java.util.concurrent.Executors
+import java.util.concurrent.PriorityBlockingQueue
+import java.util.concurrent.ThreadPoolExecutor
+import java.util.concurrent.TimeUnit
 
 internal class ApphudClient(apiKey: ApiKey, parser: Parser) {
 
     companion object {
         private const val capacity = 10
     }
+
+    //TODO Про эти мапперы класс ApphudClient знать не должен
+    private val mapper = CustomerMapper(SubscriptionMapper())
+    private val productMapper = ProductMapper()
+    private val attributionMapper = AttributionMapper()
 
     private val executor = HttpUrlConnectionExecutor(ApiClient.host, ApphudVersion.V1, parser)
     private val service = ApphudService(apiKey, executor)
@@ -34,46 +41,43 @@ internal class ApphudClient(apiKey: ApiKey, parser: Parser) {
         ThreadPoolExecutor.CallerRunsPolicy()
     )
 
-    fun registrationUser(body: RegistrationBody) {
+    fun registrationUser(body: RegistrationBody, callback: CustomerCallback) {
         val callable = RegistrationCallable(body, service)
-        val callback = object : Callback<ResponseDto<CustomerDto>> {
-            override fun finish(result: ResponseDto<CustomerDto>) {
-                Log.e("WOW", "result $result")
+        pool.execute(LoopRunnable(callable) { response ->
+            when (response.data.results) {
+                null -> Log.e("WOW", "Response success but result is null")
+                else -> callback.invoke(mapper.map(response.data.results))
             }
-        }
-        pool.execute(LoopRunnable(callable, callback))
-//        pool.execute(LoggingRunnable("Registration"))
+        })
     }
 
-    fun allProducts() {
-        val callback = object : Callback<ResponseDto<List<ProductDto>>> {
-            override fun finish(result: ResponseDto<List<ProductDto>>) {
-                Log.e("WOW", "result $result")
+    fun allProducts(callback: ProductsCallback) {
+        val callable = ProductsCallable(service)
+        pool.execute(LoopRunnable(callable) { response ->
+            when (response.data.results) {
+                null -> Log.e("WOW", "Response success but result is null")
+                else -> callback.invoke(response.data.results.map(productMapper::map))
             }
-        }
-        pool.execute(LoopRunnable(ProductsCallable(service), callback))
-//        pool.execute(LoggingRunnable("Products"))
+        })
     }
 
-    fun send(body: AttributionBody) {
+    fun send(body: AttributionBody, callback: AttributionCallback) {
         val callable = AttributionCallable(body, service)
-        val callback = object : Callback<ResponseDto<AttributionDto>> {
-            override fun finish(result: ResponseDto<AttributionDto>) {
-                Log.e("WOW", "result $result")
+        pool.execute(LoopRunnable(callable) { response ->
+            when (response.data.results) {
+                null -> Log.e("WOW", "Response success but result is null")
+                else -> callback.invoke(attributionMapper.map(response.data.results))
             }
-        }
-        pool.execute(LoopRunnable(callable, callback))
-//        pool.execute(LoggingRunnable("Attribution"))
+        })
     }
 
-    fun send(body: PushBody) {
+    fun send(body: PushBody, callback: AttributionCallback) {
         val callable = PushCallable(body, service)
-        val callback = object : Callback<ResponseDto<AttributionDto>> {
-            override fun finish(result: ResponseDto<AttributionDto>) {
-                Log.e("WOW", "result $result")
+        pool.execute(LoopRunnable(callable) { response ->
+            when (response.data.results) {
+                null -> Log.e("WOW", "Response success but result is null")
+                else -> callback.invoke(attributionMapper.map(response.data.results))
             }
-        }
-        pool.execute(LoopRunnable(callable, callback))
-//        pool.execute(LoggingRunnable("Push"))
+        })
     }
 }

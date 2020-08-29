@@ -5,5 +5,5 @@ import ru.rosbank.mbdg.myapplication.domain.Customer
 interface Storage {
     var userId: String?
     var deviceId: String?
-    var customer: Customer
+    var customer: Customer?
 }

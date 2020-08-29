@@ -29,12 +29,11 @@ class SharedPreferencesStorage(
             editor.apply()
         }
 
-    override var customer: Customer
+    override var customer: Customer?
         get() {
             val source = preferences.getString(CUSTOMER_KEY, null)
-                ?: error("Not found customer from $this")
             val type = object : TypeToken<Customer>(){}.type
-            return parser.fromJson<Customer>(source, type) ?: error("Failed parse fromJson")
+            return parser.fromJson<Customer>(source, type)
         }
         set(value) {
             val source = parser.toJson(value)

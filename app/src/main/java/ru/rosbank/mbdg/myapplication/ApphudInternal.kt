@@ -1,26 +1,33 @@
 package ru.rosbank.mbdg.myapplication
 
+import android.app.Activity
 import android.content.Context
-import android.net.ConnectivityManager
 import android.os.Handler
 import android.os.Looper
+import android.util.Log
+import com.android.billingclient.api.BillingClient
+import com.android.billingclient.api.Purchase
+import com.android.billingclient.api.SkuDetails
 import com.google.gson.Gson
-import ru.rosbank.mbdg.myapplication.body.AttributionBody
-import ru.rosbank.mbdg.myapplication.body.PushBody
 import ru.rosbank.mbdg.myapplication.body.RegistrationBody
 import ru.rosbank.mbdg.myapplication.client.ApphudClient
 import ru.rosbank.mbdg.myapplication.domain.Customer
+import ru.rosbank.mbdg.myapplication.internal.BillingWrapper
 import ru.rosbank.mbdg.myapplication.parser.GsonParser
 import ru.rosbank.mbdg.myapplication.parser.Parser
 import ru.rosbank.mbdg.myapplication.storage.SharedPreferencesStorage
-import ru.rosbank.mbdg.myapplication.storage.Storage
 import java.util.*
 
 object ApphudInternal {
 
     private val parser: Parser = GsonParser(Gson())
+
+    /**
+     * @handler use for work with UI-thread. Save to storage, call callbacks
+     */
     private val handler: Handler = Handler(Looper.getMainLooper())
     private val client by lazy { ApphudClient(apiKey, parser) }
+    private val billing by lazy { BillingWrapper(context) }
     private val storage by lazy { SharedPreferencesStorage(context, parser) }
 
     internal lateinit var userId: UserId
@@ -29,12 +36,15 @@ object ApphudInternal {
     internal lateinit var context: Context
 
     internal var currentUser: Customer? = null
+    internal var apphudListener: ApphudListener? = null
 
     internal fun updateUserId(userId: UserId) {
         this.userId = updateUser(id = userId)
 
         val body = mkRegistrationBody(this.userId, this.deviceId)
-        client.registrationUser(body)
+        client.registrationUser(body) { customer ->
+            handler.post { storage.customer = customer }
+        }
     }
 
     internal fun registration(userId: UserId?, deviceId: DeviceId?) {
@@ -42,7 +52,34 @@ object ApphudInternal {
         this.deviceId = updateDevice(id = deviceId)
 
         val body = mkRegistrationBody(this.userId, this.deviceId)
-        client.registrationUser(body)
+        client.registrationUser(body) { customer ->
+            handler.post { storage.customer = customer }
+        }
+// try to continue anyway, because maybe already has cached data, try to fetch products
+        fetchProducts()
+    }
+
+    internal fun purchase(activity: Activity, details: SkuDetails, callback: (Purchase) -> Unit) {
+        billing.purchasesCallback = { purchases ->
+            Log.e("WOW", "purchases: $purchases")
+            purchases
+                .firstOrNull { it.orderId == details.sku }
+                ?.let { purchase -> callback.invoke(purchase) }
+        }
+        billing.purchase(activity, details)
+    }
+
+    private fun fetchProducts() {
+        billing.skuCallback = { details ->
+            Log.e("WOW", "details: $details")
+            apphudListener?.apphudFetchSkuDetailsProducts(details)
+        }
+        client.allProducts { products ->
+            Log.e("WOW", "products: $products")
+            val ids = products.map { it.productId }
+            billing.details(BillingClient.SkuType.SUBS, ids)
+            billing.details(BillingClient.SkuType.INAPP, ids)
+        }
     }
 
     private fun updateUser(id: UserId?): UserId {

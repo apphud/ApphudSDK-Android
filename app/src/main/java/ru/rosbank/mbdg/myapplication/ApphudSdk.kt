@@ -1,6 +1,9 @@
 package ru.rosbank.mbdg.myapplication
 
+import android.app.Activity
 import android.content.Context
+import com.android.billingclient.api.Purchase
+import com.android.billingclient.api.SkuDetails
 import ru.rosbank.mbdg.myapplication.domain.ApphudNonRenewingPurchase
 import ru.rosbank.mbdg.myapplication.domain.ApphudSubscription
 
@@ -95,4 +98,16 @@ object ApphudSdk {
      * Enables debug logs. Better to call this method before SDK initialization.
      */
     fun enableDebugLogs() = ApphudUtils.enableDebugLogs()
+
+    fun purchase(activity: Activity, details: SkuDetails, block: (Purchase) -> Unit) {
+        ApphudInternal.purchase(activity, details, block)
+    }
+
+    /**
+     * Set a listener
+     * @param apphudListener Any ApphudDelegate conformable object.
+     */
+    fun setListener(apphudListener: ApphudListener) {
+        ApphudInternal.apphudListener = apphudListener
+    }
 }

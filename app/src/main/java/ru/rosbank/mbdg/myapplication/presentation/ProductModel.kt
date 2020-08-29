@@ -1,4 +1,4 @@
-package ru.rosbank.mbdg.myapplication.domain
+package ru.rosbank.mbdg.myapplication.presentation
 
 import com.android.billingclient.api.SkuDetails
 

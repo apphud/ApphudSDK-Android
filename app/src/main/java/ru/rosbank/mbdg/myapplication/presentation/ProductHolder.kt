@@ -1,14 +1,11 @@
-package ru.rosbank.mbdg.myapplication.view
+package ru.rosbank.mbdg.myapplication.presentation
 
 import android.annotation.SuppressLint
-import android.util.Log
 import android.view.View
 import android.widget.Button
 import android.widget.TextView
 import androidx.recyclerview.widget.RecyclerView
-import com.android.billingclient.api.SkuDetails
 import ru.rosbank.mbdg.myapplication.R
-import ru.rosbank.mbdg.myapplication.domain.ProductModel
 
 class ProductHolder(
     val view: View,
