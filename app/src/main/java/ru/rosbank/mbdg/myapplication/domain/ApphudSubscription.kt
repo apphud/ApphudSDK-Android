@@ -9,7 +9,7 @@ data class ApphudSubscription(
     val isInRetryBilling: Boolean,
     val isAutoRenewEnabled: Boolean,
     val isIntroductoryActivated: Boolean,
-    val kind: ApphudKind    //TODO в iOS версии нет таког поля
+    val kind: ApphudKind    //TODO в iOS версии нет такого поля
 ) {
 
     fun isActive() = when (status) {

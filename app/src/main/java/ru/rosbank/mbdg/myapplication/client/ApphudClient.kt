@@ -42,7 +42,7 @@ internal class ApphudClient(apiKey: ApiKey, parser: Parser) {
             }
         }
         pool.execute(LoopRunnable(callable, callback))
-        pool.execute(LoggingRunnable("Registration"))
+//        pool.execute(LoggingRunnable("Registration"))
     }
 
     fun allProducts() {
@@ -52,7 +52,7 @@ internal class ApphudClient(apiKey: ApiKey, parser: Parser) {
             }
         }
         pool.execute(LoopRunnable(ProductsCallable(service), callback))
-        pool.execute(LoggingRunnable("Products"))
+//        pool.execute(LoggingRunnable("Products"))
     }
 
     fun send(body: AttributionBody) {
@@ -63,7 +63,7 @@ internal class ApphudClient(apiKey: ApiKey, parser: Parser) {
             }
         }
         pool.execute(LoopRunnable(callable, callback))
-        pool.execute(LoggingRunnable("Attribution"))
+//        pool.execute(LoggingRunnable("Attribution"))
     }
 
     fun send(body: PushBody) {
@@ -74,6 +74,6 @@ internal class ApphudClient(apiKey: ApiKey, parser: Parser) {
             }
         }
         pool.execute(LoopRunnable(callable, callback))
-        pool.execute(LoggingRunnable("Push"))
+//        pool.execute(LoggingRunnable("Push"))
     }
 }

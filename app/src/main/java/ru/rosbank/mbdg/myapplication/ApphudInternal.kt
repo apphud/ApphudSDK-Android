@@ -9,55 +9,40 @@ import ru.rosbank.mbdg.myapplication.body.AttributionBody
 import ru.rosbank.mbdg.myapplication.body.PushBody
 import ru.rosbank.mbdg.myapplication.body.RegistrationBody
 import ru.rosbank.mbdg.myapplication.client.ApphudClient
+import ru.rosbank.mbdg.myapplication.domain.Customer
 import ru.rosbank.mbdg.myapplication.parser.GsonParser
 import ru.rosbank.mbdg.myapplication.parser.Parser
 import ru.rosbank.mbdg.myapplication.storage.SharedPreferencesStorage
 import ru.rosbank.mbdg.myapplication.storage.Storage
 import java.util.*
 
-internal object ApphudInternal {
+object ApphudInternal {
 
-    private lateinit var parser: Parser
-    private lateinit var storage: Storage
+    private val parser: Parser = GsonParser(Gson())
     private val handler: Handler = Handler(Looper.getMainLooper())
-    private var client: ApphudClient? = null
+    private val client by lazy { ApphudClient(apiKey, parser) }
+    private val storage by lazy { SharedPreferencesStorage(context, parser) }
 
     internal lateinit var userId: UserId
     internal lateinit var deviceId: DeviceId
+    internal lateinit var apiKey: ApiKey
+    internal lateinit var context: Context
 
-    lateinit var context: Context
+    internal var currentUser: Customer? = null
 
-    internal fun initialize(apiKey: ApiKey, userId: UserId?, deviceId: DeviceId?) {
+    internal fun updateUserId(userId: UserId) {
+        this.userId = updateUser(id = userId)
 
-        initDependencies(apiKey = apiKey)
+        val body = mkRegistrationBody(this.userId, this.deviceId)
+        client.registrationUser(body)
+    }
 
+    internal fun registration(userId: UserId?, deviceId: DeviceId?) {
         this.userId = updateUser(id = userId)
         this.deviceId = updateDevice(id = deviceId)
 
-        val body = RegistrationBody(
-            locale = "ru_RU",
-            sdk_version = "1.0",
-            app_version = "1.0.0",
-            device_family = "Android",
-            platform = "Android",
-            device_type = "DEVICE_TYPE",
-            os_version = "6.0.1",
-            start_app_version = "1.0",
-            idfv = "11112222",
-            idfa = "22221111",
-            user_id = ApphudInternal.userId,
-            device_id = ApphudInternal.deviceId,
-            time_zone = "UTF"
-        )
-        client?.registrationUser(body)
-        client?.allProducts()
-        client?.send(PushBody(
-            device_id = ApphudInternal.deviceId,
-            push_token = "This is the push token"
-        ))
-        client?.send(AttributionBody(
-            device_id = ApphudInternal.deviceId
-        ))
+        val body = mkRegistrationBody(this.userId, this.deviceId)
+        client.registrationUser(body)
     }
 
     private fun updateUser(id: UserId?): UserId {
@@ -70,6 +55,7 @@ internal object ApphudInternal {
 
         return userId
     }
+
     private fun updateDevice(id: DeviceId?): DeviceId {
 
         val deviceId = when (id) {
@@ -81,11 +67,20 @@ internal object ApphudInternal {
         return deviceId
     }
 
-    private fun initDependencies(apiKey: ApiKey) {
-        parser = GsonParser(Gson())
-        storage = SharedPreferencesStorage(context, parser)
-        if (client == null) {
-            client = ApphudClient(apiKey, parser)
-        }
-    }
+    private fun mkRegistrationBody(userId: UserId, deviceId: DeviceId) =
+        RegistrationBody(
+            locale = "ru_RU",
+            sdk_version = "1.0",
+            app_version = "1.0.0",
+            device_family = "Android",
+            platform = "Android",
+            device_type = "DEVICE_TYPE",
+            os_version = "6.0.1",
+            start_app_version = "1.0",
+            idfv = "11112222",
+            idfa = "22221111",
+            user_id = userId,
+            device_id = deviceId,
+            time_zone = "UTF"
+        )
 }

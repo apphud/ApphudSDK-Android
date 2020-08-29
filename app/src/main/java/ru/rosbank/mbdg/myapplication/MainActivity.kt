@@ -56,9 +56,18 @@ class MainActivity : AppCompatActivity() {
 //        Apphud.start(ApiClient.API_KEY)
 
         //TODO Тест на то, если будем слишком часто вызывать этот метод
-        ApphudSdk.start(ApiClient.API_KEY)
+        ApphudSdk.start()
+        ApphudSdk.updateUserId("update userId!!!")
+
+        Log.e("WOW", "userId: ${ApphudSdk.userId()}")
+        Log.e("WOW", "subscription: ${ApphudSdk.subscription()}")
+        Log.e("WOW", "subscriptions: ${ApphudSdk.subscriptions()}")
+        Log.e("WOW", "nonRenewingPurchases: ${ApphudSdk.nonRenewingPurchases()}")
+
 //        ApphudSdk.start(ApiClient.API_KEY)
+//        Log.e("WOW", "start 2")
 //        ApphudSdk.start(ApiClient.API_KEY)
+//        Log.e("WOW", "start 3")
     }
 
 //    private fun onPurchaseHistoryClick() {
