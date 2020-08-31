@@ -62,95 +62,12 @@ class MainActivity : AppCompatActivity() {
         val recyclerView = findViewById<RecyclerView>(R.id.recyclerViewId)
         recyclerView.adapter = adapter
 
-//        Apphud.start(ApiClient.API_KEY)
-
         //TODO Тест на то, если будем слишком часто вызывать этот метод
         ApphudSdk.start()
-//        ApphudSdk.updateUserId("update userId!!!")
-
-
         ApphudLog.log("userId: ${ApphudSdk.userId()}")
-        ApphudLog.log( "subscription: ${ApphudSdk.subscription()}")
-        ApphudLog.log( "subscriptions: ${ApphudSdk.subscriptions()}")
-        ApphudLog.log( "nonRenewingPurchases: ${ApphudSdk.nonRenewingPurchases()}")
-    }
-
-//    private fun onPurchaseHistoryClick() {
-////        val skuType = when {
-////            inAppButton.isChecked        -> BillingClient.SkuType.INAPP
-////            subscriptionButton.isChecked -> BillingClient.SkuType.SUBS
-////            else                         -> error("Not select skuType")
-////        }
-//        val skuType = BillingClient.SkuType.SUBS
-//        val purchaseResult = billing.queryPurchases(skuType)
-//        purchaseResult?.let { result ->
-//            Log.e("WOW", "RESULT ${result.responseCode}")
-//            Log.e("WOW", "purchasesList: ${result.purchasesList}")
-//            printAllPurchases(result.purchasesList ?: emptyList())
-//            Log.e("WOW", "RESULT ${result.billingResult.debugMessage}")
-//            Log.e("WOW", "RESULT ${result.billingResult.responseCode}")
-//        }
-//        billing.queryPurchaseHistoryAsync(skuType) { result: BillingResult, histories: MutableList<PurchaseHistoryRecord>? ->
-//            Log.e("WOW", "queryPurchaseHistory debugMessage: ${result.debugMessage}")
-//            Log.e("WOW", "queryPurchaseHistory responseCode: ${result.responseCode}")
-//            printAllPurchaseHistories(histories ?: emptyList())
-//        }
-//    }
-
-    private fun printAllPurchaseHistories(histories: List<PurchaseHistoryRecord>) {
-        histories.forEach { purchaseHistory ->
-            val sku = purchaseHistory.sku
-            val developerPayload = purchaseHistory.developerPayload
-            val originalJson = purchaseHistory.originalJson
-            val purchaseTime = purchaseHistory.purchaseTime
-            val signature = purchaseHistory.signature
-            val purchaseToken = purchaseHistory.purchaseToken
-
-            Log.e("WOW", "All history Object: $purchaseHistory")
-            Log.e("WOW", "sku: $sku")
-            Log.e("WOW", "developerPayload: $developerPayload")
-            Log.e("WOW", "originalJson: $originalJson")
-            Log.e("WOW", "purchaseTime: $purchaseTime")
-            Log.e("WOW", "signature: $signature")
-            Log.e("WOW", "purchaseToken: $purchaseToken")
-        }
-    }
-
-    private fun printPurchaseState(@Purchase.PurchaseState state: Int) = when (state) {
-        Purchase.PurchaseState.PENDING           -> "pending"
-        Purchase.PurchaseState.PURCHASED         -> "purchased"
-        Purchase.PurchaseState.UNSPECIFIED_STATE -> "unspecifiedState"
-        else                                     -> "unknown state: $state"
-    }
-
-    private fun printAllPurchases(purchases: List<Purchase>) {
-        purchases.forEach { purchase ->
-            val orderId = purchase.orderId
-            val isAcknowledged = purchase.isAcknowledged
-            val accountIdentifiers = purchase.accountIdentifiers
-            val developerPayload = purchase.developerPayload
-            val isAutoRenewing = purchase.isAutoRenewing
-            val originalJson = purchase.originalJson
-            val packageName = purchase.packageName
-            val purchaseState = purchase.purchaseState
-            val purchaseTime = purchase.purchaseTime
-            val purchaseToken = purchase.purchaseToken
-            val signature = purchase.signature
-            val sku = purchase.sku
-
-            Log.e(BillingWrapper.TAG, "All purchase Object: $purchase")
-            Log.e(BillingWrapper.TAG, "orderId: $orderId")
-            Log.e(BillingWrapper.TAG, "isAcknowledged: $isAcknowledged")
-            Log.e(BillingWrapper.TAG, "accountIdentifiers: $accountIdentifiers")
-            Log.e(BillingWrapper.TAG, "developerPayload: $developerPayload")
-            Log.e(BillingWrapper.TAG, "isAutoRenewing: $isAutoRenewing")
-            Log.e(BillingWrapper.TAG, "originalJson: $originalJson")
-            Log.e(BillingWrapper.TAG, "packageName: $packageName")
-            Log.e(BillingWrapper.TAG, "purchaseState: $purchaseState and parse: ${printPurchaseState(purchaseState)}")
-            Log.e(BillingWrapper.TAG, "purchaseTime: $purchaseTime")
-            Log.e(BillingWrapper.TAG, "purchaseToken: $purchaseToken")
-            Log.e(BillingWrapper.TAG, "signature: $signature")
-            Log.e(BillingWrapper.TAG, "sku: $sku")
-        }
+        ApphudLog.log("subscription: ${ApphudSdk.subscription()}")
+        ApphudLog.log("subscriptions: ${ApphudSdk.subscriptions()}")
+        ApphudLog.log("nonRenewingPurchases: ${ApphudSdk.nonRenewingPurchases()}")
+        ApphudSdk.syncPurchases()
     }
 }

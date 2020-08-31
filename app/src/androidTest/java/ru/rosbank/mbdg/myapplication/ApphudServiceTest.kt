@@ -47,14 +47,14 @@ class ApphudServiceTest {
 
     @Test
     fun adjustTest() {
-        val body = AttributionBody(deviceId, adjust_data = AdjustData("key", "value"))
+        val body = AttributionBody(deviceId, adjust_data = mapOf("key" to "value"))
         val response = service.send(body)
         Log.e("WOW", "send attribution result: ${response.data.results}")
     }
 
     @Test
     fun facebookTest() {
-        val body = AttributionBody(deviceId, facebook_data = FacebookData())
+        val body = AttributionBody(deviceId, facebook_data = mapOf("key" to "value"))
         val response = service.send(body)
         Log.e("WOW", "send attribution result: ${response.data.results}")
     }
@@ -63,7 +63,7 @@ class ApphudServiceTest {
     fun appsflyerTest() {
         val body = AttributionBody(
             deviceId,
-            appsflyer_data = AppsflyerData("key", "value"),
+            appsflyer_data = mapOf("key" to "value"),
             appsflyer_id = "AppsflyerId"
         )
         val response = service.send(body)
@@ -80,7 +80,7 @@ class ApphudServiceTest {
         Log.e("WOW", "send push result: ${response.data.results}")
     }
 
-    @Test
+//    @Test
     fun purchaseTest() {
         val body = PurchaseBody(
             order_id = "test order_id",

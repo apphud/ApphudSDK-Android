@@ -104,7 +104,10 @@ object ApphudSdk {
         provider: ApphudAttributionProvider,
         data: Map<String, Any>? = null,
         identifier: String? = null
-    ) = Unit
+    ) = ApphudInternal.addAttribution(provider, data, identifier)
+
+    //syncPurchases
+    fun syncPurchases() = ApphudInternal.syncPurchases()
 
     /**
      * Enables debug logs. Better to call this method before SDK initialization.

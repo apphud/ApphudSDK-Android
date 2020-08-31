@@ -5,15 +5,17 @@ import android.content.Context
 import android.os.Build
 import android.os.Handler
 import android.os.Looper
+import android.util.Log
 import com.android.billingclient.api.BillingClient
 import com.android.billingclient.api.Purchase
+import com.android.billingclient.api.PurchaseHistoryRecord
 import com.android.billingclient.api.SkuDetails
 import com.google.gson.Gson
-import ru.rosbank.mbdg.myapplication.body.PurchaseBody
-import ru.rosbank.mbdg.myapplication.body.RegistrationBody
+import ru.rosbank.mbdg.myapplication.body.*
 import ru.rosbank.mbdg.myapplication.client.ApphudClient
 import ru.rosbank.mbdg.myapplication.domain.Customer
 import ru.rosbank.mbdg.myapplication.internal.BillingWrapper
+import ru.rosbank.mbdg.myapplication.internal.SkuType
 import ru.rosbank.mbdg.myapplication.parser.GsonParser
 import ru.rosbank.mbdg.myapplication.parser.Parser
 import ru.rosbank.mbdg.myapplication.storage.SharedPreferencesStorage
@@ -83,6 +85,61 @@ object ApphudInternal {
         billing.purchase(activity, details)
     }
 
+    internal fun syncPurchases() {
+        billing.historyCallback = { purchases ->
+            ApphudLog.log("history purchases: $purchases")
+            printAllPurchaseHistories(purchases)
+        }
+        billing.queryPurchaseHistory(BillingClient.SkuType.SUBS)
+        billing.queryPurchaseHistory(BillingClient.SkuType.INAPP)
+    }
+
+    private fun printAllPurchaseHistories(histories: List<PurchaseHistoryRecord>) {
+        histories.forEach { purchaseHistory ->
+            val sku = purchaseHistory.sku
+            val developerPayload = purchaseHistory.developerPayload
+            val originalJson = purchaseHistory.originalJson
+            val purchaseTime = purchaseHistory.purchaseTime
+            val signature = purchaseHistory.signature
+            val purchaseToken = purchaseHistory.purchaseToken
+
+            ApphudLog.log("All history Object: $purchaseHistory")
+            ApphudLog.log("sku: $sku")
+            ApphudLog.log("developerPayload: $developerPayload")
+            ApphudLog.log("originalJson: $originalJson")
+            ApphudLog.log("purchaseTime: $purchaseTime")
+            ApphudLog.log("signature: $signature")
+            ApphudLog.log("purchaseToken: $purchaseToken")
+        }
+    }
+
+    internal fun addAttribution(
+        provider: ApphudAttributionProvider,
+        data: Map<String, Any>? = null,
+        identifier: String? = null
+    ) {
+        val body = when (provider) {
+            ApphudAttributionProvider.adjust         -> AttributionBody(deviceId, data ?: emptyMap())
+            ApphudAttributionProvider.facebook       -> {
+                val map = mutableMapOf<String, Any>("fb_device" to true)
+                    .also { map -> data?.let { map.putAll(it) } }
+                    .toMap()
+                AttributionBody(device_id = deviceId, facebook_data = map)
+            }
+            ApphudAttributionProvider.appsFlyer      -> {
+                AttributionBody(
+                    device_id = deviceId,
+                    appsflyer_id = identifier,
+                    appsflyer_data = data ?: emptyMap()
+                )
+            }
+        }
+
+        client.send(body) { attribution ->
+            ApphudLog.log("Success without saving send attribution: $attribution")
+        }
+    }
+
     private fun fetchProducts() {
         billing.skuCallback = { details ->
             ApphudLog.log("details: $details")
@@ -143,6 +200,6 @@ object ApphudInternal {
             idfa = "22221111",//TODO взять из девайса
             user_id = userId,
             device_id = deviceId,
-            time_zone = "UTF"
+            time_zone = TimeZone.getDefault().displayName
         )
 }
