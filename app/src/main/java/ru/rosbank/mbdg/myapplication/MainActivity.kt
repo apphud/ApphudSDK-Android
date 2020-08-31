@@ -68,10 +68,11 @@ class MainActivity : AppCompatActivity() {
         ApphudSdk.start()
 //        ApphudSdk.updateUserId("update userId!!!")
 
-        Log.e("WOW", "userId: ${ApphudSdk.userId()}")
-        Log.e("WOW", "subscription: ${ApphudSdk.subscription()}")
-        Log.e("WOW", "subscriptions: ${ApphudSdk.subscriptions()}")
-        Log.e("WOW", "nonRenewingPurchases: ${ApphudSdk.nonRenewingPurchases()}")
+
+        ApphudLog.log("userId: ${ApphudSdk.userId()}")
+        ApphudLog.log( "subscription: ${ApphudSdk.subscription()}")
+        ApphudLog.log( "subscriptions: ${ApphudSdk.subscriptions()}")
+        ApphudLog.log( "nonRenewingPurchases: ${ApphudSdk.nonRenewingPurchases()}")
     }
 
 //    private fun onPurchaseHistoryClick() {

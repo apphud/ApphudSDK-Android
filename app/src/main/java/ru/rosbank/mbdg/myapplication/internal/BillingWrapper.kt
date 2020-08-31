@@ -7,7 +7,10 @@ import com.android.billingclient.api.BillingClient
 import com.android.billingclient.api.BillingClientStateListener
 import com.android.billingclient.api.BillingResult
 import com.android.billingclient.api.SkuDetails
+import ru.rosbank.mbdg.myapplication.ApphudLog
 import ru.rosbank.mbdg.myapplication.ProductId
+import ru.rosbank.mbdg.myapplication.logMessage
+import ru.rosbank.mbdg.myapplication.response
 
 /**
  * Обертка над платежной системой Google
@@ -50,28 +53,46 @@ internal class BillingWrapper(context: Context) : BillingClientStateListener {
             purchases.callback = value
         }
 
+    var acknowledgeCallback: AcknowledgeCallback? = null
+        set(value) {
+            field = value
+            acknowledge.onSuccess = value
+        }
+
+    var consumeCallback: ConsumeCallback? = null
+        set(value) {
+            field = value
+            consume.callback = value
+        }
+
     fun details(@BillingClient.SkuType type: SkuType, products: List<ProductId>) =
         sku.queryAsync(type, products)
 
     fun purchase(activity: Activity, details: SkuDetails) =
         flow.purchases(activity, details)
 
+    fun acknowledge(token: String) = acknowledge.purchase(token)
+
+    fun consume(token: String) = consume.purchase(token)
+
     //BillingClientStateListener
     override fun onBillingServiceDisconnected() {
-        Log.e("WOW", "Disconnected")
+        ApphudLog.log("onBillingServiceDisconnected")
         when (billing.isReady) {
             true -> Log.e(TAG, "onBillingServiceDisconnected billing is Ready")
             else -> Log.e(TAG, "onBillingServiceDisconnected billing is not Ready")
         }
+        when (billing.isReady) {
+            true -> ApphudLog.log("onBillingServiceDisconnected billing is Ready")
+            else -> ApphudLog.log("onBillingServiceDisconnected billing is not Ready")
+        }
     }
 
     override fun onBillingSetupFinished(result: BillingResult) {
-        Log.e("WOW", "setup result: $result")
-        Log.e("WOW", "setup debugMessage: ${result.debugMessage}")
-        Log.e("WOW", "setup responseCode: ${result.responseCode}")
+        ApphudLog.log("onBillingSetupFinished")
         when (billing.isReady) {
-            true -> Log.e(TAG, "onBillingSetupFinished billing is Ready")
-            else -> Log.e(TAG, "onBillingSetupFinished billing is not Ready")
+            true -> ApphudLog.log("onBillingSetupFinished billing is Ready")
+            else -> ApphudLog.log("onBillingSetupFinished billing is not Ready")
         }
     }
 }

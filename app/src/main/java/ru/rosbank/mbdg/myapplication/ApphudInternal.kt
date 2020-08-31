@@ -2,6 +2,7 @@ package ru.rosbank.mbdg.myapplication
 
 import android.app.Activity
 import android.content.Context
+import android.os.Build
 import android.os.Handler
 import android.os.Looper
 import com.android.billingclient.api.BillingClient
@@ -59,16 +60,25 @@ object ApphudInternal {
         fetchProducts()
     }
 
-    internal fun purchase(activity: Activity, details: SkuDetails, callback: (Purchase) -> Unit) {
+    internal fun purchase(activity: Activity, details: SkuDetails, callback: (List<Purchase>) -> Unit) {
+        billing.acknowledgeCallback = {
+            ApphudLog.log("acknowledge success")
+        }
+        billing.consumeCallback = { value ->
+            ApphudLog.log("consume callback value: $value")
+        }
         billing.purchasesCallback = { purchases ->
             ApphudLog.log("purchases: $purchases")
-            purchases.firstOrNull { it.sku == details.sku }
-                ?.let { purchase ->
-                    client.purchased(mkPurchaseBody(details, purchase)) {
-                        ApphudLog.log("Response from server after success purchase")
-                    }
-                    callback.invoke(purchase)
+
+            purchases.forEach { purchase ->
+                if (!purchase.isAcknowledged) {
+                    billing.acknowledge(purchase.purchaseToken)
                 }
+                client.purchased(mkPurchaseBody(details, purchase)) {
+                    ApphudLog.log("Response from server after success purchase: $purchase")
+                }
+            }
+            callback.invoke(purchases)
         }
         billing.purchase(activity, details)
     }
@@ -121,16 +131,16 @@ object ApphudInternal {
 
     private fun mkRegistrationBody(userId: UserId, deviceId: DeviceId) =
         RegistrationBody(
-            locale = "ru_RU",
-            sdk_version = "1.0",
+            locale = Locale.getDefault().country,
+            sdk_version = BuildConfig.VERSION_NAME,
             app_version = "1.0.0",
-            device_family = "Android",
+            device_family = Build.MANUFACTURER,
             platform = "Android",
-            device_type = "DEVICE_TYPE",
-            os_version = "6.0.1",
+            device_type = Build.MODEL,
+            os_version = Build.VERSION.RELEASE,
             start_app_version = "1.0",
             idfv = "11112222",
-            idfa = "22221111",
+            idfa = "22221111",//TODO взять из девайса
             user_id = userId,
             device_id = deviceId,
             time_zone = "UTF"

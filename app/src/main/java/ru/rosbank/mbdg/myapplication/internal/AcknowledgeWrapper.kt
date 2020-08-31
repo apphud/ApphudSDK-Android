@@ -6,6 +6,8 @@ import com.android.billingclient.api.BillingResult
 import ru.rosbank.mbdg.myapplication.response
 import java.io.Closeable
 
+typealias AcknowledgeCallback = () -> Unit
+
 internal class AcknowledgeWrapper(
     private val billing: BillingClient
 ) : Closeable {
@@ -14,7 +16,7 @@ internal class AcknowledgeWrapper(
         private const val MESSAGE = "purchase acknowledge is failed"
     }
 
-    var onSuccess: (() -> Unit)? = null
+    var onSuccess: AcknowledgeCallback? = null
 
     fun purchase(token: String) {
 
@@ -26,7 +28,7 @@ internal class AcknowledgeWrapper(
             .setPurchaseToken(token)
             .build()
         billing.acknowledgePurchase(params) { result: BillingResult ->
-            onSuccess?.let { result.response(MESSAGE, it) }
+            result.response(MESSAGE) { onSuccess?.invoke() }
         }
     }
 

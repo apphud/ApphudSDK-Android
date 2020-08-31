@@ -1,6 +1,5 @@
 package ru.rosbank.mbdg.myapplication
 
-import android.util.Log
 import com.android.billingclient.api.BillingClient
 import com.android.billingclient.api.BillingResult
 
@@ -13,11 +12,5 @@ inline fun BillingResult.response(message: String, crossinline block: () -> Unit
 }
 
 //TODO Логи будут постоянно идти, нужно делать on/off
-fun BillingResult.logMessage(template: String) {
-
-
-    Log.e(
-        "Billing",
-        "result failed with code: $responseCode message: $debugMessage template: $template and "
-    )
-}
+fun BillingResult.logMessage(template: String) =
+    ApphudLog.log("result failed with code: $responseCode message: $debugMessage template: $template")

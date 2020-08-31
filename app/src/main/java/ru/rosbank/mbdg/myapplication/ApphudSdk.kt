@@ -95,11 +95,23 @@ object ApphudSdk {
             ?.firstOrNull { it.productId == productId }?.isActive() ?: false
 
     /**
+     * Submit attribution data to Apphud from your attribution network provider.
+     * @data: Required. Attribution dictionary.
+     * @provider: Required. Attribution provider name. Available values: .appsFlyer. Will be added more soon.
+     * @identifier: Optional. Identifier that matches Apphud and Attrubution provider. Required for AppsFlyer.
+     */
+    fun addAttribution(
+        provider: ApphudAttributionProvider,
+        data: Map<String, Any>? = null,
+        identifier: String? = null
+    ) = Unit
+
+    /**
      * Enables debug logs. Better to call this method before SDK initialization.
      */
     fun enableDebugLogs() = ApphudUtils.enableDebugLogs()
 
-    fun purchase(activity: Activity, details: SkuDetails, block: (Purchase) -> Unit) {
+    fun purchase(activity: Activity, details: SkuDetails, block: (List<Purchase>) -> Unit) {
         ApphudInternal.purchase(activity, details, block)
     }
 
