@@ -2,7 +2,7 @@ package ru.rosbank.mbdg.myapplication.internal
 
 import android.app.Activity
 import android.content.Context
-import android.util.Log
+import android.util.SparseArray
 import com.android.billingclient.api.BillingClient
 import com.android.billingclient.api.BillingClientStateListener
 import com.android.billingclient.api.BillingResult
@@ -10,7 +10,6 @@ import com.android.billingclient.api.SkuDetails
 import ru.rosbank.mbdg.myapplication.ApphudLog
 import ru.rosbank.mbdg.myapplication.ProductId
 import java.io.Closeable
-import java.util.concurrent.LinkedBlockingQueue
 
 /**
  * Обертка над платежной системой Google
@@ -18,7 +17,8 @@ import java.util.concurrent.LinkedBlockingQueue
 internal class BillingWrapper(context: Context) : BillingClientStateListener, Closeable {
 
     companion object {
-        const val TAG = "Billing"
+        private const val SUBS_KEY = 0
+        private const val IN_APP_KEY = 1
     }
 
     private val builder = BillingClient
@@ -32,12 +32,10 @@ internal class BillingWrapper(context: Context) : BillingClientStateListener, Cl
     private val consume = ConsumeWrapper(billing)
     private val history = HistoryWrapper(billing)
     private val acknowledge = AcknowledgeWrapper(billing)
-
     //Используется кеш на случай, если при попытке восстановить историю клиент еще не запущен
-    private val queue = LinkedBlockingQueue<SkuType>()
+    private val storage = SparseArray<SkuType>(2)
 
     init {
-        //TODO Нужно делать disconnect или нет?
         billing.startConnection(this)
         when (billing.isReady) {
             true -> ApphudLog.log("INIT billing is Ready")
@@ -78,15 +76,20 @@ internal class BillingWrapper(context: Context) : BillingClientStateListener, Cl
     fun queryPurchaseHistory(@BillingClient.SkuType type: SkuType) {
         when (billing.isReady) {
             true -> history.queryPurchaseHistory(type)
-            else -> queue.add(type)
+            else -> when (type) {
+                BillingClient.SkuType.SUBS  -> storage.put(SUBS_KEY, type)
+                BillingClient.SkuType.INAPP -> storage.put(IN_APP_KEY, type)
+            }
         }
     }
 
     fun details(@BillingClient.SkuType type: SkuType, products: List<ProductId>) =
         sku.queryAsync(type, products)
 
-    fun purchase(activity: Activity, details: SkuDetails) =
+    fun purchase(activity: Activity, details: SkuDetails) {
+        purchases.startPurchase(details)
         flow.purchases(activity, details)
+    }
 
     fun acknowledge(token: String) = acknowledge.purchase(token)
 
@@ -106,9 +109,8 @@ internal class BillingWrapper(context: Context) : BillingClientStateListener, Cl
         when (billing.isReady) {
             true -> {
                 ApphudLog.log("onBillingSetupFinished billing is Ready")
-                queue.poll()?.let { type ->
-                    history.queryPurchaseHistory(type)
-                }
+                storage.get(SUBS_KEY)?.let { history.queryPurchaseHistory(it) }
+                storage.get(IN_APP_KEY)?.let { history.queryPurchaseHistory(it) }
             }
             else -> ApphudLog.log("onBillingSetupFinished billing is not Ready")
         }
@@ -117,5 +119,9 @@ internal class BillingWrapper(context: Context) : BillingClientStateListener, Cl
     //Closeable
     override fun close() {
         billing.endConnection()
+        sku.use { }
+        consume.use { }
+        history.use { }
+        acknowledge.use { }
     }
 }

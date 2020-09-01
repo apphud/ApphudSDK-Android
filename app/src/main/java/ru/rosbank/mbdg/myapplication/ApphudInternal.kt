@@ -14,6 +14,7 @@ import com.google.gson.Gson
 import ru.rosbank.mbdg.myapplication.body.*
 import ru.rosbank.mbdg.myapplication.client.ApphudClient
 import ru.rosbank.mbdg.myapplication.domain.Customer
+import ru.rosbank.mbdg.myapplication.domain.PurchaseDetails
 import ru.rosbank.mbdg.myapplication.internal.BillingWrapper
 import ru.rosbank.mbdg.myapplication.internal.SkuType
 import ru.rosbank.mbdg.myapplication.parser.GsonParser
@@ -72,15 +73,15 @@ object ApphudInternal {
         billing.purchasesCallback = { purchases ->
             ApphudLog.log("purchases: $purchases")
 
-            purchases.forEach { purchase ->
-                if (!purchase.isAcknowledged) {
-                    billing.acknowledge(purchase.purchaseToken)
-                }
-                client.purchased(mkPurchaseBody(details, purchase)) {
-                    ApphudLog.log("Response from server after success purchase: $purchase")
+            purchases.forEach {
+                if (!it.purchase.isAcknowledged) {
+                    billing.acknowledge(it.purchase.purchaseToken)
                 }
             }
-            callback.invoke(purchases)
+            client.purchased(mkPurchasesBody(purchases)) {
+                ApphudLog.log("Response from server after success purchases: $purchases")
+            }
+            callback.invoke(purchases.map { it.purchase })
         }
         billing.purchase(activity, details)
     }
@@ -88,29 +89,12 @@ object ApphudInternal {
     internal fun syncPurchases() {
         billing.historyCallback = { purchases ->
             ApphudLog.log("history purchases: $purchases")
-            printAllPurchaseHistories(purchases)
+            client.purchased(mkPurchaseBody(purchases)) {
+                ApphudLog.log("success send history purchases $purchases")
+            }
         }
         billing.queryPurchaseHistory(BillingClient.SkuType.SUBS)
         billing.queryPurchaseHistory(BillingClient.SkuType.INAPP)
-    }
-
-    private fun printAllPurchaseHistories(histories: List<PurchaseHistoryRecord>) {
-        histories.forEach { purchaseHistory ->
-            val sku = purchaseHistory.sku
-            val developerPayload = purchaseHistory.developerPayload
-            val originalJson = purchaseHistory.originalJson
-            val purchaseTime = purchaseHistory.purchaseTime
-            val signature = purchaseHistory.signature
-            val purchaseToken = purchaseHistory.purchaseToken
-
-            ApphudLog.log("All history Object: $purchaseHistory")
-            ApphudLog.log("sku: $sku")
-            ApphudLog.log("developerPayload: $developerPayload")
-            ApphudLog.log("originalJson: $originalJson")
-            ApphudLog.log("purchaseTime: $purchaseTime")
-            ApphudLog.log("signature: $signature")
-            ApphudLog.log("purchaseToken: $purchaseToken")
-        }
     }
 
     internal fun addAttribution(
@@ -175,15 +159,34 @@ object ApphudInternal {
         return deviceId
     }
 
-    private fun mkPurchaseBody(details: SkuDetails, purchase: Purchase) =
+    private fun mkPurchasesBody(purchases: List<PurchaseDetails>) =
         PurchaseBody(
-            order_id = purchase.orderId,
             device_id = deviceId,
-            product_id = purchase.sku,
-            purchase_token = purchase.purchaseToken,
-            price_currency_code = details.priceCurrencyCode,
-            price_amount_micros = details.priceAmountMicros,
-            subscription_period = details.subscriptionPeriod
+            purchases = purchases.map {
+                PurchaseItemBody(
+                    order_id = it.purchase.orderId,
+                    product_id = it.purchase.sku,
+                    purchase_token = it.purchase.purchaseToken,
+                    price_currency_code = it.details?.priceCurrencyCode,
+                    price_amount_micros = it.details?.priceAmountMicros,
+                    subscription_period = it.details?.subscriptionPeriod
+                )
+            }
+        )
+
+    private fun mkPurchaseBody(purchases: List<PurchaseHistoryRecord>) =
+        PurchaseBody(
+            device_id = deviceId,
+            purchases = purchases.map { purchase ->
+                PurchaseItemBody(
+                    order_id = null,
+                    product_id = purchase.sku,
+                    purchase_token = purchase.purchaseToken,
+                    price_currency_code = null,
+                    price_amount_micros = null,
+                    subscription_period = null
+                )
+            }
         )
 
     private fun mkRegistrationBody(userId: UserId, deviceId: DeviceId) =

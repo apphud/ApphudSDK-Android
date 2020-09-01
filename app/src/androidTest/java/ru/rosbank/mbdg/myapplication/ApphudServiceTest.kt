@@ -1,6 +1,7 @@
 package ru.rosbank.mbdg.myapplication
 
 import android.util.Log
+import com.android.billingclient.api.Purchase
 import com.google.gson.Gson
 import org.junit.Before
 import org.junit.Test
@@ -80,16 +81,20 @@ class ApphudServiceTest {
         Log.e("WOW", "send push result: ${response.data.results}")
     }
 
-//    @Test
+    @Test
     fun purchaseTest() {
-        val body = PurchaseBody(
+
+        val item = PurchaseItemBody(
             order_id = "test order_id",
-            device_id = deviceId,
             product_id = "test product_id",
             purchase_token = "test purchase_token",
             price_currency_code = "RUB",
             price_amount_micros = 111,
             subscription_period = "test subscription_period"
+        )
+        val body = PurchaseBody(
+            device_id = deviceId,
+            purchases = listOf(item)
         )
         val response = service.purchase(body)
         Log.e("WOW", "send push result: ${response.data.results}")

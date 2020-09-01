@@ -106,7 +106,6 @@ object ApphudSdk {
         identifier: String? = null
     ) = ApphudInternal.addAttribution(provider, data, identifier)
 
-    //syncPurchases
     fun syncPurchases() = ApphudInternal.syncPurchases()
 
     /**
