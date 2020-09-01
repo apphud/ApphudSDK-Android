@@ -2,24 +2,27 @@ package ru.rosbank.mbdg.myapplication
 
 import android.app.Activity
 import android.content.Context
+import android.os.AsyncTask
 import android.os.Build
 import android.os.Handler
 import android.os.Looper
-import android.util.Log
 import com.android.billingclient.api.BillingClient
 import com.android.billingclient.api.Purchase
 import com.android.billingclient.api.PurchaseHistoryRecord
 import com.android.billingclient.api.SkuDetails
 import com.google.gson.Gson
-import ru.rosbank.mbdg.myapplication.body.*
+import ru.rosbank.mbdg.myapplication.body.AttributionBody
+import ru.rosbank.mbdg.myapplication.body.PurchaseBody
+import ru.rosbank.mbdg.myapplication.body.PurchaseItemBody
+import ru.rosbank.mbdg.myapplication.body.RegistrationBody
 import ru.rosbank.mbdg.myapplication.client.ApphudClient
 import ru.rosbank.mbdg.myapplication.domain.Customer
 import ru.rosbank.mbdg.myapplication.domain.PurchaseDetails
 import ru.rosbank.mbdg.myapplication.internal.BillingWrapper
-import ru.rosbank.mbdg.myapplication.internal.SkuType
 import ru.rosbank.mbdg.myapplication.parser.GsonParser
 import ru.rosbank.mbdg.myapplication.parser.Parser
 import ru.rosbank.mbdg.myapplication.storage.SharedPreferencesStorage
+import ru.rosbank.mbdg.myapplication.tasks.advertisingId
 import java.util.*
 
 object ApphudInternal {
@@ -34,6 +37,7 @@ object ApphudInternal {
     private val billing by lazy { BillingWrapper(context) }
     private val storage by lazy { SharedPreferencesStorage(context, parser) }
 
+    internal var adsId: String? = null
     internal lateinit var userId: UserId
     internal lateinit var deviceId: DeviceId
     internal lateinit var apiKey: ApiKey
@@ -41,6 +45,16 @@ object ApphudInternal {
 
     internal var currentUser: Customer? = null
     internal var apphudListener: ApphudListener? = null
+
+    internal fun loadAdsId() {
+        val task = AdvertisingTask()
+        task.execute()
+    }
+
+    private class AdvertisingTask : AsyncTask<Void, Void, String?>() {
+        override fun doInBackground(vararg params: Void?): String? = advertisingId(context)
+        override fun onPostExecute(result: String?) { adsId = result }
+    }
 
     internal fun updateUserId(userId: UserId) {
         this.userId = updateUser(id = userId)
@@ -199,8 +213,8 @@ object ApphudInternal {
             device_type = Build.MODEL,
             os_version = Build.VERSION.RELEASE,
             start_app_version = "1.0",
-            idfv = "11112222",
-            idfa = "22221111",//TODO взять из девайса
+            idfv = null,
+            idfa = adsId,
             user_id = userId,
             device_id = deviceId,
             time_zone = TimeZone.getDefault().displayName

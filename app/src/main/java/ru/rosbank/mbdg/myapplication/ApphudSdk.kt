@@ -12,6 +12,7 @@ object ApphudSdk {
     fun init(context: Context, apiKey: ApiKey) {
         ApphudInternal.apiKey = apiKey
         ApphudInternal.context = context
+        ApphudInternal.loadAdsId()
     }
 
     /**
