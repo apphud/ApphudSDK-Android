@@ -4,7 +4,7 @@ import android.os.Bundle
 import android.util.Log
 import androidx.appcompat.app.AppCompatActivity
 import androidx.recyclerview.widget.RecyclerView
-import com.android.billingclient.api.SkuDetails
+import com.apphud.sdk.ApphudSdk
 import ru.rosbank.mbdg.myapplication.presentation.ProductModelMapper
 import ru.rosbank.mbdg.myapplication.presentation.ProductsAdapter
 
@@ -17,20 +17,23 @@ class MainActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
 
-        val listener = object : ApphudListener {
-            override fun apphudFetchSkuDetailsProducts(details: List<SkuDetails>) {
-                val products =  details.map { mapper.map(it) }
-                adapter.products = adapter.products.filter { it.details != null } + products
-                Log.e("WOW", "details: $details")
-            }
-        }
-        ApphudSdk.setListener(listener)
+//        val listener = object : ApphudListener {
+//            override fun apphudFetchSkuDetailsProducts(details: List<com.android.billingclient.api.SkuDetails>) {
+//                TODO("Not yet implemented")
+//            }
+//            //            override fun apphudFetchSkuDetailsProducts(details: List<SkuDetails>) {
+////                val products =  details.map { mapper.map(it) }
+////                adapter.products = adapter.products.filter { it.details != null } + products
+////                Log.e("WOW", "details: $details")
+////            }
+//        }
+//        ApphudSdk.setListener(listener)
 
         adapter.onClick = { model ->
             Log.e("WOW", "onClick model: $model")
             when (model.details) {
                 null -> Log.e("WOW", "details is empty")
-                else ->  ApphudSdk.purchase(this, model.details) { purchase -> }
+                else ->  ApphudSdk.purchase(this, model.details) { _ -> }
             }
         }
 
@@ -39,10 +42,10 @@ class MainActivity : AppCompatActivity() {
 
         //TODO Тест на то, если будем слишком часто вызывать этот метод
         ApphudSdk.start()
-        ApphudLog.log("userId: ${ApphudSdk.userId()}")
-        ApphudLog.log("subscription: ${ApphudSdk.subscription()}")
-        ApphudLog.log("subscriptions: ${ApphudSdk.subscriptions()}")
-        ApphudLog.log("nonRenewingPurchases: ${ApphudSdk.nonRenewingPurchases()}")
+        Log.e("TAG","userId: ${ApphudSdk.userId()}")
+        Log.e("TAG","subscription: ${ApphudSdk.subscription()}")
+        Log.e("TAG","subscriptions: ${ApphudSdk.subscriptions()}")
+        Log.e("TAG","nonRenewingPurchases: ${ApphudSdk.nonRenewingPurchases()}")
         ApphudSdk.syncPurchases()
     }
 }

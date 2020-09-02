@@ -1,7 +1,7 @@
 package ru.rosbank.mbdg.myapplication
 
 import android.app.Application
-import ru.rosbank.mbdg.myapplication.client.ApiClient
+import com.apphud.sdk.client.ApiClient
 
 class App : Application() {
 
@@ -13,7 +13,7 @@ class App : Application() {
         super.onCreate()
         app = this
 
-        ApphudSdk.init(this, ApiClient.API_KEY)
-        ApphudSdk.enableDebugLogs()
+        com.apphud.sdk.ApphudSdk.init(this, com.apphud.sdk.client.ApiClient.API_KEY)
+        com.apphud.sdk.ApphudSdk.enableDebugLogs()
     }
 }

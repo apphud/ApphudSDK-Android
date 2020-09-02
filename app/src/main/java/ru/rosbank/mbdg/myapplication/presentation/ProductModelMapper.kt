@@ -1,7 +1,7 @@
 package ru.rosbank.mbdg.myapplication.presentation
 
 import com.android.billingclient.api.SkuDetails
-import ru.rosbank.mbdg.myapplication.client.dto.ProductDto
+import com.apphud.sdk.client.dto.ProductDto
 
 class ProductModelMapper {
 
