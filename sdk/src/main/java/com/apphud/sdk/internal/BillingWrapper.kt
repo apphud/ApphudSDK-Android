@@ -31,7 +31,7 @@ internal class BillingWrapper(context: Context) : BillingClientStateListener, Cl
     private val flow = FlowWrapper(billing)
     private val consume = ConsumeWrapper(billing)
     private val history = HistoryWrapper(billing)
-    private val acknowledge = com.apphud.sdk.internal.AcknowledgeWrapper(billing)
+    private val acknowledge = AcknowledgeWrapper(billing)
     //Используется кеш на случай, если при попытке восстановить историю клиент еще не запущен
     private val storage = SparseArray<SkuType>(2)
 
@@ -55,7 +55,7 @@ internal class BillingWrapper(context: Context) : BillingClientStateListener, Cl
             purchases.callback = value
         }
 
-    var acknowledgeCallback: com.apphud.sdk.internal.AcknowledgeCallback? = null
+    var acknowledgeCallback: AcknowledgeCallback? = null
         set(value) {
             field = value
             acknowledge.onSuccess = value

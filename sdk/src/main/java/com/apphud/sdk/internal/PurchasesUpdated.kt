@@ -3,11 +3,12 @@ package com.apphud.sdk.internal
 import com.android.billingclient.api.BillingClient
 import com.android.billingclient.api.SkuDetails
 import com.apphud.sdk.ProductId
+import com.apphud.sdk.domain.PurchaseDetails
 import com.apphud.sdk.isSuccess
 import com.apphud.sdk.logMessage
 import java.io.Closeable
 
-typealias PurchasesUpdatedCallback = (List<com.apphud.sdk.domain.PurchaseDetails>) -> Unit
+typealias PurchasesUpdatedCallback = (List<PurchaseDetails>) -> Unit
 
 internal class PurchasesUpdated(
     builder: BillingClient.Builder
@@ -22,7 +23,7 @@ internal class PurchasesUpdated(
             when (result.isSuccess()) {
                 true -> {
                     val purchases = list?.mapNotNull { purchase ->
-                        com.apphud.sdk.domain.PurchaseDetails(
+                        PurchaseDetails(
                             purchase = purchase,
                             details = skuDetails.remove(purchase.orderId)
                         )

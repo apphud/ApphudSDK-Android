@@ -3,9 +3,6 @@ apply plugin: 'kotlin-android'
 apply plugin: 'kotlin-android-extensions'
 apply plugin: 'com.github.dcendents.android-maven'
 
-//group='apphud'
-//version='0.0.1'
-
 android {
     compileSdkVersion 29
     buildToolsVersion "29.0.3"
