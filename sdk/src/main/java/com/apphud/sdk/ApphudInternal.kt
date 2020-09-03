@@ -9,7 +9,6 @@ import android.os.Looper
 import com.android.billingclient.BuildConfig
 import com.android.billingclient.api.BillingClient
 import com.android.billingclient.api.Purchase
-import com.android.billingclient.api.PurchaseHistoryRecord
 import com.android.billingclient.api.SkuDetails
 import com.apphud.sdk.body.AttributionBody
 import com.apphud.sdk.body.PurchaseBody
@@ -18,6 +17,7 @@ import com.apphud.sdk.body.RegistrationBody
 import com.apphud.sdk.client.ApphudClient
 import com.apphud.sdk.domain.Customer
 import com.apphud.sdk.domain.PurchaseDetails
+import com.apphud.sdk.domain.PurchaseRecordDetails
 import com.apphud.sdk.internal.BillingWrapper
 import com.apphud.sdk.parser.GsonParser
 import com.apphud.sdk.parser.Parser
@@ -34,9 +34,7 @@ internal object ApphudInternal {
      * @handler use for work with UI-thread. Save to storage, call callbacks
      */
     private val handler: Handler = Handler(Looper.getMainLooper())
-    private val client by lazy {
-        ApphudClient(apiKey, parser)
-    }
+    private val client by lazy { ApphudClient(apiKey, parser) }
     private val billing by lazy { BillingWrapper(context) }
     private val storage by lazy { SharedPreferencesStorage(context, parser) }
 
@@ -62,10 +60,7 @@ internal object ApphudInternal {
     internal fun updateUserId(userId: UserId) {
         this.userId = updateUser(id = userId)
 
-        val body = mkRegistrationBody(
-            this.userId,
-            deviceId
-        )
+        val body = mkRegistrationBody(this.userId, deviceId)
         client.registrationUser(body) { customer ->
             handler.post { storage.customer = customer }
         }
@@ -107,11 +102,15 @@ internal object ApphudInternal {
     }
 
     internal fun syncPurchases() {
+        billing.restoreCallback = { records ->
+            client.purchased(mkPurchaseBody(records)) {
+                ApphudLog.log("success send history purchases $records")
+            }
+        }
         billing.historyCallback = { purchases ->
             ApphudLog.log("history purchases: $purchases")
-            client.purchased(mkPurchaseBody(purchases)) {
-                ApphudLog.log("success send history purchases $purchases")
-            }
+            billing.restore(BillingClient.SkuType.SUBS, purchases)
+            billing.restore(BillingClient.SkuType.INAPP, purchases)
         }
         billing.queryPurchaseHistory(BillingClient.SkuType.SUBS)
         billing.queryPurchaseHistory(BillingClient.SkuType.INAPP)
@@ -198,17 +197,17 @@ internal object ApphudInternal {
             }
         )
 
-    private fun mkPurchaseBody(purchases: List<PurchaseHistoryRecord>) =
+    private fun mkPurchaseBody(purchases: List<PurchaseRecordDetails>) =
         PurchaseBody(
             device_id = deviceId,
             purchases = purchases.map { purchase ->
                 PurchaseItemBody(
                     order_id = null,
-                    product_id = purchase.sku,
-                    purchase_token = purchase.purchaseToken,
-                    price_currency_code = null,
-                    price_amount_micros = null,
-                    subscription_period = null
+                    product_id = purchase.record.sku,
+                    purchase_token = purchase.record.purchaseToken,
+                    price_currency_code = purchase.details.priceCurrencyCode,
+                    price_amount_micros = purchase.details.priceAmountMicros,
+                    subscription_period = purchase.details.subscriptionPeriod
                 )
             }
         )

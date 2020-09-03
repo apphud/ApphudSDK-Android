@@ -3,10 +3,7 @@ package com.apphud.sdk.internal
 import android.app.Activity
 import android.content.Context
 import android.util.SparseArray
-import com.android.billingclient.api.BillingClient
-import com.android.billingclient.api.BillingClientStateListener
-import com.android.billingclient.api.BillingResult
-import com.android.billingclient.api.SkuDetails
+import com.android.billingclient.api.*
 import com.apphud.sdk.ApphudLog
 import com.apphud.sdk.ProductId
 import java.io.Closeable
@@ -49,6 +46,12 @@ internal class BillingWrapper(context: Context) : BillingClientStateListener, Cl
             sku.callback = value
         }
 
+    var restoreCallback: ApphudSkuDetailsRestoreCallback? = null
+        set(value) {
+            field = value
+            sku.restoreCallback = value
+        }
+
     var purchasesCallback: PurchasesUpdatedCallback? = null
         set(value) {
             field = value
@@ -85,6 +88,9 @@ internal class BillingWrapper(context: Context) : BillingClientStateListener, Cl
 
     fun details(@BillingClient.SkuType type: SkuType, products: List<ProductId>) =
         sku.queryAsync(type, products)
+
+    fun restore(@BillingClient.SkuType type: SkuType, products: List<PurchaseHistoryRecord>) =
+        sku.restoreAsync(type, products)
 
     fun purchase(activity: Activity, details: SkuDetails) {
         purchases.startPurchase(details)
