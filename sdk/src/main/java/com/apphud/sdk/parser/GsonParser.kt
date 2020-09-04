@@ -4,7 +4,7 @@ import com.google.gson.Gson
 import com.google.gson.JsonParseException
 import java.lang.reflect.Type
 
-class GsonParser(private val gson: Gson) : com.apphud.sdk.parser.Parser {
+class GsonParser(private val gson: Gson) : Parser {
 
     override fun <T> toJson(body: T): String = gson.toJson(body)
     override fun <O> fromJson(json: String?, type: Type): O? = try {

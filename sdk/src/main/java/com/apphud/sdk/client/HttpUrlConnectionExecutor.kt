@@ -27,7 +27,6 @@ class HttpUrlConnectionExecutor(
             .params(config.queries)
             .build()
 
-        ApphudLog.log("build url: ${apphudUrl.url}")
         val url = URL(apphudUrl.url)
         val connection = url.openConnection() as HttpURLConnection
         connection.requestMethod = config.requestType.name
@@ -40,12 +39,13 @@ class HttpUrlConnectionExecutor(
 
         when (config.requestType) {
             RequestType.GET -> {
+                ApphudLog.log("start ${config.requestType} request ${apphudUrl.url}")
                 config.headers.forEach { entry ->
                     connection.setRequestProperty(entry.key, entry.value)
                 }
             }
             else            -> {
-                ApphudLog.log("body for response $input")
+                ApphudLog.log("start ${config.requestType} request ${apphudUrl.url} with params:\n ${parser.toJson(input)}")
                 input?.let { source ->
                     connection.doOutput = true
                     connection.outputStream.use { stream ->
@@ -58,24 +58,29 @@ class HttpUrlConnectionExecutor(
         connection.connect()
 
         val response = when (connection.isSuccess) {
-            true -> buildStringBy(connection.inputStream)
+            true -> {
+                val result = buildStringBy(connection.inputStream)
+                val o = parser.fromJson<O>(result, config.type)
+                ApphudLog.log("finish ${config.requestType} request ${apphudUrl.url} success with response:\n ${parser.toJson(o)}")
+                o
+            }
             else -> {
                 val response = buildStringBy(connection.errorStream)
-                ApphudLog.log("error response: $response")
-                ApphudLog.log("failed code: ${connection.responseCode}")
+                ApphudLog.log("finish ${config.requestType} request ${apphudUrl.url} failed with code: ${connection.responseCode} response: $response")
                 null
             }
         }
+
         connection.disconnect()
 
-        parser.fromJson<O>(response, config.type) ?: error("Something wrong parse")
+        response ?: error("failed response")
     } catch (e: Exception) {
         when (e) {
             is UnknownHostException,
-            is SocketTimeoutException -> ApphudLog.log("${e.message}")
-            else                      -> error("other exception $e")
+            is SocketTimeoutException -> ApphudLog.log("finish with exception ${e.message}")
+            else                      -> ApphudLog.log("finish with exception ${e.message}")
         }
-        error("Something wrong ???")
+        throw e
     }
 
     private fun buildStringBy(stream: InputStream): String {

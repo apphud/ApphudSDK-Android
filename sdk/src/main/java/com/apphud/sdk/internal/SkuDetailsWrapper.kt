@@ -4,6 +4,7 @@ import com.android.billingclient.api.BillingClient
 import com.android.billingclient.api.PurchaseHistoryRecord
 import com.android.billingclient.api.SkuDetails
 import com.android.billingclient.api.SkuDetailsParams
+import com.apphud.sdk.ApphudLog
 import com.apphud.sdk.ProductId
 import com.apphud.sdk.domain.PurchaseRecordDetails
 import com.apphud.sdk.isSuccess
@@ -38,7 +39,10 @@ internal class SkuDetailsWrapper(
                             details = detail
                         )
                     }
-                    restoreCallback?.invoke(purchases)
+                    when (purchases.isEmpty()) {
+                        true -> ApphudLog.log("SkuDetails return empty list for $type and records: $records")
+                        else -> restoreCallback?.invoke(purchases)
+                    }
                 }
                 else -> result.logMessage("restoreAsync type: $type products: $products")
             }

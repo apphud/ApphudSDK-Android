@@ -7,20 +7,22 @@ class LoopRunnable<T>(
     private val callback: (T) -> Unit
 ) : PriorityRunnable {
 
+    private var timeout: Long = 10_000
+
     override val priority: Int = callable.priority
     override fun run() {
         try {
             callback.invoke(callable.call())
         } catch (e: Exception) {
-            ApphudLog.log("CallbackCallable with $e")
+            ApphudLog.log("Throw with exception: $e")
             try {
-                ApphudLog.log("CallbackCallable BEFORE sleep")
-                Thread.sleep(10_000)
-                ApphudLog.log("CallbackCallable AFTER sleep")
+                timeout += callable.incrementMilliseconds
+                ApphudLog.log("sleep for $timeout milliseconds")
+                Thread.sleep(timeout)
             } catch (e: InterruptedException) {
-                ApphudLog.log("CallbackCallable InterruptedException: $e")
+                ApphudLog.log("InterruptedException: $e")
             } finally {
-                ApphudLog.log("CallbackCallable FINALLY")
+                ApphudLog.log("finally restart task $callable")
                 run()
             }
         }

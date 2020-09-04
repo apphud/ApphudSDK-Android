@@ -24,11 +24,16 @@ import com.apphud.sdk.parser.Parser
 import com.apphud.sdk.storage.SharedPreferencesStorage
 import com.apphud.sdk.tasks.advertisingId
 import com.google.gson.Gson
+import com.google.gson.GsonBuilder
 import java.util.*
 
 internal object ApphudInternal {
 
-    private val parser: Parser = GsonParser(Gson())
+    private val builder = GsonBuilder()
+        .setPrettyPrinting()
+        .serializeNulls()
+        .create()
+    private val parser: Parser = GsonParser(builder)
 
     /**
      * @handler use for work with UI-thread. Save to storage, call callbacks
@@ -37,6 +42,7 @@ internal object ApphudInternal {
     private val client by lazy { ApphudClient(apiKey, parser) }
     private val billing by lazy { BillingWrapper(context) }
     private val storage by lazy { SharedPreferencesStorage(context, parser) }
+    private val generatedUUID = UUID.randomUUID().toString()
 
     internal var adsId: String? = null
     internal lateinit var userId: UserId
@@ -54,7 +60,9 @@ internal object ApphudInternal {
 
     private class AdvertisingTask : AsyncTask<Void, Void, String?>() {
         override fun doInBackground(vararg params: Void?): String? = advertisingId(context)
-        override fun onPostExecute(result: String?) { adsId = result }
+        override fun onPostExecute(result: String?) {
+            adsId = result
+        }
     }
 
     internal fun updateUserId(userId: UserId) {
@@ -78,7 +86,11 @@ internal object ApphudInternal {
         fetchProducts()
     }
 
-    internal fun purchase(activity: Activity, details: SkuDetails, callback: (List<Purchase>) -> Unit) {
+    internal fun purchase(
+        activity: Activity,
+        details: SkuDetails,
+        callback: (List<Purchase>) -> Unit
+    ) {
         billing.acknowledgeCallback = {
             ApphudLog.log("acknowledge success")
         }
@@ -136,16 +148,23 @@ internal object ApphudInternal {
                 )
             }
             ApphudAttributionProvider.appsFlyer -> {
-                AttributionBody(
-                    device_id = deviceId,
-                    appsflyer_id = identifier,
-                    appsflyer_data = data ?: emptyMap()
-                )
+                when {
+                    identifier == null -> null
+                    data == null       -> null
+                    else               -> AttributionBody(
+                        device_id = deviceId,
+                        appsflyer_id = identifier,
+                        appsflyer_data = data
+                    )
+                }
             }
         }
 
-        client.send(body) { attribution ->
-            ApphudLog.log("Success without saving send attribution: $attribution")
+        ApphudLog.log("before start attribution request: $body")
+        body?.let {
+            client.send(body) { attribution ->
+                ApphudLog.log("Success without saving send attribution: $attribution")
+            }
         }
     }
 
@@ -165,7 +184,7 @@ internal object ApphudInternal {
     private fun updateUser(id: UserId?): UserId {
 
         val userId = when (id) {
-            null -> storage.userId ?: UUID.randomUUID().toString()
+            null -> storage.userId ?: generatedUUID
             else -> id
         }
         storage.userId = userId
@@ -175,7 +194,7 @@ internal object ApphudInternal {
     private fun updateDevice(id: DeviceId?): DeviceId {
 
         val deviceId = when (id) {
-            null -> storage.deviceId ?: UUID.randomUUID().toString()
+            null -> storage.deviceId ?: generatedUUID
             else -> id
         }
         storage.deviceId = deviceId
@@ -214,18 +233,18 @@ internal object ApphudInternal {
 
     private fun mkRegistrationBody(userId: UserId, deviceId: DeviceId) =
         RegistrationBody(
-            locale = Locale.getDefault().country,
+            locale = Locale.getDefault().formatString(),
             sdk_version = BuildConfig.VERSION_NAME,
-            app_version = "1.0.0",
+            app_version = context.buildAppVersion(),
             device_family = Build.MANUFACTURER,
             platform = "Android",
             device_type = Build.MODEL,
             os_version = Build.VERSION.RELEASE,
-            start_app_version = "1.0",
+            start_app_version = context.buildAppVersion(),
             idfv = null,
             idfa = adsId,
             user_id = userId,
             device_id = deviceId,
-            time_zone = TimeZone.getDefault().displayName
+            time_zone = TimeZone.getDefault().id
         )
 }
