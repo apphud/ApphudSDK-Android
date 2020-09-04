@@ -34,6 +34,7 @@ class HttpUrlConnectionExecutor(
         //TODO вынести в настройку
         connection.setRequestProperty("Accept", "application/json; utf-8")
         connection.setRequestProperty("Content-Type", "application/json; utf-8")
+        connection.setRequestProperty("X-Platform", "android")
         connection.readTimeout = 10_000
         connection.connectTimeout = 10_000
 
