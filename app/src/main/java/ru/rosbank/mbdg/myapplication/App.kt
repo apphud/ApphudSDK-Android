@@ -22,14 +22,15 @@ class App : Application() {
 
         val listener = object : AppsFlyerConversionListener {
             override fun onAppOpenAttribution(map: MutableMap<String, String>?) {
-                Log.e("WOW", "open attribution $map")
+                Log.e("Apphud", "open attribution $map")
             }
             override fun onConversionDataSuccess(map: MutableMap<String, Any>?) {
                 Log.e("Apphud", "conversion data success $map")
+                val uid = AppsFlyerLib.getInstance().getAppsFlyerUID(app)
                 ApphudSdk.addAttribution(
                     provider = ApphudAttributionProvider.appsFlyer,
                     data = map,
-                    identifier = Constants.APPSFLYER_DEV_KEY
+                    identifier = uid
                 )
             }
             override fun onConversionDataFail(p0: String?)= Unit

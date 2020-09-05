@@ -39,7 +39,7 @@ class HttpUrlConnectionExecutor(
 
         when (config.requestType) {
             RequestType.GET -> {
-                ApphudLog.log("start ${config.requestType} request ${apphudUrl.url}")
+                ApphudLog.log("start ${config.requestType} request ${apphudUrl.url} without params")
                 config.headers.forEach { entry ->
                     connection.setRequestProperty(entry.key, entry.value)
                 }

@@ -31,7 +31,6 @@ internal object ApphudInternal {
 
     private val builder = GsonBuilder()
         .setPrettyPrinting()
-        .serializeNulls()
         .create()
     private val parser: Parser = GsonParser(builder)
 
