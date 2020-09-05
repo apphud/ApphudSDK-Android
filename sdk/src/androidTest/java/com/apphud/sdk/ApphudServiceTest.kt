@@ -20,6 +20,7 @@ class ApphudServiceTest {
 
     private val userId = "cleaner_303"
     private val deviceId = "cleaner_303"
+    private val API_KEY = "app_oBcXz2z9j8spKPL2T7sZwQaQN5Jzme"
     private lateinit var service: ApphudService
 
     @Before
@@ -29,7 +30,7 @@ class ApphudServiceTest {
             version = ApphudVersion.V1,
             parser = GsonParser(Gson())
         )
-        service = ApphudService(ApiClient.API_KEY, executor)
+        service = ApphudService(API_KEY, executor)
     }
 
     @Test

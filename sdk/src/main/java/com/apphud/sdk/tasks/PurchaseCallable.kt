@@ -5,7 +5,7 @@ import com.apphud.sdk.client.ApphudService
 import com.apphud.sdk.client.dto.PurchaseResponseDto
 import com.apphud.sdk.client.dto.ResponseDto
 
-class PurchaseCallable(
+internal class PurchaseCallable(
     private val body: PurchaseBody,
     private val service: ApphudService
 ) : PriorityCallable<ResponseDto<PurchaseResponseDto>> {

@@ -2,7 +2,7 @@ package com.apphud.sdk
 
 import com.apphud.sdk.body.RegistrationBody
 
-fun mkRegistrationBody(userId: String, deviceId: String) =
+internal fun mkRegistrationBody(userId: String, deviceId: String) =
     RegistrationBody(
         locale = "ru_RU",
         sdk_version = "1.0",

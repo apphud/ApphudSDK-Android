@@ -5,7 +5,7 @@ import com.apphud.sdk.client.ApphudService
 import com.apphud.sdk.client.dto.CustomerDto
 import com.apphud.sdk.client.dto.ResponseDto
 
-class RegistrationCallable(
+internal class RegistrationCallable(
     private val body: RegistrationBody,
     private val service: ApphudService
 ) : PriorityCallable<ResponseDto<CustomerDto>> {

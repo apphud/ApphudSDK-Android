@@ -5,7 +5,7 @@ import com.apphud.sdk.client.ApphudService
 import com.apphud.sdk.client.dto.AttributionDto
 import com.apphud.sdk.client.dto.ResponseDto
 
-class PushCallable(
+internal class PushCallable(
     private val body: PushBody,
     private val service: ApphudService
 ) : PriorityCallable<ResponseDto<AttributionDto>> {
