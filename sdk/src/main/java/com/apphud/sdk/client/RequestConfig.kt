@@ -5,6 +5,7 @@ import java.lang.reflect.Type
 data class RequestConfig(
     val path: String,
     val type: Type,
+    val classss: Class<*>,
     val requestType: RequestType,
     val queries: Map<String, String> = emptyMap(),
     val headers: Map<String, String> = emptyMap()

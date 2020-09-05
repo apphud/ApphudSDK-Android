@@ -6,6 +6,7 @@ import com.apphud.sdk.parser.Parser
 import java.io.BufferedReader
 import java.io.InputStream
 import java.io.InputStreamReader
+import java.io.OutputStreamWriter
 import java.net.HttpURLConnection
 import java.net.SocketTimeoutException
 import java.net.URL
@@ -48,8 +49,13 @@ class HttpUrlConnectionExecutor(
                 ApphudLog.log("start ${config.requestType} request ${apphudUrl.url} with params:\n ${parser.toJson(input)}")
                 input?.let { source ->
                     connection.doOutput = true
-                    connection.outputStream.use { stream ->
-                        stream.write(parser.toJson(source).toByteArray(Charsets.UTF_8))
+//                    connection.outputStream.use { stream ->
+//                        stream.write(parser.toJson(source).toByteArray(Charsets.UTF_8))
+//                    }
+                    val osw = OutputStreamWriter(connection.outputStream, Charsets.UTF_8)
+                    osw.use {
+                        osw.write(parser.toJson(source))
+                        osw.flush()
                     }
                 }
             }

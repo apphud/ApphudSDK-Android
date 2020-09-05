@@ -13,7 +13,7 @@ import com.apphud.sdk.client.dto.*
  *
  * Пока используется TypeToken из библиотеки Gson. Нужно будет посмотреть как от этого уйти
  */
-class ApphudService(
+internal class ApphudService(
     private val apiKey: ApiKey,
     private val executor: NetworkExecutor
 ) {
@@ -25,15 +25,21 @@ class ApphudService(
     /**
      * Регистрация юзера
      */
-    fun registration(body: RegistrationBody): ResponseDto<CustomerDto> = executor.call(
-        RequestConfig(
-            path = "customers",
-            type = object : TypeToken<ResponseDto<CustomerDto>>() {}.type,
-            queries = mapOf(API_KEY to apiKey),
-            requestType = RequestType.POST
-        ),
-        body
-    )
+    fun registration(body: RegistrationBody): ResponseDto<CustomerDto> {
+
+        val type = ResponseDto::class.java.componentType
+
+        return executor.call(
+            RequestConfig(
+                path = "customers",
+                classss = CustomerDto::class.java,
+                type = object : TypeToken<ResponseDto<CustomerDto>>() {}.type,
+                queries = mapOf(API_KEY to apiKey),
+                requestType = RequestType.POST
+            ),
+            body
+        )
+    }
 
     /**
      * Получение идентификаторов продуктов
@@ -42,6 +48,7 @@ class ApphudService(
         executor.call(
             RequestConfig(
                 path = "products",
+                classss = ResponseDto::class.java,
                 type = object : TypeToken<ResponseDto<List<ProductDto>>>(){}.type,
                 queries = mapOf(API_KEY to apiKey),
                 requestType = RequestType.GET
@@ -55,6 +62,7 @@ class ApphudService(
         executor.call(
             RequestConfig(
                 path = "customers/attribution",
+                classss = ResponseDto::class.java,
                 type = object : TypeToken<ResponseDto<AttributionDto>>(){}.type,
                 queries = mapOf(API_KEY to apiKey),
                 requestType = RequestType.POST
@@ -69,6 +77,7 @@ class ApphudService(
         executor.call(
             RequestConfig(
                 path = "customers/push_token",
+                classss = ResponseDto::class.java,
                 type = object : TypeToken<ResponseDto<AttributionDto>>(){}.type,
                 queries = mapOf(API_KEY to apiKey),
                 requestType = RequestType.PUT
@@ -83,6 +92,7 @@ class ApphudService(
         executor.call(
             RequestConfig(
                 path = "subscriptions",
+                classss = ResponseDto::class.java,
                 type = object : TypeToken<ResponseDto<PurchaseResponseDto>>(){}.type,
                 queries = mapOf(API_KEY to apiKey),
                 requestType = RequestType.POST
