@@ -9,38 +9,19 @@ import com.apphud.sdk.domain.ApphudSubscription
 
 object ApphudSdk {
 
-    fun init(context: Context, apiKey: ApiKey) {
+    /**
+     * Initializes Apphud SDK. You should call it during app launch.
+     *
+     * @parameter apiKey: Required. Your api key.
+     * @parameter userId: Optional. You can provide your own unique user identifier. If null passed then UUID will be generated instead.
+     * @parameter deviceID: Optional. You can provide your own unique device identifier. If null passed then UUID will be generated instead.
+     */
+    fun start(context: Context, apiKey: ApiKey, userId: UserId? = null, deviceId: DeviceId? = null) {
         ApphudInternal.apiKey = apiKey
         ApphudInternal.context = context
         ApphudInternal.loadAdsId()
-    }
-
-    /**
-     * Initializes Apphud SDK. You should call it during app launch.
-     *
-     * - parameter apiKey: Required. Your api key.
-     * - parameter userID: Optional. You can provide your own unique user identifier. If null passed then UUID will be generated instead.
-     */
-    fun start() = startManually(null, null)
-
-    /**
-     * Initializes Apphud SDK. You should call it during app launch.
-     *
-     * - parameter apiKey: Required. Your api key.
-     * - parameter userID: Optional. You can provide your own unique user identifier. If null passed then UUID will be generated instead.
-     */
-    fun start(userId: UserId) =
-        startManually(userId, null)
-
-    /**
-     * Initializes Apphud SDK with Device ID parameter. Not recommended for use unless you know what you are doing.
-     *
-     * - parameter apiKey: Required. Your api key.
-     * - parameter userID: Optional. You can provide your own unique user identifier. If null passed then UUID will be generated instead.
-     * - parameter deviceID: Optional. You can provide your own unique device identifier. If null passed then UUID will be generated instead.
-     */
-    fun startManually(userId: UserId? = null, deviceId: DeviceId? = null) =
         ApphudInternal.registration(userId, deviceId)
+    }
 
     /**
      * Updates user ID value

@@ -9,18 +9,18 @@ class CustomerMapper(
     private val mapper: SubscriptionMapper
 ) {
 
-    fun map(customer: CustomerDto) = com.apphud.sdk.domain.Customer(
-        user = com.apphud.sdk.domain.ApphudUser(
+    fun map(customer: CustomerDto) = Customer(
+        user = ApphudUser(
             userId = customer.user_id,
             currencyCode = customer.currency?.code,
             currencyCountryCode = customer.currency?.country_code
         ),
         subscriptions = customer.subscriptions
-            .filter { it.kind == com.apphud.sdk.domain.ApphudKind.AUTORENEWABLE.name }
+            .filter { it.kind == ApphudKind.AUTORENEWABLE.source }
             .map { mapper.mapRenewable(it) }
             .sortedBy { it.expiresAt },
         purchases = customer.subscriptions
-            .filter { it.kind == com.apphud.sdk.domain.ApphudKind.NONRENEWABLE.name }
+            .filter { it.kind == ApphudKind.NONRENEWABLE.source }
             .map { mapper.mapNonRenewable(it) }
             .sortedBy { it.purchasedAt }
     )

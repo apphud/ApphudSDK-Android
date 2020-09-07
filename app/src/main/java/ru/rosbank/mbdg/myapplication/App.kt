@@ -17,8 +17,8 @@ class App : Application() {
         super.onCreate()
         app = this
 
-        ApphudSdk.init(this, Constants.API_KEY)
         ApphudSdk.enableDebugLogs()
+        ApphudSdk.start(this, Constants.API_KEY)
 
         val listener = object : AppsFlyerConversionListener {
             override fun onAppOpenAttribution(map: MutableMap<String, String>?) {

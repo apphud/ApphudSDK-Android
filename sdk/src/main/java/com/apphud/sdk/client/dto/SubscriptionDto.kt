@@ -14,7 +14,7 @@ data class SubscriptionDto(
     val retries_count: Int,
     val started_at: String,
     val active_till: String,
-    val kind: String, //autorenewable enum?
+    val kind: String,
     val units_count: Int,
     val status: ApphudSubscriptionStatus
 )

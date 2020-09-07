@@ -6,7 +6,6 @@ import android.os.AsyncTask
 import android.os.Build
 import android.os.Handler
 import android.os.Looper
-import com.android.billingclient.BuildConfig
 import com.android.billingclient.api.BillingClient
 import com.android.billingclient.api.Purchase
 import com.android.billingclient.api.SkuDetails
@@ -244,6 +243,7 @@ internal object ApphudInternal {
             idfa = adsId,
             user_id = userId,
             device_id = deviceId,
-            time_zone = TimeZone.getDefault().id
+            time_zone = TimeZone.getDefault().id,
+            is_sandbox = BuildConfig.DEBUG
         )
 }

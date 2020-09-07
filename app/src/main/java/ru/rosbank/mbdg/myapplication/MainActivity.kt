@@ -2,6 +2,7 @@ package ru.rosbank.mbdg.myapplication
 
 import android.os.Bundle
 import android.util.Log
+import android.widget.Button
 import androidx.appcompat.app.AppCompatActivity
 import androidx.recyclerview.widget.RecyclerView
 import com.android.billingclient.api.SkuDetails
@@ -28,18 +29,18 @@ class MainActivity : AppCompatActivity() {
         ApphudSdk.setListener(listener)
 
         adapter.onClick = { model ->
-            Log.e("WOW", "onClick model: $model")
+            Log.e("Apphud", "onClick model: $model")
             when (model.details) {
-                null -> Log.e("WOW", "details is empty")
+                null -> Log.e("Apphud", "details is empty")
                 else ->  ApphudSdk.purchase(this, model.details) { _ -> }
             }
         }
 
+        val syncButton: Button = findViewById(R.id.syncButtonViewId)
+        syncButton.setOnClickListener {
+            ApphudSdk.syncPurchases()
+        }
         val recyclerView = findViewById<RecyclerView>(R.id.recyclerViewId)
         recyclerView.adapter = adapter
-
-        //TODO Тест на то, если будем слишком часто вызывать этот метод
-        ApphudSdk.start()
-        ApphudSdk.syncPurchases()
     }
 }
