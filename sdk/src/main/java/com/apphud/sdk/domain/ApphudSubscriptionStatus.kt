@@ -14,12 +14,18 @@ package com.apphud.sdk.domain
  * `expired`: Subscription has expired because has been canceled manually by user or had unresolved billing issues.
  */
 
-enum class ApphudSubscriptionStatus {
-    trial,
-    intro,
-    promo,
-    regular,
-    grace,
-    refunded,
-    expired
+enum class ApphudSubscriptionStatus(val source: String) {
+    NONE("none"),
+    TRIAL("trial"),
+    INTRO("intro"),
+    PROMO("promo"),
+    REGULAR("regular"),
+    GRACE("grace"),
+    REFUNDED("refunded"),
+    EXPIRED("expired");
+
+    companion object {
+        fun map(value: String?) =
+            values().find { it.source == value } ?: NONE
+    }
 }

@@ -1,7 +1,5 @@
 package com.apphud.sdk.client.dto
 
-import com.apphud.sdk.domain.ApphudSubscriptionStatus
-
 data class SubscriptionDto(
     val id: String,
     val unit: String,
@@ -16,5 +14,5 @@ data class SubscriptionDto(
     val active_till: String,
     val kind: String,
     val units_count: Int,
-    val status: ApphudSubscriptionStatus
+    val status: String
 )

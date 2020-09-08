@@ -4,14 +4,15 @@ import com.apphud.sdk.client.dto.SubscriptionDto
 import com.apphud.sdk.domain.ApphudKind
 import com.apphud.sdk.domain.ApphudNonRenewingPurchase
 import com.apphud.sdk.domain.ApphudSubscription
+import com.apphud.sdk.domain.ApphudSubscriptionStatus
 
 class SubscriptionMapper {
 
-    fun mapRenewable(dto: SubscriptionDto): com.apphud.sdk.domain.ApphudSubscription =
-        com.apphud.sdk.domain.ApphudSubscription(
-            status = dto.status,
+    fun mapRenewable(dto: SubscriptionDto): ApphudSubscription =
+        ApphudSubscription(
+            status = ApphudSubscriptionStatus.map(dto.status),
             productId = dto.product_id,
-            kind = com.apphud.sdk.domain.ApphudKind.map(dto.kind),
+            kind = ApphudKind.map(dto.kind),
             expiresAt = dto.expires_at,
             startedAt = dto.started_at,
             cancelledAt = dto.cancelled_at,
@@ -20,8 +21,8 @@ class SubscriptionMapper {
             isAutoRenewEnabled = dto.autorenew_enabled
         )
 
-    fun mapNonRenewable(dto: SubscriptionDto): com.apphud.sdk.domain.ApphudNonRenewingPurchase =
-        com.apphud.sdk.domain.ApphudNonRenewingPurchase(
+    fun mapNonRenewable(dto: SubscriptionDto): ApphudNonRenewingPurchase =
+        ApphudNonRenewingPurchase(
             productId = dto.product_id,
             purchasedAt = dto.started_at,
             canceledAt = dto.cancelled_at
