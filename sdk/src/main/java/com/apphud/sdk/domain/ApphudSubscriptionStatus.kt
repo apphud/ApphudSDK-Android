@@ -15,11 +15,11 @@ package com.apphud.sdk.domain
  */
 
 enum class ApphudSubscriptionStatus {
-    TRIAL,
-    INTRO,
-    PROMO,
-    REGULAR,
-    GRACE,
-    REFUNDED,
-    EXPIRED
+    trial,
+    intro,
+    promo,
+    regular,
+    grace,
+    refunded,
+    expired
 }

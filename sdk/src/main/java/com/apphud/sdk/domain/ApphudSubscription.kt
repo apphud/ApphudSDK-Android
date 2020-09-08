@@ -13,11 +13,11 @@ data class ApphudSubscription(
 ) {
 
     fun isActive() = when (status) {
-        ApphudSubscriptionStatus.TRIAL,
-        ApphudSubscriptionStatus.INTRO,
-        ApphudSubscriptionStatus.PROMO,
-        ApphudSubscriptionStatus.REGULAR,
-        ApphudSubscriptionStatus.GRACE -> true
+        ApphudSubscriptionStatus.trial,
+        ApphudSubscriptionStatus.intro,
+        ApphudSubscriptionStatus.promo,
+        ApphudSubscriptionStatus.regular,
+        ApphudSubscriptionStatus.grace -> true
         else                           -> false
     }
 }
