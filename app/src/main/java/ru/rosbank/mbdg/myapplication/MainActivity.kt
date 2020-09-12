@@ -8,6 +8,8 @@ import androidx.recyclerview.widget.RecyclerView
 import com.android.billingclient.api.SkuDetails
 import com.apphud.sdk.ApphudListener
 import com.apphud.sdk.ApphudSdk
+import com.apphud.sdk.domain.ApphudNonRenewingPurchase
+import com.apphud.sdk.domain.ApphudSubscription
 import ru.rosbank.mbdg.myapplication.presentation.ProductModelMapper
 import ru.rosbank.mbdg.myapplication.presentation.ProductsAdapter
 
@@ -21,10 +23,27 @@ class MainActivity : AppCompatActivity() {
         setContentView(R.layout.activity_main)
 
         val listener = object : ApphudListener {
-            override fun apphudFetchSkuDetailsProducts(details: List<SkuDetails>) {
-                val products =  details.map { mapper.map(it) }
-                adapter.products = adapter.products.filter { it.details != null } + products
+            override fun apphudSubscriptionsUpdated(subscriptions: List<ApphudSubscription>) {
+                val products = adapter.products.map { product ->
+                    subscriptions.firstOrNull { it.productId == product.productId }
+                        ?.let { subscription -> mapper.map(product, subscription) }
+                        ?: product
+                }
+                adapter.products = adapter.products.filter { it.subscription != null } + products
             }
+
+            override fun apphudNonRenewingPurchasesUpdated(purchases: List<ApphudNonRenewingPurchase>) {
+                val products = adapter.products.map { product ->
+                    purchases.firstOrNull { it.productId == product.productId }
+                        ?.let { purchase -> mapper.map(product, purchase) }
+                        ?: product
+                }
+                adapter.products = adapter.products.filter { it.purchase != null } + products
+            }
+
+            override fun apphudFetchSkuDetailsProducts(details: List<SkuDetails>) {
+                adapter.products += details.map { mapper.map(it) }
+           }
         }
         ApphudSdk.setListener(listener)
 

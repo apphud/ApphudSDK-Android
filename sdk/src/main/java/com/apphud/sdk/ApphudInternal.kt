@@ -52,8 +52,7 @@ internal object ApphudInternal {
     internal var apphudListener: ApphudListener? = null
 
     internal fun loadAdsId() {
-        val task = AdvertisingTask()
-        task.execute()
+        AdvertisingTask().execute()
     }
 
     private class AdvertisingTask : AsyncTask<Void, Void, String?>() {
@@ -78,7 +77,11 @@ internal object ApphudInternal {
 
         val body = mkRegistrationBody(this.userId, this.deviceId)
         client.registrationUser(body) { customer ->
-            handler.post { storage.customer = customer }
+            handler.post {
+                storage.customer = customer
+                apphudListener?.apphudSubscriptionsUpdated(customer.subscriptions)
+                apphudListener?.apphudNonRenewingPurchasesUpdated(customer.purchases)
+            }
         }
 // try to continue anyway, because maybe already has cached data, try to fetch products
         fetchProducts()
@@ -103,7 +106,11 @@ internal object ApphudInternal {
                     billing.acknowledge(it.purchase.purchaseToken)
                 }
             }
-            client.purchased(mkPurchasesBody(purchases)) {
+            client.purchased(mkPurchasesBody(purchases)) { customer ->
+                handler.post {
+                    apphudListener?.apphudSubscriptionsUpdated(customer.subscriptions)
+                    apphudListener?.apphudNonRenewingPurchasesUpdated(customer.purchases)
+                }
                 ApphudLog.log("Response from server after success purchases: $purchases")
             }
             callback.invoke(purchases.map { it.purchase })
@@ -113,7 +120,11 @@ internal object ApphudInternal {
 
     internal fun syncPurchases() {
         billing.restoreCallback = { records ->
-            client.purchased(mkPurchaseBody(records)) {
+            client.purchased(mkPurchaseBody(records)) { customer ->
+                handler.post {
+                    apphudListener?.apphudSubscriptionsUpdated(customer.subscriptions)
+                    apphudListener?.apphudNonRenewingPurchasesUpdated(customer.purchases)
+                }
                 ApphudLog.log("success send history purchases $records")
             }
         }

@@ -86,7 +86,7 @@ internal class ApphudClient(apiKey: ApiKey, parser: Parser) {
         pool.execute(LoopRunnable(callable) { response ->
             when (response.data.results) {
                 null -> ApphudLog.log("Response success but result is null")
-                else -> callback.invoke(response.data.results)
+                else -> callback.invoke(mapper.map(response.data.results))
             }
         })
     }

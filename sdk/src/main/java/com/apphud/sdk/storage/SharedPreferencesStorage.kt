@@ -1,6 +1,7 @@
 package com.apphud.sdk.storage
 
 import android.content.Context
+import com.apphud.sdk.domain.Customer
 import com.google.gson.reflect.TypeToken
 
 class SharedPreferencesStorage(
@@ -30,11 +31,11 @@ class SharedPreferencesStorage(
             editor.apply()
         }
 
-    override var customer: com.apphud.sdk.domain.Customer?
+    override var customer: Customer?
         get() {
             val source = preferences.getString(CUSTOMER_KEY, null)
-            val type = object : TypeToken<com.apphud.sdk.domain.Customer>(){}.type
-            return parser.fromJson<com.apphud.sdk.domain.Customer>(source, type)
+            val type = object : TypeToken<Customer>(){}.type
+            return parser.fromJson<Customer>(source, type)
         }
         set(value) {
             val source = parser.toJson(value)

@@ -79,11 +79,11 @@ class ApphudService(
     /**
      * Отправка данных после успешной покупки
      */
-    fun purchase(body: PurchaseBody): ResponseDto<PurchaseResponseDto> =
+    fun purchase(body: PurchaseBody): ResponseDto<CustomerDto> =
         executor.call(
             RequestConfig(
                 path = "subscriptions",
-                type = object : TypeToken<ResponseDto<PurchaseResponseDto>>(){}.type,
+                type = object : TypeToken<ResponseDto<CustomerDto>>() {}.type,
                 queries = mapOf(API_KEY to apiKey),
                 requestType = RequestType.POST
             ),

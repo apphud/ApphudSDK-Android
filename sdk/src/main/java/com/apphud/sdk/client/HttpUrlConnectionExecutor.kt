@@ -34,16 +34,14 @@ class HttpUrlConnectionExecutor(
         connection.setRequestProperty("Accept", "application/json; utf-8")
         connection.setRequestProperty("Content-Type", "application/json; utf-8")
         connection.setRequestProperty("X-Platform", "android")
+        config.headers.forEach { entry ->
+            connection.setRequestProperty(entry.key, entry.value)
+        }
         connection.readTimeout = 10_000
         connection.connectTimeout = 10_000
 
         when (config.requestType) {
-            RequestType.GET -> {
-                ApphudLog.log("start ${config.requestType} request ${apphudUrl.url} without params")
-                config.headers.forEach { entry ->
-                    connection.setRequestProperty(entry.key, entry.value)
-                }
-            }
+            RequestType.GET -> ApphudLog.log("start ${config.requestType} request ${apphudUrl.url} without params")
             else            -> {
                 ApphudLog.log("start ${config.requestType} request ${apphudUrl.url} with params:\n ${parser.toJson(input)}")
                 input?.let { source ->
@@ -59,14 +57,13 @@ class HttpUrlConnectionExecutor(
 
         val response = when (connection.isSuccess) {
             true -> {
-                val result = buildStringBy(connection.inputStream)
-                val o = parser.fromJson<O>(result, config.type)
-                ApphudLog.log("finish ${config.requestType} request ${apphudUrl.url} success with response:\n ${parser.toJson(o)}")
-                o
+                val response = buildStringBy(connection.inputStream)
+                ApphudLog.log("finish ${config.requestType} request ${apphudUrl.url} success with response:\n ${buildPrettyPrintedBy(response)}")
+                parser.fromJson<O>(response, config.type)
             }
             else -> {
                 val response = buildStringBy(connection.errorStream)
-                ApphudLog.log("finish ${config.requestType} request ${apphudUrl.url} failed with code: ${connection.responseCode} response: $response")
+                ApphudLog.log("finish ${config.requestType} request ${apphudUrl.url} failed with code: ${connection.responseCode} response: ${buildPrettyPrintedBy(response)}")
                 null
             }
         }
@@ -82,6 +79,12 @@ class HttpUrlConnectionExecutor(
         }
         throw e
     }
+
+    //Функция чтобы сырой ответ с сервера отображался в pretty printed стиле
+    private fun buildPrettyPrintedBy(response: String) =
+        parser.fromJson<Map<String, Any>>(response, Map::class.java)?.let { value ->
+            parser.toJson(value)
+        }
 
     private fun buildStringBy(stream: InputStream): String {
         val reader = InputStreamReader(stream, Charsets.UTF_8)
