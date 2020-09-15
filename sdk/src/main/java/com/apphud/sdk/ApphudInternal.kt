@@ -42,13 +42,15 @@ internal object ApphudInternal {
     private val storage by lazy { SharedPreferencesStorage(context, parser) }
     private val generatedUUID = UUID.randomUUID().toString()
 
-    internal var adsId: String? = null
+    private var adsId: String? = null
         set(value) {
             field = value
             updateRegistration()
         }
-    internal lateinit var userId: UserId
-    internal lateinit var deviceId: DeviceId
+
+    private lateinit var userId: UserId
+    private lateinit var deviceId: DeviceId
+
     internal lateinit var apiKey: ApiKey
     internal lateinit var context: Context
 
@@ -58,6 +60,8 @@ internal object ApphudInternal {
     internal fun loadAdsId() {
         AdvertisingTask().execute()
     }
+
+    internal fun userId(): UserId = updateUser(userId)
 
     private class AdvertisingTask : AsyncTask<Void, Void, String?>() {
         override fun doInBackground(vararg params: Void?): String? = advertisingId(context)
