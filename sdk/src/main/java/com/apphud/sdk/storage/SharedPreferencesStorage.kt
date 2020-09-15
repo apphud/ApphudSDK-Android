@@ -7,7 +7,7 @@ import com.google.gson.reflect.TypeToken
 class SharedPreferencesStorage(
     context: Context,
     private val parser: com.apphud.sdk.parser.Parser
-) : com.apphud.sdk.storage.Storage {
+) : Storage {
 
     companion object {
         private const val NAME = "apphud_storage"
@@ -16,6 +16,7 @@ class SharedPreferencesStorage(
         private const val USER_ID_KEY = "userIdKey"
         private const val CUSTOMER_KEY = "customerKey"
         private const val DEVICE_ID_KEY = "deviceIdKey"
+        private const val ADVERTISING_DI_KEY = "advertisingIdKey"
     }
 
     private val preferences = context.getSharedPreferences(
@@ -34,7 +35,7 @@ class SharedPreferencesStorage(
     override var customer: Customer?
         get() {
             val source = preferences.getString(CUSTOMER_KEY, null)
-            val type = object : TypeToken<Customer>(){}.type
+            val type = object : TypeToken<Customer>() {}.type
             return parser.fromJson<Customer>(source, type)
         }
         set(value) {
@@ -49,6 +50,14 @@ class SharedPreferencesStorage(
         set(value) {
             val editor = preferences.edit()
             editor.putString(DEVICE_ID_KEY, value)
+            editor.apply()
+        }
+
+    override var advertisingId: String?
+        get() = preferences.getString(ADVERTISING_DI_KEY, null)
+        set(value) {
+            val editor = preferences.edit()
+            editor.putString(ADVERTISING_DI_KEY, value)
             editor.apply()
         }
 }

@@ -42,13 +42,17 @@ internal object ApphudInternal {
     private val storage by lazy { SharedPreferencesStorage(context, parser) }
     private val generatedUUID = UUID.randomUUID().toString()
 
-    private var adsId: String? = null
+    private var advertisingId: String? = null
+        get() = storage.advertisingId
         set(value) {
             field = value
-            updateRegistration()
+            if (storage.advertisingId != value) {
+                storage.advertisingId = value
+                updateRegistration()
+            }
         }
 
-    private lateinit var userId: UserId
+    internal var userId: UserId? = null
     private lateinit var deviceId: DeviceId
 
     internal lateinit var apiKey: ApiKey
@@ -61,29 +65,33 @@ internal object ApphudInternal {
         AdvertisingTask().execute()
     }
 
-    internal fun userId(): UserId = updateUser(userId)
-
     private class AdvertisingTask : AsyncTask<Void, Void, String?>() {
         override fun doInBackground(vararg params: Void?): String? = advertisingId(context)
         override fun onPostExecute(result: String?) {
-            adsId = result
+            advertisingId = result
         }
     }
 
     internal fun updateUserId(userId: UserId) {
-        this.userId = updateUser(id = userId)
+        val id = updateUser(id = userId)
+        this.userId = id
 
-        val body = mkRegistrationBody(this.userId, deviceId)
+        val body = mkRegistrationBody(id, deviceId)
         client.registrationUser(body) { customer ->
             handler.post { storage.customer = customer }
         }
     }
 
-    internal fun registration(userId: UserId?, deviceId: DeviceId?, isFetchProducts: Boolean = true) {
-        this.userId = updateUser(id = userId)
+    internal fun registration(
+        userId: UserId?,
+        deviceId: DeviceId?,
+        isFetchProducts: Boolean = true
+    ) {
+        val id = updateUser(id = userId)
+        this.userId = id
         this.deviceId = updateDevice(id = deviceId)
 
-        val body = mkRegistrationBody(this.userId, this.deviceId)
+        val body = mkRegistrationBody(id, this.deviceId)
         client.registrationUser(body) { customer ->
             handler.post {
                 storage.customer = customer
@@ -271,7 +279,7 @@ internal object ApphudInternal {
             os_version = Build.VERSION.RELEASE,
             start_app_version = context.buildAppVersion(),
             idfv = null,
-            idfa = adsId,
+            idfa = advertisingId,
             user_id = userId,
             device_id = deviceId,
             time_zone = TimeZone.getDefault().id,

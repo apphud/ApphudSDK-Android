@@ -19,6 +19,7 @@ class App : Application() {
 
         Apphud.enableDebugLogs()
         Apphud.start(this, Constants.API_KEY)
+        Apphud.userId()
 
         val listener = object : AppsFlyerConversionListener {
             override fun onAppOpenAttribution(map: MutableMap<String, String>?) {
