@@ -1,15 +1,11 @@
 package com.apphud.sdk
 
 import java.text.SimpleDateFormat
+import java.util.*
 
-object DateTimeFormat {
-    const val common = "yyyy-MM-dd'T'HH:mm:ss"
-}
-
-fun buildTime(source: String): String? = try {
-    val parser = SimpleDateFormat(DateTimeFormat.common)
-    val formatter = SimpleDateFormat("dd.MM.yyyy HH:mm")
-    formatter.format(parser.parse(source))
+fun buildTime(source: Long?): String? = try {
+    val formatter = SimpleDateFormat("dd.MM.yyyy HH:mm", Locale.getDefault())
+    source?.let { formatter.format(Date(source)) }
 } catch (e: Exception) {
     ApphudLog.log("Wrong parse time: $source")
     null

@@ -17,11 +17,11 @@ class CustomerMapper(
         ),
         subscriptions = customer.subscriptions
             .filter { it.kind == ApphudKind.AUTORENEWABLE.source }
-            .map { mapper.mapRenewable(it) }
-            .sortedBy { it.expiresAt },
+            .mapNotNull { mapper.mapRenewable(it) }
+            .sortedByDescending { it.expiresAt },
         purchases = customer.subscriptions
             .filter { it.kind == ApphudKind.NONRENEWABLE.source }
-            .map { mapper.mapNonRenewable(it) }
-            .sortedBy { it.purchasedAt }
+            .mapNotNull { mapper.mapNonRenewable(it) }
+            .sortedByDescending { it.purchasedAt }
     )
 }

@@ -3,9 +3,9 @@ package com.apphud.sdk.domain
 data class ApphudSubscription(
     val status: ApphudSubscriptionStatus,
     val productId: String,
-    val expiresAt: String,
-    val startedAt: String,
-    val cancelledAt: String?,
+    val expiresAt: Long,
+    val startedAt: Long?,
+    val cancelledAt: Long?,
     val isInRetryBilling: Boolean,
     val isAutoRenewEnabled: Boolean,
     val isIntroductoryActivated: Boolean,

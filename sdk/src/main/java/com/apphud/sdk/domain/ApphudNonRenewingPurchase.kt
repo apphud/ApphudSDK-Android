@@ -13,12 +13,12 @@ data class ApphudNonRenewingPurchase(
     /**
      * Date when user bought regular in-app purchase.
      */
-    val purchasedAt: String,
+    val purchasedAt: Long,
 
     /**
      *  Canceled date of in-app purchase, i.e. refund date. Nil if in-app purchase is not refunded.
      */
-    val canceledAt: String?
+    val canceledAt: Long?
 ) {
 
     /**
