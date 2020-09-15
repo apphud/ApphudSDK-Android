@@ -3,7 +3,7 @@ package ru.rosbank.mbdg.myapplication
 import android.app.Application
 import android.util.Log
 import com.apphud.sdk.ApphudAttributionProvider
-import com.apphud.sdk.ApphudSdk
+import com.apphud.sdk.Apphud
 import com.appsflyer.AppsFlyerConversionListener
 import com.appsflyer.AppsFlyerLib
 
@@ -17,8 +17,8 @@ class App : Application() {
         super.onCreate()
         app = this
 
-        ApphudSdk.enableDebugLogs()
-        ApphudSdk.start(this, Constants.API_KEY)
+        Apphud.enableDebugLogs()
+        Apphud.start(this, Constants.API_KEY)
 
         val listener = object : AppsFlyerConversionListener {
             override fun onAppOpenAttribution(map: MutableMap<String, String>?) {
@@ -27,7 +27,7 @@ class App : Application() {
             override fun onConversionDataSuccess(map: MutableMap<String, Any>?) {
                 Log.e("Apphud", "conversion data success $map")
                 val uid = AppsFlyerLib.getInstance().getAppsFlyerUID(app)
-                ApphudSdk.addAttribution(
+                Apphud.addAttribution(
                     provider = ApphudAttributionProvider.appsFlyer,
                     data = map,
                     identifier = uid

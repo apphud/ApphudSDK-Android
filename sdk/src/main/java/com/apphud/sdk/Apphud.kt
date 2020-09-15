@@ -7,7 +7,7 @@ import com.android.billingclient.api.SkuDetails
 import com.apphud.sdk.domain.ApphudNonRenewingPurchase
 import com.apphud.sdk.domain.ApphudSubscription
 
-object ApphudSdk {
+object Apphud {
 
     /**
      * Initializes Apphud SDK. You should call it during app launch.
