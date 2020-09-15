@@ -3,7 +3,7 @@ package ru.rosbank.mbdg.myapplication
 import android.app.Application
 import android.util.Log
 import com.apphud.sdk.ApphudAttributionProvider
-import com.apphud.sdk.ApphudSdk
+import com.apphud.sdk.Apphud
 import com.appsflyer.AppsFlyerConversionListener
 import com.appsflyer.AppsFlyerLib
 import com.yandex.metrica.YandexMetrica
@@ -26,15 +26,15 @@ class App : Application() {
     }
 
     fun setupApphud() {
-        ApphudSdk.enableDebugLogs()
-        ApphudSdk.start(this, Constants.Apphud_API_KEY)
-        print("apphud user_id =" + ApphudSdk.userId())
+        Apphud.enableDebugLogs()
+        Apphud.start(this, Constants.Apphud_API_KEY)
+        print("apphud user_id =" + Apphud.userId())
     }
 
     fun setupAppmetrica() {
         val config: YandexMetricaConfig = YandexMetricaConfig.newConfigBuilder(Constants.Appmetrica_API_KEY).build()
         YandexMetrica.activate(applicationContext, config)
-        YandexMetrica.setUserProfileID(ApphudSdk.userId())
+        YandexMetrica.setUserProfileID(Apphud.userId())
     }
 
     fun setupAppsFlyer() {
@@ -45,7 +45,7 @@ class App : Application() {
             override fun onConversionDataSuccess(map: MutableMap<String, Any>?) {
                 Log.e("Apphud", "conversion data success $map")
                 val uid = AppsFlyerLib.getInstance().getAppsFlyerUID(app)
-                ApphudSdk.addAttribution(
+                Apphud.addAttribution(
                     provider = ApphudAttributionProvider.appsFlyer,
                     data = map,
                     identifier = uid
@@ -54,12 +54,12 @@ class App : Application() {
 
             override fun onConversionDataFail(p0: String?) {
                 val uid = AppsFlyerLib.getInstance().getAppsFlyerUID(app)
-                ApphudSdk.addAttribution(ApphudAttributionProvider.appsFlyer, null, uid)
+                Apphud.addAttribution(ApphudAttributionProvider.appsFlyer, null, uid)
             }
 
             override fun onAttributionFailure(p0: String?) {
                 val uid = AppsFlyerLib.getInstance().getAppsFlyerUID(app)
-                ApphudSdk.addAttribution(ApphudAttributionProvider.appsFlyer, null, uid)
+                Apphud.addAttribution(ApphudAttributionProvider.appsFlyer, null, uid)
             }
         }
         AppsFlyerLib.getInstance().init(Constants.APPSFLYER_DEV_KEY, listener, this)
@@ -67,7 +67,7 @@ class App : Application() {
     }
 
     fun setupFacebook() {
-        ApphudSdk.addAttribution(ApphudAttributionProvider.facebook)
+        Apphud.addAttribution(ApphudAttributionProvider.facebook)
     }
 
 }

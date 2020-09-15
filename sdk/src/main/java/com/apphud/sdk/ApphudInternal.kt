@@ -43,6 +43,10 @@ internal object ApphudInternal {
     private val generatedUUID = UUID.randomUUID().toString()
 
     internal var adsId: String? = null
+        set(value) {
+            field = value
+            updateRegistration()
+        }
     internal lateinit var userId: UserId
     internal lateinit var deviceId: DeviceId
     internal lateinit var apiKey: ApiKey
@@ -209,6 +213,9 @@ internal object ApphudInternal {
         storage.deviceId = deviceId
         return deviceId
     }
+
+    private fun updateRegistration() =
+        registration(userId, deviceId)
 
     private fun mkPurchasesBody(purchases: List<PurchaseDetails>) =
         PurchaseBody(

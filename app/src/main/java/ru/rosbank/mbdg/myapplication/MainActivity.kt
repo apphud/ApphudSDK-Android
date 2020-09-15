@@ -7,7 +7,7 @@ import androidx.appcompat.app.AppCompatActivity
 import androidx.recyclerview.widget.RecyclerView
 import com.android.billingclient.api.SkuDetails
 import com.apphud.sdk.ApphudListener
-import com.apphud.sdk.ApphudSdk
+import com.apphud.sdk.Apphud
 import com.apphud.sdk.domain.ApphudNonRenewingPurchase
 import com.apphud.sdk.domain.ApphudSubscription
 import ru.rosbank.mbdg.myapplication.presentation.ProductModelMapper
@@ -45,19 +45,19 @@ class MainActivity : AppCompatActivity() {
                 adapter.products += details.map { mapper.map(it) }
            }
         }
-        ApphudSdk.setListener(listener)
+        Apphud.setListener(listener)
 
         adapter.onClick = { model ->
             Log.e("Apphud", "onClick model: $model")
             when (model.details) {
                 null -> Log.e("Apphud", "details is empty")
-                else ->  ApphudSdk.purchase(this, model.details) { _ -> }
+                else ->  Apphud.purchase(this, model.details) { _ -> }
             }
         }
 
         val syncButton: Button = findViewById(R.id.syncButtonViewId)
         syncButton.setOnClickListener {
-            ApphudSdk.syncPurchases()
+            Apphud.syncPurchases()
         }
         val recyclerView = findViewById<RecyclerView>(R.id.recyclerViewId)
         recyclerView.adapter = adapter
