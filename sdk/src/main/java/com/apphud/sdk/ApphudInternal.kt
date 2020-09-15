@@ -110,12 +110,6 @@ internal object ApphudInternal {
         }
         billing.purchasesCallback = { purchases ->
             ApphudLog.log("purchases: $purchases")
-
-            purchases.forEach {
-                if (!it.purchase.isAcknowledged) {
-                    billing.acknowledge(it.purchase.purchaseToken)
-                }
-            }
             client.purchased(mkPurchasesBody(purchases)) { customer ->
                 handler.post {
                     apphudListener?.apphudSubscriptionsUpdated(customer.subscriptions)
@@ -124,6 +118,12 @@ internal object ApphudInternal {
                 ApphudLog.log("Response from server after success purchases: $purchases")
             }
             callback.invoke(purchases.map { it.purchase })
+
+            purchases.forEach {
+                if (!it.purchase.isAcknowledged) {
+                    billing.acknowledge(it.purchase.purchaseToken)
+                }
+            }
         }
         billing.purchase(activity, details)
     }
