@@ -90,16 +90,25 @@ object Apphud {
         identifier: String? = null
     ) = ApphudInternal.addAttribution(provider, data, identifier)
 
+    /**
+     * This method will send all the purchases to the Apphud server.
+     * Call this when using your own implementation for subscriptions anytime a sync is needed, like after a successful purchase.
+     */
     fun syncPurchases() = ApphudInternal.syncPurchases()
+
+    /**
+     * Purchases product and automatically submit
+     * @activity: current Activity for use
+     * @details: The skuDetails of the product you wish to purchase
+     * @block: The closure that will be called when purchase completes.
+     */
+    fun purchase(activity: Activity, details: SkuDetails, block: (List<Purchase>) -> Unit) =
+        ApphudInternal.purchase(activity, details, block)
 
     /**
      * Enables debug logs. Better to call this method before SDK initialization.
      */
     fun enableDebugLogs() = ApphudUtils.enableDebugLogs()
-
-    fun purchase(activity: Activity, details: SkuDetails, block: (List<Purchase>) -> Unit) {
-        ApphudInternal.purchase(activity, details, block)
-    }
 
     /**
      * Set a listener
