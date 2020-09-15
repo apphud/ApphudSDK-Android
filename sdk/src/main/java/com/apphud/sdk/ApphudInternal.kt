@@ -22,7 +22,6 @@ import com.apphud.sdk.parser.GsonParser
 import com.apphud.sdk.parser.Parser
 import com.apphud.sdk.storage.SharedPreferencesStorage
 import com.apphud.sdk.tasks.advertisingId
-import com.google.gson.Gson
 import com.google.gson.GsonBuilder
 import java.util.*
 
@@ -32,6 +31,7 @@ internal object ApphudInternal {
         .setPrettyPrinting()
         .create()
     private val parser: Parser = GsonParser(builder)
+    private var appsflyerBody: AttributionBody? = null
 
     /**
      * @handler use for work with UI-thread. Save to storage, call callbacks
@@ -75,7 +75,7 @@ internal object ApphudInternal {
         }
     }
 
-    internal fun registration(userId: UserId?, deviceId: DeviceId?) {
+    internal fun registration(userId: UserId?, deviceId: DeviceId?, isFetchProducts: Boolean = true) {
         this.userId = updateUser(id = userId)
         this.deviceId = updateDevice(id = deviceId)
 
@@ -87,8 +87,10 @@ internal object ApphudInternal {
                 apphudListener?.apphudNonRenewingPurchasesUpdated(customer.purchases)
             }
         }
-// try to continue anyway, because maybe already has cached data, try to fetch products
-        fetchProducts()
+        if (isFetchProducts) {
+            // try to continue anyway, because maybe already has cached data, try to fetch products
+            fetchProducts()
+        }
     }
 
     internal fun purchase(
@@ -160,16 +162,22 @@ internal object ApphudInternal {
                     facebook_data = map
                 )
             }
-            ApphudAttributionProvider.appsFlyer -> {
-                when {
-                    identifier == null -> null
-                    data == null       -> null
-                    else               -> AttributionBody(
-                        device_id = deviceId,
-                        appsflyer_id = identifier,
-                        appsflyer_data = data
-                    )
-                }
+            ApphudAttributionProvider.appsFlyer -> when (identifier) {
+                null -> null
+                else -> AttributionBody(
+                    device_id = deviceId,
+                    appsflyer_id = identifier,
+                    appsflyer_data = data
+                )
+            }
+        }
+
+        if (provider == ApphudAttributionProvider.appsFlyer) {
+            val temporary = appsflyerBody
+            appsflyerBody = when {
+                temporary == null                            -> body
+                temporary.appsflyer_id != body?.appsflyer_id -> body
+                else                                         -> return
             }
         }
 
@@ -215,7 +223,7 @@ internal object ApphudInternal {
     }
 
     private fun updateRegistration() =
-        registration(userId, deviceId)
+        registration(userId, deviceId, isFetchProducts = false)
 
     private fun mkPurchasesBody(purchases: List<PurchaseDetails>) =
         PurchaseBody(
