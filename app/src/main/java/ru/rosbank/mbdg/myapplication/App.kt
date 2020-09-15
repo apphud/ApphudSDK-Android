@@ -28,6 +28,7 @@ class App : Application() {
     fun setupApphud() {
         ApphudSdk.enableDebugLogs()
         ApphudSdk.start(this, Constants.Apphud_API_KEY)
+        print("apphud user_id =" + ApphudSdk.userId())
     }
 
     fun setupAppmetrica() {
@@ -50,8 +51,16 @@ class App : Application() {
                     identifier = uid
                 )
             }
-            override fun onConversionDataFail(p0: String?)= Unit
-            override fun onAttributionFailure(p0: String?) = Unit
+
+            override fun onConversionDataFail(p0: String?) {
+                val uid = AppsFlyerLib.getInstance().getAppsFlyerUID(app)
+                ApphudSdk.addAttribution(ApphudAttributionProvider.appsFlyer, null, uid)
+            }
+
+            override fun onAttributionFailure(p0: String?) {
+                val uid = AppsFlyerLib.getInstance().getAppsFlyerUID(app)
+                ApphudSdk.addAttribution(ApphudAttributionProvider.appsFlyer, null, uid)
+            }
         }
         AppsFlyerLib.getInstance().init(Constants.APPSFLYER_DEV_KEY, listener, this)
         AppsFlyerLib.getInstance().startTracking(this)
