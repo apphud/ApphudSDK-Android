@@ -58,7 +58,8 @@ internal object ApphudInternal {
     internal lateinit var apiKey: ApiKey
     internal lateinit var context: Context
 
-    internal var currentUser: Customer? = null
+    internal val currentUser: Customer?
+        get() = storage.customer
     internal var apphudListener: ApphudListener? = null
 
     internal fun loadAdsId() {
