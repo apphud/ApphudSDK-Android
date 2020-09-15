@@ -65,6 +65,9 @@ class MainActivity : AppCompatActivity() {
         Apphud.setListener(listener)
 
         adapter.onClick = { model ->
+
+            Log.e("Apphud", "has active subscription = ${Apphud.hasActiveSubscription()} sub = ${Apphud.subscription()}")
+            Log.e("Apphud", "subscriptions = ${Apphud.subscriptions()}")
             Log.e("Apphud", "onClick model: $model")
             when (model.details) {
                 null -> Log.e("Apphud", "details is empty")

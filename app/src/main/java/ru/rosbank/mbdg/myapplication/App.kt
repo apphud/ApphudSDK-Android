@@ -27,7 +27,8 @@ class App : Application() {
 
     fun setupApphud() {
         Apphud.enableDebugLogs()
-        Apphud.start(this, Constants.Apphud_API_KEY)
+       // print("before apphud user_id =" + Apphud.userId())
+        Apphud.start(this, Constants.Apphud_API_KEY, "test_ren6_1")
         print("apphud user_id =" + Apphud.userId())
     }
 
