@@ -33,7 +33,7 @@ object Apphud {
     /**
      * Returns current userID that identifies user across his multiple devices.
      */
-    fun userId(): UserId = ApphudInternal.userId
+    fun userId(): UserId = ApphudInternal.userId()
 
     /**
      * Returns true if user has active subscription.

@@ -42,13 +42,15 @@ internal object ApphudInternal {
     private val storage by lazy { SharedPreferencesStorage(context, parser) }
     private val generatedUUID = UUID.randomUUID().toString()
 
-    internal var adsId: String? = null
+    private var adsId: String? = null
         set(value) {
             field = value
             updateRegistration()
         }
-    internal lateinit var userId: UserId
-    internal lateinit var deviceId: DeviceId
+
+    private lateinit var userId: UserId
+    private lateinit var deviceId: DeviceId
+
     internal lateinit var apiKey: ApiKey
     internal lateinit var context: Context
 
@@ -58,6 +60,8 @@ internal object ApphudInternal {
     internal fun loadAdsId() {
         AdvertisingTask().execute()
     }
+
+    internal fun userId(): UserId = updateUser(userId)
 
     private class AdvertisingTask : AsyncTask<Void, Void, String?>() {
         override fun doInBackground(vararg params: Void?): String? = advertisingId(context)
@@ -106,12 +110,6 @@ internal object ApphudInternal {
         }
         billing.purchasesCallback = { purchases ->
             ApphudLog.log("purchases: $purchases")
-
-            purchases.forEach {
-                if (!it.purchase.isAcknowledged) {
-                    billing.acknowledge(it.purchase.purchaseToken)
-                }
-            }
             client.purchased(mkPurchasesBody(purchases)) { customer ->
                 handler.post {
                     apphudListener?.apphudSubscriptionsUpdated(customer.subscriptions)
@@ -120,6 +118,12 @@ internal object ApphudInternal {
                 ApphudLog.log("Response from server after success purchases: $purchases")
             }
             callback.invoke(purchases.map { it.purchase })
+
+            purchases.forEach {
+                if (!it.purchase.isAcknowledged) {
+                    billing.acknowledge(it.purchase.purchaseToken)
+                }
+            }
         }
         billing.purchase(activity, details)
     }

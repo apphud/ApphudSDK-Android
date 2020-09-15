@@ -14,6 +14,28 @@ class ProductModelMapper {
             purchase = null
         )
 
+    fun map(purchase: ApphudNonRenewingPurchase) =
+        ProductModel(
+            productId = purchase.productId,
+            details = null,
+            subscription = null,
+            purchase = purchase
+        )
+
+    fun map(subscription: ApphudSubscription) =
+        ProductModel(
+            productId = subscription.productId,
+            details = null,
+            subscription = subscription,
+            purchase = null
+        )
+
+    fun map(product: ProductModel, details: SkuDetails) =
+        product.copy(
+            productId = product.productId,
+            details = details
+        )
+
     fun map(product: ProductModel, subscription: ApphudSubscription) =
         product.copy(
             productId = product.productId,
