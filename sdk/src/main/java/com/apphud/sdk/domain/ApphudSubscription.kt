@@ -1,5 +1,6 @@
 package com.apphud.sdk.domain
 
+
 data class ApphudSubscription(
     val status: ApphudSubscriptionStatus,
     val productId: String,
