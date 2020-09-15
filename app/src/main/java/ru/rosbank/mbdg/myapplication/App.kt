@@ -6,6 +6,8 @@ import com.apphud.sdk.ApphudAttributionProvider
 import com.apphud.sdk.ApphudSdk
 import com.appsflyer.AppsFlyerConversionListener
 import com.appsflyer.AppsFlyerLib
+import com.yandex.metrica.YandexMetrica
+import com.yandex.metrica.YandexMetricaConfig
 
 class App : Application() {
 
@@ -17,9 +19,24 @@ class App : Application() {
         super.onCreate()
         app = this
 
-        ApphudSdk.enableDebugLogs()
-        ApphudSdk.start(this, Constants.API_KEY)
+        setupApphud()
+        setupAppmetrica()
+        setupAppsFlyer()
+        setupFacebook()
+    }
 
+    fun setupApphud() {
+        ApphudSdk.enableDebugLogs()
+        ApphudSdk.start(this, Constants.Apphud_API_KEY)
+    }
+
+    fun setupAppmetrica() {
+        val config: YandexMetricaConfig = YandexMetricaConfig.newConfigBuilder(Constants.Appmetrica_API_KEY).build()
+        YandexMetrica.activate(applicationContext, config)
+        YandexMetrica.setUserProfileID(ApphudSdk.userId())
+    }
+
+    fun setupAppsFlyer() {
         val listener = object : AppsFlyerConversionListener {
             override fun onAppOpenAttribution(map: MutableMap<String, String>?) {
                 Log.e("Apphud", "open attribution $map")
@@ -39,4 +56,9 @@ class App : Application() {
         AppsFlyerLib.getInstance().init(Constants.APPSFLYER_DEV_KEY, listener, this)
         AppsFlyerLib.getInstance().startTracking(this)
     }
+
+    fun setupFacebook() {
+        ApphudSdk.addAttribution(ApphudAttributionProvider.facebook)
+    }
+
 }
