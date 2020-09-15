@@ -175,9 +175,10 @@ internal object ApphudInternal {
         if (provider == ApphudAttributionProvider.appsFlyer) {
             val temporary = appsflyerBody
             appsflyerBody = when {
-                temporary == null                            -> body
-                temporary.appsflyer_id != body?.appsflyer_id -> body
-                else                                         -> return
+                temporary == null                                -> body
+                temporary.appsflyer_id != body?.appsflyer_id     -> body
+                temporary.appsflyer_data != body?.appsflyer_data -> body
+                else                                             -> return
             }
         }
 
