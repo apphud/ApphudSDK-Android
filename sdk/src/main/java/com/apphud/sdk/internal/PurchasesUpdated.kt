@@ -25,7 +25,7 @@ internal class PurchasesUpdated(
                     val purchases = list?.mapNotNull { purchase ->
                         PurchaseDetails(
                             purchase = purchase,
-                            details = skuDetails.remove(purchase.orderId)
+                            details = skuDetails.remove(purchase.sku)
                         )
                     } ?: emptyList()
                     callback?.invoke(purchases)
