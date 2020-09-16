@@ -1,11 +1,7 @@
 package ru.rosbank.mbdg.myapplication
 
 import android.app.Application
-import android.util.Log
-import com.apphud.sdk.ApphudAttributionProvider
 import com.apphud.sdk.Apphud
-import com.appsflyer.AppsFlyerConversionListener
-import com.appsflyer.AppsFlyerLib
 
 class App : Application() {
 
@@ -19,25 +15,5 @@ class App : Application() {
 
         Apphud.enableDebugLogs()
         Apphud.start(this, Constants.API_KEY)
-        Apphud.userId()
-
-        val listener = object : AppsFlyerConversionListener {
-            override fun onAppOpenAttribution(map: MutableMap<String, String>?) {
-                Log.e("Apphud", "open attribution $map")
-            }
-            override fun onConversionDataSuccess(map: MutableMap<String, Any>?) {
-                Log.e("Apphud", "conversion data success $map")
-                val uid = AppsFlyerLib.getInstance().getAppsFlyerUID(app)
-                Apphud.addAttribution(
-                    provider = ApphudAttributionProvider.appsFlyer,
-                    data = map,
-                    identifier = uid
-                )
-            }
-            override fun onConversionDataFail(p0: String?)= Unit
-            override fun onAttributionFailure(p0: String?) = Unit
-        }
-        AppsFlyerLib.getInstance().init(Constants.APPSFLYER_DEV_KEY, listener, this)
-        AppsFlyerLib.getInstance().startTracking(this)
     }
 }
