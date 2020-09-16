@@ -129,8 +129,16 @@ internal object ApphudInternal {
             callback.invoke(purchases.map { it.purchase })
 
             purchases.forEach {
-                if (!it.purchase.isAcknowledged) {
-                    billing.acknowledge(it.purchase.purchaseToken)
+
+                when (it.purchase.purchaseState) {
+                    Purchase.PurchaseState.PURCHASED -> when (it.details?.type) {
+                        BillingClient.SkuType.SUBS  -> if (!it.purchase.isAcknowledged) {
+                            billing.acknowledge(it.purchase.purchaseToken)
+                        }
+                        BillingClient.SkuType.INAPP -> billing.consume(it.purchase.purchaseToken)
+                        else                        -> ApphudLog.log("After purchase type is null")
+                    }
+                    else                             -> ApphudLog.log("After purchase state: ${it.purchase.purchaseState}")
                 }
             }
         }
