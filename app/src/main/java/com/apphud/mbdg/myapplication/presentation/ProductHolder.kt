@@ -1,4 +1,4 @@
-package ru.rosbank.mbdg.myapplication.presentation
+package com.apphud.mbdg.myapplication.presentation
 
 import android.annotation.SuppressLint
 import android.view.View
@@ -6,7 +6,7 @@ import android.widget.Button
 import android.widget.TextView
 import androidx.recyclerview.widget.RecyclerView
 import com.apphud.sdk.buildTime
-import ru.rosbank.mbdg.myapplication.R
+import com.apphud.mbdg.myapplication.R
 
 class ProductHolder(
     val view: View,

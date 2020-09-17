@@ -1,4 +1,4 @@
-package ru.rosbank.mbdg.myapplication
+package com.apphud.mbdg.myapplication
 
 import org.junit.Test
 

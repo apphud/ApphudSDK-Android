@@ -1,4 +1,4 @@
-package ru.rosbank.mbdg.myapplication.presentation
+package com.apphud.mbdg.myapplication.presentation
 
 import com.android.billingclient.api.SkuDetails
 import com.apphud.sdk.domain.ApphudNonRenewingPurchase

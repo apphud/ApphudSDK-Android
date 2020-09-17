@@ -1,10 +1,10 @@
-package ru.rosbank.mbdg.myapplication.presentation
+package com.apphud.mbdg.myapplication.presentation
 
 import android.view.LayoutInflater
 import android.view.ViewGroup
 import androidx.recyclerview.widget.DiffUtil
 import androidx.recyclerview.widget.RecyclerView
-import ru.rosbank.mbdg.myapplication.R
+import com.apphud.mbdg.myapplication.R
 
 fun diff(old: List<ProductModel>, new: List<ProductModel>) = object : DiffUtil.Callback() {
     override fun areItemsTheSame(oldItemPosition: Int, newItemPosition: Int): Boolean =
