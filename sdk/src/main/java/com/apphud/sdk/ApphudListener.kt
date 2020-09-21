@@ -19,9 +19,8 @@ interface ApphudListener {
     fun apphudNonRenewingPurchasesUpdated(purchases: List<ApphudNonRenewingPurchase>) = Unit
 
     /**
-    Returns array of `SkuDetails` objects after they are fetched from Billing. Note that you have to add all product identifiers in Apphud.
-
-    You can use `productsDidFetchCallback` callback or observe for `didFetchProductsNotification()` or implement `apphudDidFetchStoreKitProducts` delegate method. Use whatever you like most.
+    Returns array of `SkuDetails` objects after they are fetched from Billing.
+    Note that you have to add all product identifiers in Apphud.
      */
     fun apphudFetchSkuDetailsProducts(details: List<SkuDetails>)
 }
