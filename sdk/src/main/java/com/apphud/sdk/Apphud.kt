@@ -141,6 +141,12 @@ object Apphud {
     @kotlin.jvm.JvmStatic
     fun enableDebugLogs() = ApphudUtils.enableDebugLogs()
 
+    @kotlin.jvm.JvmStatic
+    fun disableAdTracking() = ApphudUtils.disableAdTracking()
+
+    @kotlin.jvm.JvmStatic
+    fun logout() = ApphudInternal.logout()
+
     /**
      * Set a listener
      * @param apphudListener Any ApphudDelegate conformable object.

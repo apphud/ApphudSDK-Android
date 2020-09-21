@@ -40,7 +40,7 @@ internal object ApphudInternal {
     private val client by lazy { ApphudClient(apiKey, parser) }
     private val billing by lazy { BillingWrapper(context) }
     private val storage by lazy { SharedPreferencesStorage(context, parser) }
-    private val generatedUUID = UUID.randomUUID().toString()
+    private var generatedUUID = UUID.randomUUID().toString()
 
     private var advertisingId: String? = null
         get() = storage.advertisingId
@@ -63,7 +63,9 @@ internal object ApphudInternal {
     internal var apphudListener: ApphudListener? = null
 
     internal fun loadAdsId() {
-        AdvertisingTask().execute()
+        if (ApphudUtils.adTracking) {
+            AdvertisingTask().execute()
+        }
     }
 
     private class AdvertisingTask : AsyncTask<Void, Void, String?>() {
@@ -212,6 +214,19 @@ internal object ApphudInternal {
         }
     }
 
+    internal fun logout() {
+        clear()
+    }
+
+    private fun clear() {
+        storage.advertisingId = null
+        storage.customer = null
+        storage.userId = null
+        storage.deviceId = null
+        userId = null
+        generatedUUID = UUID.randomUUID().toString()
+    }
+
     private fun fetchProducts() {
         billing.skuCallback = { details ->
             ApphudLog.log("details: $details")
@@ -289,7 +304,7 @@ internal object ApphudInternal {
             os_version = Build.VERSION.RELEASE,
             start_app_version = context.buildAppVersion(),
             idfv = null,
-            idfa = advertisingId,
+            idfa = if (ApphudUtils.adTracking) advertisingId else null,
             user_id = userId,
             device_id = deviceId,
             time_zone = TimeZone.getDefault().id,
