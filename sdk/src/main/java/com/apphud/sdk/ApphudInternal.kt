@@ -172,7 +172,8 @@ internal object ApphudInternal {
         val body = when (provider) {
             ApphudAttributionProvider.adjust    -> AttributionBody(
                 deviceId,
-                data ?: emptyMap()
+                adid = identifier,
+                adjust_data = data ?: emptyMap()
             )
             ApphudAttributionProvider.facebook  -> {
                 val map = mutableMapOf<String, Any>("fb_device" to true)
