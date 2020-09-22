@@ -219,7 +219,6 @@ internal object ApphudInternal {
     }
 
     private fun clear() {
-        storage.advertisingId = null
         storage.customer = null
         storage.userId = null
         storage.deviceId = null
