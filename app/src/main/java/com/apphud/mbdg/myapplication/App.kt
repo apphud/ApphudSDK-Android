@@ -14,6 +14,7 @@ class App : Application() {
         app = this
 
         Apphud.enableDebugLogs()
+        Apphud.disableAdTracking()
         Apphud.start(this, Constants.API_KEY)
     }
 }

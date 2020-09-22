@@ -8,10 +8,17 @@ internal object ApphudUtils {
     var logging: Boolean = false
         private set
 
+    var adTracking: Boolean = true
+        private set
+
     /**
      * Enable console logging.
      */
     fun enableDebugLogs() {
         logging = true
+    }
+
+    fun disableAdTracking() {
+        adTracking = true
     }
 }

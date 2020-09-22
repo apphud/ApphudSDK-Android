@@ -40,7 +40,7 @@ internal object ApphudInternal {
     private val client by lazy { ApphudClient(apiKey, parser) }
     private val billing by lazy { BillingWrapper(context) }
     private val storage by lazy { SharedPreferencesStorage(context, parser) }
-    private val generatedUUID = UUID.randomUUID().toString()
+    private var generatedUUID = UUID.randomUUID().toString()
 
     private var advertisingId: String? = null
         get() = storage.advertisingId
@@ -63,7 +63,9 @@ internal object ApphudInternal {
     internal var apphudListener: ApphudListener? = null
 
     internal fun loadAdsId() {
-        AdvertisingTask().execute()
+        if (ApphudUtils.adTracking) {
+            AdvertisingTask().execute()
+        }
     }
 
     private class AdvertisingTask : AsyncTask<Void, Void, String?>() {
@@ -172,7 +174,8 @@ internal object ApphudInternal {
         val body = when (provider) {
             ApphudAttributionProvider.adjust    -> AttributionBody(
                 deviceId,
-                data ?: emptyMap()
+                adid = identifier,
+                adjust_data = data ?: emptyMap()
             )
             ApphudAttributionProvider.facebook  -> {
                 val map = mutableMapOf<String, Any>("fb_device" to true)
@@ -209,6 +212,18 @@ internal object ApphudInternal {
                 ApphudLog.log("Success without saving send attribution: $attribution")
             }
         }
+    }
+
+    internal fun logout() {
+        clear()
+    }
+
+    private fun clear() {
+        storage.customer = null
+        storage.userId = null
+        storage.deviceId = null
+        userId = null
+        generatedUUID = UUID.randomUUID().toString()
     }
 
     private fun fetchProducts() {
@@ -288,7 +303,7 @@ internal object ApphudInternal {
             os_version = Build.VERSION.RELEASE,
             start_app_version = context.buildAppVersion(),
             idfv = null,
-            idfa = advertisingId,
+            idfa = if (ApphudUtils.adTracking) advertisingId else null,
             user_id = userId,
             device_id = deviceId,
             time_zone = TimeZone.getDefault().id,
