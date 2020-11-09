@@ -17,6 +17,7 @@ class SharedPreferencesStorage(
         private const val CUSTOMER_KEY = "customerKey"
         private const val DEVICE_ID_KEY = "deviceIdKey"
         private const val ADVERTISING_DI_KEY = "advertisingIdKey"
+        private const val NEED_RESTART_KEY = "needRestartKey"
     }
 
     private val preferences = context.getSharedPreferences(
@@ -58,6 +59,14 @@ class SharedPreferencesStorage(
         set(value) {
             val editor = preferences.edit()
             editor.putString(ADVERTISING_DI_KEY, value)
+            editor.apply()
+        }
+
+    override var isNeedSync: Boolean
+        get() = preferences.getBoolean(NEED_RESTART_KEY, false)
+        set(value) {
+            val editor = preferences.edit()
+            editor.putBoolean(NEED_RESTART_KEY, value)
             editor.apply()
         }
 }

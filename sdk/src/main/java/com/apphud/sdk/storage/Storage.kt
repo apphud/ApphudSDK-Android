@@ -7,4 +7,5 @@ interface Storage {
     var deviceId: String?
     var customer: Customer?
     var advertisingId: String?
+    var isNeedSync: Boolean
 }

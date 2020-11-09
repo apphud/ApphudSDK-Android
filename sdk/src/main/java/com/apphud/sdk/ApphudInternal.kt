@@ -32,6 +32,7 @@ internal object ApphudInternal {
         .create()
     private val parser: Parser = GsonParser(builder)
     private var appsflyerBody: AttributionBody? = null
+    private var facebookBody: AttributionBody? = null
 
     /**
      * @handler use for work with UI-thread. Save to storage, call callbacks
@@ -105,6 +106,11 @@ internal object ApphudInternal {
         if (isFetchProducts) {
             // try to continue anyway, because maybe already has cached data, try to fetch products
             fetchProducts()
+
+            // try to resend purchases, if prev requests was fail
+            if (storage.isNeedSync) {
+                syncPurchases()
+            }
         }
     }
 
@@ -148,9 +154,11 @@ internal object ApphudInternal {
     }
 
     internal fun syncPurchases() {
+        storage.isNeedSync = true
         billing.restoreCallback = { records ->
             client.purchased(mkPurchaseBody(records)) { customer ->
                 handler.post {
+                    storage.isNeedSync = false
                     apphudListener?.apphudSubscriptionsUpdated(customer.subscriptions)
                     apphudListener?.apphudNonRenewingPurchasesUpdated(customer.purchases)
                 }
