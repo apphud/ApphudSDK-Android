@@ -9,4 +9,11 @@ internal class ProductsCallable(
 ) : PriorityCallable<ResponseDto<List<ProductDto>>> {
     override val priority: Int = Int.MAX_VALUE
     override fun call(): ResponseDto<List<ProductDto>> = service.products()
+
+    private var _counter: Int = 0
+    override var counter: Int
+        get() = _counter
+        set(value) {
+            _counter = value
+        }
 }
