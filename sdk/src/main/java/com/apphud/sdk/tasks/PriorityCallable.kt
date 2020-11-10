@@ -6,4 +6,5 @@ interface PriorityCallable<T> : Callable<T> {
     val priority: Int
     val incrementMilliseconds: Long
         get() = 0
+    var counter: Int
 }

@@ -11,4 +11,11 @@ internal class AttributionCallable(
 ) : PriorityCallable<ResponseDto<AttributionDto>> {
     override val priority: Int = Int.MAX_VALUE
     override fun call(): ResponseDto<AttributionDto> = service.send(body)
+
+    private var _counter: Int = 0
+    override var counter: Int
+        get() = _counter
+        set(value) {
+            _counter = value
+        }
 }

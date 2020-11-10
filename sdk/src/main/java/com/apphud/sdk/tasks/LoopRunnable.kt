@@ -7,6 +7,10 @@ class LoopRunnable<T>(
     private val callback: (T) -> Unit
 ) : PriorityRunnable {
 
+    companion object {
+        private const val COUNT = 10
+    }
+
     private var timeout: Long = 10_000
 
     override val priority: Int = callable.priority
@@ -22,8 +26,12 @@ class LoopRunnable<T>(
             } catch (e: InterruptedException) {
                 ApphudLog.log("InterruptedException: $e")
             } finally {
-                ApphudLog.log("finally restart task $callable")
-                run()
+                ApphudLog.log("finally restart task $callable with counter: ${callable.counter}")
+                callable.counter += 1
+                when {
+                    callable.counter > COUNT -> ApphudLog.log("Stop retry $callable after $COUNT steps")
+                    else                     -> run()
+                }
             }
         }
     }
