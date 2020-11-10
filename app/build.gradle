@@ -11,8 +11,8 @@ android {
         applicationId "ru.rosbank.mbdg.myapplication.other"
         minSdkVersion 16
         targetSdkVersion 29
-        versionCode 14
-        versionName "1.0.12"
+        versionCode 15
+        versionName "1.0.13"
 
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
     }
