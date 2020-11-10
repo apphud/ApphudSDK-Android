@@ -11,6 +11,13 @@ internal class RegistrationCallable(
 ) : PriorityCallable<ResponseDto<CustomerDto>> {
     override val priority: Int = Int.MIN_VALUE
     override fun call(): ResponseDto<CustomerDto> = service.registration(body)
+
+    private var _counter: Int = 0
+    override var counter: Int
+        get() = _counter
+        set(value) {
+            _counter = value
+        }
 }
 
 
