@@ -14,9 +14,7 @@ import com.apphud.sdk.body.PurchaseBody
 import com.apphud.sdk.body.PurchaseItemBody
 import com.apphud.sdk.body.RegistrationBody
 import com.apphud.sdk.client.ApphudClient
-import com.apphud.sdk.domain.Customer
-import com.apphud.sdk.domain.PurchaseDetails
-import com.apphud.sdk.domain.PurchaseRecordDetails
+import com.apphud.sdk.domain.*
 import com.apphud.sdk.internal.BillingWrapper
 import com.apphud.sdk.parser.GsonParser
 import com.apphud.sdk.parser.Parser
@@ -31,8 +29,6 @@ internal object ApphudInternal {
         .setPrettyPrinting()
         .create()
     private val parser: Parser = GsonParser(builder)
-    private var appsflyerBody: AttributionBody? = null
-    private var facebookBody: AttributionBody? = null
 
     /**
      * @handler use for work with UI-thread. Save to storage, call callbacks
@@ -205,12 +201,28 @@ internal object ApphudInternal {
         }
 
         if (provider == ApphudAttributionProvider.appsFlyer) {
-            val temporary = appsflyerBody
-            appsflyerBody = when {
-                temporary == null                                -> body
-                temporary.appsflyer_id != body?.appsflyer_id     -> body
-                temporary.appsflyer_data != body?.appsflyer_data -> body
-                else                                             -> return
+            val temporary = storage.appsflyer
+            storage.appsflyer = when {
+                temporary == null                      -> AppsflyerInfo(
+                    id = body?.appsflyer_id,
+                    data = body?.appsflyer_data
+                )
+                temporary.id != body?.appsflyer_id     -> AppsflyerInfo(
+                    id = body?.appsflyer_id,
+                    data = body?.appsflyer_data
+                )
+                temporary.data != body?.appsflyer_data -> AppsflyerInfo(
+                    id = body?.appsflyer_id,
+                    data = body?.appsflyer_data
+                )
+                else                                   -> return
+            }
+        } else if (provider == ApphudAttributionProvider.facebook) {
+            val temporary = storage.facebook
+            storage.facebook = when {
+                temporary == null                     -> FacebookInfo(body?.facebook_data)
+                temporary.data != body?.facebook_data -> FacebookInfo(body?.facebook_data)
+                else                                  -> return
             }
         }
 
