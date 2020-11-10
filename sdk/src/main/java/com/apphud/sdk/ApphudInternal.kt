@@ -110,6 +110,8 @@ internal object ApphudInternal {
         }
     }
 
+    private var prevPurchases: List<PurchaseDetails>? = null
+
     internal fun purchase(
         activity: Activity,
         details: SkuDetails,
@@ -123,12 +125,17 @@ internal object ApphudInternal {
         }
         billing.purchasesCallback = { purchases ->
             ApphudLog.log("purchases: $purchases")
-            client.purchased(mkPurchasesBody(purchases)) { customer ->
-                handler.post {
-                    apphudListener?.apphudSubscriptionsUpdated(customer.subscriptions)
-                    apphudListener?.apphudNonRenewingPurchasesUpdated(customer.purchases)
+
+            when (prevPurchases) {
+                purchases -> ApphudLog.log("Don't send equal purchases from prev state")
+                else      -> client.purchased(mkPurchasesBody(purchases)) { customer ->
+                    handler.post {
+                        prevPurchases = purchases
+                        apphudListener?.apphudSubscriptionsUpdated(customer.subscriptions)
+                        apphudListener?.apphudNonRenewingPurchasesUpdated(customer.purchases)
+                    }
+                    ApphudLog.log("Response from server after success purchases: $purchases")
                 }
-                ApphudLog.log("Response from server after success purchases: $purchases")
             }
             callback.invoke(purchases.map { it.purchase })
 
