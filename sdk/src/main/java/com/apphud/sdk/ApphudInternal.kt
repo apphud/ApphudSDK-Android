@@ -38,6 +38,7 @@ internal object ApphudInternal {
     private val billing by lazy { BillingWrapper(context) }
     private val storage by lazy { SharedPreferencesStorage(context, parser) }
     private var generatedUUID = UUID.randomUUID().toString()
+    private var prevPurchases = mutableSetOf<PurchaseRecordDetails>()
 
     private var advertisingId: String? = null
         get() = storage.advertisingId
@@ -110,8 +111,6 @@ internal object ApphudInternal {
         }
     }
 
-    private var prevPurchases: List<PurchaseDetails>? = null
-
     internal fun purchase(
         activity: Activity,
         details: SkuDetails,
@@ -126,17 +125,13 @@ internal object ApphudInternal {
         billing.purchasesCallback = { purchases ->
             ApphudLog.log("purchases: $purchases")
 
-            when (prevPurchases) {
-                purchases -> ApphudLog.log("Don't send equal purchases from prev state")
-                else      -> client.purchased(mkPurchasesBody(purchases)) { customer ->
-                    handler.post {
-                        prevPurchases = purchases
-                        apphudListener?.apphudSubscriptionsUpdated(customer.subscriptions)
-                        apphudListener?.apphudNonRenewingPurchasesUpdated(customer.purchases)
-                    }
-                    ApphudLog.log("Response from server after success purchases: $purchases")
+            client.purchased(mkPurchasesBody(purchases)) { customer ->
+                handler.post {
+                    apphudListener?.apphudSubscriptionsUpdated(customer.subscriptions)
+                    apphudListener?.apphudNonRenewingPurchasesUpdated(customer.purchases)
                 }
             }
+
             callback.invoke(purchases.map { it.purchase })
 
             purchases.forEach {
@@ -159,13 +154,20 @@ internal object ApphudInternal {
     internal fun syncPurchases() {
         storage.isNeedSync = true
         billing.restoreCallback = { records ->
-            client.purchased(mkPurchaseBody(records)) { customer ->
-                handler.post {
-                    storage.isNeedSync = false
-                    apphudListener?.apphudSubscriptionsUpdated(customer.subscriptions)
-                    apphudListener?.apphudNonRenewingPurchasesUpdated(customer.purchases)
+
+            ApphudLog.log("$records")
+
+            when {
+                prevPurchases.containsAll(records) -> ApphudLog.log("Don't send equal purchases from prev state")
+                else                               -> client.purchased(mkPurchaseBody(records)) { customer ->
+                    handler.post {
+                        prevPurchases.addAll(records)
+                        storage.isNeedSync = false
+                        apphudListener?.apphudSubscriptionsUpdated(customer.subscriptions)
+                        apphudListener?.apphudNonRenewingPurchasesUpdated(customer.purchases)
+                    }
+                    ApphudLog.log("success send history purchases $records")
                 }
-                ApphudLog.log("success send history purchases $records")
             }
         }
         billing.historyCallback = { purchases ->
@@ -251,6 +253,7 @@ internal object ApphudInternal {
         storage.deviceId = null
         userId = null
         generatedUUID = UUID.randomUUID().toString()
+        prevPurchases.clear()
     }
 
     private fun fetchProducts() {
