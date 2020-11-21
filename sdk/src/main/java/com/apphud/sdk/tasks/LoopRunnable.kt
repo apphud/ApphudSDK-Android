@@ -6,8 +6,8 @@ import com.apphud.sdk.tasks.interrupted.TimeInterruptedInteractor
 
 class LoopRunnable<T>(
     private val callable: PriorityCallable<T>,
-    private val callback: (T) -> Unit,
-    private val interrupted: TimeInterruptedInteractor = LinearInterrupted()
+    private val interrupted: TimeInterruptedInteractor = LinearInterrupted(),
+    private val callback: (T) -> Unit
 ) : PriorityRunnable {
 
     companion object {
