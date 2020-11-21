@@ -1,17 +1,18 @@
 package com.apphud.sdk.tasks
 
 import com.apphud.sdk.ApphudLog
+import com.apphud.sdk.tasks.interrupted.LinearInterrupted
+import com.apphud.sdk.tasks.interrupted.TimeInterruptedInteractor
 
 class LoopRunnable<T>(
     private val callable: PriorityCallable<T>,
-    private val callback: (T) -> Unit
+    private val callback: (T) -> Unit,
+    private val interrupted: TimeInterruptedInteractor = LinearInterrupted()
 ) : PriorityRunnable {
 
     companion object {
         private const val COUNT = 10
     }
-
-    private var timeout: Long = 10_000
 
     override val priority: Int = callable.priority
     override fun run() {
@@ -20,7 +21,7 @@ class LoopRunnable<T>(
         } catch (e: Exception) {
             ApphudLog.log("Throw with exception: $e")
             try {
-                timeout += callable.incrementMilliseconds
+                val timeout = interrupted.calculate(callable.counter)
                 ApphudLog.log("sleep for $timeout milliseconds")
                 Thread.sleep(timeout)
             } catch (e: InterruptedException) {

@@ -9,7 +9,6 @@ internal class PurchaseCallable(
     private val body: PurchaseBody,
     private val service: ApphudService
 ) : PriorityCallable<ResponseDto<CustomerDto>> {
-    override val incrementMilliseconds: Long = 5000
     override val priority: Int = Int.MAX_VALUE
     override fun call(): ResponseDto<CustomerDto> = service.purchase(body)
 
