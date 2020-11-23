@@ -14,9 +14,7 @@ import com.apphud.sdk.body.PurchaseBody
 import com.apphud.sdk.body.PurchaseItemBody
 import com.apphud.sdk.body.RegistrationBody
 import com.apphud.sdk.client.ApphudClient
-import com.apphud.sdk.domain.Customer
-import com.apphud.sdk.domain.PurchaseDetails
-import com.apphud.sdk.domain.PurchaseRecordDetails
+import com.apphud.sdk.domain.*
 import com.apphud.sdk.internal.BillingWrapper
 import com.apphud.sdk.parser.GsonParser
 import com.apphud.sdk.parser.Parser
@@ -31,7 +29,6 @@ internal object ApphudInternal {
         .setPrettyPrinting()
         .create()
     private val parser: Parser = GsonParser(builder)
-    private var appsflyerBody: AttributionBody? = null
 
     /**
      * @handler use for work with UI-thread. Save to storage, call callbacks
@@ -41,6 +38,7 @@ internal object ApphudInternal {
     private val billing by lazy { BillingWrapper(context) }
     private val storage by lazy { SharedPreferencesStorage(context, parser) }
     private var generatedUUID = UUID.randomUUID().toString()
+    private var prevPurchases = mutableSetOf<PurchaseRecordDetails>()
 
     private var advertisingId: String? = null
         get() = storage.advertisingId
@@ -105,6 +103,11 @@ internal object ApphudInternal {
         if (isFetchProducts) {
             // try to continue anyway, because maybe already has cached data, try to fetch products
             fetchProducts()
+
+            // try to resend purchases, if prev requests was fail
+            if (storage.isNeedSync) {
+                syncPurchases()
+            }
         }
     }
 
@@ -121,13 +124,14 @@ internal object ApphudInternal {
         }
         billing.purchasesCallback = { purchases ->
             ApphudLog.log("purchases: $purchases")
+
             client.purchased(mkPurchasesBody(purchases)) { customer ->
                 handler.post {
                     apphudListener?.apphudSubscriptionsUpdated(customer.subscriptions)
                     apphudListener?.apphudNonRenewingPurchasesUpdated(customer.purchases)
                 }
-                ApphudLog.log("Response from server after success purchases: $purchases")
             }
+
             callback.invoke(purchases.map { it.purchase })
 
             purchases.forEach {
@@ -148,13 +152,22 @@ internal object ApphudInternal {
     }
 
     internal fun syncPurchases() {
+        storage.isNeedSync = true
         billing.restoreCallback = { records ->
-            client.purchased(mkPurchaseBody(records)) { customer ->
-                handler.post {
-                    apphudListener?.apphudSubscriptionsUpdated(customer.subscriptions)
-                    apphudListener?.apphudNonRenewingPurchasesUpdated(customer.purchases)
+
+            ApphudLog.log("$records")
+
+            when {
+                prevPurchases.containsAll(records) -> ApphudLog.log("Don't send equal purchases from prev state")
+                else                               -> client.purchased(mkPurchaseBody(records)) { customer ->
+                    handler.post {
+                        prevPurchases.addAll(records)
+                        storage.isNeedSync = false
+                        apphudListener?.apphudSubscriptionsUpdated(customer.subscriptions)
+                        apphudListener?.apphudNonRenewingPurchasesUpdated(customer.purchases)
+                    }
+                    ApphudLog.log("success send history purchases $records")
                 }
-                ApphudLog.log("success send history purchases $records")
             }
         }
         billing.historyCallback = { purchases ->
@@ -197,12 +210,28 @@ internal object ApphudInternal {
         }
 
         if (provider == ApphudAttributionProvider.appsFlyer) {
-            val temporary = appsflyerBody
-            appsflyerBody = when {
-                temporary == null                                -> body
-                temporary.appsflyer_id != body?.appsflyer_id     -> body
-                temporary.appsflyer_data != body?.appsflyer_data -> body
-                else                                             -> return
+            val temporary = storage.appsflyer
+            storage.appsflyer = when {
+                temporary == null                      -> AppsflyerInfo(
+                    id = body?.appsflyer_id,
+                    data = body?.appsflyer_data
+                )
+                temporary.id != body?.appsflyer_id     -> AppsflyerInfo(
+                    id = body?.appsflyer_id,
+                    data = body?.appsflyer_data
+                )
+                temporary.data != body?.appsflyer_data -> AppsflyerInfo(
+                    id = body?.appsflyer_id,
+                    data = body?.appsflyer_data
+                )
+                else                                   -> return
+            }
+        } else if (provider == ApphudAttributionProvider.facebook) {
+            val temporary = storage.facebook
+            storage.facebook = when {
+                temporary == null                     -> FacebookInfo(body?.facebook_data)
+                temporary.data != body?.facebook_data -> FacebookInfo(body?.facebook_data)
+                else                                  -> return
             }
         }
 
@@ -224,6 +253,7 @@ internal object ApphudInternal {
         storage.deviceId = null
         userId = null
         generatedUUID = UUID.randomUUID().toString()
+        prevPurchases.clear()
     }
 
     private fun fetchProducts() {

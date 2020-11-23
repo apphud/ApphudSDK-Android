@@ -70,7 +70,7 @@ class HttpUrlConnectionExecutor(
 
         connection.disconnect()
 
-        response ?: error("failed response")
+        response ?: exception(connection.responseCode)
     } catch (e: Exception) {
         when (e) {
             is UnknownHostException,
