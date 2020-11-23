@@ -4,8 +4,6 @@ data class CustomerDto(
     val id: String,
     val user_id: String,
     val locale: String,
-    val created_at: String,
     val subscriptions: List<SubscriptionDto>,
-    val currency: CurrencyDto?,
-    val devices: List<DeviceDto>
+    val currency: CurrencyDto?
 )
