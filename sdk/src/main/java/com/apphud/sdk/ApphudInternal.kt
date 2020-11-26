@@ -275,7 +275,9 @@ internal object ApphudInternal {
     private fun fetchProducts() {
         billing.skuCallback = { details ->
             ApphudLog.log("details: $details")
-            apphudListener?.apphudFetchSkuDetailsProducts(details)
+            if (details.isNotEmpty()) {
+                apphudListener?.apphudFetchSkuDetailsProducts(details)
+            }
         }
         client.allProducts { products ->
             ApphudLog.log("products: $products")
