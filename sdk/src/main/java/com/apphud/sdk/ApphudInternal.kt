@@ -185,12 +185,12 @@ internal object ApphudInternal {
         identifier: String? = null
     ) {
         val body = when (provider) {
-            ApphudAttributionProvider.adjust    -> AttributionBody(
+            ApphudAttributionProvider.adjust -> AttributionBody(
                 deviceId,
                 adid = identifier,
                 adjust_data = data ?: emptyMap()
             )
-            ApphudAttributionProvider.facebook  -> {
+            ApphudAttributionProvider.facebook -> {
                 val map = mutableMapOf<String, Any>("fb_device" to true)
                     .also { map -> data?.let { map.putAll(it) } }
                     .toMap()
@@ -211,27 +211,16 @@ internal object ApphudInternal {
 
         if (provider == ApphudAttributionProvider.appsFlyer) {
             val temporary = storage.appsflyer
-            storage.appsflyer = when {
-                temporary == null                      -> AppsflyerInfo(
-                    id = body?.appsflyer_id,
-                    data = body?.appsflyer_data
-                )
-                temporary.id != body?.appsflyer_id     -> AppsflyerInfo(
-                    id = body?.appsflyer_id,
-                    data = body?.appsflyer_data
-                )
-                temporary.data != body?.appsflyer_data -> AppsflyerInfo(
-                    id = body?.appsflyer_id,
-                    data = body?.appsflyer_data
-                )
-                else                                   -> return
+            when {
+                temporary == null                      -> Unit
+                temporary.id == body?.appsflyer_id     -> return
+                temporary.data == body?.appsflyer_data -> return
             }
         } else if (provider == ApphudAttributionProvider.facebook) {
             val temporary = storage.facebook
-            storage.facebook = when {
-                temporary == null                     -> FacebookInfo(body?.facebook_data)
-                temporary.data != body?.facebook_data -> FacebookInfo(body?.facebook_data)
-                else                                  -> return
+            when {
+                temporary == null                     -> Unit
+                temporary.data == body?.facebook_data -> return
             }
         }
 
@@ -239,6 +228,33 @@ internal object ApphudInternal {
         body?.let {
             client.send(body) { attribution ->
                 ApphudLog.log("Success without saving send attribution: $attribution")
+                handler.post {
+                    if (provider == ApphudAttributionProvider.appsFlyer) {
+                        val temporary = storage.appsflyer
+                        storage.appsflyer = when {
+                            temporary == null                     -> AppsflyerInfo(
+                                id = body.appsflyer_id,
+                                data = body.appsflyer_data
+                            )
+                            temporary.id != body.appsflyer_id     -> AppsflyerInfo(
+                                id = body.appsflyer_id,
+                                data = body.appsflyer_data
+                            )
+                            temporary.data != body.appsflyer_data -> AppsflyerInfo(
+                                id = body.appsflyer_id,
+                                data = body.appsflyer_data
+                            )
+                            else                                  -> temporary
+                        }
+                    } else if (provider == ApphudAttributionProvider.facebook) {
+                        val temporary = storage.facebook
+                        storage.facebook = when {
+                            temporary == null                    -> FacebookInfo(body.facebook_data)
+                            temporary.data != body.facebook_data -> FacebookInfo(body.facebook_data)
+                            else                                 -> temporary
+                        }
+                    }
+                }
             }
         }
     }
@@ -259,7 +275,9 @@ internal object ApphudInternal {
     private fun fetchProducts() {
         billing.skuCallback = { details ->
             ApphudLog.log("details: $details")
-            apphudListener?.apphudFetchSkuDetailsProducts(details)
+            if (details.isNotEmpty()) {
+                apphudListener?.apphudFetchSkuDetailsProducts(details)
+            }
         }
         client.allProducts { products ->
             ApphudLog.log("products: $products")
