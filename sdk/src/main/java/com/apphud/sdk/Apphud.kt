@@ -1,11 +1,15 @@
 package com.apphud.sdk
 
 import android.app.Activity
+import android.app.ActivityManager
 import android.content.Context
+import android.os.Process
+import android.util.Log
 import com.android.billingclient.api.Purchase
 import com.android.billingclient.api.SkuDetails
 import com.apphud.sdk.domain.ApphudNonRenewingPurchase
 import com.apphud.sdk.domain.ApphudSubscription
+
 
 object Apphud {
 
@@ -28,6 +32,23 @@ object Apphud {
     fun start(context: Context, apiKey: ApiKey, userId: UserId? = null) =
         start(context, apiKey, userId, null)
 
+    private fun isMainProcess(context: Context): Boolean =
+        context.packageName == getProcessName(context)
+
+    private fun getProcessName(context: Context): String? {
+        val mypid = Process.myPid()
+        val manager = context.getSystemService(Context.ACTIVITY_SERVICE) as ActivityManager?
+        return manager?.let {
+            val infos = manager.runningAppProcesses
+            for (info in infos) {
+                if (info.pid == mypid) {
+                    return@let info.processName
+                }
+            }
+            null
+        }
+    }
+
     /**
      * Initializes Apphud SDK. You should call it during app launch.
      *
@@ -36,11 +57,21 @@ object Apphud {
      * @parameter deviceID: Optional. You can provide your own unique device identifier. If null passed then UUID will be generated instead.
      */
     @kotlin.jvm.JvmStatic
-    fun start(context: Context, apiKey: ApiKey, userId: UserId? = null, deviceId: DeviceId? = null) {
-        ApphudInternal.apiKey = apiKey
-        ApphudInternal.context = context
-        ApphudInternal.loadAdsId()
-        ApphudInternal.registration(userId, deviceId)
+    fun start(
+        context: Context,
+        apiKey: ApiKey,
+        userId: UserId? = null,
+        deviceId: DeviceId? = null
+    ) {
+        if (isMainProcess(context)) {
+            ApphudInternal.apiKey = apiKey
+            ApphudInternal.context = context
+            ApphudInternal.loadAdsId()
+            ApphudInternal.registration(userId, deviceId)
+            Log.d("APP_HUD", "start SDK")
+        } else {
+            Log.d("APP_HUD", "will not start - only main process is supported by SDK")
+        }
     }
 
     /**
