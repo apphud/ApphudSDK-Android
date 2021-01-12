@@ -1,5 +1,6 @@
 package com.apphud.mbdg.myapplication
 
+import android.content.Intent
 import android.os.Bundle
 import android.util.Log
 import android.widget.Button
@@ -78,5 +79,6 @@ class MainActivity : AppCompatActivity() {
         }
         val recyclerView = findViewById<RecyclerView>(R.id.recyclerViewId)
         recyclerView.adapter = adapter
+        startService(Intent(this, MyService::class.java))
     }
 }
