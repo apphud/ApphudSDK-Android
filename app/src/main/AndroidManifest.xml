@@ -5,11 +5,6 @@
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="com.android.vending.BILLING" />
 
-    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
-    <uses-permission android:name="android.permission.ACCESS_WIFI_STATE" />
-    <!-- Optional : -->
-    <uses-permission android:name="android.permission.READ_PHONE_STATE" />
-
     <application
         android:name=".App"
         android:allowBackup="true"
@@ -26,13 +21,9 @@
             </intent-filter>
         </activity>
 
-        <receiver
-            android:name="com.appsflyer.SingleInstallBroadcastReceiver"
-            android:exported="true">
-            <intent-filter>
-                <action android:name="com.android.vending.INSTALL_REFERRER" />
-            </intent-filter>
-        </receiver>
+        <service
+            android:name=".MyService"
+            android:process=":my_custom_process" />
     </application>
 
 </manifest>
