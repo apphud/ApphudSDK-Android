@@ -1,4 +1,4 @@
-package ru.rosbank.mbdg.myapplication
+package com.apphud.app
 
 import android.os.Bundle
 import android.util.Log
@@ -11,9 +11,9 @@ import com.apphud.sdk.Apphud
 import com.apphud.sdk.ProductId
 import com.apphud.sdk.domain.ApphudNonRenewingPurchase
 import com.apphud.sdk.domain.ApphudSubscription
-import ru.rosbank.mbdg.myapplication.presentation.ProductModel
-import ru.rosbank.mbdg.myapplication.presentation.ProductModelMapper
-import ru.rosbank.mbdg.myapplication.presentation.ProductsAdapter
+import com.apphud.app.presentation.ProductModel
+import com.apphud.app.presentation.ProductModelMapper
+import com.apphud.app.presentation.ProductsAdapter
 
 class MainActivity : AppCompatActivity() {
 
