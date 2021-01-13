@@ -10,8 +10,11 @@ android {
     defaultConfig {
         minSdkVersion 16
         targetSdkVersion 29
+
+        final name = project.properties.sdkVersion
+
         versionCode 1
-        versionName "1.0.0"
+        versionName name
 
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         consumerProguardFiles "consumer-rules.pro"
