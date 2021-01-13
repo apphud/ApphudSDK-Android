@@ -1,4 +1,4 @@
-package com.apphud.mbdg.myapplication.presentation
+package com.apphud.app.presentation
 
 import com.android.billingclient.api.SkuDetails
 import com.apphud.sdk.domain.ApphudNonRenewingPurchase

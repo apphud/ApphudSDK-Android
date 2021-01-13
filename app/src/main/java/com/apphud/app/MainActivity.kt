@@ -1,6 +1,5 @@
-package com.apphud.mbdg.myapplication
+package com.apphud.app
 
-import android.content.Intent
 import android.os.Bundle
 import android.util.Log
 import android.widget.Button
@@ -12,9 +11,9 @@ import com.apphud.sdk.Apphud
 import com.apphud.sdk.ProductId
 import com.apphud.sdk.domain.ApphudNonRenewingPurchase
 import com.apphud.sdk.domain.ApphudSubscription
-import com.apphud.mbdg.myapplication.presentation.ProductModel
-import com.apphud.mbdg.myapplication.presentation.ProductModelMapper
-import com.apphud.mbdg.myapplication.presentation.ProductsAdapter
+import com.apphud.app.presentation.ProductModel
+import com.apphud.app.presentation.ProductModelMapper
+import com.apphud.app.presentation.ProductsAdapter
 
 class MainActivity : AppCompatActivity() {
 
@@ -79,6 +78,5 @@ class MainActivity : AppCompatActivity() {
         }
         val recyclerView = findViewById<RecyclerView>(R.id.recyclerViewId)
         recyclerView.adapter = adapter
-        startService(Intent(this, MyService::class.java))
     }
 }

@@ -1,4 +1,4 @@
-package com.apphud.mbdg.myapplication
+package com.apphud.app
 
 import android.app.Service
 import android.content.Intent

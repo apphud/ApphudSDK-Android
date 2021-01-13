@@ -1,4 +1,4 @@
-package com.apphud.mbdg.myapplication
+package com.apphud.app.myapplication
 
 import org.junit.Test
 
