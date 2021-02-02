@@ -60,6 +60,8 @@ internal object ApphudInternal {
         get() = storage.customer
     internal var apphudListener: ApphudListener? = null
 
+    private val skuDetails = mutableMapOf<String, SkuDetails>()
+
     internal fun loadAdsId() {
         if (ApphudUtils.adTracking) {
             AdvertisingTask().execute()
@@ -108,6 +110,19 @@ internal object ApphudInternal {
             if (storage.isNeedSync) {
                 syncPurchases()
             }
+        }
+    }
+
+    internal fun purchase(
+            activity: Activity,
+            productId: String,
+            callback: (List<Purchase>) -> Unit
+    ) {
+        val sku = skuDetails[productId]
+        if (sku != null) {
+            purchase(activity, sku, callback)
+        } else {
+            ApphudLog.log("could not fetch sku details for product id: $productId")
         }
     }
 
@@ -276,6 +291,8 @@ internal object ApphudInternal {
         billing.skuCallback = { details ->
             ApphudLog.log("details: $details")
             if (details.isNotEmpty()) {
+                val mapped = details.associateBy { it.sku }
+                skuDetails.putAll(mapped)
                 apphudListener?.apphudFetchSkuDetailsProducts(details)
             }
         }

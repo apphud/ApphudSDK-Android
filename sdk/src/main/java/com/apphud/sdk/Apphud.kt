@@ -159,13 +159,22 @@ object Apphud {
     /**
      * Purchases product and automatically submit
      * @activity: current Activity for use
+     * @productId: The identifier of the product you wish to purchase
+     * @block: The closure that will be called when purchase completes.
+     */
+    @kotlin.jvm.JvmStatic
+    fun purchase(activity: Activity, productId: String, block: (List<Purchase>) -> Unit) =
+        ApphudInternal.purchase(activity, productId, block)
+
+    /**
+     * Purchases product and automatically submit
+     * @activity: current Activity for use
      * @details: The skuDetails of the product you wish to purchase
      * @block: The closure that will be called when purchase completes.
      */
     @kotlin.jvm.JvmStatic
     fun purchase(activity: Activity, details: SkuDetails, block: (List<Purchase>) -> Unit) =
-        ApphudInternal.purchase(activity, details, block)
-
+            ApphudInternal.purchase(activity, details, block)
     /**
      * Enables debug logs. Better to call this method before SDK initialization.
      */
