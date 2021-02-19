@@ -157,6 +157,25 @@ object Apphud {
     fun syncPurchases() = ApphudInternal.syncPurchases()
 
     /**
+     * Returns an array of **SkuDetails** objects that you added in Apphud.
+     * Note that this method will return **null** if products are not yet fetched.
+     */
+    @kotlin.jvm.JvmStatic
+    fun products(): List<SkuDetails>? {
+        return ApphudInternal.getSkuDetailsList()
+    }
+
+    /**
+     * Returns **SkuDetails** object by product identifier.
+     * Note that you have to add this product identifier in Apphud.
+     * Will return **null** if product is not yet fetched from Google Play Billing.
+     */
+    @kotlin.jvm.JvmStatic
+    fun products(productIdentifier: String): SkuDetails? {
+        return ApphudInternal.getSkuDetailsByProductId(productIdentifier)
+    }
+
+    /**
      * Purchases product and automatically submit
      * @activity: current Activity for use
      * @productId: The identifier of the product you wish to purchase
@@ -174,7 +193,8 @@ object Apphud {
      */
     @kotlin.jvm.JvmStatic
     fun purchase(activity: Activity, details: SkuDetails, block: (List<Purchase>) -> Unit) =
-            ApphudInternal.purchase(activity, details, block)
+        ApphudInternal.purchase(activity, details, block)
+
     /**
      * Enables debug logs. Better to call this method before SDK initialization.
      */

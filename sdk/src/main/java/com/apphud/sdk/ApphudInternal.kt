@@ -60,7 +60,7 @@ internal object ApphudInternal {
         get() = storage.customer
     internal var apphudListener: ApphudListener? = null
 
-    private val skuDetails = mutableMapOf<String, SkuDetails>()
+    private val skuDetails = mutableListOf<SkuDetails>()
 
     internal fun loadAdsId() {
         if (ApphudUtils.adTracking) {
@@ -118,7 +118,7 @@ internal object ApphudInternal {
             productId: String,
             callback: (List<Purchase>) -> Unit
     ) {
-        val sku = skuDetails[productId]
+        val sku = getSkuDetailsByProductId(productId)
         if (sku != null) {
             purchase(activity, sku, callback)
         } else {
@@ -291,8 +291,8 @@ internal object ApphudInternal {
         billing.skuCallback = { details ->
             ApphudLog.log("details: $details")
             if (details.isNotEmpty()) {
-                val mapped = details.associateBy { it.sku }
-                skuDetails.putAll(mapped)
+                skuDetails.clear()
+                skuDetails.addAll(details)
                 apphudListener?.apphudFetchSkuDetailsProducts(details)
             }
         }
@@ -374,4 +374,12 @@ internal object ApphudInternal {
             time_zone = TimeZone.getDefault().id,
             is_sandbox = BuildConfig.DEBUG
         )
+
+    internal fun getSkuDetailsList(): MutableList<SkuDetails>? {
+        return skuDetails.takeIf { skuDetails.isNotEmpty() }
+    }
+
+    internal fun getSkuDetailsByProductId(productIdentifier: String): SkuDetails? {
+        return getSkuDetailsList()?.let { skuList -> skuList.firstOrNull { it.sku == productIdentifier } }
+    }
 }
