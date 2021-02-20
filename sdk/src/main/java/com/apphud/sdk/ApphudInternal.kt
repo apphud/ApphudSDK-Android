@@ -2,6 +2,7 @@ package com.apphud.sdk
 
 import android.app.Activity
 import android.content.Context
+import android.content.pm.ApplicationInfo
 import android.os.AsyncTask
 import android.os.Build
 import android.os.Handler
@@ -372,7 +373,7 @@ internal object ApphudInternal {
             user_id = userId,
             device_id = deviceId,
             time_zone = TimeZone.getDefault().id,
-            is_sandbox = BuildConfig.DEBUG
+            is_sandbox = isDebuggable(context)
         )
 
     internal fun getSkuDetailsList(): MutableList<SkuDetails>? {
@@ -381,5 +382,9 @@ internal object ApphudInternal {
 
     internal fun getSkuDetailsByProductId(productIdentifier: String): SkuDetails? {
         return getSkuDetailsList()?.let { skuList -> skuList.firstOrNull { it.sku == productIdentifier } }
+    }
+
+    private fun isDebuggable(ctx: Context): Boolean {
+        return 0 != ctx.applicationInfo.flags and ApplicationInfo.FLAG_DEBUGGABLE
     }
 }
