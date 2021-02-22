@@ -47,9 +47,13 @@ internal object ApphudInternal {
             field = value
             if (storage.advertisingId != value) {
                 storage.advertisingId = value
-                updateRegistration()
+                ApphudLog.log("advertisingId = $advertisingId is fetched and saved")
             }
+            ApphudLog.log("advertisingId: continue registration")
+            updateRegistration()
         }
+
+    private var allowIdentifyUser = true
 
     internal var userId: UserId? = null
     private lateinit var deviceId: DeviceId
@@ -65,7 +69,7 @@ internal object ApphudInternal {
 
     private val skuDetails = mutableListOf<SkuDetails>()
 
-    internal fun loadAdsId() {
+    private fun loadAdsId() {
         if (ApphudUtils.adTracking) {
             AdvertisingTask().execute()
         }
@@ -79,41 +83,69 @@ internal object ApphudInternal {
     }
 
     internal fun updateUserId(userId: UserId) {
+        ApphudLog.log("Start updateUserId userId=$userId" )
         val id = updateUser(id = userId)
         this.userId = id
 
         val body = mkRegistrationBody(id, deviceId)
         client.registrationUser(body) { customer ->
-            handler.post { storage.customer = customer }
+            handler.post {
+                storage.customer = customer
+                ApphudLog.log("End updateUserId customer=${customer.toString()}" )
+            }
         }
     }
 
-    internal fun registration(
+    internal fun initialize(
         userId: UserId?,
         deviceId: DeviceId?,
         isFetchProducts: Boolean = true
-    ) {
-        val id = updateUser(id = userId)
-        this.userId = id
-        this.deviceId = updateDevice(id = deviceId)
+    ){
+        if(!allowIdentifyUser){
+            ApphudLog.log("=============================================================" +
+                          "\nAbort initializing, because Apphud SDK already initialized." +
+                          "\nYou can only call `Apphud.start()` once per app lifecycle."  +
+                          "\nOr if `Apphud.logout()` was called previously." +
+                          "\n=============================================================")
+            return
+        }
+        allowIdentifyUser = false
+        // try to continue anyway, because maybe already has cached data, try to fetch play market products
+        fetchProducts()
 
-        val body = mkRegistrationBody(id, this.deviceId)
+        ApphudLog.log("Start initialize with userId=$userId, deviceId=$deviceId" )
+        this.userId = updateUser(id = userId)
+        this.deviceId = updateDevice(id = deviceId)
+        ApphudLog.log("Start initialize with saved userId=${this.userId}, saved deviceId=${this.deviceId}")
+        if (ApphudUtils.adTracking)
+            loadAdsId()
+        else
+            registration(this.userId, this.deviceId)
+    }
+
+    private fun registration(
+        userId: UserId?,
+        deviceId: DeviceId?
+    ) {
+        ApphudLog.log("Start registration userId=$userId, deviceId=$deviceId" )
+
+        val body = mkRegistrationBody(userId!!, this.deviceId)
         client.registrationUser(body) { customer ->
             handler.post {
+                ApphudLog.log("registration registrationUser customer=${customer.toString()}" )
                 storage.customer = customer
                 apphudListener?.apphudSubscriptionsUpdated(customer.subscriptions)
                 apphudListener?.apphudNonRenewingPurchasesUpdated(customer.purchases)
-            }
-        }
-        if (isFetchProducts) {
-            // try to continue anyway, because maybe already has cached data, try to fetch products
-            fetchProducts()
 
-            // try to resend purchases, if prev requests was fail
-            if (storage.isNeedSync) {
-                syncPurchases()
+                // try to resend purchases, if prev requests was fail
+                if (storage.isNeedSync) {
+                    ApphudLog.log("registration syncPurchases" )
+                    syncPurchases()
+                }
             }
         }
+
+        ApphudLog.log("End registration" )
     }
 
     internal fun purchase(
@@ -173,10 +205,10 @@ internal object ApphudInternal {
         storage.isNeedSync = true
         billing.restoreCallback = { records ->
 
-            ApphudLog.log("$records")
+            ApphudLog.log("syncPurchases: $records")
 
             when {
-                prevPurchases.containsAll(records) -> ApphudLog.log("Don't send equal purchases from prev state")
+                prevPurchases.containsAll(records) -> ApphudLog.log("syncPurchases: Don't send equal purchases from prev state")
                 else                               -> client.purchased(mkPurchaseBody(records)) { customer ->
                     handler.post {
                         prevPurchases.addAll(records)
@@ -184,12 +216,12 @@ internal object ApphudInternal {
                         apphudListener?.apphudSubscriptionsUpdated(customer.subscriptions)
                         apphudListener?.apphudNonRenewingPurchasesUpdated(customer.purchases)
                     }
-                    ApphudLog.log("success send history purchases $records")
+                    ApphudLog.log("syncPurchases: success send history purchases $records")
                 }
             }
         }
         billing.historyCallback = { purchases ->
-            ApphudLog.log("history purchases: $purchases")
+            ApphudLog.log("syncPurchases: history purchases: $purchases")
             billing.restore(BillingClient.SkuType.SUBS, purchases)
             billing.restore(BillingClient.SkuType.INAPP, purchases)
         }
@@ -288,19 +320,19 @@ internal object ApphudInternal {
         userId = null
         generatedUUID = UUID.randomUUID().toString()
         prevPurchases.clear()
+        skuDetails.clear()
     }
 
     private fun fetchProducts() {
         billing.skuCallback = { details ->
-            ApphudLog.log("details: $details")
+            ApphudLog.log("fetchProducts: details from Google Billing: $details")
             if (details.isNotEmpty()) {
-                skuDetails.clear()
                 skuDetails.addAll(details)
                 apphudListener?.apphudFetchSkuDetailsProducts(details)
             }
         }
         client.allProducts { products ->
-            ApphudLog.log("products: $products")
+            ApphudLog.log("fetchProducts: products from Apphud server: $products")
             val ids = products.map { it.productId }
             billing.details(BillingClient.SkuType.SUBS, ids)
             billing.details(BillingClient.SkuType.INAPP, ids)
@@ -327,8 +359,7 @@ internal object ApphudInternal {
         return deviceId
     }
 
-    private fun updateRegistration() =
-        registration(userId, deviceId, isFetchProducts = false)
+    private fun updateRegistration() = registration(userId, deviceId)
 
     private fun mkPurchasesBody(purchases: List<PurchaseDetails>) =
         PurchaseBody(

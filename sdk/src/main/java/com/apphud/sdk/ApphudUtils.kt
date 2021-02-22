@@ -19,6 +19,6 @@ internal object ApphudUtils {
     }
 
     fun disableAdTracking() {
-        adTracking = true
+        adTracking = false
     }
 }
