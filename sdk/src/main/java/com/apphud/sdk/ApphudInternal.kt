@@ -321,6 +321,7 @@ internal object ApphudInternal {
         generatedUUID = UUID.randomUUID().toString()
         prevPurchases.clear()
         skuDetails.clear()
+        allowIdentifyUser = true
     }
 
     private fun fetchProducts() {
