@@ -54,6 +54,8 @@ internal object ApphudInternal {
     internal var userId: UserId? = null
     private lateinit var deviceId: DeviceId
 
+    private var is_new = true
+
     internal lateinit var apiKey: ApiKey
     internal lateinit var context: Context
 
@@ -318,7 +320,7 @@ internal object ApphudInternal {
     private fun updateDevice(id: DeviceId?): DeviceId {
 
         val deviceId = when (id) {
-            null -> storage.deviceId ?: generatedUUID
+            null -> storage.deviceId?.let { is_new = false; it } ?: generatedUUID
             else -> id
         }
         storage.deviceId = deviceId
@@ -373,7 +375,8 @@ internal object ApphudInternal {
             user_id = userId,
             device_id = deviceId,
             time_zone = TimeZone.getDefault().id,
-            is_sandbox = isDebuggable(context)
+            is_sandbox = isDebuggable(context),
+            is_new = this.is_new
         )
 
     internal fun getSkuDetailsList(): MutableList<SkuDetails>? {

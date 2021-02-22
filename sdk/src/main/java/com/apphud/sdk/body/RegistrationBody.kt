@@ -14,5 +14,6 @@ data class RegistrationBody(
     val user_id: String?,
     val device_id: String,
     val time_zone: String,
-    val is_sandbox: Boolean
+    val is_sandbox: Boolean,
+    val is_new: Boolean
 )
