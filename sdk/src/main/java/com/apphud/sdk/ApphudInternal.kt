@@ -69,6 +69,8 @@ internal object ApphudInternal {
 
     private val skuDetails = mutableListOf<SkuDetails>()
 
+    private var customProductsFetchedBlock : ((List<SkuDetails>) -> Unit)? = null
+
     private fun loadAdsId() {
         if (ApphudUtils.adTracking) {
             AdvertisingTask().execute()
@@ -146,6 +148,13 @@ internal object ApphudInternal {
         }
 
         ApphudLog.log("End registration" )
+    }
+
+    internal fun productsFetchCallback(callback: (List<SkuDetails>) -> Unit){
+        customProductsFetchedBlock = callback
+        if(skuDetails.isNotEmpty()) {
+            customProductsFetchedBlock?.invoke(skuDetails)
+        }
     }
 
     internal fun purchase(
@@ -322,6 +331,7 @@ internal object ApphudInternal {
         prevPurchases.clear()
         skuDetails.clear()
         allowIdentifyUser = true
+        customProductsFetchedBlock = null
     }
 
     private fun fetchProducts() {
@@ -329,6 +339,7 @@ internal object ApphudInternal {
             ApphudLog.log("fetchProducts: details from Google Billing: $details")
             if (details.isNotEmpty()) {
                 skuDetails.addAll(details)
+                customProductsFetchedBlock?.invoke(skuDetails)
                 apphudListener?.apphudFetchSkuDetailsProducts(details)
             }
         }

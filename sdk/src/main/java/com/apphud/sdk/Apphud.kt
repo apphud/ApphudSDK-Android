@@ -153,6 +153,18 @@ object Apphud {
     }
 
     /**
+     * This callback is called when SKProducts are fetched from Google Play Billing.
+     * Note that you have to add all product identifiers in Apphud.
+     * You can use `productsDidFetchCallback` callback
+     * or implement `apphudFetchSkuDetailsProducts` listener method. Use whatever you like most.
+     */
+
+    @kotlin.jvm.JvmStatic
+    fun productsFetchCallback(callback: (List<SkuDetails>) -> Unit) {
+        ApphudInternal.productsFetchCallback(callback)
+    }
+
+    /**
      * Returns **SkuDetails** object by product identifier.
      * Note that you have to add this product identifier in Apphud.
      * Will return **null** if product is not yet fetched from Google Play Billing.
