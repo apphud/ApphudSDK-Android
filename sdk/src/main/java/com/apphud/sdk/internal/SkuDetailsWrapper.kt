@@ -18,7 +18,7 @@ typealias ApphudSkuDetailsRestoreCallback = (List<PurchaseRecordDetails>) -> Uni
 internal class SkuDetailsWrapper(
     private val billing: BillingClient
 ) : BaseAsyncWrapper() {
-    var callback: ApphudSkuDetailsCallback? = null
+    var detailsCallback: ApphudSkuDetailsCallback? = null
     var restoreCallback: ApphudSkuDetailsRestoreCallback? = null
 
     fun restoreAsync(@BillingClient.SkuType type: SkuType, records: List<PurchaseHistoryRecord>) {
@@ -56,7 +56,15 @@ internal class SkuDetailsWrapper(
         }
     }
 
-    fun queryAsync(@BillingClient.SkuType type: SkuType, products: List<ProductId>) {
+    /**
+     * This function will return SkuDetails according to the requested product list.
+     * If manualCallback was defined then the result will be moved to this callback, otherwise detailsCallback will be used
+     * */
+    fun queryAsync(
+        @BillingClient.SkuType type: SkuType,
+        products: List<ProductId>,
+        manualCallback: ApphudSkuDetailsCallback? = null
+    ) {
         val params = SkuDetailsParams.newBuilder()
             .setSkusList(products)
             .setType(type)
@@ -71,7 +79,10 @@ internal class SkuDetailsWrapper(
             }
             billing.querySkuDetailsAsync(params) { result, details ->
                 when (result.isSuccess()) {
-                    true -> callback?.invoke(details ?: emptyList())
+                    true -> {
+                        manualCallback?.let{ manualCallback.invoke(details.orEmpty()) } ?:
+                            detailsCallback?.invoke(details.orEmpty())
+                    }
                     else -> result.logMessage("queryAsync type: $type products: $products")
                 }
             }
@@ -80,7 +91,7 @@ internal class SkuDetailsWrapper(
 
     //Closeable
     override fun close() {
-        callback = null
+        detailsCallback = null
         restoreCallback = null
     }
 }

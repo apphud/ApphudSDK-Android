@@ -166,7 +166,18 @@ internal object ApphudInternal {
         if (sku != null) {
             purchase(activity, sku, callback)
         } else {
-            ApphudLog.log("could not fetch sku details for product id: $productId")
+            ApphudLog.log("Could not find SkuDetails for product id: $productId in memory")
+            ApphudLog.log("Now try fetch it from Google Billing")
+            billing.details(BillingClient.SkuType.SUBS, listOf(productId)) { skuList ->
+                ApphudLog.log("Google Billing (SUBS) return this info for product id = $productId :")
+                skuList.forEach { ApphudLog.log("$it") }
+                skuList.takeIf { it.isNotEmpty() }?.let { skuDetails.addAll(it); purchase(activity, it.first() , callback) }
+            }
+            billing.details(BillingClient.SkuType.INAPP, listOf(productId)) { skuList ->
+                ApphudLog.log("Google Billing (SUBS) return this info for product id = $productId :")
+                skuList.forEach { ApphudLog.log("$it") }
+                skuList.takeIf { it.isNotEmpty() }?.let { skuDetails.addAll(it); purchase(activity, it.first() , callback) }
+            }
         }
     }
 
