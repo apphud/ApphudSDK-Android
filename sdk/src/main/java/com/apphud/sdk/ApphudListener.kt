@@ -7,8 +7,10 @@ import com.apphud.sdk.domain.ApphudSubscription
 interface ApphudListener {
 
     /**
-     * Returns array of subscriptions that user ever purchased. Empty array means user never purchased a subscription. If you have just one subscription group in your app, you will always receive just one subscription in an array.
-     * This method is called when subscription is purchased or updated (for example, status changed from `trial` to `expired` or `isAutorenewEnabled` changed to `false`).
+     * Returns array of subscriptions that user ever purchased. Empty array means user never purchased a subscription.
+     * If you have just one subscription group in your app, you will always receive just one subscription in an array.
+     * This method is called when subscription is purchased or updated
+     * (for example, status changed from `trial` to `expired` or `isAutorenewEnabled` changed to `false`).
      * SDK also checks for subscription updates when app becomes active.
      */
     fun apphudSubscriptionsUpdated(subscriptions: List<ApphudSubscription>) = Unit

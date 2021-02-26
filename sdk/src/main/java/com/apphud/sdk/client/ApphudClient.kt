@@ -15,7 +15,7 @@ import com.apphud.sdk.tasks.*
 internal class ApphudClient(apiKey: ApiKey, parser: Parser) {
 
     //TODO Про эти мапперы класс ApphudClient знать не должен
-    private val mapper = CustomerMapper(SubscriptionMapper())
+    private val customerMapper = CustomerMapper(SubscriptionMapper())
     private val productMapper = ProductMapper()
     private val attributionMapper = AttributionMapper()
 
@@ -28,7 +28,7 @@ internal class ApphudClient(apiKey: ApiKey, parser: Parser) {
         thread.registration(callable) { response ->
             when (response.data.results) {
                 null -> ApphudLog.log("Response success but result is null")
-                else -> callback.invoke(mapper.map(response.data.results))
+                else -> callback.invoke(customerMapper.map(response.data.results))
             }
         }
     }
@@ -68,7 +68,7 @@ internal class ApphudClient(apiKey: ApiKey, parser: Parser) {
         thread.execute(LoopRunnable(callable) { response ->
             when (response.data.results) {
                 null -> ApphudLog.log("Response success but result is null")
-                else -> callback.invoke(mapper.map(response.data.results))
+                else -> callback.invoke(customerMapper.map(response.data.results))
             }
         })
     }

@@ -43,7 +43,7 @@ internal class BillingWrapper(context: Context) : BillingClientStateListener, Cl
     var skuCallback: ApphudSkuDetailsCallback? = null
         set(value) {
             field = value
-            sku.callback = value
+            sku.detailsCallback = value
         }
 
     var restoreCallback: ApphudSkuDetailsRestoreCallback? = null
@@ -87,7 +87,12 @@ internal class BillingWrapper(context: Context) : BillingClientStateListener, Cl
     }
 
     fun details(@BillingClient.SkuType type: SkuType, products: List<ProductId>) =
-        sku.queryAsync(type, products)
+        details(type = type, products = products, manualCallback = null)
+
+    fun details(@BillingClient.SkuType type: SkuType,
+                products: List<ProductId>,
+                manualCallback: ApphudSkuDetailsCallback? = null) =
+        sku.queryAsync(type = type, products = products, manualCallback = manualCallback)
 
     fun restore(@BillingClient.SkuType type: SkuType, products: List<PurchaseHistoryRecord>) =
         sku.restoreAsync(type, products)
