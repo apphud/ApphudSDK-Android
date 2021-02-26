@@ -29,23 +29,6 @@ object Apphud {
     fun start(context: Context, apiKey: ApiKey, userId: UserId? = null) =
         start(context, apiKey, userId, null)
 
-/*    private fun isMainProcess(context: Context): Boolean =
-        context.packageName == getProcessName(context)
-
-    private fun getProcessName(context: Context): String? {
-        val mypid = Process.myPid()
-        val manager = context.getSystemService(Context.ACTIVITY_SERVICE) as ActivityManager?
-        return manager?.let {
-            val infos = manager.runningAppProcesses
-            for (info in infos) {
-                if (info.pid == mypid) {
-                    return@let info.processName
-                }
-            }
-            null
-        }
-    }*/
-
     /**
      * Initializes Apphud SDK. You should call it during app launch.
      *

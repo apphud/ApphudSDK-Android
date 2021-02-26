@@ -15,6 +15,9 @@ fun advertisingId(context: Context): String? = try {
 } catch (e: IOException) {
     ApphudLog.log("finish load advertisingId $e")
     null
+} catch (e: IllegalStateException) {
+    ApphudLog.log("finish load advertisingId $e")
+    null
 } catch (e: GooglePlayServicesNotAvailableException) {
     ApphudLog.log("finish load advertisingId $e")
     null

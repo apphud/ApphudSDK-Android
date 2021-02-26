@@ -50,7 +50,7 @@ internal object ApphudInternal {
                 ApphudLog.log("advertisingId = $advertisingId is fetched and saved")
             }
             ApphudLog.log("advertisingId: continue registration")
-            updateRegistration()
+            registration(userId, deviceId)
         }
 
     private var allowIdentifyUser = true
@@ -381,8 +381,6 @@ internal object ApphudInternal {
         storage.deviceId = deviceId
         return deviceId
     }
-
-    private fun updateRegistration() = registration(userId, deviceId)
 
     private fun mkPurchasesBody(purchases: List<PurchaseDetails>) =
         PurchaseBody(
