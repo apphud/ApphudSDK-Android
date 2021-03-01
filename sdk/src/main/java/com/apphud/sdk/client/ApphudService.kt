@@ -1,10 +1,7 @@
 package com.apphud.sdk.client
 
 import com.apphud.sdk.ApiKey
-import com.apphud.sdk.body.AttributionBody
-import com.apphud.sdk.body.PurchaseBody
-import com.apphud.sdk.body.PushBody
-import com.apphud.sdk.body.RegistrationBody
+import com.apphud.sdk.body.*
 import com.google.gson.reflect.TypeToken
 import com.apphud.sdk.client.dto.*
 
@@ -84,6 +81,20 @@ class ApphudService(
             RequestConfig(
                 path = "subscriptions",
                 type = object : TypeToken<ResponseDto<CustomerDto>>() {}.type,
+                queries = mapOf(API_KEY to apiKey),
+                requestType = RequestType.POST
+            ),
+            body
+        )
+
+    /**
+     * Отправка user property
+     */
+    fun sendUserProperties(body: UserPropertiesBody): ResponseDto<AttributionDto> =
+        executor.call(
+            RequestConfig(
+                path = "customers/properties",
+                type = object : TypeToken<ResponseDto<AttributionDto>>(){}.type,
                 queries = mapOf(API_KEY to apiKey),
                 requestType = RequestType.POST
             ),

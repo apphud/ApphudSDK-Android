@@ -1,10 +1,7 @@
 package com.apphud.sdk
 
 import android.util.Log
-import com.apphud.sdk.body.AttributionBody
-import com.apphud.sdk.body.PurchaseBody
-import com.apphud.sdk.body.PurchaseItemBody
-import com.apphud.sdk.body.PushBody
+import com.apphud.sdk.body.*
 import com.apphud.sdk.client.ApiClient
 import com.apphud.sdk.client.ApphudService
 import com.apphud.sdk.client.HttpUrlConnectionExecutor
@@ -107,5 +104,46 @@ class ApphudServiceTest {
         )
         val response = service.purchase(body)
         Log.e("WOW", "send push result: ${response.data.results}")
+    }
+
+    @Test
+    fun userPropertiesTest() {
+        val body = UserPropertiesBody(
+            device_id = deviceId,
+            properties = listOf(
+                mapOf(
+                    "set_once" to true,
+                    "kind" to "string",
+                    "value" to "user4@example.com",
+                    "name" to "\$email"
+                ),
+                mapOf(
+                    "kind" to "integer",
+                    "set_once" to false,
+                    "name" to "\$age",
+                    "value" to 31
+                ),
+                mapOf(
+                    "set_once" to false,
+                    "value" to true,
+                    "name" to "custom_test_property_1",
+                    "kind" to "boolean"
+                ),
+                mapOf(
+                    "set_once" to false,
+                    "value" to "gay",
+                    "name" to "\$gender",
+                    "kind" to "string"
+                ),
+                mapOf(
+                    "name" to "custom_email",
+                    "value" to "user2@example.com",
+                    "kind" to "string",
+                    "set_once" to true
+                )
+            )
+        )
+        val response = service.sendUserProperties(body)
+        Log.e("WOW", "send user properties result: ${response.data.results}")
     }
 }

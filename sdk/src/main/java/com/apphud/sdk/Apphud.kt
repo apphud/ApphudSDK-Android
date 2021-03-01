@@ -153,15 +153,15 @@ object Apphud {
      * Will return **null** if product is not yet fetched from Google Play Billing.
      */
     @kotlin.jvm.JvmStatic
-    fun products(productIdentifier: String): SkuDetails? {
+    fun product(productIdentifier: String): SkuDetails? {
         return ApphudInternal.getSkuDetailsByProductId(productIdentifier)
     }
 
     /**
      * Purchases product and automatically submit
-     * @activity: current Activity for use
-     * @productId: The identifier of the product you wish to purchase
-     * @block: The closure that will be called when purchase completes.
+     * @param activity: current Activity for use
+     * @param productId: The identifier of the product you wish to purchase
+     * @param block: The closure that will be called when purchase completes.
      */
     @kotlin.jvm.JvmStatic
     fun purchase(activity: Activity, productId: String, block: (List<Purchase>) -> Unit) =
@@ -169,13 +169,56 @@ object Apphud {
 
     /**
      * Purchases product and automatically submit
-     * @activity: current Activity for use
-     * @details: The skuDetails of the product you wish to purchase
-     * @block: The closure that will be called when purchase completes.
+     * @param activity current Activity for use
+     * @param details The skuDetails of the product you wish to purchase
+     * @param block The closure that will be called when purchase completes.
      */
     @kotlin.jvm.JvmStatic
     fun purchase(activity: Activity, details: SkuDetails, block: (List<Purchase>) -> Unit) =
         ApphudInternal.purchase(activity, details, block)
+
+
+    /**
+     * Set custom user property.
+     * Value must be one of: "Int", "Float", "Double", "Boolean", "String" or "null".
+     *
+     * Example:
+     * // use built-in property key
+     * Apphud.setUserProperty(key: ApphudUserPropertyKey.Email, value: "user4@example.com", setOnce: true)
+     * // use custom property key
+     * Apphud.setUserProperty(key: ApphudUserPropertyKey.CustomProperty("custom_test_property_1"), value: 0.5)
+     *
+     * __Note__: You can use several built-in keys with their value types:
+     * "ApphudUserPropertyKey.Email": User email. Value must be String.
+     * "ApphudUserPropertyKey.Name": User name. Value must be String.
+     * "ApphudUserPropertyKey.Phone": User phone number. Value must be String.
+     * "ApphudUserPropertyKey.Age": User age. Value must be Int.
+     * "ApphudUserPropertyKey.Gender": User gender. Value must be one of: "male", "female", "other".
+     * "ApphudUserPropertyKey.Cohort": User install cohort. Value must be String.
+     *
+     * @param key Required. Initialize class with custom string or using built-in keys. See example above.
+     * @param value  Required/Optional. Pass "null" to remove given property from Apphud.
+     * @param setOnce  Optional. Pass "true" to make this property non-updatable.
+     */
+    @kotlin.jvm.JvmStatic
+    fun setUserProperty(key: ApphudUserPropertyKey, value: Any?, setOnce: Boolean = false) {
+        ApphudInternal.setUserProperty(key = key, value = value, setOnce = setOnce, increment = false)
+    }
+
+    /**
+     * Increment custom user property.
+     * Value must be one of: "Int", "Float", "Double".
+     *
+     * Example:
+     * Apphud.incrementUserProperty(key: ApphudUserPropertyKey.CustomProperty("progress"), by: 0.5)
+     *
+     * @param key Required. Use your custom string key or some of built-in keys.
+     * @param by Required/Optional. You can pass negative value to decrement.
+     */
+    @kotlin.jvm.JvmStatic
+    fun incrementUserProperty(key: ApphudUserPropertyKey, by: Any) {
+        ApphudInternal.setUserProperty(key = key, value = by, setOnce = false, increment = true)
+    }
 
     /**
      * Enables debug logs. Better to call this method before SDK initialization.

@@ -10,10 +10,7 @@ import android.os.Looper
 import com.android.billingclient.api.BillingClient
 import com.android.billingclient.api.Purchase
 import com.android.billingclient.api.SkuDetails
-import com.apphud.sdk.body.AttributionBody
-import com.apphud.sdk.body.PurchaseBody
-import com.apphud.sdk.body.PurchaseItemBody
-import com.apphud.sdk.body.RegistrationBody
+import com.apphud.sdk.body.*
 import com.apphud.sdk.client.ApphudClient
 import com.apphud.sdk.domain.*
 import com.apphud.sdk.internal.BillingWrapper
@@ -70,6 +67,20 @@ internal object ApphudInternal {
     private val skuDetails = mutableListOf<SkuDetails>()
 
     private var customProductsFetchedBlock : ((List<SkuDetails>) -> Unit)? = null
+
+    private val pendingUserProperties = mutableMapOf<String, ApphudUserProperty>()
+    private val userPropertiesRunnable = Runnable { updateUserProperties() }
+
+    private var setNeedsToUpdateUserProperties: Boolean = false
+        set(value) {
+            field = value
+            if (value) {
+                handler.removeCallbacks(userPropertiesRunnable)
+                handler.postDelayed(userPropertiesRunnable, 1000L)
+            } else {
+                handler.removeCallbacks(userPropertiesRunnable)
+            }
+        }
 
     private fun loadAdsId() {
         if (ApphudUtils.adTracking) {
@@ -329,6 +340,70 @@ internal object ApphudInternal {
         }
     }
 
+    internal fun setUserProperty(
+        key: ApphudUserPropertyKey,
+        value: Any?,
+        setOnce: Boolean,
+        increment: Boolean
+    ) {
+        val typeString = getType(value)
+        if (typeString == "unknown") {
+            val type = value?.let { value::class.java.name } ?: "unknown"
+            ApphudLog.log("For key '${key.key}' invalid property type: '$type' for 'value'. Must be one of: [Int, Float, Double, Boolean, String or null]")
+            return
+        }
+        if (increment && !(typeString == "integer" || typeString == "float")) {
+            val type = value?.let { value::class.java.name } ?: "unknown"
+            ApphudLog.log("For key '${key.key}' invalid increment property type: '$type' for 'value'. Must be one of: [Int, Float or Double]")
+            return
+        }
+
+        val property = ApphudUserProperty(key = key.key,
+            value = value,
+            increment = increment,
+            setOnce = setOnce,
+            type = typeString)
+
+        pendingUserProperties.run {
+            remove(property.key)
+            put(property.key, property)
+        }
+        setNeedsToUpdateUserProperties = true
+    }
+
+    private fun updateUserProperties() {
+        setNeedsToUpdateUserProperties = false
+        if (pendingUserProperties.isEmpty()) return
+
+        val properties = mutableListOf<Map<String, Any?>>()
+        pendingUserProperties.forEach {
+            properties.add(it.value.toJSON()!!)
+        }
+
+        val body = UserPropertiesBody(this.deviceId, properties)
+        client.userProperties(body) { userproperties ->
+            handler.post {
+                if (userproperties.success) {
+                    pendingUserProperties.clear()
+                    ApphudLog.log("User Properties successfully updated.")
+                } else {
+                    ApphudLog.log("User Properties update failed with this errors")
+                }
+            }
+        }
+    }
+
+    private fun getType(value: Any?): String {
+        return when (value) {
+            is String -> "string"
+            is Boolean -> "boolean"
+            is Float, Double -> "float"
+            is Int -> "integer"
+            null -> "null"
+            else -> "unknown"
+        }
+    }
+
     internal fun logout() {
         clear()
     }
@@ -343,6 +418,8 @@ internal object ApphudInternal {
         skuDetails.clear()
         allowIdentifyUser = true
         customProductsFetchedBlock = null
+        pendingUserProperties.clear()
+        setNeedsToUpdateUserProperties = false
     }
 
     private fun fetchProducts() {
