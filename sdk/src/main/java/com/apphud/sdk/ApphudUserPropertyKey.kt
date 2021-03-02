@@ -22,11 +22,17 @@ internal const val ApphudUserPropertyKeyAge = "\$age"
 internal const val ApphudUserPropertyKeyGender = "\$gender"
 
 sealed class ApphudUserPropertyKey(val key: String){
+    /** User email. Value must be String*/
     object Email:ApphudUserPropertyKey(ApphudUserPropertyKeyEmail)
+    /** User name. Value must be String*/
     object Name:ApphudUserPropertyKey(ApphudUserPropertyKeyName)
+    /** User phone number. Value must be String.*/
     object Phone:ApphudUserPropertyKey(ApphudUserPropertyKeyPhone)
+    /** User age. Value must be Int.*/
     object Cohort:ApphudUserPropertyKey(ApphudUserPropertyKeyCohort)
+    /** User install cohort. Value must be String.*/
     object Age:ApphudUserPropertyKey(ApphudUserPropertyKeyAge)
+    /** User gender. Value must be one of: "male", "female", "other".*/
     object Gender:ApphudUserPropertyKey(ApphudUserPropertyKeyGender)
     /**
     Initialize with custom property key string.

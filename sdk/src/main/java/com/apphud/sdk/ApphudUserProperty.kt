@@ -1,6 +1,6 @@
 package com.apphud.sdk
 
-internal const val JSON_NAME_KEY = "key"
+internal const val JSON_NAME_NAME = "name"
 internal const val JSON_NAME_VALUE = "value"
 internal const val JSON_NAME_SET_ONCE = "set_once"
 internal const val JSON_NAME_KIND = "kind"
@@ -20,7 +20,7 @@ internal data class ApphudUserProperty(
         }
 
         val jsonParamsString: MutableMap<String, Any?> = mutableMapOf(
-            JSON_NAME_KEY to key,
+            JSON_NAME_NAME to key,
             JSON_NAME_VALUE to if (value !is Float || value !is Double) value else value as Double,
             JSON_NAME_SET_ONCE to setOnce
         )
