@@ -25,6 +25,7 @@ internal object ApphudInternal {
 
     private val builder = GsonBuilder()
         .setPrettyPrinting()
+        .serializeNulls()//need this to pass nullable values to JSON and from JSON
         .create()
     private val parser: Parser = GsonParser(builder)
 
@@ -51,6 +52,7 @@ internal object ApphudInternal {
         }
 
     private var allowIdentifyUser = true
+    private var isRegistered = false
 
     internal var userId: UserId? = null
     private lateinit var deviceId: DeviceId
@@ -69,7 +71,7 @@ internal object ApphudInternal {
     private var customProductsFetchedBlock : ((List<SkuDetails>) -> Unit)? = null
 
     private val pendingUserProperties = mutableMapOf<String, ApphudUserProperty>()
-    private val userPropertiesRunnable = Runnable { updateUserProperties() }
+    private val userPropertiesRunnable = Runnable { if(isRegistered) updateUserProperties() }
 
     private var setNeedsToUpdateUserProperties: Boolean = false
         set(value) {
@@ -144,6 +146,7 @@ internal object ApphudInternal {
 
         val body = mkRegistrationBody(userId!!, this.deviceId)
         client.registrationUser(body) { customer ->
+            isRegistered = true
             handler.post {
                 ApphudLog.log("registration registrationUser customer=${customer.toString()}" )
                 storage.customer = customer
@@ -154,6 +157,11 @@ internal object ApphudInternal {
                 if (storage.isNeedSync) {
                     ApphudLog.log("registration syncPurchases" )
                     syncPurchases()
+                }
+
+                if(pendingUserProperties.isNotEmpty() && setNeedsToUpdateUserProperties) {
+                    ApphudLog.log("registration we should update UserProperties" )
+                    updateUserProperties()
                 }
             }
         }
@@ -409,6 +417,7 @@ internal object ApphudInternal {
     }
 
     private fun clear() {
+        isRegistered = false
         storage.customer = null
         storage.userId = null
         storage.deviceId = null
