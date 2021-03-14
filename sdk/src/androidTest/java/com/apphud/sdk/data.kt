@@ -16,5 +16,7 @@ internal fun mkRegistrationBody(userId: String, deviceId: String) =
         idfa = "22221111",
         user_id = userId,
         device_id = deviceId,
-        time_zone = "UTF"
+        time_zone = "UTF",
+        is_sandbox = true,
+        is_new = true
     )

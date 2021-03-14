@@ -1,10 +1,7 @@
 package com.apphud.sdk.client
 
 import com.apphud.sdk.*
-import com.apphud.sdk.body.AttributionBody
-import com.apphud.sdk.body.PurchaseBody
-import com.apphud.sdk.body.PushBody
-import com.apphud.sdk.body.RegistrationBody
+import com.apphud.sdk.body.*
 import com.apphud.sdk.mappers.AttributionMapper
 import com.apphud.sdk.mappers.CustomerMapper
 import com.apphud.sdk.mappers.ProductMapper
@@ -69,6 +66,16 @@ internal class ApphudClient(apiKey: ApiKey, parser: Parser) {
             when (response.data.results) {
                 null -> ApphudLog.log("Response success but result is null")
                 else -> callback.invoke(customerMapper.map(response.data.results))
+            }
+        })
+    }
+
+    fun userProperties(body: UserPropertiesBody, callback: AttributionCallback) {
+        val callable = UserPropertiesCallable(body, service)
+        thread.execute(LoopRunnable(callable) { response ->
+            when (response.data.results) {
+                null -> ApphudLog.log("Response success but result is null")
+                else -> callback.invoke(attributionMapper.map(response.data.results))
             }
         })
     }
