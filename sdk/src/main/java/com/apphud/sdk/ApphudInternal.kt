@@ -405,7 +405,7 @@ internal object ApphudInternal {
         return when (value) {
             is String -> "string"
             is Boolean -> "boolean"
-            is Float, Double -> "float"
+            is Float, is Double -> "float"
             is Int -> "integer"
             null -> "null"
             else -> "unknown"
