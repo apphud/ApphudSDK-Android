@@ -30,7 +30,7 @@ internal class SkuDetailsWrapper(
 
         thread(start = true, name = "restoreAsync+$type") {
             while (!billing.isReady) {
-                ApphudLog.log("restoreAsync is on waiting for ${retryDelay}ms for $type")
+                ApphudLog.logE("restoreAsync is on waiting for ${retryDelay}ms for $type")
                 Thread.sleep(retryDelay)
                 if(retryCount++>=retryCapacity)
                     break
@@ -72,7 +72,7 @@ internal class SkuDetailsWrapper(
 
         thread(start = true, name = "queryAsync+$type") {
             while (!billing.isReady) {
-                ApphudLog.log("queryAsync is on waiting for ${retryDelay}ms for $type")
+                ApphudLog.logE("queryAsync is on waiting for ${retryDelay}ms for $type")
                 Thread.sleep(retryDelay)
                 if(retryCount++>=retryCapacity)
                     break

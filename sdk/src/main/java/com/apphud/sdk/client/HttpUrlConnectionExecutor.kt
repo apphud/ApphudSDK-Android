@@ -63,7 +63,7 @@ class HttpUrlConnectionExecutor(
             }
             else -> {
                 val response = buildStringBy(connection.errorStream)
-                ApphudLog.log("finish ${config.requestType} request ${apphudUrl.url} failed with code: ${connection.responseCode} response: ${buildPrettyPrintedBy(response)}")
+                ApphudLog.logE("finish ${config.requestType} request ${apphudUrl.url} failed with code: ${connection.responseCode} response: ${buildPrettyPrintedBy(response)}")
                 null
             }
         }
@@ -74,8 +74,8 @@ class HttpUrlConnectionExecutor(
     } catch (e: Exception) {
         when (e) {
             is UnknownHostException,
-            is SocketTimeoutException -> ApphudLog.log("finish with exception ${e.message}")
-            else                      -> ApphudLog.log("finish with exception ${e.message}")
+            is SocketTimeoutException -> ApphudLog.logE("finish with exception ${e.message}")
+            else                      -> ApphudLog.logE("finish with exception ${e.message}")
         }
         throw e
     }

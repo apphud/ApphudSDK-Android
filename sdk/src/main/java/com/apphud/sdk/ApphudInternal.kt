@@ -117,7 +117,7 @@ internal object ApphudInternal {
         isFetchProducts: Boolean = true
     ){
         if(!allowIdentifyUser){
-            ApphudLog.log("=============================================================" +
+            ApphudLog.logE("=============================================================" +
                           "\nAbort initializing, because Apphud SDK already initialized." +
                           "\nYou can only call `Apphud.start()` once per app lifecycle."  +
                           "\nOr if `Apphud.logout()` was called previously." +
@@ -148,19 +148,19 @@ internal object ApphudInternal {
         client.registrationUser(body) { customer ->
             isRegistered = true
             handler.post {
-                ApphudLog.log("registration registrationUser customer=${customer.toString()}" )
+                ApphudLog.log("registration: registrationUser customer=${customer.toString()}" )
                 storage.customer = customer
                 apphudListener?.apphudSubscriptionsUpdated(customer.subscriptions)
                 apphudListener?.apphudNonRenewingPurchasesUpdated(customer.purchases)
 
                 // try to resend purchases, if prev requests was fail
                 if (storage.isNeedSync) {
-                    ApphudLog.log("registration syncPurchases" )
+                    ApphudLog.log("registration: syncPurchases" )
                     syncPurchases()
                 }
 
                 if(pendingUserProperties.isNotEmpty() && setNeedsToUpdateUserProperties) {
-                    ApphudLog.log("registration we should update UserProperties" )
+                    ApphudLog.log("registration: we should update UserProperties" )
                     updateUserProperties()
                 }
             }
@@ -193,7 +193,7 @@ internal object ApphudInternal {
                 skuList.takeIf { it.isNotEmpty() }?.let { skuDetails.addAll(it); purchase(activity, it.first() , callback) }
             }
             billing.details(BillingClient.SkuType.INAPP, listOf(productId)) { skuList ->
-                ApphudLog.log("Google Billing (SUBS) return this info for product id = $productId :")
+                ApphudLog.log("Google Billing (INAPP) return this info for product id = $productId :")
                 skuList.forEach { ApphudLog.log("$it") }
                 skuList.takeIf { it.isNotEmpty() }?.let { skuDetails.addAll(it); purchase(activity, it.first() , callback) }
             }
@@ -357,12 +357,12 @@ internal object ApphudInternal {
         val typeString = getType(value)
         if (typeString == "unknown") {
             val type = value?.let { value::class.java.name } ?: "unknown"
-            ApphudLog.log("For key '${key.key}' invalid property type: '$type' for 'value'. Must be one of: [Int, Float, Double, Boolean, String or null]")
+            ApphudLog.logE("For key '${key.key}' invalid property type: '$type' for 'value'. Must be one of: [Int, Float, Double, Boolean, String or null]")
             return
         }
         if (increment && !(typeString == "integer" || typeString == "float")) {
             val type = value?.let { value::class.java.name } ?: "unknown"
-            ApphudLog.log("For key '${key.key}' invalid increment property type: '$type' for 'value'. Must be one of: [Int, Float or Double]")
+            ApphudLog.logE("For key '${key.key}' invalid increment property type: '$type' for 'value'. Must be one of: [Int, Float or Double]")
             return
         }
 
@@ -395,7 +395,7 @@ internal object ApphudInternal {
                     pendingUserProperties.clear()
                     ApphudLog.log("User Properties successfully updated.")
                 } else {
-                    ApphudLog.log("User Properties update failed with this errors")
+                    ApphudLog.logE("User Properties update failed with errors")
                 }
             }
         }
