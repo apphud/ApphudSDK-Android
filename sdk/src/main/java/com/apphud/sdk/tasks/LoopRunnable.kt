@@ -21,18 +21,18 @@ class LoopRunnable<T>(
         try {
             callback.invoke(callable.call())
         } catch (e: Exception) {
-            ApphudLog.logE("Throw with exception: $e")
+            ApphudLog.log("Throw with exception: $e")
             val exception = e as? NetworkException
             when (exception?.code) {
-                401, 403 -> return ApphudLog.logE("Response code: ${exception.code} signal for cancel request")
+                401, 403 -> return ApphudLog.log("Response code: ${exception.code} signal for cancel request")
                 else     -> try {
                     val timeout = interrupted.calculate(callable.counter)
-                    ApphudLog.logE("sleep for $timeout milliseconds")
+                    ApphudLog.log("sleep for $timeout milliseconds")
                     Thread.sleep(timeout)
                 } catch (e: InterruptedException) {
-                    ApphudLog.logE("InterruptedException: $e")
+                    ApphudLog.log("InterruptedException: $e")
                 } finally {
-                    ApphudLog.logE("finally restart task $callable with counter: ${callable.counter}")
+                    ApphudLog.log("finally restart task $callable with counter: ${callable.counter}")
                     callable.counter += 1
                     when {
                         callable.counter > COUNT -> ApphudLog.logE("Stop retry $callable after $COUNT steps")
