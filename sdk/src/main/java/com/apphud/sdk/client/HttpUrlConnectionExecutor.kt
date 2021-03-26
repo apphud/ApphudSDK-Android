@@ -74,8 +74,8 @@ class HttpUrlConnectionExecutor(
     } catch (e: Exception) {
         when (e) {
             is UnknownHostException,
-            is SocketTimeoutException -> ApphudLog.logE("finish with exception ${e.message}")
-            else                      -> ApphudLog.logE("finish with exception ${e.message}")
+            is SocketTimeoutException -> ApphudLog.log("finish with exception ${e.message}")
+            else                      -> ApphudLog.log("finish with exception ${e.message}")
         }
         throw e
     }
