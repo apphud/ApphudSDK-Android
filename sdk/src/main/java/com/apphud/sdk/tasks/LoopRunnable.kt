@@ -35,7 +35,7 @@ class LoopRunnable<T>(
                     ApphudLog.log("finally restart task $callable with counter: ${callable.counter}")
                     callable.counter += 1
                     when {
-                        callable.counter > COUNT -> ApphudLog.logE("Stop retry $callable after $COUNT steps")
+                        callable.counter > COUNT -> ApphudLog.log("Stop retry $callable after $COUNT steps")
                         else                     -> run()
                     }
                 }
