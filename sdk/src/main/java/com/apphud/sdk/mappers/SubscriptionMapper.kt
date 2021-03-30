@@ -7,15 +7,12 @@ import com.apphud.sdk.domain.ApphudNonRenewingPurchase
 import com.apphud.sdk.domain.ApphudSubscription
 import com.apphud.sdk.domain.ApphudSubscriptionStatus
 import java.text.ParseException
-import java.text.SimpleDateFormat
 import java.util.*
 
 class SubscriptionMapper {
 
-    private val parser = SimpleDateFormat(DateTimeFormatter.pattern, Locale.getDefault())
-
     private fun buildDate(date: String?): Long? = try {
-        date?.let { parser.parse(it)?.time }
+        date?.let { DateTimeFormatter.formatter.parse(it)?.time }
     } catch (e: ParseException) {
         null
     }
@@ -28,7 +25,7 @@ class SubscriptionMapper {
                 productId = dto.product_id,
                 kind = ApphudKind.map(dto.kind),
                 expiresAt = expires,
-                startedAt = buildDate(dto.started_at),
+                startedAt = buildDate(dto.started_at) ?: Date().time,
                 cancelledAt = buildDate(dto.cancelled_at),
                 isInRetryBilling = dto.in_retry_billing,
                 isIntroductoryActivated = dto.introductory_activated,
