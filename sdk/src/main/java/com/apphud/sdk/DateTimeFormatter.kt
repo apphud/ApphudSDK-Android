@@ -5,6 +5,9 @@ import java.util.*
 
 object DateTimeFormatter {
 
-    const val pattern = "yyyy-MM-dd'T'HH:mm:ss"
-    private val formatter = SimpleDateFormat(pattern, Locale.getDefault())
+    private const val pattern = "yyyy-MM-dd'T'HH:mm:ss.SSS'Z'"
+
+    val formatter = SimpleDateFormat(pattern, Locale.getDefault()).apply {
+        timeZone = TimeZone.getTimeZone("UTC")
+    }
 }
