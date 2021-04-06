@@ -216,12 +216,12 @@ internal object ApphudInternal {
 
             client.purchased(mkPurchasesBody(purchases)) { customer ->
                 handler.post {
+                    storage.customer = customer
+                    callback.invoke(purchases.map { it.purchase })
                     apphudListener?.apphudSubscriptionsUpdated(customer.subscriptions)
                     apphudListener?.apphudNonRenewingPurchasesUpdated(customer.purchases)
                 }
             }
-
-            callback.invoke(purchases.map { it.purchase })
 
             purchases.forEach {
 
@@ -244,7 +244,7 @@ internal object ApphudInternal {
         storage.isNeedSync = true
         billing.restoreCallback = { records ->
 
-            ApphudLog.log("syncPurchases: $records")
+            ApphudLog.log("restoreCallback: $records")
 
             when {
                 prevPurchases.containsAll(records) -> ApphudLog.log("syncPurchases: Don't send equal purchases from prev state")
@@ -252,6 +252,8 @@ internal object ApphudInternal {
                     handler.post {
                         prevPurchases.addAll(records)
                         storage.isNeedSync = false
+                        storage.customer = customer
+                        ApphudLog.log("syncPurchases: customer updated $customer")
                         apphudListener?.apphudSubscriptionsUpdated(customer.subscriptions)
                         apphudListener?.apphudNonRenewingPurchasesUpdated(customer.purchases)
                     }
@@ -260,7 +262,7 @@ internal object ApphudInternal {
             }
         }
         billing.historyCallback = { purchases ->
-            ApphudLog.log("syncPurchases: history purchases: $purchases")
+            ApphudLog.log("historyCallback: $purchases")
             billing.restore(BillingClient.SkuType.SUBS, purchases)
             billing.restore(BillingClient.SkuType.INAPP, purchases)
         }

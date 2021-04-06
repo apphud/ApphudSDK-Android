@@ -1,5 +1,5 @@
 package com.apphud.app
 
 object Constants {
-    const val API_KEY = "app_EzgZvMy2qRcSsU2uRuDxd9GaqU8BCV"
+    const val API_KEY = "app_DZzKAkuBWhe9nz3qeofJMU9PJezkxn"
 }

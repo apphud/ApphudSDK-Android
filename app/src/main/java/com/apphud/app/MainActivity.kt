@@ -29,6 +29,8 @@ class MainActivity : AppCompatActivity() {
         val listener = object : ApphudListener {
             override fun apphudSubscriptionsUpdated(subscriptions: List<ApphudSubscription>) {
 
+                Log.d("apphud","SUBSCRIPTIONS UPDATED: ${Apphud.subscriptions() }. Has active subscription: ${Apphud.hasActiveSubscription()}")
+
                 subscriptions.forEach { subscription ->
                     val model = when (val product = products[subscription.productId]) {
                         null -> mapper.map(subscription)
@@ -68,7 +70,9 @@ class MainActivity : AppCompatActivity() {
             Log.e("Apphud", "onClick model: $model")
             when (model.details) {
                 null -> Log.e("Apphud", "details is empty")
-                else -> Apphud.purchase(this, model.details) { _ -> }
+                else -> Apphud.purchase(this, model.details) { _ ->
+                    Log.d("apphud","PURCHASE RESULT: ${Apphud.subscriptions() }. Has active subscription: ${Apphud.hasActiveSubscription()}")
+                }
             }
         }
 
