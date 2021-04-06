@@ -1,6 +1,7 @@
 package com.apphud.app
 
 import android.app.Application
+import android.util.Log
 import com.apphud.sdk.Apphud
 
 class App : Application() {
@@ -14,7 +15,6 @@ class App : Application() {
         app = this
 
         Apphud.enableDebugLogs()
-//        Apphud.disableAdTracking()
         Apphud.start(this, Constants.API_KEY)
     }
 }
