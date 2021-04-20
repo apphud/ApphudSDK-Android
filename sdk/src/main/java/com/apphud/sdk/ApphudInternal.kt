@@ -179,23 +179,30 @@ internal object ApphudInternal {
     internal fun purchase(
             activity: Activity,
             productId: String,
-            callback: (List<Purchase>) -> Unit
+            callback: (List<Purchase>) -> Unit,
+            onCancel: () -> Unit
     ) {
         val sku = getSkuDetailsByProductId(productId)
         if (sku != null) {
-            purchase(activity, sku, callback)
+            purchase(activity, sku, callback, onCancel)
         } else {
             ApphudLog.log("Could not find SkuDetails for product id: $productId in memory")
             ApphudLog.log("Now try fetch it from Google Billing")
             billing.details(BillingClient.SkuType.SUBS, listOf(productId)) { skuList ->
                 ApphudLog.log("Google Billing (SUBS) return this info for product id = $productId :")
                 skuList.forEach { ApphudLog.log("$it") }
-                skuList.takeIf { it.isNotEmpty() }?.let { skuDetails.addAll(it); purchase(activity, it.first() , callback) }
+                skuList.takeIf { it.isNotEmpty() }?.let {
+                    skuDetails.addAll(it);
+                    purchase(activity, it.first() , callback, onCancel)
+                } ?: onCancel()
             }
             billing.details(BillingClient.SkuType.INAPP, listOf(productId)) { skuList ->
                 ApphudLog.log("Google Billing (INAPP) return this info for product id = $productId :")
                 skuList.forEach { ApphudLog.log("$it") }
-                skuList.takeIf { it.isNotEmpty() }?.let { skuDetails.addAll(it); purchase(activity, it.first() , callback) }
+                skuList.takeIf { it.isNotEmpty() }?.let {
+                    skuDetails.addAll(it);
+                    purchase(activity, it.first() , callback, onCancel)
+                } ?: onCancel()
             }
         }
     }
@@ -203,7 +210,8 @@ internal object ApphudInternal {
     internal fun purchase(
         activity: Activity,
         details: SkuDetails,
-        callback: (List<Purchase>) -> Unit
+        callback: (List<Purchase>) -> Unit,
+        onCancel: () -> Unit
     ) {
         billing.acknowledgeCallback = {
             ApphudLog.log("acknowledge success")
@@ -236,6 +244,10 @@ internal object ApphudInternal {
                     else                             -> ApphudLog.log("After purchase state: ${it.purchase.purchaseState}")
                 }
             }
+        }
+        billing.cancelledCallback = {
+            ApphudLog.log("purchase was cancelled")
+            onCancel()
         }
         billing.purchase(activity, details)
     }

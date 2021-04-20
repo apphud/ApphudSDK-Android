@@ -6,6 +6,7 @@ import android.util.SparseArray
 import com.android.billingclient.api.*
 import com.apphud.sdk.ApphudLog
 import com.apphud.sdk.ProductId
+import com.apphud.sdk.PurchaseCancelledCallback
 import java.io.Closeable
 
 /**
@@ -55,7 +56,13 @@ internal class BillingWrapper(context: Context) : BillingClientStateListener, Cl
     var purchasesCallback: PurchasesUpdatedCallback? = null
         set(value) {
             field = value
-            purchases.callback = value
+            purchases.successCallback = value
+        }
+
+    var cancelledCallback: PurchaseCancelledCallback? = null
+        set(value) {
+            field = value
+            purchases.cancelCallback = value
         }
 
     var acknowledgeCallback: AcknowledgeCallback? = null

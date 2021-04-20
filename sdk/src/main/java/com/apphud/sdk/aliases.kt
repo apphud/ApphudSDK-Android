@@ -14,5 +14,6 @@ typealias CustomerCallback = Callback<Customer>
 typealias ProductsCallback = Callback<List<Product>>
 typealias AttributionCallback = Callback<Attribution>
 typealias PurchasedCallback = Callback<Customer>
+typealias PurchaseCancelledCallback = () -> Unit
 
 typealias Milliseconds = Long

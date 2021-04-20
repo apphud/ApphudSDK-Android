@@ -3,6 +3,7 @@ package com.apphud.sdk.internal
 import com.android.billingclient.api.BillingClient
 import com.android.billingclient.api.SkuDetails
 import com.apphud.sdk.ProductId
+import com.apphud.sdk.PurchaseCancelledCallback
 import com.apphud.sdk.domain.PurchaseDetails
 import com.apphud.sdk.isSuccess
 import com.apphud.sdk.logMessage
@@ -14,7 +15,8 @@ internal class PurchasesUpdated(
     builder: BillingClient.Builder
 ) : Closeable {
 
-    var callback: PurchasesUpdatedCallback? = null
+    var successCallback: PurchasesUpdatedCallback? = null
+    var cancelCallback: PurchaseCancelledCallback? = null
 
     private val skuDetails = mutableMapOf<ProductId, SkuDetails>()
 
@@ -28,9 +30,12 @@ internal class PurchasesUpdated(
                             details = skuDetails.remove(purchase.sku)
                         )
                     } ?: emptyList()
-                    callback?.invoke(purchases)
+                    successCallback?.invoke(purchases)
                 }
-                else -> result.logMessage("failed purchase")
+                else -> {
+                    cancelCallback?.invoke()
+                    result.logMessage("failed purchase")
+                }
             }
         }
     }
@@ -41,6 +46,7 @@ internal class PurchasesUpdated(
 
     //Closeable
     override fun close() {
-        callback = null
+        successCallback = null
+        cancelCallback = null
     }
 }

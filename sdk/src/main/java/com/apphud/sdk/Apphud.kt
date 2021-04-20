@@ -161,21 +161,23 @@ object Apphud {
      * Purchases product and automatically submit
      * @param activity: current Activity for use
      * @param productId: The identifier of the product you wish to purchase
-     * @param block: The closure that will be called when purchase completes.
+     * @param onComplete: The closure that will be called when purchase completes.
+     * @param onCancel: The closure that will be called when purchase was cancelled or productId is invalid.
      */
     @kotlin.jvm.JvmStatic
-    fun purchase(activity: Activity, productId: String, block: (List<Purchase>) -> Unit) =
-        ApphudInternal.purchase(activity, productId, block)
+    fun purchase(activity: Activity, productId: String, onComplete: (List<Purchase>) -> Unit, onCancel: () -> Unit = {}) =
+        ApphudInternal.purchase(activity, productId, onComplete, onCancel)
 
     /**
      * Purchases product and automatically submit
      * @param activity current Activity for use
      * @param details The skuDetails of the product you wish to purchase
-     * @param block The closure that will be called when purchase completes.
+     * @param onComplete The closure that will be called when purchase completes.
+     * @param onCancel: The closure that will be called when purchase was cancelled or details was invalid.
      */
     @kotlin.jvm.JvmStatic
-    fun purchase(activity: Activity, details: SkuDetails, block: (List<Purchase>) -> Unit) =
-        ApphudInternal.purchase(activity, details, block)
+    fun purchase(activity: Activity, details: SkuDetails, onComplete: (List<Purchase>) -> Unit, onCancel: () -> Unit = {}) =
+        ApphudInternal.purchase(activity, details, onComplete, onCancel)
 
 
     /**
