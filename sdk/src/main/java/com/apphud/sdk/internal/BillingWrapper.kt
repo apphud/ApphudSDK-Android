@@ -102,9 +102,9 @@ internal class BillingWrapper(context: Context) : BillingClientStateListener, Cl
         flow.purchases(activity, details)
     }
 
-    fun acknowledge(token: String) = acknowledge.purchase(token)
+    fun acknowledge(purchase: Purchase) = acknowledge.purchase(purchase)
 
-    fun consume(token: String) = consume.purchase(token)
+    fun consume(purchase: Purchase) = consume.purchase(purchase)
 
     //BillingClientStateListener
     override fun onBillingServiceDisconnected() {

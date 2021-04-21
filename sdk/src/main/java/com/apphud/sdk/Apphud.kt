@@ -158,25 +158,58 @@ object Apphud {
     }
 
     /**
-     * Purchases product and automatically submit
+     * Purchases product and automatically submit Play Market Receipt to Apphud
+
+     * @param activity: current Activity for use
+     * @param productId: The identifier of the product you wish to purchase
+     * @param block: Optional. Returns `ApphudPurchaseResult` object.
+     */
+    @kotlin.jvm.JvmStatic
+    fun purchase(activity: Activity, productId: String, block: ((ApphudPurchaseResult) -> Unit)?) =
+        ApphudInternal.purchase(activity, productId, true, block)
+
+    /**
+     * Purchases product and automatically submit Play Market Receipt to Apphud
+     *
+     * @param activity current Activity for use
+     * @param details The SkuDetails of the product you wish to purchase
+     * @param block Optional. Returns `ApphudPurchaseResult` object.
+     */
+    @kotlin.jvm.JvmStatic
+    fun purchase(activity: Activity, details: SkuDetails, block: ((ApphudPurchaseResult) -> Unit)?) =
+        ApphudInternal.purchase(activity, details, block)
+
+    /**
+     * Purchases product and automatically submit Play Market Receipt to Apphud
+     *
+     * This method doesn't wait until Apphud validates receipt from Play Market and immediately returns transaction object.
+     * This method may be useful if you don't care about receipt validation in callback.
+     *
+     * When using this method properties `subscription` and `nonRenewingPurchase` in `ApphudPurchaseResult` will always be `null` !
+     *
      * @param activity: current Activity for use
      * @param productId: The identifier of the product you wish to purchase
      * @param block: The closure that will be called when purchase completes.
      */
     @kotlin.jvm.JvmStatic
-    fun purchase(activity: Activity, productId: String, block: (List<Purchase>) -> Unit) =
-        ApphudInternal.purchase(activity, productId, block)
+    fun purchaseWithoutValidation(activity: Activity, productId: String, block: ((ApphudPurchaseResult) -> Unit)?) =
+        ApphudInternal.purchase(activity, productId, false, block)
 
     /**
-     * Purchases product and automatically submit
+     * Purchases product and automatically submit Play Market Receipt to Apphud
+     *
+     * This method doesn't wait until Apphud validates receipt from Play Market and immediately returns transaction object.
+     * This method may be useful if you don't care about receipt validation in callback.
+     *
+     * When using this method properties `subscription` and `nonRenewingPurchase` in `ApphudPurchaseResult` will always be `null` !
+     *
      * @param activity current Activity for use
-     * @param details The skuDetails of the product you wish to purchase
+     * @param details The SkuDetails of the product you wish to purchase
      * @param block The closure that will be called when purchase completes.
      */
     @kotlin.jvm.JvmStatic
-    fun purchase(activity: Activity, details: SkuDetails, block: (List<Purchase>) -> Unit) =
-        ApphudInternal.purchase(activity, details, block)
-
+    fun purchaseWithoutValidation(activity: Activity, details: SkuDetails, block: ((ApphudPurchaseResult) -> Unit)?) =
+        ApphudInternal.purchaseWithoutValidation(activity, details, block)
 
     /**
      * Set custom user property.

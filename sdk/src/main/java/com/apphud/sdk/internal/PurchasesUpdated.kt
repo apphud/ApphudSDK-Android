@@ -30,7 +30,10 @@ internal class PurchasesUpdated(
                     } ?: emptyList()
                     callback?.invoke(purchases)
                 }
-                else -> result.logMessage("failed purchase")
+                else -> {
+                    result.logMessage("failed purchase")
+                    callback?.invoke(listOf())
+                }
             }
         }
     }

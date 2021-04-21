@@ -3,10 +3,11 @@ package com.apphud.sdk.internal
 import com.android.billingclient.api.AcknowledgePurchaseParams
 import com.android.billingclient.api.BillingClient
 import com.android.billingclient.api.BillingResult
+import com.android.billingclient.api.Purchase
 import com.apphud.sdk.response
 import java.io.Closeable
 
-typealias AcknowledgeCallback = () -> Unit
+typealias AcknowledgeCallback = (Purchase) -> Unit
 
 internal class AcknowledgeWrapper(
     private val billing: BillingClient
@@ -18,7 +19,9 @@ internal class AcknowledgeWrapper(
 
     var onSuccess: AcknowledgeCallback? = null
 
-    fun purchase(token: String) {
+    fun purchase(purchase: Purchase) {
+
+        val token = purchase.purchaseToken
 
         if (token.isEmpty() || token.isBlank()) {
             throw IllegalArgumentException("Token empty or blank")
@@ -28,7 +31,7 @@ internal class AcknowledgeWrapper(
             .setPurchaseToken(token)
             .build()
         billing.acknowledgePurchase(params) { result: BillingResult ->
-            result.response(MESSAGE) { onSuccess?.invoke() }
+            result.response(MESSAGE) { onSuccess?.invoke(purchase) }
         }
     }
 
