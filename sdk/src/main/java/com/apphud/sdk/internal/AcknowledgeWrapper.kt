@@ -3,11 +3,11 @@ package com.apphud.sdk.internal
 import com.android.billingclient.api.AcknowledgePurchaseParams
 import com.android.billingclient.api.BillingClient
 import com.android.billingclient.api.BillingResult
-import com.android.billingclient.api.Purchase
+import com.apphud.sdk.domain.PurchaseDetails
 import com.apphud.sdk.response
 import java.io.Closeable
 
-typealias AcknowledgeCallback = (Purchase) -> Unit
+typealias AcknowledgeCallback = (CallBackStatus, PurchaseDetails) -> Unit
 
 internal class AcknowledgeWrapper(
     private val billing: BillingClient
@@ -17,11 +17,11 @@ internal class AcknowledgeWrapper(
         private const val MESSAGE = "purchase acknowledge is failed"
     }
 
-    var onSuccess: AcknowledgeCallback? = null
+    var callBack: AcknowledgeCallback? = null
 
-    fun purchase(purchase: Purchase) {
+    fun purchase(purchase: PurchaseDetails) {
 
-        val token = purchase.purchaseToken
+        val token = purchase.purchase.purchaseToken
 
         if (token.isEmpty() || token.isBlank()) {
             throw IllegalArgumentException("Token empty or blank")
@@ -31,12 +31,16 @@ internal class AcknowledgeWrapper(
             .setPurchaseToken(token)
             .build()
         billing.acknowledgePurchase(params) { result: BillingResult ->
-            result.response(MESSAGE) { onSuccess?.invoke(purchase) }
+            result.response(
+                MESSAGE,
+                { callBack?.invoke(CallBackStatus.Error(result.responseCode.toString()), purchase) },
+                { callBack?.invoke(CallBackStatus.Success(), purchase) }
+            )
         }
     }
 
     //Closeable
     override fun close() {
-        onSuccess = null
+        callBack = null
     }
 }
