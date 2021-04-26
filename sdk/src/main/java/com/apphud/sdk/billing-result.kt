@@ -11,7 +11,7 @@ inline fun BillingResult.response(message: String, crossinline block: () -> Unit
     else        -> logMessage(message)
 }
 
-fun BillingResult.response(message: String, success: () -> Unit, error: () -> Unit) = when {
+fun BillingResult.response(message: String, error: () -> Unit, success: () -> Unit) = when {
     isSuccess() -> success.invoke()
     else        -> error.invoke().also{ logMessage(message) }
 }

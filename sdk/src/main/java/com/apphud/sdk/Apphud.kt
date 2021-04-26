@@ -177,7 +177,7 @@ object Apphud {
      */
     @kotlin.jvm.JvmStatic
     fun purchase(activity: Activity, details: SkuDetails, block: ((ApphudPurchaseResult) -> Unit)?) =
-        ApphudInternal.purchase(activity, details, block)
+        ApphudInternal.purchase(activity, details, true, block)
 
     /**
      * Purchases product and automatically submit Play Market Receipt to Apphud
@@ -209,7 +209,7 @@ object Apphud {
      */
     @kotlin.jvm.JvmStatic
     fun purchaseWithoutValidation(activity: Activity, details: SkuDetails, block: ((ApphudPurchaseResult) -> Unit)?) =
-        ApphudInternal.purchaseWithoutValidation(activity, details, block)
+        ApphudInternal.purchase(activity, details, false, block)
 
     /**
      * Set custom user property.

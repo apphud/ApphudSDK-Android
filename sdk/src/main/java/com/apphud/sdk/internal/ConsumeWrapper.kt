@@ -2,11 +2,11 @@ package com.apphud.sdk.internal
 
 import com.android.billingclient.api.BillingClient
 import com.android.billingclient.api.ConsumeParams
-import com.apphud.sdk.domain.PurchaseDetails
+import com.android.billingclient.api.Purchase
 import com.apphud.sdk.response
 import java.io.Closeable
 
-typealias ConsumeCallback = (CallBackStatus, PurchaseDetails) -> Unit
+typealias ConsumeCallback = (CallBackStatus, Purchase) -> Unit
 
 internal class ConsumeWrapper(
     private val billing: BillingClient
@@ -14,9 +14,9 @@ internal class ConsumeWrapper(
 
     var callBack: ConsumeCallback? = null
 
-    fun purchase(purchase: PurchaseDetails) {
+    fun purchase(purchase: Purchase) {
 
-        val token = purchase.purchase.purchaseToken
+        val token = purchase.purchaseToken
 
         val params = ConsumeParams.newBuilder()
             .setPurchaseToken(token)

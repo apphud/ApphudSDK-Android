@@ -6,7 +6,6 @@ import android.util.SparseArray
 import com.android.billingclient.api.*
 import com.apphud.sdk.ApphudLog
 import com.apphud.sdk.ProductId
-import com.apphud.sdk.domain.PurchaseDetails
 import java.io.Closeable
 
 /**
@@ -99,13 +98,12 @@ internal class BillingWrapper(context: Context) : BillingClientStateListener, Cl
         sku.restoreAsync(type, products)
 
     fun purchase(activity: Activity, details: SkuDetails) {
-        purchases.startPurchase(details)
         flow.purchases(activity, details)
     }
 
-    fun acknowledge(purchase: PurchaseDetails) = acknowledge.purchase(purchase)
+    fun acknowledge(purchase: Purchase) = acknowledge.purchase(purchase)
 
-    fun consume(purchase: PurchaseDetails) = consume.purchase(purchase)
+    fun consume(purchase: Purchase) = consume.purchase(purchase)
 
     //BillingClientStateListener
     override fun onBillingServiceDisconnected() {
