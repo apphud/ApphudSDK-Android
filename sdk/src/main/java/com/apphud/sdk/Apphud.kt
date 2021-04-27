@@ -158,7 +158,7 @@ object Apphud {
     }
 
     /**
-     * Purchases product and automatically submit Play Market Receipt to Apphud
+     * Purchase product by id and automatically submit Google Play purchase token to Apphud
 
      * @param activity: current Activity for use
      * @param productId: The identifier of the product you wish to purchase
@@ -169,7 +169,7 @@ object Apphud {
         ApphudInternal.purchase(activity, productId, true, block)
 
     /**
-     * Purchases product and automatically submit Play Market Receipt to Apphud
+     * Purchase sku product and automatically submit Google Play purchase token to Apphud
      *
      * @param activity current Activity for use
      * @param details The SkuDetails of the product you wish to purchase
@@ -180,12 +180,12 @@ object Apphud {
         ApphudInternal.purchase(activity, details, true, block)
 
     /**
-     * Purchases product and automatically submit Play Market Receipt to Apphud
+     * Purchase product by id and automatically submit Google Play purchase token to Apphud
      *
-     * This method doesn't wait until Apphud validates receipt from Play Market and immediately returns transaction object.
-     * This method may be useful if you don't care about receipt validation in callback.
+     * This method doesn't wait until Apphud validates purchase from Google Play and immediately returns result object.
+     * This method may be useful if you don't care about purchases validation in callback.
      *
-     * When using this method properties `subscription` and `nonRenewingPurchase` in `ApphudPurchaseResult` will always be `null` !
+     * Note: When using this method properties `subscription` and `nonRenewingPurchase` in `ApphudPurchaseResult` will always be `null` !
      *
      * @param activity: current Activity for use
      * @param productId: The identifier of the product you wish to purchase
@@ -196,10 +196,10 @@ object Apphud {
         ApphudInternal.purchase(activity, productId, false, block)
 
     /**
-     * Purchases product and automatically submit Play Market Receipt to Apphud
+     * Purchase sku product and automatically submit Google Play purchase token to Apphud
      *
-     * This method doesn't wait until Apphud validates receipt from Play Market and immediately returns transaction object.
-     * This method may be useful if you don't care about receipt validation in callback.
+     * This method doesn't wait until Apphud validates purchase from Google Play and immediately returns result object.
+     * This method may be useful if you don't care about purchases validation in callback.
      *
      * When using this method properties `subscription` and `nonRenewingPurchase` in `ApphudPurchaseResult` will always be `null` !
      *
