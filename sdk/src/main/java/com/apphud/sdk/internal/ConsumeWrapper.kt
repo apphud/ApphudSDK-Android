@@ -6,7 +6,7 @@ import com.android.billingclient.api.Purchase
 import com.apphud.sdk.response
 import java.io.Closeable
 
-typealias ConsumeCallback = (CallBackStatus, Purchase) -> Unit
+typealias ConsumeCallback = (PurchaseCallbackStatus, Purchase) -> Unit
 
 internal class ConsumeWrapper(
     private val billing: BillingClient
@@ -24,8 +24,8 @@ internal class ConsumeWrapper(
         billing.consumeAsync(params) { result, value ->
             result.response(
                 "failed response with value: $value",
-                { callBack?.invoke(CallBackStatus.Error(value), purchase) },
-                { callBack?.invoke(CallBackStatus.Success(value), purchase) }
+                { callBack?.invoke(PurchaseCallbackStatus.Error(value), purchase) },
+                { callBack?.invoke(PurchaseCallbackStatus.Success(value), purchase) }
             )
         }
     }

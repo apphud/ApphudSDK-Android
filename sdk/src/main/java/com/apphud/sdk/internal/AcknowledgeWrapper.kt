@@ -7,7 +7,7 @@ import com.android.billingclient.api.Purchase
 import com.apphud.sdk.response
 import java.io.Closeable
 
-typealias AcknowledgeCallback = (CallBackStatus, Purchase) -> Unit
+typealias AcknowledgeCallback = (PurchaseCallbackStatus, Purchase) -> Unit
 
 internal class AcknowledgeWrapper(
     private val billing: BillingClient
@@ -33,8 +33,8 @@ internal class AcknowledgeWrapper(
         billing.acknowledgePurchase(params) { result: BillingResult ->
             result.response(
                 MESSAGE,
-                { callBack?.invoke(CallBackStatus.Error(result.responseCode.toString()), purchase) },
-                { callBack?.invoke(CallBackStatus.Success(), purchase) }
+                { callBack?.invoke(PurchaseCallbackStatus.Error(result.responseCode.toString()), purchase) },
+                { callBack?.invoke(PurchaseCallbackStatus.Success(), purchase) }
             )
         }
     }

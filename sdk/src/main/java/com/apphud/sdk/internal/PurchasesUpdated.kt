@@ -1,12 +1,12 @@
 package com.apphud.sdk.internal
 
 import com.android.billingclient.api.BillingClient
-import com.android.billingclient.api.Purchase
+import com.android.billingclient.api.BillingResult
 import com.apphud.sdk.isSuccess
 import com.apphud.sdk.logMessage
 import java.io.Closeable
 
-typealias PurchasesUpdatedCallback = (List<Purchase>) -> Unit
+typealias PurchasesUpdatedCallback = (PurchaseUpdatedCallbackStatus) -> Unit
 
 internal class PurchasesUpdated(
     builder: BillingClient.Builder
@@ -15,15 +15,15 @@ internal class PurchasesUpdated(
     var callback: PurchasesUpdatedCallback? = null
 
     init {
-        builder.setListener { result, list ->
+        builder.setListener { result: BillingResult, list ->
             when (result.isSuccess()) {
                 true -> {
                     val purchases = list?.filterNotNull() ?: emptyList()
-                    callback?.invoke(purchases)
+                    callback?.invoke(PurchaseUpdatedCallbackStatus.Success(purchases))
                 }
                 else -> {
                     result.logMessage("failed purchase")
-                    callback?.invoke(emptyList())
+                    callback?.invoke(PurchaseUpdatedCallbackStatus.Error(result))
                 }
             }
         }
