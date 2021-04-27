@@ -31,7 +31,7 @@ class ApphudPurchaseResult (
     /**
      *  Error during purchase, if any.
      */
-    var error: Error? = null
+    var error: ApphudError? = null
 ) {
     override fun toString(): String {
         return "ApphudPurchaseResult(subscription=$subscription, nonRenewingPurchase=$nonRenewingPurchase, purchase=$purchase, error=$error)"

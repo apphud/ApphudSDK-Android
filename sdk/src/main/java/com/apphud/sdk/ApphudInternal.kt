@@ -201,7 +201,7 @@ internal object ApphudInternal {
                 } ?: run {
                     val message =
                         "Unable to fetch product (SkuType.SUBS) with given product id: $productId"
-                    callback?.invoke(ApphudPurchaseResult(null, null, null, Error(message)))
+                    callback?.invoke(ApphudPurchaseResult(null, null, null, ApphudError(message)))
                 }
             }
             billing.details(BillingClient.SkuType.INAPP, listOf(productId)) { skuList ->
@@ -213,7 +213,7 @@ internal object ApphudInternal {
                 } ?: run {
                     val message =
                         "Unable to fetch product (SkuType.INAPP) with given product id: $productId"
-                    callback?.invoke(ApphudPurchaseResult(null, null, null, Error(message)))
+                    callback?.invoke(ApphudPurchaseResult(null, null, null, ApphudError(message)))
                 }
             }
         }
@@ -230,7 +230,7 @@ internal object ApphudInternal {
                 is PurchaseCallbackStatus.Error -> {
                     val message = "After purchase acknowledge is failed with code: ${status.error}"
                     ApphudLog.log(message)
-                    callback?.invoke(ApphudPurchaseResult(null, null, purchase, Error(message)))
+                    callback?.invoke(ApphudPurchaseResult(null, null, purchase, ApphudError(message)))
                 }
                 is PurchaseCallbackStatus.Success -> {
                     ApphudLog.log("acknowledge success")
@@ -249,7 +249,7 @@ internal object ApphudInternal {
                 is PurchaseCallbackStatus.Error -> {
                     val message = "After purchase consume is failed with value: ${status.error}"
                     ApphudLog.log(message)
-                    callback?.invoke(ApphudPurchaseResult(null, null, purchase, Error(message)))
+                    callback?.invoke(ApphudPurchaseResult(null, null, purchase, ApphudError(message)))
                 }
                 is PurchaseCallbackStatus.Success -> {
                     ApphudLog.log("consume callback value: ${status.message}")
@@ -265,11 +265,12 @@ internal object ApphudInternal {
         }
         billing.purchasesCallback = { purchasesResult ->
             when(purchasesResult){
-                is PurchaseUpdatedCallbackStatus.Error ->{
-                    val message = "Unable to buy product with given product id: ${details.sku} " +
-                            "with error code: ${purchasesResult.result.responseCode} " +
-                            "and debug message: ${purchasesResult.result.debugMessage}"
-                    callback?.invoke(ApphudPurchaseResult(null, null, null, Error(message)))
+                is PurchaseUpdatedCallbackStatus.Error -> {
+                    val error = ApphudError(message = "Unable to buy product with given product id: ${details.sku} ",
+                        secondErrorMessage = purchasesResult.result.debugMessage,
+                        errorCode = purchasesResult.result.responseCode
+                    )
+                    callback?.invoke(ApphudPurchaseResult(null, null, null, error))
                 }
                 is PurchaseUpdatedCallbackStatus.Success -> {
                     ApphudLog.log("purchases: $purchasesResult")
@@ -292,13 +293,16 @@ internal object ApphudInternal {
                                         callback?.invoke(ApphudPurchaseResult(null,
                                             null,
                                             it,
-                                            Error(message)))
+                                            ApphudError(message)))
                                     }
                                 }
                             else -> {
                                 val message = "After purchase state: ${it.purchaseState}"
                                 ApphudLog.log(message)
-                                callback?.invoke(ApphudPurchaseResult(null, null, it, Error(message)))
+                                callback?.invoke(ApphudPurchaseResult(null,
+                                    null,
+                                    it,
+                                    ApphudError(message)))
                             }
                         }
                     }
