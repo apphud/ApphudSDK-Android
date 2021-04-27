@@ -303,7 +303,7 @@ internal object ApphudInternal {
     }
 
     private fun ackPurchase(purchase: Purchase, details: SkuDetails?, callback: ((ApphudPurchaseResult) -> Unit)?){
-        client.purchased(mkPurchasesBody(purchase, details)) { customer ->
+        client.purchased(makePurchaseBody(purchase, details)) { customer ->
             handler.post {
                 ApphudLog.log("client.purchased: $customer")
 
@@ -343,7 +343,7 @@ internal object ApphudInternal {
 
             when {
                 prevPurchases.containsAll(records) -> ApphudLog.log("syncPurchases: Don't send equal purchases from prev state")
-                else -> client.purchased(mkPurchaseBody(records)) { customer ->
+                else -> client.purchased(makeRestorePurchasesBody(records)) { customer ->
                     handler.post {
                         prevPurchases.addAll(records)
                         storage.isNeedSync = false
@@ -565,7 +565,7 @@ internal object ApphudInternal {
         return deviceId
     }
 
-    private fun mkPurchasesBody(purchase: Purchase, details: SkuDetails?) =
+    private fun makePurchaseBody(purchase: Purchase, details: SkuDetails?) =
         PurchaseBody(
             device_id = deviceId,
             purchases = listOf(
@@ -580,7 +580,7 @@ internal object ApphudInternal {
             )
         )
 
-    private fun mkPurchaseBody(purchases: List<PurchaseRecordDetails>) =
+    private fun makeRestorePurchasesBody(purchases: List<PurchaseRecordDetails>) =
         PurchaseBody(
             device_id = deviceId,
             purchases = purchases.map { purchase ->
