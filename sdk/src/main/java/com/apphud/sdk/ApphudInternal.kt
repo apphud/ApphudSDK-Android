@@ -546,20 +546,26 @@ internal object ApphudInternal {
     }
 
     private fun updateUser(id: UserId?): UserId {
-
-        val userId = when (id) {
-            null -> storage.userId ?: generatedUUID
-            else -> id
+        val userId = when {
+            id == null || id.isBlank() -> {
+                storage.userId ?: generatedUUID
+            }
+            else -> {
+                id
+            }
         }
         storage.userId = userId
         return userId
     }
 
     private fun updateDevice(id: DeviceId?): DeviceId {
-
-        val deviceId = when (id) {
-            null -> storage.deviceId?.let { is_new = false; it } ?: generatedUUID
-            else -> id
+        val deviceId = when {
+            id == null || id.isBlank() -> {
+                storage.deviceId?.let { is_new = false; it } ?: generatedUUID
+            }
+            else -> {
+                id
+            }
         }
         storage.deviceId = deviceId
         return deviceId
