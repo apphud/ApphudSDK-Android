@@ -70,8 +70,9 @@ class MainActivity : AppCompatActivity() {
             Log.e("Apphud", "onClick model: $model")
             when (model.details) {
                 null -> Log.e("Apphud", "details is empty")
-                else -> Apphud.purchase(this, model.details) { _ ->
+                else -> Apphud.purchase(this, model.details) { result ->
                     Log.d("apphud","PURCHASE RESULT: ${Apphud.subscriptions() }. Has active subscription: ${Apphud.hasActiveSubscription()}")
+                    Log.d("apphud", "${result.error?.toString()}")
                 }
             }
         }

@@ -6,7 +6,7 @@ import com.apphud.sdk.domain.ApphudSubscription
 
 class ApphudPurchaseResult (
     /**
-     * Autorenewable subscription object. May be nil if error occurred or if non renewing product purchased instead.
+     *  Apphud Subscription object. May be null if error occurred or if non renewing product purchased instead.
      *
      * Null if `purchaseWithoutValidation` method called.
      */
@@ -22,20 +22,14 @@ class ApphudPurchaseResult (
     var nonRenewingPurchase: ApphudNonRenewingPurchase? = null,
 
     /**
-     * Purchase from Play Market. May be null, if no transaction made.
+     * Purchase from Play Market. May be null, if no was purchase made.
      *
-     * For example, if couldn't sign promo offer or couldn't get Play Market receipt.
+     * For example, if there was no internet connection.
      */
     var purchase: Purchase? = null,
 
     /**
-     * This error can be of three types. Check for error class.
-     *
-     * - `SKError` from StoreKit with `SKErrorDomain` codes. This is a system error when purchasing transaction.
-     *
-     * - `NSError` from HTTP Client with `NSURLErrorDomain` codes. This is a network/server issue when uploading receipt to Apphud.
-     *
-     * - Custom `ApphudError` without codes. For example, if couldn't sign promo offer or couldn't get App Store receipt.
+     *  Error during purchase, if any.
      */
     var error: Error? = null
 ) {
