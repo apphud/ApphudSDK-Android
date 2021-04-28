@@ -70,7 +70,7 @@ class MainActivity : AppCompatActivity() {
             Log.e("Apphud", "onClick model: $model")
             when (model.details) {
                 null -> Log.e("Apphud", "details is empty")
-                else -> Apphud.purchase(this, model.details) { result ->
+                else -> Apphud.purchase(this, model.details.sku) { result ->
                     Log.d("apphud","PURCHASE RESULT: ${Apphud.subscriptions() }. Has active subscription: ${Apphud.hasActiveSubscription()}")
                     Log.d("apphud", "${result.error?.toString()}")
                 }
@@ -79,7 +79,9 @@ class MainActivity : AppCompatActivity() {
 
         val syncButton: Button = findViewById(R.id.syncButtonViewId)
         syncButton.setOnClickListener {
-            Apphud.syncPurchases()
+            Apphud.restorePurchases { subscriptions, purchases, error ->
+                Log.d("apphud", "restorePurchases: subscriptions=${subscriptions?.toString()} purchases=${purchases?.toString()} error=${error?.toString()} ")
+            }
         }
         val recyclerView = findViewById<RecyclerView>(R.id.recyclerViewId)
         recyclerView.adapter = adapter

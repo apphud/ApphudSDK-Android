@@ -2,7 +2,6 @@ package com.apphud.sdk
 
 import android.app.Activity
 import android.content.Context
-import com.android.billingclient.api.Purchase
 import com.android.billingclient.api.SkuDetails
 import com.apphud.sdk.domain.ApphudNonRenewingPurchase
 import com.apphud.sdk.domain.ApphudSubscription
@@ -125,6 +124,20 @@ object Apphud {
      */
     @kotlin.jvm.JvmStatic
     fun syncPurchases() = ApphudInternal.syncPurchases()
+
+    /**
+     * Implements `Restore Purchases` mechanism. Basically it just sends current Play Market Receipt to Apphud and returns subscriptions info.
+     *
+     * Even if callback returns some subscription, it doesn't mean that subscription is active. You should check `subscription.isActive()` value.
+     *
+     * @param callback: Required. Returns array of subscription (or subscriptions in case you have more than one subscription group), array of standard in-app purchases and an error. All of three parameters are optional.
+     */
+    @kotlin.jvm.JvmStatic
+    fun restorePurchases(callback: (subscriptions: List<ApphudSubscription>?,
+                                    purchases: List<ApphudNonRenewingPurchase>?,
+                                    error: ApphudError?) -> Unit) {
+        ApphudInternal.restorePurchases(callback)
+    }
 
     /**
      * Returns an array of **SkuDetails** objects that you added in Apphud.

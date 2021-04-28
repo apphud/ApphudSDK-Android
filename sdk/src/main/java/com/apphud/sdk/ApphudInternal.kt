@@ -16,6 +16,7 @@ import com.apphud.sdk.client.ApphudClient
 import com.apphud.sdk.domain.*
 import com.apphud.sdk.internal.BillingWrapper
 import com.apphud.sdk.internal.PurchaseCallbackStatus
+import com.apphud.sdk.internal.PurchaseRestoredCallbackStatus
 import com.apphud.sdk.internal.PurchaseUpdatedCallbackStatus
 import com.apphud.sdk.parser.GsonParser
 import com.apphud.sdk.parser.Parser
@@ -345,31 +346,66 @@ internal object ApphudInternal {
         }
     }
 
-    internal fun syncPurchases() {
+    internal fun restorePurchases(callback: (subscriptions: List<ApphudSubscription>?,
+                                             purchases: List<ApphudNonRenewingPurchase>?,
+                                             error: ApphudError?) -> Unit) {
+        syncPurchases(allowsReceiptRefresh = true, callback = callback)
+    }
+
+    internal fun syncPurchases(
+        allowsReceiptRefresh: Boolean = false,
+        callback: ((
+            subscriptions: List<ApphudSubscription>?,
+            purchases: List<ApphudNonRenewingPurchase>?,
+            error: ApphudError?
+        ) -> Unit)? = null
+    ) {
         storage.isNeedSync = true
-        billing.restoreCallback = { records ->
-
-            ApphudLog.log("restoreCallback: $records")
-
-            when {
-                prevPurchases.containsAll(records) -> ApphudLog.log("syncPurchases: Don't send equal purchases from prev state")
-                else -> client.purchased(makeRestorePurchasesBody(records)) { customer ->
-                    handler.post {
-                        prevPurchases.addAll(records)
-                        storage.isNeedSync = false
-                        storage.customer = customer
-                        ApphudLog.log("syncPurchases: customer updated $customer")
-                        apphudListener?.apphudSubscriptionsUpdated(customer.subscriptions)
-                        apphudListener?.apphudNonRenewingPurchasesUpdated(customer.purchases)
+        billing.restoreCallback = { restoreStatus ->
+            when(restoreStatus){
+                is PurchaseRestoredCallbackStatus.Error -> {
+                    when (restoreStatus.result == null) {
+                        //Restore is success, but list of purchases is empty
+                        true -> {
+                            val error = ApphudError(message = restoreStatus.message ?: "")
+                            callback?.invoke(null, null, error)
+                        }
+                        else -> {
+                            val error = ApphudError(message = "Restore Purchases is failed for type: ${restoreStatus.message}",
+                                secondErrorMessage = restoreStatus.result.debugMessage,
+                                errorCode = restoreStatus.result.responseCode)
+                            callback?.invoke(null, null, error)
+                        }
                     }
-                    ApphudLog.log("syncPurchases: success send history purchases $records")
+                }
+                is PurchaseRestoredCallbackStatus.Success -> {
+                    ApphudLog.log("PurchaseRestoredCallback: ${restoreStatus.purchases}")
+                    if (!allowsReceiptRefresh && prevPurchases.containsAll(restoreStatus.purchases)) {
+                        ApphudLog.log("SyncPurchases: Don't send equal purchases from prev state")
+                    } else {
+                        client.purchased(makeRestorePurchasesBody(restoreStatus.purchases)) { customer ->
+                            handler.post {
+                                prevPurchases.addAll(restoreStatus.purchases)
+                                storage.isNeedSync = false
+                                storage.customer = customer
+                                ApphudLog.log("SyncPurchases: customer updated $customer")
+                                apphudListener?.apphudSubscriptionsUpdated(customer.subscriptions)
+                                apphudListener?.apphudNonRenewingPurchasesUpdated(customer.purchases)
+                                callback?.invoke(customer.subscriptions, customer.purchases, null)
+                            }
+                            ApphudLog.log("SyncPurchases: success send history purchases ${restoreStatus.purchases}")
+                        }
+                    }
                 }
             }
+
         }
         billing.historyCallback = { purchases ->
-            ApphudLog.log("historyCallback: $purchases")
-            billing.restore(BillingClient.SkuType.SUBS, purchases)
-            billing.restore(BillingClient.SkuType.INAPP, purchases)
+            if(!purchases.isNullOrEmpty()){
+                ApphudLog.log("historyCallback: $purchases")
+                billing.restore(BillingClient.SkuType.SUBS, purchases)
+                billing.restore(BillingClient.SkuType.INAPP, purchases)
+            }
         }
         billing.queryPurchaseHistory(BillingClient.SkuType.SUBS)
         billing.queryPurchaseHistory(BillingClient.SkuType.INAPP)
