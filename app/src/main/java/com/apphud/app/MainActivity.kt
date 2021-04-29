@@ -36,7 +36,10 @@ class MainActivity : AppCompatActivity() {
                         null -> mapper.map(subscription)
                         else -> mapper.map(product, subscription)
                     }
-                    products[model.productId] = model
+                    when (val existingSubscription = products[model.productId]?.subscription) {
+                        null -> products[model.productId] = model
+                        else -> Log.d("apphud","already has subscription, will not update")
+                    }
                 }
 
                 adapter.products = products.values.toList()
