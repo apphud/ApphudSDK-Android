@@ -2,7 +2,6 @@ package com.apphud.sdk
 
 import android.app.Activity
 import android.content.Context
-import com.android.billingclient.api.Purchase
 import com.android.billingclient.api.SkuDetails
 import com.apphud.sdk.domain.ApphudNonRenewingPurchase
 import com.apphud.sdk.domain.ApphudSubscription
@@ -127,6 +126,20 @@ object Apphud {
     fun syncPurchases() = ApphudInternal.syncPurchases()
 
     /**
+     * Implements `Restore Purchases` mechanism. Basically it just sends current Play Market Purchase Tokens to Apphud and returns subscriptions info.
+     *
+     * Even if callback returns some subscription, it doesn't mean that subscription is active. You should check `subscription.isActive()` value.
+     *
+     * @param callback: Required. Returns array of subscription (or subscriptions in case you have more than one subscription group), array of standard in-app purchases and an error. All of three parameters are optional.
+     */
+    @kotlin.jvm.JvmStatic
+    fun restorePurchases(callback: (subscriptions: List<ApphudSubscription>?,
+                                    purchases: List<ApphudNonRenewingPurchase>?,
+                                    error: ApphudError?) -> Unit) {
+        ApphudInternal.restorePurchases(callback)
+    }
+
+    /**
      * Returns an array of **SkuDetails** objects that you added in Apphud.
      * Note that this method will return **null** if products are not yet fetched.
      */
@@ -158,25 +171,58 @@ object Apphud {
     }
 
     /**
-     * Purchases product and automatically submit
+     * Purchase product by id and automatically submit Google Play purchase token to Apphud
+
+     * @param activity: current Activity for use
+     * @param productId: The identifier of the product you wish to purchase
+     * @param block: Optional. Returns `ApphudPurchaseResult` object.
+     */
+    @kotlin.jvm.JvmStatic
+    fun purchase(activity: Activity, productId: String, block: ((ApphudPurchaseResult) -> Unit)?) =
+        ApphudInternal.purchase(activity, productId, true, block)
+
+    /**
+     * Purchase sku product and automatically submit Google Play purchase token to Apphud
+     *
+     * @param activity current Activity for use
+     * @param details The SkuDetails of the product you wish to purchase
+     * @param block Optional. Returns `ApphudPurchaseResult` object.
+     */
+    @kotlin.jvm.JvmStatic
+    fun purchase(activity: Activity, details: SkuDetails, block: ((ApphudPurchaseResult) -> Unit)?) =
+        ApphudInternal.purchase(activity, details, true, block)
+
+    /**
+     * Purchase product by id and automatically submit Google Play purchase token to Apphud
+     *
+     * This method doesn't wait until Apphud validates purchase from Google Play and immediately returns result object.
+     * This method may be useful if you don't care about purchases validation in callback.
+     *
+     * Note: When using this method properties `subscription` and `nonRenewingPurchase` in `ApphudPurchaseResult` will always be `null` !
+     *
      * @param activity: current Activity for use
      * @param productId: The identifier of the product you wish to purchase
      * @param block: The closure that will be called when purchase completes.
      */
     @kotlin.jvm.JvmStatic
-    fun purchase(activity: Activity, productId: String, block: (List<Purchase>) -> Unit) =
-        ApphudInternal.purchase(activity, productId, block)
+    fun purchaseWithoutValidation(activity: Activity, productId: String, block: ((ApphudPurchaseResult) -> Unit)?) =
+        ApphudInternal.purchase(activity, productId, false, block)
 
     /**
-     * Purchases product and automatically submit
+     * Purchase sku product and automatically submit Google Play purchase token to Apphud
+     *
+     * This method doesn't wait until Apphud validates purchase from Google Play and immediately returns result object.
+     * This method may be useful if you don't care about purchases validation in callback.
+     *
+     * When using this method properties `subscription` and `nonRenewingPurchase` in `ApphudPurchaseResult` will always be `null` !
+     *
      * @param activity current Activity for use
-     * @param details The skuDetails of the product you wish to purchase
+     * @param details The SkuDetails of the product you wish to purchase
      * @param block The closure that will be called when purchase completes.
      */
     @kotlin.jvm.JvmStatic
-    fun purchase(activity: Activity, details: SkuDetails, block: (List<Purchase>) -> Unit) =
-        ApphudInternal.purchase(activity, details, block)
-
+    fun purchaseWithoutValidation(activity: Activity, details: SkuDetails, block: ((ApphudPurchaseResult) -> Unit)?) =
+        ApphudInternal.purchase(activity, details, false, block)
 
     /**
      * Set custom user property.

@@ -61,13 +61,13 @@ internal class BillingWrapper(context: Context) : BillingClientStateListener, Cl
     var acknowledgeCallback: AcknowledgeCallback? = null
         set(value) {
             field = value
-            acknowledge.onSuccess = value
+            acknowledge.callBack = value
         }
 
     var consumeCallback: ConsumeCallback? = null
         set(value) {
             field = value
-            consume.callback = value
+            consume.callBack = value
         }
 
     var historyCallback: PurchaseHistoryListener? = null
@@ -98,13 +98,12 @@ internal class BillingWrapper(context: Context) : BillingClientStateListener, Cl
         sku.restoreAsync(type, products)
 
     fun purchase(activity: Activity, details: SkuDetails) {
-        purchases.startPurchase(details)
         flow.purchases(activity, details)
     }
 
-    fun acknowledge(token: String) = acknowledge.purchase(token)
+    fun acknowledge(purchase: Purchase) = acknowledge.purchase(purchase)
 
-    fun consume(token: String) = consume.purchase(token)
+    fun consume(purchase: Purchase) = consume.purchase(purchase)
 
     //BillingClientStateListener
     override fun onBillingServiceDisconnected() {
