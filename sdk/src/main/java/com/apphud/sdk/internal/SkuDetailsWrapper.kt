@@ -13,7 +13,7 @@ import kotlin.concurrent.thread
 
 typealias SkuType = String
 typealias ApphudSkuDetailsCallback = (List<SkuDetails>) -> Unit
-typealias ApphudSkuDetailsRestoreCallback = (List<PurchaseRecordDetails>) -> Unit
+typealias ApphudSkuDetailsRestoreCallback = (PurchaseRestoredCallbackStatus) -> Unit
 
 internal class SkuDetailsWrapper(
     private val billing: BillingClient
@@ -46,11 +46,20 @@ internal class SkuDetailsWrapper(
                             )
                         }
                         when (purchases.isEmpty()) {
-                            true -> ApphudLog.log("SkuDetails return empty list for $type and records: $records")
-                            else -> restoreCallback?.invoke(purchases)
+                            true -> {
+                                val message = "SkuDetails return empty list for $type and records: $records"
+                                ApphudLog.log(message)
+                                restoreCallback?.invoke(PurchaseRestoredCallbackStatus.Error(result = null, message = message))
+                            }
+                            else -> {
+                                restoreCallback?.invoke(PurchaseRestoredCallbackStatus.Success(purchases))
+                            }
                         }
                     }
-                    else -> result.logMessage("restoreAsync type: $type products: $products")
+                    else -> {
+                        result.logMessage("restoreAsync failed for type: $type products: $products")
+                        restoreCallback?.invoke(PurchaseRestoredCallbackStatus.Error(result = result, message = type))
+                    }
                 }
             }
         }

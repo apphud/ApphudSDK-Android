@@ -1,5 +1,6 @@
 package com.apphud.sdk
 
+import android.annotation.SuppressLint
 import android.app.Activity
 import android.content.Context
 import android.content.pm.ApplicationInfo
@@ -14,6 +15,9 @@ import com.apphud.sdk.body.*
 import com.apphud.sdk.client.ApphudClient
 import com.apphud.sdk.domain.*
 import com.apphud.sdk.internal.BillingWrapper
+import com.apphud.sdk.internal.PurchaseCallbackStatus
+import com.apphud.sdk.internal.PurchaseRestoredCallbackStatus
+import com.apphud.sdk.internal.PurchaseUpdatedCallbackStatus
 import com.apphud.sdk.parser.GsonParser
 import com.apphud.sdk.parser.Parser
 import com.apphud.sdk.storage.SharedPreferencesStorage
@@ -21,6 +25,7 @@ import com.apphud.sdk.tasks.advertisingId
 import com.google.gson.GsonBuilder
 import java.util.*
 
+@SuppressLint("StaticFieldLeak")
 internal object ApphudInternal {
 
     private val builder = GsonBuilder()
@@ -177,25 +182,40 @@ internal object ApphudInternal {
     }
 
     internal fun purchase(
-            activity: Activity,
-            productId: String,
-            callback: (List<Purchase>) -> Unit
+        activity: Activity,
+        productId: String,
+        withValidation: Boolean = true,
+        callback: ((ApphudPurchaseResult) -> Unit)?
     ) {
         val sku = getSkuDetailsByProductId(productId)
         if (sku != null) {
-            purchase(activity, sku, callback)
+            purchase(activity, sku, withValidation, callback)
         } else {
             ApphudLog.log("Could not find SkuDetails for product id: $productId in memory")
             ApphudLog.log("Now try fetch it from Google Billing")
             billing.details(BillingClient.SkuType.SUBS, listOf(productId)) { skuList ->
                 ApphudLog.log("Google Billing (SUBS) return this info for product id = $productId :")
                 skuList.forEach { ApphudLog.log("$it") }
-                skuList.takeIf { it.isNotEmpty() }?.let { skuDetails.addAll(it); purchase(activity, it.first() , callback) }
+                skuList.takeIf { it.isNotEmpty() }?.let {
+                    skuDetails.addAll(it)
+                    purchase(activity, it.first(), withValidation, callback)
+                } ?: run {
+                    val message =
+                        "Unable to fetch product (SkuType.SUBS) with given product id: $productId"
+                    callback?.invoke(ApphudPurchaseResult(null, null, null, ApphudError(message)))
+                }
             }
             billing.details(BillingClient.SkuType.INAPP, listOf(productId)) { skuList ->
                 ApphudLog.log("Google Billing (INAPP) return this info for product id = $productId :")
                 skuList.forEach { ApphudLog.log("$it") }
-                skuList.takeIf { it.isNotEmpty() }?.let { skuDetails.addAll(it); purchase(activity, it.first() , callback) }
+                skuList.takeIf { it.isNotEmpty() }?.let {
+                    skuDetails.addAll(it)
+                    purchase(activity, it.first(), withValidation, callback)
+                } ?: run {
+                    val message =
+                        "Unable to fetch product (SkuType.INAPP) with given product id: $productId"
+                    callback?.invoke(ApphudPurchaseResult(null, null, null, ApphudError(message)))
+                }
             }
         }
     }
@@ -203,68 +223,189 @@ internal object ApphudInternal {
     internal fun purchase(
         activity: Activity,
         details: SkuDetails,
-        callback: (List<Purchase>) -> Unit
+        withValidation: Boolean,
+        callback: ((ApphudPurchaseResult) -> Unit)?
     ) {
-        billing.acknowledgeCallback = {
-            ApphudLog.log("acknowledge success")
-        }
-        billing.consumeCallback = { value ->
-            ApphudLog.log("consume callback value: $value")
-        }
-        billing.purchasesCallback = { purchases ->
-            ApphudLog.log("purchases: $purchases")
-
-            client.purchased(mkPurchasesBody(purchases)) { customer ->
-                handler.post {
-                    storage.customer = customer
-                    callback.invoke(purchases.map { it.purchase })
-                    apphudListener?.apphudSubscriptionsUpdated(customer.subscriptions)
-                    apphudListener?.apphudNonRenewingPurchasesUpdated(customer.purchases)
+        billing.acknowledgeCallback = { status, purchase ->
+            when(status){
+                is PurchaseCallbackStatus.Error -> {
+                    val message = "After purchase acknowledge is failed with code: ${status.error}"
+                    ApphudLog.log(message)
+                    callback?.invoke(ApphudPurchaseResult(null, null, purchase, ApphudError(message)))
+                }
+                is PurchaseCallbackStatus.Success -> {
+                    ApphudLog.log("acknowledge success")
+                    when {
+                        withValidation -> ackPurchase(purchase, details, callback)
+                        else -> {
+                            callback?.invoke(ApphudPurchaseResult(null, null, purchase, null))
+                            ackPurchase(purchase, details, null)
+                        }
+                    }
                 }
             }
-
-            purchases.forEach {
-
-                when (it.purchase.purchaseState) {
-                    Purchase.PurchaseState.PURCHASED -> when (it.details?.type) {
-                        BillingClient.SkuType.SUBS  -> if (!it.purchase.isAcknowledged) {
-                            billing.acknowledge(it.purchase.purchaseToken)
+        }
+        billing.consumeCallback = { status, purchase ->
+            when(status){
+                is PurchaseCallbackStatus.Error -> {
+                    val message = "After purchase consume is failed with value: ${status.error}"
+                    ApphudLog.log(message)
+                    callback?.invoke(ApphudPurchaseResult(null, null, purchase, ApphudError(message)))
+                }
+                is PurchaseCallbackStatus.Success -> {
+                    ApphudLog.log("consume callback value: ${status.message}")
+                    when {
+                        withValidation -> ackPurchase(purchase, details, callback)
+                        else -> {
+                            callback?.invoke(ApphudPurchaseResult(null, null, purchase, null))
+                            ackPurchase(purchase, details, null)
                         }
-                        BillingClient.SkuType.INAPP -> billing.consume(it.purchase.purchaseToken)
-                        else                        -> ApphudLog.log("After purchase type is null")
                     }
-                    else                             -> ApphudLog.log("After purchase state: ${it.purchase.purchaseState}")
+                }
+            }
+        }
+        billing.purchasesCallback = { purchasesResult ->
+            when(purchasesResult){
+                is PurchaseUpdatedCallbackStatus.Error -> {
+                    val error = ApphudError(message = "Unable to buy product with given product id: ${details.sku} ",
+                        secondErrorMessage = purchasesResult.result.debugMessage,
+                        errorCode = purchasesResult.result.responseCode
+                    )
+                    callback?.invoke(ApphudPurchaseResult(null, null, null, error))
+                }
+                is PurchaseUpdatedCallbackStatus.Success -> {
+                    ApphudLog.log("purchases: $purchasesResult")
+
+                    purchasesResult.purchases.forEach {
+                        when (it.purchaseState) {
+                            Purchase.PurchaseState.PURCHASED ->
+                                when (details.type) {
+                                    BillingClient.SkuType.SUBS -> {
+                                        if (!it.isAcknowledged) {
+                                            billing.acknowledge(it)
+                                        }
+                                    }
+                                    BillingClient.SkuType.INAPP -> {
+                                        billing.consume(it)
+                                    }
+                                    else -> {
+                                        val message = "After purchase type is null"
+                                        ApphudLog.log(message)
+                                        callback?.invoke(ApphudPurchaseResult(null,
+                                            null,
+                                            it,
+                                            ApphudError(message)))
+                                    }
+                                }
+                            else -> {
+                                val message = "After purchase state: ${it.purchaseState}"
+                                ApphudLog.log(message)
+                                callback?.invoke(ApphudPurchaseResult(null,
+                                    null,
+                                    it,
+                                    ApphudError(message)))
+                            }
+                        }
+                    }
                 }
             }
         }
         billing.purchase(activity, details)
     }
 
-    internal fun syncPurchases() {
-        storage.isNeedSync = true
-        billing.restoreCallback = { records ->
+    private fun ackPurchase(purchase: Purchase, details: SkuDetails?, callback: ((ApphudPurchaseResult) -> Unit)?){
+        client.purchased(makePurchaseBody(purchase, details)) { customer ->
+            handler.post {
+                ApphudLog.log("client.purchased: $customer")
 
-            ApphudLog.log("restoreCallback: $records")
+                val newSubscriptions = storage.customer?.subscriptions?.let {
+                    customer.subscriptions.minus(it)
+                } ?: customer.subscriptions
 
-            when {
-                prevPurchases.containsAll(records) -> ApphudLog.log("syncPurchases: Don't send equal purchases from prev state")
-                else                               -> client.purchased(mkPurchaseBody(records)) { customer ->
-                    handler.post {
-                        prevPurchases.addAll(records)
-                        storage.isNeedSync = false
-                        storage.customer = customer
-                        ApphudLog.log("syncPurchases: customer updated $customer")
-                        apphudListener?.apphudSubscriptionsUpdated(customer.subscriptions)
-                        apphudListener?.apphudNonRenewingPurchasesUpdated(customer.purchases)
-                    }
-                    ApphudLog.log("syncPurchases: success send history purchases $records")
+                val newPurchases = storage.customer?.purchases?.let {
+                    customer.purchases.minus(it)
+                } ?: customer.purchases
+
+                storage.customer = customer
+
+                takeIf { newSubscriptions.isNotEmpty() }?.let {
+                    apphudListener?.apphudSubscriptionsUpdated(customer.subscriptions)
+                    callback?.invoke(ApphudPurchaseResult(newSubscriptions.first(),
+                        null,
+                        purchase,
+                        null))
+                }
+                takeIf { newPurchases.isNotEmpty() }?.let {
+                    apphudListener?.apphudNonRenewingPurchasesUpdated(customer.purchases)
+                    callback?.invoke(ApphudPurchaseResult(null,
+                        newPurchases.first(),
+                        purchase,
+                        null))
                 }
             }
         }
+    }
+
+    internal fun restorePurchases(callback: (subscriptions: List<ApphudSubscription>?,
+                                             purchases: List<ApphudNonRenewingPurchase>?,
+                                             error: ApphudError?) -> Unit) {
+        syncPurchases(allowsReceiptRefresh = true, callback = callback)
+    }
+
+    internal fun syncPurchases(
+        allowsReceiptRefresh: Boolean = false,
+        callback: ((
+            subscriptions: List<ApphudSubscription>?,
+            purchases: List<ApphudNonRenewingPurchase>?,
+            error: ApphudError?
+        ) -> Unit)? = null
+    ) {
+        storage.isNeedSync = true
+        billing.restoreCallback = { restoreStatus ->
+            when(restoreStatus){
+                is PurchaseRestoredCallbackStatus.Error -> {
+                    when (restoreStatus.result == null) {
+                        //Restore is success, but list of purchases is empty
+                        true -> {
+                            val error = ApphudError(message = restoreStatus.message ?: "")
+                            callback?.invoke(null, null, error)
+                        }
+                        else -> {
+                            val error = ApphudError(message = "Restore Purchases is failed for type: ${restoreStatus.message}",
+                                secondErrorMessage = restoreStatus.result.debugMessage,
+                                errorCode = restoreStatus.result.responseCode)
+                            callback?.invoke(null, null, error)
+                        }
+                    }
+                }
+                is PurchaseRestoredCallbackStatus.Success -> {
+                    ApphudLog.log("PurchaseRestoredCallback: ${restoreStatus.purchases}")
+                    if (!allowsReceiptRefresh && prevPurchases.containsAll(restoreStatus.purchases)) {
+                        ApphudLog.log("SyncPurchases: Don't send equal purchases from prev state")
+                    } else {
+                        client.purchased(makeRestorePurchasesBody(restoreStatus.purchases)) { customer ->
+                            handler.post {
+                                prevPurchases.addAll(restoreStatus.purchases)
+                                storage.isNeedSync = false
+                                storage.customer = customer
+                                ApphudLog.log("SyncPurchases: customer updated $customer")
+                                apphudListener?.apphudSubscriptionsUpdated(customer.subscriptions)
+                                apphudListener?.apphudNonRenewingPurchasesUpdated(customer.purchases)
+                                callback?.invoke(customer.subscriptions, customer.purchases, null)
+                            }
+                            ApphudLog.log("SyncPurchases: success send history purchases ${restoreStatus.purchases}")
+                        }
+                    }
+                }
+            }
+
+        }
         billing.historyCallback = { purchases ->
-            ApphudLog.log("historyCallback: $purchases")
-            billing.restore(BillingClient.SkuType.SUBS, purchases)
-            billing.restore(BillingClient.SkuType.INAPP, purchases)
+            if(!purchases.isNullOrEmpty()){
+                ApphudLog.log("historyCallback: $purchases")
+                billing.restore(BillingClient.SkuType.SUBS, purchases)
+                billing.restore(BillingClient.SkuType.INAPP, purchases)
+            }
         }
         billing.queryPurchaseHistory(BillingClient.SkuType.SUBS)
         billing.queryPurchaseHistory(BillingClient.SkuType.INAPP)
@@ -303,14 +444,14 @@ internal object ApphudInternal {
         if (provider == ApphudAttributionProvider.appsFlyer) {
             val temporary = storage.appsflyer
             when {
-                temporary == null                      -> Unit
-                temporary.id == body?.appsflyer_id     -> return
+                temporary == null -> Unit
+                temporary.id == body?.appsflyer_id -> return
                 temporary.data == body?.appsflyer_data -> return
             }
         } else if (provider == ApphudAttributionProvider.facebook) {
             val temporary = storage.facebook
             when {
-                temporary == null                     -> Unit
+                temporary == null -> Unit
                 temporary.data == body?.facebook_data -> return
             }
         }
@@ -323,11 +464,11 @@ internal object ApphudInternal {
                     if (provider == ApphudAttributionProvider.appsFlyer) {
                         val temporary = storage.appsflyer
                         storage.appsflyer = when {
-                            temporary == null                     -> AppsflyerInfo(
+                            temporary == null -> AppsflyerInfo(
                                 id = body.appsflyer_id,
                                 data = body.appsflyer_data
                             )
-                            temporary.id != body.appsflyer_id     -> AppsflyerInfo(
+                            temporary.id != body.appsflyer_id -> AppsflyerInfo(
                                 id = body.appsflyer_id,
                                 data = body.appsflyer_data
                             )
@@ -335,14 +476,14 @@ internal object ApphudInternal {
                                 id = body.appsflyer_id,
                                 data = body.appsflyer_data
                             )
-                            else                                  -> temporary
+                            else -> temporary
                         }
                     } else if (provider == ApphudAttributionProvider.facebook) {
                         val temporary = storage.facebook
                         storage.facebook = when {
-                            temporary == null                    -> FacebookInfo(body.facebook_data)
+                            temporary == null -> FacebookInfo(body.facebook_data)
                             temporary.data != body.facebook_data -> FacebookInfo(body.facebook_data)
-                            else                                 -> temporary
+                            else -> temporary
                         }
                     }
                 }
@@ -451,41 +592,47 @@ internal object ApphudInternal {
     }
 
     private fun updateUser(id: UserId?): UserId {
-
-        val userId = when (id) {
-            null -> storage.userId ?: generatedUUID
-            else -> id
+        val userId = when {
+            id == null || id.isBlank() -> {
+                storage.userId ?: generatedUUID
+            }
+            else -> {
+                id
+            }
         }
         storage.userId = userId
         return userId
     }
 
     private fun updateDevice(id: DeviceId?): DeviceId {
-
-        val deviceId = when (id) {
-            null -> storage.deviceId?.let { is_new = false; it } ?: generatedUUID
-            else -> id
+        val deviceId = when {
+            id == null || id.isBlank() -> {
+                storage.deviceId?.let { is_new = false; it } ?: generatedUUID
+            }
+            else -> {
+                id
+            }
         }
         storage.deviceId = deviceId
         return deviceId
     }
 
-    private fun mkPurchasesBody(purchases: List<PurchaseDetails>) =
+    private fun makePurchaseBody(purchase: Purchase, details: SkuDetails?) =
         PurchaseBody(
             device_id = deviceId,
-            purchases = purchases.map {
+            purchases = listOf(
                 PurchaseItemBody(
-                    order_id = it.purchase.orderId,
-                    product_id = it.purchase.sku,
-                    purchase_token = it.purchase.purchaseToken,
-                    price_currency_code = it.details?.priceCurrencyCode,
-                    price_amount_micros = it.details?.priceAmountMicros,
-                    subscription_period = it.details?.subscriptionPeriod
+                    order_id = purchase.orderId,
+                    product_id = purchase.sku,
+                    purchase_token = purchase.purchaseToken,
+                    price_currency_code = details?.priceCurrencyCode,
+                    price_amount_micros = details?.priceAmountMicros,
+                    subscription_period = details?.subscriptionPeriod
                 )
-            }
+            )
         )
 
-    private fun mkPurchaseBody(purchases: List<PurchaseRecordDetails>) =
+    private fun makeRestorePurchasesBody(purchases: List<PurchaseRecordDetails>) =
         PurchaseBody(
             device_id = deviceId,
             purchases = purchases.map { purchase ->

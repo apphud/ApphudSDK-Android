@@ -36,7 +36,10 @@ class MainActivity : AppCompatActivity() {
                         null -> mapper.map(subscription)
                         else -> mapper.map(product, subscription)
                     }
-                    products[model.productId] = model
+                    when (val existingSubscription = products[model.productId]?.subscription) {
+                        null -> products[model.productId] = model
+                        else -> Log.d("apphud","already has subscription, will not update")
+                    }
                 }
 
                 adapter.products = products.values.toList()
@@ -70,15 +73,18 @@ class MainActivity : AppCompatActivity() {
             Log.e("Apphud", "onClick model: $model")
             when (model.details) {
                 null -> Log.e("Apphud", "details is empty")
-                else -> Apphud.purchase(this, model.details) { _ ->
+                else -> Apphud.purchase(this, model.details.sku) { result ->
                     Log.d("apphud","PURCHASE RESULT: ${Apphud.subscriptions() }. Has active subscription: ${Apphud.hasActiveSubscription()}")
+                    Log.d("apphud", "${result.error?.toString()}")
                 }
             }
         }
 
         val syncButton: Button = findViewById(R.id.syncButtonViewId)
         syncButton.setOnClickListener {
-            Apphud.syncPurchases()
+            Apphud.restorePurchases { subscriptions, purchases, error ->
+                Log.d("apphud", "restorePurchases: subscriptions=${subscriptions?.toString()} purchases=${purchases?.toString()} error=${error?.toString()} ")
+            }
         }
         val recyclerView = findViewById<RecyclerView>(R.id.recyclerViewId)
         recyclerView.adapter = adapter
