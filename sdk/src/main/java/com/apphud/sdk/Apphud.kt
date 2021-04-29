@@ -126,7 +126,7 @@ object Apphud {
     fun syncPurchases() = ApphudInternal.syncPurchases()
 
     /**
-     * Implements `Restore Purchases` mechanism. Basically it just sends current Play Market Receipt to Apphud and returns subscriptions info.
+     * Implements `Restore Purchases` mechanism. Basically it just sends current Play Market Purchase Tokens to Apphud and returns subscriptions info.
      *
      * Even if callback returns some subscription, it doesn't mean that subscription is active. You should check `subscription.isActive()` value.
      *
