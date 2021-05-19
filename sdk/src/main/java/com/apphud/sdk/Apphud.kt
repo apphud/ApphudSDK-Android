@@ -4,6 +4,7 @@ import android.app.Activity
 import android.content.Context
 import com.android.billingclient.api.SkuDetails
 import com.apphud.sdk.domain.ApphudNonRenewingPurchase
+import com.apphud.sdk.domain.ApphudPaywall
 import com.apphud.sdk.domain.ApphudSubscription
 
 
@@ -124,6 +125,13 @@ object Apphud {
      */
     @kotlin.jvm.JvmStatic
     fun syncPurchases() = ApphudInternal.syncPurchases()
+
+    /**
+     * Fetches  paywalls configured in Apphud dashboard. Paywalls are automatically cached on device.
+     */
+    fun getPaywalls(callback: (paywalls: List<ApphudPaywall>?, error: ApphudError?) -> Unit) {
+        ApphudInternal.getPaywalls(callback = callback)
+    }
 
     /**
      * Implements `Restore Purchases` mechanism. Basically it just sends current Play Market Purchase Tokens to Apphud and returns subscriptions info.

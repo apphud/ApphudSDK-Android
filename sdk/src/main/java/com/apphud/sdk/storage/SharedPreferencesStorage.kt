@@ -1,6 +1,7 @@
 package com.apphud.sdk.storage
 
 import android.content.Context
+import com.apphud.sdk.domain.ApphudPaywall
 import com.apphud.sdk.domain.AppsflyerInfo
 import com.apphud.sdk.domain.Customer
 import com.apphud.sdk.domain.FacebookInfo
@@ -24,6 +25,7 @@ class SharedPreferencesStorage(
 
         private const val FACEBOOK_KEY = "facebookKey"
         private const val APPSFLYER_KEY = "appsflyerKey"
+        private const val PAYWALLS_KEY = "payWallsKey"
     }
 
     private val preferences = context.getSharedPreferences(
@@ -99,6 +101,20 @@ class SharedPreferencesStorage(
             val source = parser.toJson(value)
             val editor = preferences.edit()
             editor.putString(APPSFLYER_KEY, source)
+            editor.apply()
+        }
+
+    override var paywalls: List<ApphudPaywall>?
+        get() {
+            val source = preferences.getString(PAYWALLS_KEY, null)
+            val type = object : TypeToken<List<ApphudPaywall>>() {}.type
+            return parser.fromJson<List<ApphudPaywall>>(source, type)
+        }
+        set(value) {
+            val source = parser.toJson(value)
+            val editor = preferences.edit()
+            editor.clear()
+            editor.putString(PAYWALLS_KEY, source)
             editor.apply()
         }
 }
