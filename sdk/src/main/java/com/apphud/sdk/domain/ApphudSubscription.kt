@@ -10,7 +10,8 @@ data class ApphudSubscription(
     val isInRetryBilling: Boolean,
     val isAutoRenewEnabled: Boolean,
     val isIntroductoryActivated: Boolean,
-    val kind: ApphudKind
+    val kind: ApphudKind,
+    val groupId: String
 ) {
 
     fun isActive() = when (status) {

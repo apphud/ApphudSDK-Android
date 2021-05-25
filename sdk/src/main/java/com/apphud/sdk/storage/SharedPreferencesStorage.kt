@@ -1,10 +1,8 @@
 package com.apphud.sdk.storage
 
 import android.content.Context
-import com.apphud.sdk.domain.ApphudPaywall
-import com.apphud.sdk.domain.AppsflyerInfo
-import com.apphud.sdk.domain.Customer
-import com.apphud.sdk.domain.FacebookInfo
+import com.apphud.sdk.domain.*
+import com.apphud.sdk.isDebuggable
 import com.apphud.sdk.parser.Parser
 import com.google.gson.reflect.TypeToken
 
@@ -26,12 +24,17 @@ class SharedPreferencesStorage(
         private const val FACEBOOK_KEY = "facebookKey"
         private const val APPSFLYER_KEY = "appsflyerKey"
         private const val PAYWALLS_KEY = "payWallsKey"
+        private const val PAYWALLS_TIMESTAMP_KEY = "payWallsTimestampKey"
+        private const val GROUP_KEY = "apphudGroupKey"
+        private const val GROUP_TIMESTAMP_KEY = "apphudGroupTimestampKey"
     }
 
     private val preferences = context.getSharedPreferences(
         NAME,
         MODE
     )
+
+    val cacheTimeout = if (context.isDebuggable()) 60L else 3600L
 
     override var userId: String?
         get() = preferences.getString(USER_ID_KEY, null)
@@ -106,15 +109,37 @@ class SharedPreferencesStorage(
 
     override var paywalls: List<ApphudPaywall>?
         get() {
-            val source = preferences.getString(PAYWALLS_KEY, null)
-            val type = object : TypeToken<List<ApphudPaywall>>() {}.type
-            return parser.fromJson<List<ApphudPaywall>>(source, type)
+            val timestamp = preferences.getLong(PAYWALLS_TIMESTAMP_KEY, -1L) + (cacheTimeout * 1000)
+            val currentTime = System.currentTimeMillis()
+            return if (currentTime < timestamp) {
+                val source = preferences.getString(PAYWALLS_KEY, null)
+                val type = object : TypeToken<List<ApphudPaywall>>() {}.type
+                parser.fromJson<List<ApphudPaywall>>(source, type)
+            } else null
         }
         set(value) {
             val source = parser.toJson(value)
             val editor = preferences.edit()
-            editor.clear()
+            editor.putLong(PAYWALLS_TIMESTAMP_KEY, System.currentTimeMillis())
             editor.putString(PAYWALLS_KEY, source)
+            editor.apply()
+        }
+
+    override var productGroups: List<ApphudGroup>?
+        get() {
+            val timestamp = preferences.getLong(GROUP_TIMESTAMP_KEY, -1L) + (cacheTimeout * 1000)
+            val currentTime = System.currentTimeMillis()
+            return if (currentTime < timestamp) {
+                val source = preferences.getString(GROUP_KEY, null)
+                val type = object : TypeToken<List<ApphudGroup>>() {}.type
+                return parser.fromJson<List<ApphudGroup>>(source, type)
+            } else null
+        }
+        set(value) {
+            val source = parser.toJson(value)
+            val editor = preferences.edit()
+            editor.putLong(GROUP_TIMESTAMP_KEY, System.currentTimeMillis())
+            editor.putString(GROUP_KEY, source)
             editor.apply()
         }
 }

@@ -1,8 +1,12 @@
 package com.apphud.sdk.domain
 
 import com.android.billingclient.api.SkuDetails
+import com.apphud.sdk.ApphudInternal
 
 data class ApphudProduct(
+    /**
+     * Product id
+     * */
     var id: String?,
     /**
     Product Identifier from Google Play.
@@ -21,6 +25,20 @@ data class ApphudProduct(
     getPaywalls method will return callback only when Google Play products are fetched and mapped with Apphud products.
     May be `null` if product identifier is invalid, or product is not available in Google Play.
      */
-    var skuDetails: SkuDetails?
-
-)
+    var skuDetails: SkuDetails?,
+    /**
+    Product Identifier from Paywalls.
+     */
+    var paywallId: String?
+) {
+    internal fun findPaywallId(): String? {
+        ApphudInternal.paywalls.forEach { paywall ->
+            paywall.products?.forEach { product ->
+                if (product.productId == productId) {
+                    return paywall.id
+                }
+            }
+        }
+        return null
+    }
+}

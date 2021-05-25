@@ -33,11 +33,11 @@ internal class ApphudClient(apiKey: ApiKey, private val parser: Parser) {
     }
 
     fun allProducts(callback: ProductsCallback) {
-        val callable = ProductsCallable(serviceV1)
+        val callable = ProductsCallable(serviceV2)
         thread.allProducts(LoopRunnable(callable) { response ->
             when (response.data.results) {
                 null -> ApphudLog.log("Response success but result is null")
-                else -> callback.invoke(response.data.results.map(productMapper::map))
+                else -> callback.invoke(productMapper.map(response.data.results))
             }
         })
     }

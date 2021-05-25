@@ -7,24 +7,24 @@ import com.apphud.sdk.parser.Parser
 
 class PaywallsMapper {
 
-    fun map(dto: List<ApphudPaywallDto>, parser: Parser): List<ApphudPaywall> {
-        return dto.map {
+    fun map(dto: List<ApphudPaywallDto>, parser: Parser): List<ApphudPaywall> =
+        dto.map { paywallDto ->
             ApphudPaywall(
-                id = it.id,
-                name = it.name,
-                identifier = it.identifier,
-                default = it.default,
-                json = parser.fromJson<Map<String, Any>>(it.json, Map::class.java),
-                products = it.items.map { item ->
+                id = paywallDto.id, //paywall id
+                name = paywallDto.name,
+                identifier = paywallDto.identifier,
+                default = paywallDto.default,
+                json = parser.fromJson<Map<String, Any>>(paywallDto.json, Map::class.java),
+                products = paywallDto.items.map { item ->
                     ApphudProduct(
-                        id = item.id,
+                        id = item.id,//product id
                         productId = item.product_id,
                         name = item.name,
                         store = item.store,
-                        skuDetails = null
+                        skuDetails = null,
+                        paywallId = paywallDto.id //paywall id
                     )
                 }
             )
         }
-    }
 }

@@ -5,6 +5,7 @@ import android.content.Context
 import android.util.SparseArray
 import com.android.billingclient.api.*
 import com.apphud.sdk.ApphudLog
+import com.apphud.sdk.GroupId
 import com.apphud.sdk.ProductId
 import java.io.Closeable
 

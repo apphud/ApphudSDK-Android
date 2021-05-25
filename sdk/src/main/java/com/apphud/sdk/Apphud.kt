@@ -3,9 +3,7 @@ package com.apphud.sdk
 import android.app.Activity
 import android.content.Context
 import com.android.billingclient.api.SkuDetails
-import com.apphud.sdk.domain.ApphudNonRenewingPurchase
-import com.apphud.sdk.domain.ApphudPaywall
-import com.apphud.sdk.domain.ApphudSubscription
+import com.apphud.sdk.domain.*
 
 
 object Apphud {
@@ -102,9 +100,9 @@ object Apphud {
      * Note: Purchases are sorted by purchase date, so it returns Bool value for the most recent purchase by given product identifier.
      */
     @kotlin.jvm.JvmStatic
-    fun isNonRenewingPurchaseActive(productId: ProductId): Boolean =
+    fun isNonRenewingPurchaseActive(groupId: GroupId): Boolean =
         ApphudInternal.currentUser?.purchases
-            ?.firstOrNull { it.productId == productId }?.isActive() ?: false
+            ?.firstOrNull { it.groupId == groupId }?.isActive() ?: false
 
     /**
      * Submit attribution data to Apphud from your attribution network provider.
@@ -134,6 +132,14 @@ object Apphud {
     }
 
     /**
+     * Permission groups configured in Apphud dashboard. Groups are cached on device.
+     * Note that this method may be `nil` at first launch of the app.
+     */
+    fun permissionGroups(): List<ApphudGroup> {
+        return ApphudInternal.productGroups
+    }
+
+    /**
      * Implements `Restore Purchases` mechanism. Basically it just sends current Play Market Purchase Tokens to Apphud and returns subscriptions info.
      *
      * Even if callback returns some subscription, it doesn't mean that subscription is active. You should check `subscription.isActive()` value.
@@ -151,6 +157,8 @@ object Apphud {
      * Returns an array of **SkuDetails** objects that you added in Apphud.
      * Note that this method will return **null** if products are not yet fetched.
      */
+    @Deprecated("Use \"getPaywalls\" method instead.",
+        ReplaceWith("getPaywalls(callback: (paywalls: List<ApphudPaywall>?, error: ApphudError?) -> Unit)"))
     @kotlin.jvm.JvmStatic
     fun products(): List<SkuDetails>? {
         return ApphudInternal.getSkuDetailsList()
@@ -162,7 +170,8 @@ object Apphud {
      * You can use `productsDidFetchCallback` callback
      * or implement `apphudFetchSkuDetailsProducts` listener method. Use whatever you like most.
      */
-
+    @Deprecated("Use \"getPaywalls\" method instead.",
+        ReplaceWith("getPaywallsgetPaywalls(callback: (paywalls: List<ApphudPaywall>?, error: ApphudError?) -> Unit)"))
     @kotlin.jvm.JvmStatic
     fun productsFetchCallback(callback: (List<SkuDetails>) -> Unit) {
         ApphudInternal.productsFetchCallback(callback)
@@ -173,6 +182,8 @@ object Apphud {
      * Note that you have to add this product identifier in Apphud.
      * Will return **null** if product is not yet fetched from Google Play Billing.
      */
+    @Deprecated("Use \"getPaywalls\" method instead.",
+        ReplaceWith("getPaywalls(callback: (paywalls: List<ApphudPaywall>?, error: ApphudError?) -> Unit)"))
     @kotlin.jvm.JvmStatic
     fun product(productIdentifier: String): SkuDetails? {
         return ApphudInternal.getSkuDetailsByProductId(productIdentifier)
@@ -185,6 +196,8 @@ object Apphud {
      * @param productId: The identifier of the product you wish to purchase
      * @param block: Optional. Returns `ApphudPurchaseResult` object.
      */
+    @Deprecated("Purchase product by product identifier",
+        ReplaceWith("purchase(activity: Activity, product: ApphudProduct, block: ((ApphudPurchaseResult) -> Unit)?)"))
     @kotlin.jvm.JvmStatic
     fun purchase(activity: Activity, productId: String, block: ((ApphudPurchaseResult) -> Unit)?) =
         ApphudInternal.purchase(activity, productId, true, block)
@@ -196,9 +209,22 @@ object Apphud {
      * @param details The SkuDetails of the product you wish to purchase
      * @param block Optional. Returns `ApphudPurchaseResult` object.
      */
+    @Deprecated("Purchase product by product identifier",
+        ReplaceWith("purchase(activity: Activity, product: ApphudProduct, block: ((ApphudPurchaseResult) -> Unit)?)"))
     @kotlin.jvm.JvmStatic
     fun purchase(activity: Activity, details: SkuDetails, block: ((ApphudPurchaseResult) -> Unit)?) =
         ApphudInternal.purchase(activity, details, true, block)
+
+    /**
+     * Purchase sku product and automatically submit Google Play purchase token to Apphud
+     *
+     * @param activity current Activity for use
+     * @param details The SkuDetails of the product you wish to purchase
+     * @param block Optional. Returns `ApphudPurchaseResult` object.
+     */
+    @kotlin.jvm.JvmStatic
+    fun purchase(activity: Activity, product: ApphudProduct, block: ((ApphudPurchaseResult) -> Unit)?) =
+        ApphudInternal.purchase(activity, product, true, block)
 
     /**
      * Purchase product by id and automatically submit Google Play purchase token to Apphud
@@ -212,6 +238,8 @@ object Apphud {
      * @param productId: The identifier of the product you wish to purchase
      * @param block: The closure that will be called when purchase completes.
      */
+    @Deprecated("Purchase product by product identifier",
+        ReplaceWith("purchase(activity: Activity, product: ApphudProduct, block: ((ApphudPurchaseResult) -> Unit)?)"))
     @kotlin.jvm.JvmStatic
     fun purchaseWithoutValidation(activity: Activity, productId: String, block: ((ApphudPurchaseResult) -> Unit)?) =
         ApphudInternal.purchase(activity, productId, false, block)
@@ -228,6 +256,8 @@ object Apphud {
      * @param details The SkuDetails of the product you wish to purchase
      * @param block The closure that will be called when purchase completes.
      */
+    @Deprecated("Purchase product by product identifier",
+        ReplaceWith("purchase(activity: Activity, product: ApphudProduct, block: ((ApphudPurchaseResult) -> Unit)?)"))
     @kotlin.jvm.JvmStatic
     fun purchaseWithoutValidation(activity: Activity, details: SkuDetails, block: ((ApphudPurchaseResult) -> Unit)?) =
         ApphudInternal.purchase(activity, details, false, block)

@@ -4,11 +4,9 @@ import com.android.billingclient.api.BillingClient
 import com.android.billingclient.api.PurchaseHistoryRecord
 import com.android.billingclient.api.SkuDetails
 import com.android.billingclient.api.SkuDetailsParams
+import com.apphud.sdk.*
 import com.apphud.sdk.ApphudLog
-import com.apphud.sdk.ProductId
 import com.apphud.sdk.domain.PurchaseRecordDetails
-import com.apphud.sdk.isSuccess
-import com.apphud.sdk.logMessage
 import kotlin.concurrent.thread
 
 typealias SkuType = String

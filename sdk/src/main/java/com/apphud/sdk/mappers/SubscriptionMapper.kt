@@ -29,7 +29,9 @@ class SubscriptionMapper {
                 cancelledAt = buildDate(dto.cancelled_at),
                 isInRetryBilling = dto.in_retry_billing,
                 isIntroductoryActivated = dto.introductory_activated,
-                isAutoRenewEnabled = dto.autorenew_enabled
+                isAutoRenewEnabled = dto.autorenew_enabled,
+                //TODO
+                groupId = ""
             )
         }
 
@@ -37,7 +39,7 @@ class SubscriptionMapper {
         return when (val purchase = buildDate(dto.started_at)) {
             null -> null
             else -> ApphudNonRenewingPurchase(
-                productId = dto.product_id,
+                groupId = dto.product_id,
                 purchasedAt = purchase,
                 canceledAt = buildDate(dto.cancelled_at)
             )

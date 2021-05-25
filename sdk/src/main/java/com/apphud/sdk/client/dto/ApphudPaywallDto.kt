@@ -1,17 +1,11 @@
 package com.apphud.sdk.client.dto
 
 data class ApphudPaywallDto(
-    val id: String,
-    val name: String,
+    val id: String,//paywall id
+    val name: String,//paywall name
     val identifier: String,
     val default: Boolean,
     val json: String,
-    val items: List<ItemPaywall>
+    val items: List<ApphudProductDto>
 )
 
-data class ItemPaywall(
-    val id: String,
-    val name: String,
-    val product_id: String,
-    val store: String
-)
