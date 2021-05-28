@@ -107,7 +107,7 @@ internal object ApphudInternal {
             field = value
             if (value) {
                 handler.removeCallbacks(paywallsRunnable)
-                handler.postDelayed(paywallsRunnable, 1000L)
+                handler.postDelayed(paywallsRunnable, 200L)
             } else {
                 handler.removeCallbacks(paywallsRunnable)
             }
