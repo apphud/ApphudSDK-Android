@@ -39,7 +39,7 @@ class SubscriptionMapper {
         return when (val purchase = buildDate(dto.started_at)) {
             null -> null
             else -> ApphudNonRenewingPurchase(
-                groupId = dto.product_id,
+                productId = dto.product_id,
                 purchasedAt = purchase,
                 canceledAt = buildDate(dto.cancelled_at)
             )

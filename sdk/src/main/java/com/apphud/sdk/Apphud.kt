@@ -100,9 +100,9 @@ object Apphud {
      * Note: Purchases are sorted by purchase date, so it returns Bool value for the most recent purchase by given product identifier.
      */
     @kotlin.jvm.JvmStatic
-    fun isNonRenewingPurchaseActive(groupId: GroupId): Boolean =
+    fun isNonRenewingPurchaseActive(productId: ProductId): Boolean =
         ApphudInternal.currentUser?.purchases
-            ?.firstOrNull { it.groupId == groupId }?.isActive() ?: false
+            ?.firstOrNull { it.productId == productId }?.isActive() ?: false
 
     /**
      * Submit attribution data to Apphud from your attribution network provider.
@@ -133,7 +133,7 @@ object Apphud {
 
     /**
      * Permission groups configured in Apphud dashboard. Groups are cached on device.
-     * Note that this method may be `nil` at first launch of the app.
+     * Note that this method may be `null` at first launch of the app.
      */
     fun permissionGroups(): List<ApphudGroup> {
         return ApphudInternal.productGroups
@@ -171,7 +171,7 @@ object Apphud {
      * or implement `apphudFetchSkuDetailsProducts` listener method. Use whatever you like most.
      */
     @Deprecated("Use \"getPaywalls\" method instead.",
-        ReplaceWith("getPaywallsgetPaywalls(callback: (paywalls: List<ApphudPaywall>?, error: ApphudError?) -> Unit)"))
+        ReplaceWith("getPaywalls(callback: (paywalls: List<ApphudPaywall>?, error: ApphudError?) -> Unit)"))
     @kotlin.jvm.JvmStatic
     fun productsFetchCallback(callback: (List<SkuDetails>) -> Unit) {
         ApphudInternal.productsFetchCallback(callback)
@@ -213,7 +213,7 @@ object Apphud {
         ReplaceWith("purchase(activity: Activity, product: ApphudProduct, block: ((ApphudPurchaseResult) -> Unit)?)"))
     @kotlin.jvm.JvmStatic
     fun purchase(activity: Activity, details: SkuDetails, block: ((ApphudPurchaseResult) -> Unit)?) =
-        ApphudInternal.purchase(activity, details, true, block)
+        ApphudInternal.purchase(activity, details, null, true, block)
 
     /**
      * Purchase sku product and automatically submit Google Play purchase token to Apphud
@@ -224,7 +224,7 @@ object Apphud {
      */
     @kotlin.jvm.JvmStatic
     fun purchase(activity: Activity, product: ApphudProduct, block: ((ApphudPurchaseResult) -> Unit)?) =
-        ApphudInternal.purchase(activity, product, true, block)
+        ApphudInternal.purchase(activity, null, product, true, block)
 
     /**
      * Purchase product by id and automatically submit Google Play purchase token to Apphud
@@ -238,8 +238,6 @@ object Apphud {
      * @param productId: The identifier of the product you wish to purchase
      * @param block: The closure that will be called when purchase completes.
      */
-    @Deprecated("Purchase product by product identifier",
-        ReplaceWith("purchase(activity: Activity, product: ApphudProduct, block: ((ApphudPurchaseResult) -> Unit)?)"))
     @kotlin.jvm.JvmStatic
     fun purchaseWithoutValidation(activity: Activity, productId: String, block: ((ApphudPurchaseResult) -> Unit)?) =
         ApphudInternal.purchase(activity, productId, false, block)
@@ -256,11 +254,9 @@ object Apphud {
      * @param details The SkuDetails of the product you wish to purchase
      * @param block The closure that will be called when purchase completes.
      */
-    @Deprecated("Purchase product by product identifier",
-        ReplaceWith("purchase(activity: Activity, product: ApphudProduct, block: ((ApphudPurchaseResult) -> Unit)?)"))
     @kotlin.jvm.JvmStatic
     fun purchaseWithoutValidation(activity: Activity, details: SkuDetails, block: ((ApphudPurchaseResult) -> Unit)?) =
-        ApphudInternal.purchase(activity, details, false, block)
+        ApphudInternal.purchase(activity, details, null, false, block)
 
     /**
      * Set custom user property.

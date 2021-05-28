@@ -1,6 +1,6 @@
 package com.apphud.sdk.domain
 
-import com.apphud.sdk.GroupId
+import com.apphud.sdk.ProductId
 
 
 data class ApphudNonRenewingPurchase(
@@ -8,7 +8,7 @@ data class ApphudNonRenewingPurchase(
     /**
      * Product identifier of this subscription
      */
-    val groupId: GroupId,
+    val productId: ProductId,
 
     /**
      * Date when user bought regular in-app purchase.
