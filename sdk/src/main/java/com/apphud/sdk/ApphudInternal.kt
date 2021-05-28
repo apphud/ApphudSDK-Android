@@ -377,10 +377,21 @@ internal object ApphudInternal {
                 }
             }
         }
-        if(details!=null) {
-            billing.purchase(activity, details)
-        } else {
-            billing.purchase(activity, product?.skuDetails!!)
+        when {
+            details!=null -> {
+                billing.purchase(activity, details)
+            }
+            product?.skuDetails != null -> {
+                billing.purchase(activity, product.skuDetails!!)
+            }
+            else -> {
+                val message = "Unable to buy product with coz SkuDetails is null"
+                ApphudLog.log(message)
+                callback?.invoke(ApphudPurchaseResult(null,
+                    null,
+                    null,
+                    ApphudError(message)))
+            }
         }
     }
 
