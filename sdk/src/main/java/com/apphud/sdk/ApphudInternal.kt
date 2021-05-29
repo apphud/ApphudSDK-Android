@@ -135,7 +135,7 @@ internal object ApphudInternal {
         client.registrationUser(body) { customer ->
             handler.post {
                 storage.customer = customer
-                ApphudLog.log("End updateUserId customer=${customer.toString()}")
+                ApphudLog.log("End updateUserId customer=$customer")
             }
         }
     }
@@ -202,7 +202,7 @@ internal object ApphudInternal {
         client.registrationUser(body) { customer ->
             isRegistered = true
             handler.post {
-                ApphudLog.log("registration: registrationUser customer=${customer.toString()}")
+                ApphudLog.log("registration: registrationUser customer=$customer")
                 storage.customer = customer
                 apphudListener?.apphudSubscriptionsUpdated(customer.subscriptions)
                 apphudListener?.apphudNonRenewingPurchasesUpdated(customer.purchases)
@@ -230,46 +230,91 @@ internal object ApphudInternal {
         }
     }
 
+    /**
+     * This is main purchase fun
+     * At start we should fill only **ONE** of this parameters: **productId** or **skuDetails** or **product**
+     * */
     internal fun purchase(
         activity: Activity,
-        productId: String,
+        productId: String?,
+        skuDetails: SkuDetails?,
+        product: ApphudProduct?,
         withValidation: Boolean = true,
         callback: ((ApphudPurchaseResult) -> Unit)?
     ) {
-        val sku = getSkuDetailsByProductId(productId)
-        if (sku != null) {
-            purchase(activity, sku, null, withValidation, callback)
-        } else {
-            ApphudLog.log("Could not find SkuDetails for product id: $productId in memory")
-            ApphudLog.log("Now try fetch it from Google Billing")
-            billing.details(BillingClient.SkuType.SUBS, listOf(productId)) { skuList ->
-                ApphudLog.log("Google Billing (SUBS) return this info for product id = $productId :")
-                skuList.forEach { ApphudLog.log("$it") }
-                skuList.takeIf { it.isNotEmpty() }?.let {
-                    skuDetails.addAll(it)
-                    purchase(activity, it.first(), null, withValidation, callback)
-                } ?: run {
-                    val message =
-                        "Unable to fetch product (SkuType.SUBS) with given product id: $productId"
-                    callback?.invoke(ApphudPurchaseResult(null, null, null, ApphudError(message)))
-                }
+        if (!productId.isNullOrEmpty()) {
+            //if we have productId
+            val sku = getSkuDetailsByProductId(productId)
+            if (sku != null) {
+                purchaseInternal(activity, sku, null, withValidation, callback)
+            } else {
+                fetchDetails(activity, productId, null, withValidation, callback)
             }
-            billing.details(BillingClient.SkuType.INAPP, listOf(productId)) { skuList ->
-                ApphudLog.log("Google Billing (INAPP) return this info for product id = $productId :")
-                skuList.forEach { ApphudLog.log("$it") }
-                skuList.takeIf { it.isNotEmpty() }?.let {
-                    skuDetails.addAll(it)
-                    purchase(activity, it.first(), null, withValidation, callback)
-                } ?: run {
-                    val message =
-                        "Unable to fetch product (SkuType.INAPP) with given product id: $productId"
-                    callback?.invoke(ApphudPurchaseResult(null, null, null, ApphudError(message)))
-                }
+        } else if (skuDetails !=null ){
+            //if we have SkuDetails
+            purchaseInternal(activity, skuDetails, null, withValidation, callback)
+        } else {
+            //if we have ApphudProduct
+            product?.skuDetails?.let {
+                purchaseInternal(activity, null, product, withValidation, callback)
+            } ?: run {
+                fetchDetails(activity, null, product, withValidation, callback)
             }
         }
     }
 
-    internal fun purchase(
+    private fun fetchDetails(
+        activity: Activity,
+        productId: String?,
+        product: ApphudProduct?,
+        withValidation: Boolean,
+        callback: ((ApphudPurchaseResult) -> Unit)?
+    ) {
+        skuDetailsIsLoaded = 0
+        val productName: String = productId ?: product?.productId!!
+        ApphudLog.log("Could not find SkuDetails for product id: $productId in memory")
+        ApphudLog.log("Now try fetch it from Google Billing")
+        billing.details(BillingClient.SkuType.SUBS, listOf(productName)) { skuList ->
+            processFetchDetailsResponse(activity, productName, product, withValidation, callback, skuList)
+        }
+        billing.details(BillingClient.SkuType.INAPP, listOf(productName)) { skuList ->
+            processFetchDetailsResponse(activity, productName, product, withValidation, callback, skuList)
+        }
+    }
+
+    private fun processFetchDetailsResponse(
+        activity: Activity,
+        productId: String,
+        product: ApphudProduct?,
+        withValidation: Boolean,
+        callback: ((ApphudPurchaseResult) -> Unit)?,
+        skuList: List<SkuDetails>
+    ) {
+        skuDetailsIsLoaded++
+        skuDetails.addAll(skuList)
+        ApphudLog.log("Google Billing return this info for product id = $productId :")
+        skuList.forEach { ApphudLog.log("$it") }
+        //if we have booth SKU already loaded
+        skuDetailsIsLoaded.takeIf { it == 2 }?.let {
+            //if we have successfully fetched SkuDetails with target productId
+            getSkuDetailsByProductId(productId)?.let { sku ->
+                //if we have not empty ApphudProduct
+                product?.let {
+                    paywalls = cachedPaywalls()
+                    it.skuDetails = sku
+                    purchaseInternal(activity, null, it, withValidation, callback)
+                } ?: run {
+                    purchaseInternal(activity, sku, null, withValidation, callback)
+                }
+            } ?: run {
+                val message =
+                    "Unable to fetch product with given product id: $productId"
+                callback?.invoke(ApphudPurchaseResult(null, null, null, ApphudError(message)))
+            }
+        }
+    }
+
+    private fun purchaseInternal(
         activity: Activity,
         details: SkuDetails?,
         product: ApphudProduct?,
@@ -635,9 +680,9 @@ internal object ApphudInternal {
         }
 
         val body = UserPropertiesBody(this.deviceId, properties)
-        client.userProperties(body) { userproperties ->
+        client.userProperties(body) { userProperties ->
             handler.post {
-                if (userproperties.success) {
+                if (userProperties.success) {
                     pendingUserProperties.clear()
                     ApphudLog.log("User Properties successfully updated.")
                 } else {

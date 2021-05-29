@@ -200,7 +200,7 @@ object Apphud {
         ReplaceWith("purchase(activity: Activity, product: ApphudProduct, block: ((ApphudPurchaseResult) -> Unit)?)"))
     @kotlin.jvm.JvmStatic
     fun purchase(activity: Activity, productId: String, block: ((ApphudPurchaseResult) -> Unit)?) =
-        ApphudInternal.purchase(activity, productId, true, block)
+        ApphudInternal.purchase(activity, productId, null, null, true, block)
 
     /**
      * Purchase sku product and automatically submit Google Play purchase token to Apphud
@@ -213,7 +213,7 @@ object Apphud {
         ReplaceWith("purchase(activity: Activity, product: ApphudProduct, block: ((ApphudPurchaseResult) -> Unit)?)"))
     @kotlin.jvm.JvmStatic
     fun purchase(activity: Activity, details: SkuDetails, block: ((ApphudPurchaseResult) -> Unit)?) =
-        ApphudInternal.purchase(activity, details, null, true, block)
+        ApphudInternal.purchase(activity, null, details, null, true, block)
 
     /**
      * Purchase sku product and automatically submit Google Play purchase token to Apphud
@@ -224,7 +224,7 @@ object Apphud {
      */
     @kotlin.jvm.JvmStatic
     fun purchase(activity: Activity, product: ApphudProduct, block: ((ApphudPurchaseResult) -> Unit)?) =
-        ApphudInternal.purchase(activity, null, product, true, block)
+        ApphudInternal.purchase(activity, null, null, product, true, block)
 
     /**
      * Purchase product by id and automatically submit Google Play purchase token to Apphud
@@ -240,7 +240,7 @@ object Apphud {
      */
     @kotlin.jvm.JvmStatic
     fun purchaseWithoutValidation(activity: Activity, productId: String, block: ((ApphudPurchaseResult) -> Unit)?) =
-        ApphudInternal.purchase(activity, productId, false, block)
+        ApphudInternal.purchase(activity, productId, null,null,false, block)
 
     /**
      * Purchase sku product and automatically submit Google Play purchase token to Apphud
@@ -256,7 +256,7 @@ object Apphud {
      */
     @kotlin.jvm.JvmStatic
     fun purchaseWithoutValidation(activity: Activity, details: SkuDetails, block: ((ApphudPurchaseResult) -> Unit)?) =
-        ApphudInternal.purchase(activity, details, null, false, block)
+        ApphudInternal.purchase(activity,null, details, null, false, block)
 
     /**
      * Set custom user property.
