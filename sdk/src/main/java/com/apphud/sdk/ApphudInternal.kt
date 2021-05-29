@@ -295,7 +295,7 @@ internal object ApphudInternal {
         ApphudLog.log("Google Billing return this info for product id = $productId :")
         skuList.forEach { ApphudLog.log("$it") }
         //if we have booth SKU already loaded
-        skuDetailsIsLoaded.takeIf { it == 2 }?.let {
+        skuDetailsIsLoaded.takeIf { it.isBoothSkuLoaded() }?.let {
             //if we have successfully fetched SkuDetails with target productId
             getSkuDetailsByProductId(productId)?.let { sku ->
                 //if we have not empty ApphudProduct
