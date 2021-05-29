@@ -184,7 +184,7 @@ internal object ApphudInternal {
             }
         }
         client.allProducts { groups ->
-            ApphudLog.log("fetchProducts_V2: products from Apphud server: $groups")
+            ApphudLog.log("fetchProducts: products from Apphud server: $groups")
             cacheGroups(groups)
             val ids = groups.map { it -> it.products?.map { it.productId }!! }.flatten()
             billing.details(BillingClient.SkuType.SUBS, ids)
@@ -274,46 +274,34 @@ internal object ApphudInternal {
         val productName: String = productId ?: product?.productId!!
         ApphudLog.log("Could not find SkuDetails for product id: $productId in memory")
         ApphudLog.log("Now try fetch it from Google Billing")
-        billing.details(BillingClient.SkuType.SUBS, listOf(productName)) { skuList ->
-            processFetchDetailsResponse(activity, productName, product, withValidation, callback, skuList)
-        }
-        billing.details(BillingClient.SkuType.INAPP, listOf(productName)) { skuList ->
-            processFetchDetailsResponse(activity, productName, product, withValidation, callback, skuList)
-        }
-    }
-
-    private fun processFetchDetailsResponse(
-        activity: Activity,
-        productId: String,
-        product: ApphudProduct?,
-        withValidation: Boolean,
-        callback: ((ApphudPurchaseResult) -> Unit)?,
-        skuList: List<SkuDetails>
-    ) {
-        skuDetailsIsLoaded++
-        if(skuList.isNotEmpty()) {
-            skuDetails.addAll(skuList)
-            ApphudLog.log("Google Billing return this info for product id = $productId :")
-            skuList.forEach { ApphudLog.log("$it") }
-        }
-        //if we have booth SKU already loaded
-        skuDetailsIsLoaded.takeIf { it.isBoothSkuLoaded() }?.let {
-            //if we have successfully fetched SkuDetails with target productId
-            getSkuDetailsByProductId(productId)?.let { sku ->
-                //if we have not empty ApphudProduct
-                product?.let {
-                    paywalls = cachedPaywalls()
-                    it.skuDetails = sku
-                    purchaseInternal(activity, null, it, withValidation, callback)
+        billing.skuCallback = { skuList ->
+            skuDetailsIsLoaded++
+            if(skuList.isNotEmpty()) {
+                skuDetails.addAll(skuList)
+                ApphudLog.log("Google Billing return this info for product id = $productId :")
+                skuList.forEach { ApphudLog.log("$it") }
+            }
+            //if we have booth SKU already loaded
+            if ( skuDetailsIsLoaded.isBoothSkuLoaded() ) {
+                //if we have successfully fetched SkuDetails with target productId
+                getSkuDetailsByProductId(productName)?.let { sku ->
+                    //if we have not empty ApphudProduct
+                    product?.let {
+                        paywalls = cachedPaywalls()
+                        it.skuDetails = sku
+                        purchaseInternal(activity, null, it, withValidation, callback)
+                    } ?: run {
+                        purchaseInternal(activity, sku, null, withValidation, callback)
+                    }
                 } ?: run {
-                    purchaseInternal(activity, sku, null, withValidation, callback)
+                    val message =
+                        "Unable to fetch product with given product id: $productId"
+                    callback?.invoke(ApphudPurchaseResult(null, null, null, ApphudError(message)))
                 }
-            } ?: run {
-                val message =
-                    "Unable to fetch product with given product id: $productId"
-                callback?.invoke(ApphudPurchaseResult(null, null, null, ApphudError(message)))
             }
         }
+        billing.details(BillingClient.SkuType.SUBS, listOf(productName))
+        billing.details(BillingClient.SkuType.INAPP, listOf(productName))
     }
 
     private fun purchaseInternal(
