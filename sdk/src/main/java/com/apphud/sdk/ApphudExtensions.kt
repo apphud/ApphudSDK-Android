@@ -7,6 +7,6 @@ internal fun Context.isDebuggable(): Boolean {
     return 0 != this.applicationInfo.flags and ApplicationInfo.FLAG_DEBUGGABLE
 }
 
-internal fun Int.isBoothSkuLoaded(): Boolean {
+internal fun Int.isBothSkuLoaded(): Boolean {
     return this == 2
 }

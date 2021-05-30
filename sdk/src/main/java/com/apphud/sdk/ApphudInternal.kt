@@ -176,7 +176,7 @@ internal object ApphudInternal {
             if (details.isNotEmpty()) {
                 skuDetails.addAll(details)
             }
-            if(skuDetailsIsLoaded.isBoothSkuLoaded()) {
+            if(skuDetailsIsLoaded.isBothSkuLoaded()) {
                 paywalls = cachedPaywalls()
                 productGroups = cachedGroups()
                 customProductsFetchedBlock?.invoke(skuDetails)
@@ -276,27 +276,31 @@ internal object ApphudInternal {
         ApphudLog.log("Now try fetch it from Google Billing")
         billing.skuCallback = { skuList ->
             skuDetailsIsLoaded++
-            if(skuList.isNotEmpty()) {
+            if (skuList.isNotEmpty()) {
                 skuDetails.addAll(skuList)
                 ApphudLog.log("Google Billing return this info for product id = $productId :")
                 skuList.forEach { ApphudLog.log("$it") }
             }
-            //if we have booth SKU already loaded
-            if ( skuDetailsIsLoaded.isBoothSkuLoaded() ) {
-                //if we have successfully fetched SkuDetails with target productId
-                getSkuDetailsByProductId(productName)?.let { sku ->
-                    //if we have not empty ApphudProduct
-                    product?.let {
-                        paywalls = cachedPaywalls()
-                        it.skuDetails = sku
-                        purchaseInternal(activity, null, it, withValidation, callback)
-                    } ?: run {
-                        purchaseInternal(activity, sku, null, withValidation, callback)
-                    }
+            //if we have successfully fetched SkuDetails with target productId
+            getSkuDetailsByProductId(productName)?.let { sku ->
+                //we have SkuDetails and we don't need a callback anymore
+                billing.skuCallback = null
+                //if we have not empty ApphudProduct
+                product?.let {
+                    paywalls = cachedPaywalls()
+                    it.skuDetails = sku
+                    purchaseInternal(activity, null, it, withValidation, callback)
                 } ?: run {
-                    val message =
-                        "Unable to fetch product with given product id: $productId"
-                    callback?.invoke(ApphudPurchaseResult(null, null, null, ApphudError(message)))
+                    purchaseInternal(activity, sku, null, withValidation, callback)
+                }
+            } ?: run {
+                //if we booth SkuType already loaded and we still haven't any SkuDetails
+                if (skuDetailsIsLoaded.isBothSkuLoaded()) {
+                    val message = "Unable to fetch product with given product id: $productId"
+                    callback?.invoke(ApphudPurchaseResult(null,
+                        null,
+                        null,
+                        ApphudError(message)))
                 }
             }
         }
@@ -819,7 +823,7 @@ internal object ApphudInternal {
     }
 
     private fun tryInvokePaywallsDelayedCallback(){
-        if (!paywalls.isNullOrEmpty() && skuDetailsIsLoaded.isBoothSkuLoaded()) {
+        if (!paywalls.isNullOrEmpty() && skuDetailsIsLoaded.isBothSkuLoaded()) {
             setNeedsToUpdatePaywalls = false
             paywallsDelayedCallback?.invoke(paywalls, null)
             paywallsDelayedCallback = null
@@ -842,7 +846,7 @@ internal object ApphudInternal {
                     clear()
                     addAll(paywalls)
                 }
-                if(skuDetailsIsLoaded.isBoothSkuLoaded()) {
+                if(skuDetailsIsLoaded.isBothSkuLoaded()) {
                     callback.invoke(paywalls, null)
                 } else {
                     paywallsDelayedCallback = callback
