@@ -23,6 +23,7 @@ import com.apphud.sdk.storage.SharedPreferencesStorage
 import com.apphud.sdk.tasks.advertisingId
 import com.google.gson.GsonBuilder
 import java.util.*
+import java.util.concurrent.atomic.AtomicInteger
 
 @SuppressLint("StaticFieldLeak")
 internal object ApphudInternal {
@@ -78,7 +79,7 @@ internal object ApphudInternal {
      * 1 - we have only one loaded SkuType SUBS or INAPP
      * 2 - we have both loaded SkuType SUBS and INAPP
      * */
-    private var skuDetailsIsLoaded = 0
+    private var skuDetailsIsLoaded : AtomicInteger = AtomicInteger(0)
 
     private var customProductsFetchedBlock: ((List<SkuDetails>) -> Unit)? = null
 
@@ -172,7 +173,7 @@ internal object ApphudInternal {
     private fun fetchProducts() {
         billing.skuCallback = { details ->
             ApphudLog.log("fetchProducts: details from Google Billing: $details")
-            skuDetailsIsLoaded++
+            skuDetailsIsLoaded.getAndIncrement()
             if (details.isNotEmpty()) {
                 skuDetails.addAll(details)
             }
@@ -270,12 +271,12 @@ internal object ApphudInternal {
         withValidation: Boolean,
         callback: ((ApphudPurchaseResult) -> Unit)?
     ) {
-        skuDetailsIsLoaded = 0
+        skuDetailsIsLoaded.set(0)
         val productName: String = productId ?: product?.productId!!
         ApphudLog.log("Could not find SkuDetails for product id: $productId in memory")
         ApphudLog.log("Now try fetch it from Google Billing")
         billing.skuCallback = { skuList ->
-            skuDetailsIsLoaded++
+            skuDetailsIsLoaded.getAndIncrement()
             if (skuList.isNotEmpty()) {
                 skuDetails.addAll(skuList)
                 ApphudLog.log("Google Billing return this info for product id = $productId :")
@@ -702,7 +703,7 @@ internal object ApphudInternal {
     }
 
     private fun clear() {
-        skuDetailsIsLoaded = 0
+        skuDetailsIsLoaded.set(0)
         paywallsDelayedCallback = null
         isRegistered = false
         storage.customer = null
