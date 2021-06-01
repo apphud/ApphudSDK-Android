@@ -13,10 +13,7 @@ import com.android.billingclient.api.SkuDetails
 import com.apphud.sdk.body.*
 import com.apphud.sdk.client.ApphudClient
 import com.apphud.sdk.domain.*
-import com.apphud.sdk.internal.BillingWrapper
-import com.apphud.sdk.internal.PurchaseCallbackStatus
-import com.apphud.sdk.internal.PurchaseRestoredCallbackStatus
-import com.apphud.sdk.internal.PurchaseUpdatedCallbackStatus
+import com.apphud.sdk.internal.*
 import com.apphud.sdk.parser.GsonParser
 import com.apphud.sdk.parser.Parser
 import com.apphud.sdk.storage.SharedPreferencesStorage
@@ -80,6 +77,7 @@ internal object ApphudInternal {
      * 2 - we have both loaded SkuType SUBS and INAPP
      * */
     private var skuDetailsIsLoaded : AtomicInteger = AtomicInteger(0)
+    private var skuDetailsForFetchIsLoaded : AtomicInteger = AtomicInteger(0)
 
     private var customProductsFetchedBlock: ((List<SkuDetails>) -> Unit)? = null
 
@@ -173,7 +171,7 @@ internal object ApphudInternal {
     private fun fetchProducts() {
         billing.skuCallback = { details ->
             ApphudLog.log("fetchProducts: details from Google Billing: $details")
-            skuDetailsIsLoaded.getAndIncrement()
+            skuDetailsIsLoaded.incrementAndGet()
             if (details.isNotEmpty()) {
                 skuDetails.addAll(details)
             }
@@ -271,12 +269,12 @@ internal object ApphudInternal {
         withValidation: Boolean,
         callback: ((ApphudPurchaseResult) -> Unit)?
     ) {
-        skuDetailsIsLoaded.set(0)
+        skuDetailsForFetchIsLoaded.set(0)
         val productName: String = productId ?: product?.productId!!
         ApphudLog.log("Could not find SkuDetails for product id: $productId in memory")
         ApphudLog.log("Now try fetch it from Google Billing")
-        billing.skuCallback = { skuList ->
-            skuDetailsIsLoaded.getAndIncrement()
+        val fetchDetailsCallback: ApphudSkuDetailsCallback = { skuList ->
+            skuDetailsForFetchIsLoaded.incrementAndGet()
             if (skuList.isNotEmpty()) {
                 skuDetails.addAll(skuList)
                 ApphudLog.log("Google Billing return this info for product id = $productId :")
@@ -296,7 +294,7 @@ internal object ApphudInternal {
                 }
             } ?: run {
                 //if we booth SkuType already loaded and we still haven't any SkuDetails
-                if (skuDetailsIsLoaded.isBothSkuLoaded()) {
+                if (skuDetailsForFetchIsLoaded.isBothSkuLoaded()) {
                     val message = "Unable to fetch product with given product id: $productId"
                     callback?.invoke(ApphudPurchaseResult(null,
                         null,
@@ -305,8 +303,8 @@ internal object ApphudInternal {
                 }
             }
         }
-        billing.details(BillingClient.SkuType.SUBS, listOf(productName))
-        billing.details(BillingClient.SkuType.INAPP, listOf(productName))
+        billing.details(BillingClient.SkuType.SUBS, listOf(productName), fetchDetailsCallback)
+        billing.details(BillingClient.SkuType.INAPP, listOf(productName), fetchDetailsCallback)
     }
 
     private fun purchaseInternal(
@@ -704,6 +702,7 @@ internal object ApphudInternal {
 
     private fun clear() {
         skuDetailsIsLoaded.set(0)
+        skuDetailsForFetchIsLoaded.set(0)
         paywallsDelayedCallback = null
         isRegistered = false
         storage.customer = null
