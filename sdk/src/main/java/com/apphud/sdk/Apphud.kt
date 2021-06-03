@@ -147,9 +147,7 @@ object Apphud {
      * @param callback: Required. Returns array of subscription (or subscriptions in case you have more than one subscription group), array of standard in-app purchases and an error. All of three parameters are optional.
      */
     @kotlin.jvm.JvmStatic
-    fun restorePurchases(callback: (subscriptions: List<ApphudSubscription>?,
-                                    purchases: List<ApphudNonRenewingPurchase>?,
-                                    error: ApphudError?) -> Unit) {
+    fun restorePurchases(callback: ApphudPurchasesRestoreCallback) {
         ApphudInternal.restorePurchases(callback)
     }
 

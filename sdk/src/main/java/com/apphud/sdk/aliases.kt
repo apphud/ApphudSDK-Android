@@ -17,3 +17,9 @@ typealias PurchasedCallback = Callback1<Customer>
 typealias PaywallCallback = Callback2<List<ApphudPaywall>?, ApphudError?>
 
 typealias Milliseconds = Long
+
+typealias ApphudPurchasesRestoreCallback = (
+    subscriptions: List<ApphudSubscription>?,
+    purchases: List<ApphudNonRenewingPurchase>?,
+    error: ApphudError?
+) -> Unit
