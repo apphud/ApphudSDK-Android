@@ -64,7 +64,14 @@ class HttpUrlConnectionExecutor(
             else -> {
                 val response = buildStringBy(connection.errorStream)
                 ApphudLog.logE("finish ${config.requestType} request ${apphudUrl.url} failed with code: ${connection.responseCode} response: ${buildPrettyPrintedBy(response)}")
-                null
+                when (connection.responseCode) {
+                    422 -> {
+                        parser.fromJson<O>(response, config.type)
+                    }
+                    else -> {
+                        null
+                    }
+                }
             }
         }
 

@@ -13,7 +13,7 @@ typealias Callback2<T1, T2> = (T1, T2) -> Unit
 typealias CustomerCallback = Callback1<Customer>
 typealias ProductsCallback = Callback1<List<ApphudGroup>>
 typealias AttributionCallback = Callback1<Attribution>
-typealias PurchasedCallback = Callback1<Customer>
+typealias PurchasedCallback = Callback2<Customer?, ApphudError?>
 typealias PaywallCallback = Callback2<List<ApphudPaywall>?, ApphudError?>
 
 typealias Milliseconds = Long

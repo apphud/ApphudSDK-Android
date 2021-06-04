@@ -66,8 +66,14 @@ internal class ApphudClient(apiKey: ApiKey, private val parser: Parser) {
         val callable = PurchaseCallable(body, serviceV1)
         thread.execute(LoopRunnable(callable) { response ->
             when (response.data.results) {
-                null -> ApphudLog.log("Response success but result is null")
-                else -> callback.invoke(customerMapper.map(response.data.results))
+                null -> {
+                    ApphudLog.log("Response success but result is null: + ${response.errors.toString()}")
+                    val code = if(response.errors?.toString()?.contains("PUB key nor PRIV") == true) 422 else null
+                    callback.invoke(null, ApphudError(message = response.errors.toString(), errorCode = code))
+                }
+                else -> {
+                    callback.invoke(customerMapper.map(response.data.results), null)
+                }
             }
         })
     }
