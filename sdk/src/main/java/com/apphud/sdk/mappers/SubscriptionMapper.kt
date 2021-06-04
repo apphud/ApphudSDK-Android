@@ -29,7 +29,9 @@ class SubscriptionMapper {
                 cancelledAt = buildDate(dto.cancelled_at),
                 isInRetryBilling = dto.in_retry_billing,
                 isIntroductoryActivated = dto.introductory_activated,
-                isAutoRenewEnabled = dto.autorenew_enabled
+                isAutoRenewEnabled = dto.autorenew_enabled,
+                //TODO
+                groupId = ""
             )
         }
 

@@ -35,11 +35,11 @@ class ApphudService(
     /**
      * Получение идентификаторов продуктов
      */
-    fun products(): ResponseDto<List<ProductDto>> =
+    fun products(): ResponseDto<List<ApphudGroupDto>> =
         executor.call(
             RequestConfig(
                 path = "products",
-                type = object : TypeToken<ResponseDto<List<ProductDto>>>(){}.type,
+                type = object : TypeToken<ResponseDto<List<ApphudGroupDto>>>(){}.type,
                 queries = mapOf(API_KEY to apiKey),
                 requestType = RequestType.GET
             )
@@ -99,5 +99,18 @@ class ApphudService(
                 requestType = RequestType.POST
             ),
             body
+        )
+
+    /**
+     * Receiving Paywalls
+     */
+    fun getPaywalls(): ResponseDto<List<ApphudPaywallDto>> =
+        executor.call(
+            RequestConfig(
+                path = "paywall_configs",
+                type = object : TypeToken<ResponseDto<List<ApphudPaywallDto>>>(){}.type,
+                queries = mapOf(API_KEY to apiKey),
+                requestType = RequestType.GET
+            )
         )
 }
