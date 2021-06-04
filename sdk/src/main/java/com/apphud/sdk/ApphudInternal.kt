@@ -452,12 +452,12 @@ internal object ApphudInternal {
                 null,
                 ApphudError(message)))
         }
+        storage.isNeedSync = true
         client.purchased(purchaseBody!!) { customer, errors ->
             handler.post {
                 when(errors){
                     null -> {
                         ApphudLog.log("client.purchased: $customer")
-
                         val newSubscriptions = storage.customer?.subscriptions?.let {
                             customer?.subscriptions?.minus(it)
                         } ?: customer?.subscriptions
@@ -467,6 +467,7 @@ internal object ApphudInternal {
                         } ?: customer?.purchases
 
                         storage.customer = customer
+                        storage.isNeedSync = false
 
                         takeIf { !newSubscriptions.isNullOrEmpty() }?.let {
                             apphudListener?.apphudSubscriptionsUpdated(customer?.subscriptions!!)
