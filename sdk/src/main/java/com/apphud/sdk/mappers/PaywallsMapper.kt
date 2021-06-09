@@ -17,7 +17,7 @@ class PaywallsMapper {
                 json = parser.fromJson<Map<String, Any>>(paywallDto.json, Map::class.java),
                 products = paywallDto.items.map { item ->
                     ApphudProduct(
-                        id = item.id,//product id
+                        id = item.id,//product bundle id
                         product_id = item.product_id,
                         name = item.name,
                         store = item.store,

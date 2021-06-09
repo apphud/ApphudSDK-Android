@@ -448,7 +448,7 @@ internal object ApphudInternal {
         callback: ((ApphudPurchaseResult) -> Unit)?
     ) {
         val purchaseBody = details?.let { makePurchaseBody(purchase, it, null, null) }
-            ?: product?.let { makePurchaseBody(purchase, it.skuDetails, it.paywall_id, it.product_id) }
+            ?: product?.let { makePurchaseBody(purchase, it.skuDetails, it.paywall_id, it.id) }
         if (purchaseBody == null) {
             val message =
                 "Error!!! SkuDetails and ApphudProduct cannot be null at the same time !!!"
