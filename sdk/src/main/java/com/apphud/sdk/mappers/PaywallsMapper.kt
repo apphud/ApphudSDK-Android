@@ -18,11 +18,11 @@ class PaywallsMapper {
                 products = paywallDto.items.map { item ->
                     ApphudProduct(
                         id = item.id,//product id
-                        productId = item.product_id,
+                        product_id = item.product_id,
                         name = item.name,
                         store = item.store,
                         skuDetails = null,
-                        paywallId = paywallDto.id //paywall id
+                        paywall_id = paywallDto.id //paywall id
                     )
                 }
             )

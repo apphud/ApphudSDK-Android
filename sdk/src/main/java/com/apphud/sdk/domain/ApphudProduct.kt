@@ -11,7 +11,7 @@ data class ApphudProduct(
     /**
     Product Identifier from Google Play.
      */
-    var productId: String,
+    var product_id: String,
     /**
     Product name from Apphud Dashboard
      */
@@ -29,12 +29,12 @@ data class ApphudProduct(
     /**
     Product Identifier from Paywalls.
      */
-    var paywallId: String?
+    var paywall_id: String?
 ) {
     internal fun findPaywallId(): String? {
         ApphudInternal.paywalls.forEach { paywall ->
             paywall.products?.forEach { product ->
-                if (product.productId == productId) {
+                if (product.product_id == product_id) {
                     return paywall.id
                 }
             }

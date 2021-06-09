@@ -14,11 +14,11 @@ class ProductMapper {
                 products = it.bundles.map { item ->
                     ApphudProduct(
                         id = item.id,
-                        productId = item.product_id,
+                        product_id = item.product_id,
                         name = item.name,
                         store = item.store,
                         skuDetails = null,
-                        paywallId = null
+                        paywall_id = null
                     )
                 }
             )
