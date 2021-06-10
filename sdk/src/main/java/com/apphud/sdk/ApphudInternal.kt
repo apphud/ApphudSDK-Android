@@ -475,19 +475,30 @@ internal object ApphudInternal {
                         storage.customer = customer
                         storage.isNeedSync = false
 
-                        takeIf { !newSubscriptions.isNullOrEmpty() }?.let {
+                        if ( !newSubscriptions.isNullOrEmpty() ) {
                             apphudListener?.apphudSubscriptionsUpdated(customer?.subscriptions!!)
-                            callback?.invoke(ApphudPurchaseResult(newSubscriptions?.first(),
+                            callback?.invoke(ApphudPurchaseResult(newSubscriptions.first(),
                                 null,
                                 purchase,
                                 null))
                         }
-                        takeIf { !newPurchases.isNullOrEmpty() }?.let {
+                        if ( !newPurchases.isNullOrEmpty() ) {
                             apphudListener?.apphudNonRenewingPurchasesUpdated(customer?.purchases!!)
                             callback?.invoke(ApphudPurchaseResult(null,
-                                newPurchases?.first(),
+                                newPurchases.first(),
                                 purchase,
                                 null))
+                        }
+                        if ( newSubscriptions.isNullOrEmpty() && newPurchases.isNullOrEmpty()) {
+                            val message =
+                                "Error!!! There are no new subscriptions " +
+                                        "or new purchases from the Apphud server " +
+                                        "after the purchase of ${purchaseBody.purchases.first().product_id}"
+                            ApphudLog.logE(message)
+                            callback?.invoke(ApphudPurchaseResult(null,
+                                null,
+                                null,
+                                ApphudError(message)))
                         }
                     }
                     else -> {
