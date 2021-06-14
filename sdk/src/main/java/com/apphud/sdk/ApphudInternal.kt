@@ -466,10 +466,10 @@ internal object ApphudInternal {
                             ApphudLog.log("client.purchased: $customer")
 
                             val newSubscriptions =
-                                customer?.subscriptions?.firstOrNull { it.productId == purchaseBody.purchases.first().product_id }
+                                customer?.subscriptions?.firstOrNull { it.productId == purchase.sku }
 
                             val newPurchases =
-                                customer?.purchases?.firstOrNull { it.productId == purchaseBody.purchases.first().product_id }
+                                customer?.purchases?.firstOrNull { it.productId == purchase.sku }
 
                             storage.customer = customer
                             storage.isNeedSync = false
