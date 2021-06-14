@@ -17,7 +17,7 @@ class ApphudServiceTest {
 
     private val userId = "cleaner_303"
     private val deviceId = "cleaner_303"
-    private val API_KEY = "app_oBcXz2z9j8spKPL2T7sZwQaQN5Jzme"
+    private val API_KEY = "app_4sY9cLggXpMDDQMmvc5wXUPGReMp8G"
     private lateinit var service: ApphudService
 
     @Before
