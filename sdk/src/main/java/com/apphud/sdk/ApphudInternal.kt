@@ -84,7 +84,13 @@ internal object ApphudInternal {
     private var customProductsFetchedBlock: ((List<SkuDetails>) -> Unit)? = null
 
     private val pendingUserProperties = mutableMapOf<String, ApphudUserProperty>()
-    private val userPropertiesRunnable = Runnable { if (isRegistered) updateUserProperties() }
+    private val userPropertiesRunnable = Runnable {
+        if (isRegistered) {
+            updateUserProperties()
+        } else {
+            setNeedsToUpdateUserProperties = true
+        }
+    }
 
     private var setNeedsToUpdateUserProperties: Boolean = false
         set(value) {
@@ -187,7 +193,7 @@ internal object ApphudInternal {
         client.allProducts { groups ->
             ApphudLog.log("fetchProducts: products from Apphud server: $groups")
             cacheGroups(groups)
-            val ids = groups.map { it -> it.products?.map { it.productId }!! }.flatten()
+            val ids = groups.map { it -> it.products?.map { it.product_id }!! }.flatten()
             billing.details(BillingClient.SkuType.SUBS, ids)
             billing.details(BillingClient.SkuType.INAPP, ids)
         }
@@ -272,7 +278,7 @@ internal object ApphudInternal {
         callback: ((ApphudPurchaseResult) -> Unit)?
     ) {
         skuDetailsForFetchIsLoaded.set(0)
-        val productName: String = productId ?: product?.productId!!
+        val productName: String = productId ?: product?.product_id!!
         ApphudLog.log("Could not find SkuDetails for product id: $productId in memory")
         ApphudLog.log("Now try fetch it from Google Billing")
         val fetchDetailsCallback: ApphudSkuDetailsCallback = { skuList ->
@@ -441,8 +447,8 @@ internal object ApphudInternal {
         product: ApphudProduct?,
         callback: ((ApphudPurchaseResult) -> Unit)?
     ) {
-        val purchaseBody = details?.let { makePurchaseBody(purchase, it) }
-            ?: product?.let { makePurchaseBodyV2(purchase, it) }
+        val purchaseBody = details?.let { makePurchaseBody(purchase, it, null, null) }
+            ?: product?.let { makePurchaseBody(purchase, it.skuDetails, it.paywall_id, it.id) }
         if (purchaseBody == null) {
             val message =
                 "Error!!! SkuDetails and ApphudProduct cannot be null at the same time !!!"
@@ -451,45 +457,48 @@ internal object ApphudInternal {
                 null,
                 null,
                 ApphudError(message)))
-        }
-        storage.isNeedSync = true
-        client.purchased(purchaseBody!!) { customer, errors ->
-            handler.post {
-                when(errors){
-                    null -> {
-                        ApphudLog.log("client.purchased: $customer")
-                        val newSubscriptions = storage.customer?.subscriptions?.let {
-                            customer?.subscriptions?.minus(it)
-                        } ?: customer?.subscriptions
+        } else {
+            storage.isNeedSync = true
+            client.purchased(purchaseBody) { customer, errors ->
+                handler.post {
+                    when (errors) {
+                        null -> {
+                            ApphudLog.log("client.purchased: $customer")
 
-                        val newPurchases = storage.customer?.purchases?.let {
-                            customer?.purchases?.minus(it)
-                        } ?: customer?.purchases
+                            val newSubscriptions =
+                                customer?.subscriptions?.firstOrNull { it.productId == purchase.sku }
 
-                        storage.customer = customer
-                        storage.isNeedSync = false
+                            val newPurchases =
+                                customer?.purchases?.firstOrNull { it.productId == purchase.sku }
 
-                        takeIf { !newSubscriptions.isNullOrEmpty() }?.let {
-                            apphudListener?.apphudSubscriptionsUpdated(customer?.subscriptions!!)
-                            callback?.invoke(ApphudPurchaseResult(newSubscriptions?.first(),
+                            storage.customer = customer
+                            storage.isNeedSync = false
+
+                            if (newSubscriptions == null && newPurchases == null) {
+                                val message =
+                                    "Error! There are no new subscriptions " +
+                                            "or new purchases from the Apphud server " +
+                                            "after the purchase of ${purchaseBody.purchases.first().product_id}"
+                                ApphudLog.logE(message)
+                                callback?.invoke(ApphudPurchaseResult(null,
+                                    null,
+                                    null,
+                                    ApphudError(message)))
+                            } else {
+                                apphudListener?.apphudSubscriptionsUpdated(customer.subscriptions)
+                                callback?.invoke(ApphudPurchaseResult(newSubscriptions,
+                                    newPurchases,
+                                    purchase,
+                                    null))
+                            }
+                        }
+                        else -> {
+                            callback?.invoke(ApphudPurchaseResult(null,
                                 null,
                                 purchase,
-                                null))
+                                errors)
+                            )
                         }
-                        takeIf { !newPurchases.isNullOrEmpty() }?.let {
-                            apphudListener?.apphudNonRenewingPurchasesUpdated(customer?.purchases!!)
-                            callback?.invoke(ApphudPurchaseResult(null,
-                                newPurchases?.first(),
-                                purchase,
-                                null))
-                        }
-                    }
-                    else -> {
-                        callback?.invoke(ApphudPurchaseResult(null,
-                            null,
-                            purchase,
-                            errors)
-                        )
                     }
                 }
             }
@@ -770,7 +779,8 @@ internal object ApphudInternal {
         return deviceId
     }
 
-    private fun makePurchaseBody(purchase: Purchase, details: SkuDetails?) =
+    private fun makePurchaseBody(
+        purchase: Purchase, details: SkuDetails?, paywall_id: String?, apphud_product_id: String? ) =
         PurchaseBody(
             device_id = deviceId,
             purchases = listOf(
@@ -781,25 +791,8 @@ internal object ApphudInternal {
                     price_currency_code = details?.priceCurrencyCode,
                     price_amount_micros = details?.priceAmountMicros,
                     subscription_period = details?.subscriptionPeriod,
-                    paywallId = null,
-                    product_bundle_id = null
-                )
-            )
-        )
-
-    private fun makePurchaseBodyV2(purchase: Purchase, product: ApphudProduct) =
-        PurchaseBody(
-            device_id = deviceId,
-            purchases = listOf(
-                PurchaseItemBody(
-                    order_id = purchase.orderId,
-                    product_id = purchase.sku,
-                    purchase_token = purchase.purchaseToken,
-                    price_currency_code = product.skuDetails?.priceCurrencyCode,
-                    price_amount_micros = product.skuDetails?.priceAmountMicros,
-                    subscription_period = product.skuDetails?.subscriptionPeriod,
-                    paywallId = product.paywallId,
-                    product_bundle_id = product.productId
+                    paywall_id = paywall_id,
+                    product_bundle_id = apphud_product_id
                 )
             )
         )
@@ -815,7 +808,7 @@ internal object ApphudInternal {
                     price_currency_code = purchase.details.priceCurrencyCode,
                     price_amount_micros = purchase.details.priceAmountMicros,
                     subscription_period = purchase.details.subscriptionPeriod,
-                    paywallId = null,
+                    paywall_id = null,
                     product_bundle_id = null
                 )
             }
@@ -848,11 +841,14 @@ internal object ApphudInternal {
         return getSkuDetailsList()?.let { skuList -> skuList.firstOrNull { it.sku == productIdentifier } }
     }
 
-    private fun tryInvokePaywallsDelayedCallback(){
+    private fun tryInvokePaywallsDelayedCallback() {
+        ApphudLog.log("Try invoke paywalls delayed callback")
         if (!paywalls.isNullOrEmpty() && skuDetailsIsLoaded.isBothSkuLoaded()) {
             setNeedsToUpdatePaywalls = false
             paywallsDelayedCallback?.invoke(paywalls, null)
             paywallsDelayedCallback = null
+        } else {
+            setNeedsToUpdatePaywalls = true
         }
     }
 
@@ -904,7 +900,7 @@ internal object ApphudInternal {
     private fun updatePaywallsWithSkuDetails(paywalls: List<ApphudPaywall>) {
         paywalls.forEach { paywall ->
             paywall.products?.forEach { product ->
-                product.skuDetails = getSkuDetailsByProductId(product.productId)
+                product.skuDetails = getSkuDetailsByProductId(product.product_id)
             }
         }
     }
@@ -912,7 +908,7 @@ internal object ApphudInternal {
     private fun updateGroupsWithSkuDetails(productGroups: List<ApphudGroup>) {
         productGroups.forEach { group ->
             group.products?.forEach { product ->
-                product.skuDetails = getSkuDetailsByProductId(product.productId)
+                product.skuDetails = getSkuDetailsByProductId(product.product_id)
             }
         }
     }
