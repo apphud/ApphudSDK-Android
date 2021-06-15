@@ -279,31 +279,29 @@ internal object ApphudInternal {
     ) {
         skuDetailsForFetchIsLoaded.set(0)
         val productName: String = productId ?: product?.product_id!!
-        ApphudLog.log("Could not find SkuDetails for product id: $productId in memory")
+        ApphudLog.log("Could not find SkuDetails for product id: $productName in memory")
         ApphudLog.log("Now try fetch it from Google Billing")
         val fetchDetailsCallback: ApphudSkuDetailsCallback = { skuList ->
             skuDetailsForFetchIsLoaded.incrementAndGet()
             if (skuList.isNotEmpty()) {
                 skuDetails.addAll(skuList)
-                ApphudLog.log("Google Billing return this info for product id = $productId :")
+                ApphudLog.log("Google Billing return this info for product id = $productName :")
                 skuList.forEach { ApphudLog.log("$it") }
             }
-            //if we have successfully fetched SkuDetails with target productId
-            getSkuDetailsByProductId(productName)?.let { sku ->
-                //we have SkuDetails and we don't need a callback anymore
-                billing.skuCallback = null
-                //if we have not empty ApphudProduct
-                product?.let {
-                    paywalls = cachedPaywalls()
-                    it.skuDetails = sku
-                    purchaseInternal(activity, null, it, withValidation, callback)
+            if (skuDetailsForFetchIsLoaded.isBothSkuLoaded()) {
+                //if we have successfully fetched SkuDetails with target productName
+                getSkuDetailsByProductId(productName)?.let { sku ->
+                    //if we have not empty ApphudProduct
+                    product?.let {
+                        paywalls = cachedPaywalls()
+                        it.skuDetails = sku
+                        purchaseInternal(activity, null, it, withValidation, callback)
+                    } ?: run {
+                        purchaseInternal(activity, sku, null, withValidation, callback)
+                    }
                 } ?: run {
-                    purchaseInternal(activity, sku, null, withValidation, callback)
-                }
-            } ?: run {
-                //if we booth SkuType already loaded and we still haven't any SkuDetails
-                if (skuDetailsForFetchIsLoaded.isBothSkuLoaded()) {
-                    val message = "Unable to fetch product with given product id: $productId"
+                    //if we booth SkuType already loaded and we still haven't any SkuDetails
+                    val message = "Unable to fetch product with given product id: $productName"
                     callback?.invoke(ApphudPurchaseResult(null,
                         null,
                         null,
@@ -311,8 +309,12 @@ internal object ApphudInternal {
                 }
             }
         }
-        billing.details(BillingClient.SkuType.SUBS, listOf(productName), fetchDetailsCallback)
-        billing.details(BillingClient.SkuType.INAPP, listOf(productName), fetchDetailsCallback)
+        billing.details(type = BillingClient.SkuType.SUBS,
+            products = listOf(productName),
+            manualCallback = fetchDetailsCallback)
+        billing.details(type = BillingClient.SkuType.INAPP,
+            products = listOf(productName),
+            manualCallback = fetchDetailsCallback)
     }
 
     private fun purchaseInternal(
