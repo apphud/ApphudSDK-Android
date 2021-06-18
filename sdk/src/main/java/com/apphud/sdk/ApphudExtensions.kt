@@ -8,6 +8,6 @@ internal fun Context.isDebuggable(): Boolean {
     return 0 != this.applicationInfo.flags and ApplicationInfo.FLAG_DEBUGGABLE
 }
 
-internal fun AtomicInteger.isBothSkuLoaded(): Boolean {
+internal fun AtomicInteger.isBothLoaded(): Boolean {
     return this.get() == 2
 }

@@ -9,6 +9,7 @@ import android.os.Handler
 import android.os.Looper
 import com.android.billingclient.api.BillingClient
 import com.android.billingclient.api.Purchase
+import com.android.billingclient.api.PurchaseHistoryRecord
 import com.android.billingclient.api.SkuDetails
 import com.apphud.sdk.body.*
 import com.apphud.sdk.client.ApphudClient
@@ -41,6 +42,7 @@ internal object ApphudInternal {
     private var generatedUUID = UUID.randomUUID().toString()
     private var prevPurchases = mutableSetOf<PurchaseRecordDetails>()
     private var tempPrevPurchases = mutableSetOf<PurchaseRecordDetails>()
+    private var productsForRestore = mutableListOf<PurchaseHistoryRecord>()
     internal var paywalls: MutableList<ApphudPaywall> = mutableListOf()
     internal var productGroups: MutableList<ApphudGroup> = mutableListOf()
 
@@ -80,6 +82,7 @@ internal object ApphudInternal {
     private var skuDetailsIsLoaded: AtomicInteger = AtomicInteger(0)
     private var skuDetailsForFetchIsLoaded: AtomicInteger = AtomicInteger(0)
     private var skuDetailsForRestoreIsLoaded: AtomicInteger = AtomicInteger(0)
+    private var purchasesForRestoreIsLoaded: AtomicInteger = AtomicInteger(0)
 
     private var customProductsFetchedBlock: ((List<SkuDetails>) -> Unit)? = null
 
@@ -183,7 +186,7 @@ internal object ApphudInternal {
             if (details.isNotEmpty()) {
                 skuDetails.addAll(details)
             }
-            if(skuDetailsIsLoaded.isBothSkuLoaded()) {
+            if (skuDetailsIsLoaded.isBothLoaded()) {
                 paywalls = cachedPaywalls()
                 productGroups = cachedGroups()
                 customProductsFetchedBlock?.invoke(skuDetails)
@@ -257,7 +260,7 @@ internal object ApphudInternal {
             } else {
                 fetchDetails(activity, productId, null, withValidation, callback)
             }
-        } else if (skuDetails !=null ){
+        } else if (skuDetails != null) {
             //if we have SkuDetails
             purchaseInternal(activity, skuDetails, null, withValidation, callback)
         } else {
@@ -288,7 +291,7 @@ internal object ApphudInternal {
                 ApphudLog.log("Google Billing return this info for product id = $productName :")
                 skuList.forEach { ApphudLog.log("$it") }
             }
-            if (skuDetailsForFetchIsLoaded.isBothSkuLoaded()) {
+            if (skuDetailsForFetchIsLoaded.isBothLoaded()) {
                 //if we have successfully fetched SkuDetails with target productName
                 getSkuDetailsByProductId(productName)?.let { sku ->
                     //if we have not empty ApphudProduct
@@ -337,7 +340,7 @@ internal object ApphudInternal {
                 is PurchaseCallbackStatus.Success -> {
                     ApphudLog.log("acknowledge success")
                     when {
-                        withValidation -> ackPurchase(purchase, details , product, callback)
+                        withValidation -> ackPurchase(purchase, details, product, callback)
                         else -> {
                             callback?.invoke(ApphudPurchaseResult(null, null, purchase, null))
                             ackPurchase(purchase, details, product, null)
@@ -359,7 +362,7 @@ internal object ApphudInternal {
                 is PurchaseCallbackStatus.Success -> {
                     ApphudLog.log("consume callback value: ${status.message}")
                     when {
-                        withValidation -> ackPurchase(purchase, details,product, callback)
+                        withValidation -> ackPurchase(purchase, details, product, callback)
                         else -> {
                             callback?.invoke(ApphudPurchaseResult(null, null, purchase, null))
                             ackPurchase(purchase, details, product, null)
@@ -371,10 +374,9 @@ internal object ApphudInternal {
         billing.purchasesCallback = { purchasesResult ->
             when (purchasesResult) {
                 is PurchaseUpdatedCallbackStatus.Error -> {
-                    val message = if(details!=null) {
+                    val message = if (details != null) {
                         "Unable to buy product with given product id: ${details.sku} "
-                    }
-                    else {
+                    } else {
                         "Unable to buy product with given product id: ${product?.skuDetails?.sku} "
                     }
                     val error =
@@ -386,7 +388,7 @@ internal object ApphudInternal {
                 }
                 is PurchaseUpdatedCallbackStatus.Success -> {
                     ApphudLog.log("purchases: $purchasesResult")
-                    val detailsType = if(details!=null) {
+                    val detailsType = if (details != null) {
                         details.type
                     } else {
                         product?.skuDetails?.type
@@ -426,7 +428,7 @@ internal object ApphudInternal {
             }
         }
         when {
-            details!=null -> {
+            details != null -> {
                 billing.purchase(activity, details)
             }
             product?.skuDetails != null -> {
@@ -516,75 +518,79 @@ internal object ApphudInternal {
         callback: ApphudPurchasesRestoreCallback? = null
     ) {
         storage.isNeedSync = true
+        productsForRestore.clear()
+        tempPrevPurchases.clear()
+        purchasesForRestoreIsLoaded.set(0)
         skuDetailsForRestoreIsLoaded.set(0)
         billing.restoreCallback = { restoreStatus ->
             skuDetailsForRestoreIsLoaded.incrementAndGet()
             when (restoreStatus) {
                 is PurchaseRestoredCallbackStatus.Error -> {
                     ApphudLog.log("SyncPurchases: restore purchases is failed coz ${restoreStatus.message}")
-                    if (skuDetailsForRestoreIsLoaded.isBothSkuLoaded() && tempPrevPurchases.isEmpty()) {
-                        when (restoreStatus.result == null) {
-                            //Restore is success, but list of purchases is empty
-                            true -> {
-                                val error = ApphudError(message = restoreStatus.message ?: "")
-                                callback?.invoke(null, null, error)
-                            }
-                            else -> {
-                                val error =
-                                    ApphudError(message = "Restore Purchases is failed for SkuType.SUBS and SkuType.INAPP",
-                                        secondErrorMessage = restoreStatus.message,
-                                        errorCode = restoreStatus.result.responseCode)
-                                callback?.invoke(null, null, error)
-                            }
+                    if (skuDetailsForRestoreIsLoaded.isBothLoaded()) {
+                        if (tempPrevPurchases.isEmpty()) {
+                            val error =
+                                ApphudError(message = "Restore Purchases is failed for SkuType.SUBS and SkuType.INAPP",
+                                    secondErrorMessage = restoreStatus.message,
+                                    errorCode = restoreStatus.result?.responseCode)
+                            callback?.invoke(null, null, error)
+                        } else {
+                            syncPurchasesWithApphud(tempPrevPurchases, callback)
                         }
                     }
                 }
                 is PurchaseRestoredCallbackStatus.Success -> {
-                    ApphudLog.log("PurchaseRestoredCallback: ${restoreStatus.purchases}")
-                    if (!allowsReceiptRefresh && prevPurchases.containsAll(restoreStatus.purchases)) {
-                        ApphudLog.log("SyncPurchases: Don't send equal purchases from prev state")
-                    } else {
-                        client.purchased(makeRestorePurchasesBody(restoreStatus.purchases)) { customer, errors ->
-                            handler.post {
-                                when (errors) {
-                                    null -> {
-                                        tempPrevPurchases.addAll(restoreStatus.purchases)
+                    ApphudLog.log("SyncPurchases: purchases was restored: ${restoreStatus.purchases}")
+                    tempPrevPurchases.addAll(restoreStatus.purchases)
 
-                                        if (skuDetailsForRestoreIsLoaded.isBothSkuLoaded()) {
-                                            prevPurchases.addAll(tempPrevPurchases)
-                                                .also { tempPrevPurchases.clear() }
-                                            storage.isNeedSync = false
-                                            storage.customer = customer
-                                            ApphudLog.log("SyncPurchases: customer updated $customer")
-                                            apphudListener?.apphudSubscriptionsUpdated(customer?.subscriptions!!)
-                                            apphudListener?.apphudNonRenewingPurchasesUpdated(
-                                                customer?.purchases!!)
-                                            callback?.invoke(customer?.subscriptions,
-                                                customer?.purchases,
-                                                null)
-                                        }
-                                    }
-                                    else -> {
-                                        callback?.invoke(null, null, errors)
-                                    }
-                                }
-                            }
-                            ApphudLog.log("SyncPurchases: success send history purchases ${restoreStatus.purchases}")
+                    if (skuDetailsForRestoreIsLoaded.isBothLoaded()) {
+                        if (!allowsReceiptRefresh && prevPurchases.containsAll(tempPrevPurchases)) {
+                            ApphudLog.log("SyncPurchases: Don't send equal purchases from prev state")
+                        } else {
+                            syncPurchasesWithApphud(tempPrevPurchases, callback)
                         }
                     }
                 }
             }
-
         }
         billing.historyCallback = { purchases ->
-            if (!purchases.isNullOrEmpty()) {
-                ApphudLog.log("historyCallback: $purchases")
-                billing.restore(BillingClient.SkuType.SUBS, purchases)
-                billing.restore(BillingClient.SkuType.INAPP, purchases)
+            purchasesForRestoreIsLoaded.incrementAndGet()
+            if (!purchases.isNullOrEmpty())
+                productsForRestore.addAll(purchases)
+
+            if (purchasesForRestoreIsLoaded.isBothLoaded() && !productsForRestore.isNullOrEmpty()) {
+                ApphudLog.log("historyCallback: $productsForRestore")
+                billing.restore(BillingClient.SkuType.SUBS, productsForRestore)
+                billing.restore(BillingClient.SkuType.INAPP, productsForRestore)
             }
         }
         billing.queryPurchaseHistory(BillingClient.SkuType.SUBS)
         billing.queryPurchaseHistory(BillingClient.SkuType.INAPP)
+    }
+
+    private fun syncPurchasesWithApphud(
+        tempPurchaseRecordDetails: Set<PurchaseRecordDetails>,
+        callback: ApphudPurchasesRestoreCallback? = null
+    ) {
+        client.purchased(makeRestorePurchasesBody(tempPurchaseRecordDetails.toList())) { customer, errors ->
+            handler.post {
+                when (errors) {
+                    null -> {
+                        prevPurchases.addAll(tempPurchaseRecordDetails)
+                        storage.isNeedSync = false
+                        storage.customer = customer
+                        ApphudLog.log("SyncPurchases: customer was updated $customer")
+                        apphudListener?.apphudSubscriptionsUpdated(customer?.subscriptions!!)
+                        apphudListener?.apphudNonRenewingPurchasesUpdated(customer?.purchases!!)
+                        callback?.invoke(customer?.subscriptions, customer?.purchases, null)
+                    }
+                    else -> {
+                        callback?.invoke(null, null, errors)
+                    }
+                }
+            }
+            ApphudLog.log("SyncPurchases: success send history purchases ${tempPurchaseRecordDetails.toList()}")
+        }
     }
 
     internal fun addAttribution(
@@ -782,7 +788,8 @@ internal object ApphudInternal {
     }
 
     private fun makePurchaseBody(
-        purchase: Purchase, details: SkuDetails?, paywall_id: String?, apphud_product_id: String? ) =
+        purchase: Purchase, details: SkuDetails?, paywall_id: String?, apphud_product_id: String?
+    ) =
         PurchaseBody(
             device_id = deviceId,
             purchases = listOf(
@@ -845,7 +852,7 @@ internal object ApphudInternal {
 
     private fun tryInvokePaywallsDelayedCallback() {
         ApphudLog.log("Try invoke paywalls delayed callback")
-        if (!paywalls.isNullOrEmpty() && skuDetailsIsLoaded.isBothSkuLoaded()) {
+        if (!paywalls.isNullOrEmpty() && skuDetailsIsLoaded.isBothLoaded()) {
             setNeedsToUpdatePaywalls = false
             paywallsDelayedCallback?.invoke(paywalls, null)
             paywallsDelayedCallback = null
@@ -870,7 +877,7 @@ internal object ApphudInternal {
                     clear()
                     addAll(paywalls)
                 }
-                if(skuDetailsIsLoaded.isBothSkuLoaded()) {
+                if (skuDetailsIsLoaded.isBothLoaded()) {
                     callback.invoke(paywalls, null)
                 } else {
                     paywallsDelayedCallback = callback
