@@ -268,7 +268,12 @@ internal object ApphudInternal {
             product?.skuDetails?.let {
                 purchaseInternal(activity, null, product, withValidation, callback)
             } ?: run {
-                fetchDetails(activity, null, product, withValidation, callback)
+                val sku = getSkuDetailsByProductId(product?.product_id!!)
+                if (sku != null) {
+                    purchaseInternal(activity, sku, null, withValidation, callback)
+                } else {
+                    fetchDetails(activity, null, product, withValidation, callback)
+                }
             }
         }
     }
