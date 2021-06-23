@@ -4,9 +4,11 @@ import com.android.billingclient.api.BillingClient
 import com.android.billingclient.api.PurchaseHistoryRecord
 import com.android.billingclient.api.SkuDetails
 import com.android.billingclient.api.SkuDetailsParams
-import com.apphud.sdk.*
 import com.apphud.sdk.ApphudLog
+import com.apphud.sdk.ProductId
 import com.apphud.sdk.domain.PurchaseRecordDetails
+import com.apphud.sdk.isSuccess
+import com.apphud.sdk.logMessage
 import kotlin.concurrent.thread
 
 typealias SkuType = String
@@ -20,7 +22,7 @@ internal class SkuDetailsWrapper(
     var restoreCallback: ApphudSkuDetailsRestoreCallback? = null
 
     fun restoreAsync(@BillingClient.SkuType type: SkuType, records: List<PurchaseHistoryRecord>) {
-        val products = records.map { it.sku }
+        val products = records.map { it.skus }.flatten()
         val params = SkuDetailsParams.newBuilder()
             .setSkusList(products)
             .setType(type)
@@ -37,10 +39,10 @@ internal class SkuDetailsWrapper(
                 when (result.isSuccess()) {
                     true -> {
                         val values = details ?: emptyList()
-                        val purchases = values.map { detail ->
+                        val purchases = values.map { skuDetail ->
                             PurchaseRecordDetails(
-                                record = records.first { it.sku == detail.sku },
-                                details = detail
+                                record = records.first { it.skus.contains(skuDetail.sku) },
+                                details = skuDetail
                             )
                         }
                         when (purchases.isEmpty()) {
