@@ -103,6 +103,9 @@ internal class ApphudClient(apiKey: ApiKey, private val parser: Parser) {
         })
     }
 
+    /**
+     * For internal use only
+     * */
     fun sendErrorLogs(body: ErrorLogsBody){
         val callable = ErrorLogsCallable(body, serviceV1)
         thread.execute(LoopRunnable(callable) { response ->
