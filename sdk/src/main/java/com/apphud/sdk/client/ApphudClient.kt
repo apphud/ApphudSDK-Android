@@ -16,11 +16,11 @@ internal class ApphudClient(apiKey: ApiKey, private val parser: Parser) {
 
     private val thread = ThreadsUtils()
     private val executorV1: NetworkExecutor = HttpUrlConnectionExecutor(ApiClient.host, ApphudVersion.V1, parser)
-    private val serviceV1 = ApphudService(apiKey, executorV1)
+    private val serviceV1 = ApphudServiceV1(apiKey, executorV1)
 
     //Used in getProducts & getPaywalls
     private val executorV2: NetworkExecutor = HttpUrlConnectionExecutor(ApiClient.host, ApphudVersion.V2, parser)
-    private val serviceV2 = ApphudService(apiKey, executorV2)
+    private val serviceV2 = ApphudServiceV2(apiKey, executorV2)
 
     fun registrationUser(body: RegistrationBody, callback: CustomerCallback) {
         val callable = RegistrationCallable(body, serviceV1)

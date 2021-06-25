@@ -10,7 +10,7 @@ import com.apphud.sdk.client.dto.*
  *
  * Пока используется TypeToken из библиотеки Gson. Нужно будет посмотреть как от этого уйти
  */
-class ApphudService(
+class ApphudServiceV1(
     private val apiKey: ApiKey,
     private val executor: NetworkExecutor
 ) {
@@ -31,19 +31,6 @@ class ApphudService(
         ),
         body
     )
-
-    /**
-     * Получение идентификаторов продуктов
-     */
-    fun products(): ResponseDto<List<ApphudGroupDto>> =
-        executor.call(
-            RequestConfig(
-                path = "products",
-                type = object : TypeToken<ResponseDto<List<ApphudGroupDto>>>(){}.type,
-                queries = mapOf(API_KEY to apiKey),
-                requestType = RequestType.GET
-            )
-        )
 
     /**
      * Отправка атрибуции
