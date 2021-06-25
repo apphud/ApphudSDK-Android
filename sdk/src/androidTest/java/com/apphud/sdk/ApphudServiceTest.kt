@@ -11,7 +11,7 @@ import com.google.gson.Gson
 import org.junit.Before
 import org.junit.Test
 
-class ApphudServiceV1Test {
+class ApphudServiceTest {
 
 //    private val userId = "987654321"
 //    private val deviceId = "123456789"
@@ -98,7 +98,9 @@ class ApphudServiceV1Test {
             purchase_token = "test purchase_token",
             price_currency_code = "RUB",
             price_amount_micros = 111,
-            subscription_period = "test subscription_period"
+            subscription_period = "test subscription_period",
+            paywall_id = null,
+            product_bundle_id = null
         )
         val body = PurchaseBody(
             device_id = deviceId,
