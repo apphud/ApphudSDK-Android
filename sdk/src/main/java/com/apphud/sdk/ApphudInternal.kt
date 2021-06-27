@@ -344,7 +344,7 @@ internal object ApphudInternal {
         billing.acknowledgeCallback = { status, purchase ->
             when (status) {
                 is PurchaseCallbackStatus.Error -> {
-                    val message = "After purchase acknowledge is failed with code: ${status.error}"
+                    val message = "Failed to acknowledge purchase with code: ${status.error}"
                     ApphudLog.log(message = message,
                         apphud_product_id = apphudProduct?.id,
                         sendLogToServer = true)
@@ -354,7 +354,7 @@ internal object ApphudInternal {
                         ApphudError(message)))
                 }
                 is PurchaseCallbackStatus.Success -> {
-                    ApphudLog.log("acknowledge success")
+                    ApphudLog.log("Purchase successfully acknowledged")
                     when {
                         withValidation -> ackPurchase(purchase, details, apphudProduct, callback)
                         else -> {
@@ -368,7 +368,7 @@ internal object ApphudInternal {
         billing.consumeCallback = { status, purchase ->
             when (status) {
                 is PurchaseCallbackStatus.Error -> {
-                    val message = "After purchase consume is failed with value: ${status.error}"
+                    val message = "Failed to consume purchase with error: ${status.error}"
                     ApphudLog.log(message = message,
                         apphud_product_id = apphudProduct?.id,
                         sendLogToServer = true)
@@ -378,7 +378,7 @@ internal object ApphudInternal {
                         ApphudError(message)))
                 }
                 is PurchaseCallbackStatus.Success -> {
-                    ApphudLog.log("consume callback value: ${status.message}")
+                    ApphudLog.log("Purchase successfully consumed: ${status.message}")
                     when {
                         withValidation -> ackPurchase(purchase, details, apphudProduct, callback)
                         else -> {
@@ -403,8 +403,7 @@ internal object ApphudInternal {
                             errorCode = purchasesResult.result.responseCode
                         )
                     ApphudLog.log(message = error.toString(),
-                        apphud_product_id = apphudProduct?.id,
-                        sendLogToServer = true)
+                        apphud_product_id = apphudProduct?.id)
                     callback?.invoke(ApphudPurchaseResult(null, null, null, error))
                 }
                 is PurchaseUpdatedCallbackStatus.Success -> {
@@ -438,8 +437,7 @@ internal object ApphudInternal {
                             else -> {
                                 val message = "After purchase state: ${it.purchaseState}"
                                 ApphudLog.log(message = message,
-                                    apphud_product_id = apphudProduct?.id,
-                                    sendLogToServer = true)
+                                    apphud_product_id = apphudProduct?.id)
                                 callback?.invoke(ApphudPurchaseResult(null,
                                     null,
                                     it,
@@ -458,10 +456,9 @@ internal object ApphudInternal {
                 billing.purchase(activity, apphudProduct.skuDetails!!, client)
             }
             else -> {
-                val message = "Unable to buy product with coz SkuDetails is null"
+                val message = "Unable to buy product with because SkuDetails is null"
                 ApphudLog.log(message = message,
-                    apphud_product_id = apphudProduct?.id,
-                    sendLogToServer = true)
+                    apphud_product_id = apphudProduct?.id)
                 callback?.invoke(ApphudPurchaseResult(null,
                     null,
                     null,
@@ -480,10 +477,9 @@ internal object ApphudInternal {
             ?: apphudProduct?.let { makePurchaseBody(purchase, it.skuDetails, it.paywall_id, it.id) }
         if (purchaseBody == null) {
             val message =
-                "Error!!! SkuDetails and ApphudProduct cannot be null at the same time !!!"
+                "SkuDetails and ApphudProduct can not be null at the same time"
             ApphudLog.log(message = message,
-                apphud_product_id = apphudProduct?.id,
-                sendLogToServer = true)
+                apphud_product_id = apphudProduct?.id)
             callback?.invoke(ApphudPurchaseResult(null,
                 null,
                 null,
@@ -524,10 +520,9 @@ internal object ApphudInternal {
                             }
                         }
                         else -> {
-                            val message = "Error on ackPurchase with message = ${errors.message} and code = ${errors.errorCode}"
+                            val message = "Unable to validate purchase with error = ${errors.message} and code = ${errors.errorCode}"
                             ApphudLog.log(message = message,
-                                apphud_product_id = apphudProduct?.id,
-                                sendLogToServer = true)
+                                apphud_product_id = apphudProduct?.id)
                             callback?.invoke(ApphudPurchaseResult(null,
                                 null,
                                 purchase,
@@ -646,7 +641,7 @@ internal object ApphudInternal {
                     else -> {
                         val message =
                             "Sync Purchases with Apphud is failed with message = ${errors.message} and code = ${errors.errorCode}"
-                        ApphudLog.log(message = message, sendLogToServer = true)
+                        ApphudLog.log(message = message)
                         callback?.invoke(null, null, errors)
                     }
                 }
@@ -961,7 +956,7 @@ internal object ApphudInternal {
             } ?: run {
                 val message =
                     "Get Paywalls is failed with message = ${error?.message} and code = ${error?.errorCode}"
-                ApphudLog.log(message = message, sendLogToServer = true)
+                ApphudLog.log(message = message)
                 callback.invoke(null, error)
             }
         }

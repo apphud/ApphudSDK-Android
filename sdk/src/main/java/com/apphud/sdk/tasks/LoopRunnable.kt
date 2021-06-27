@@ -25,8 +25,7 @@ class LoopRunnable<T>(
             val exception = e as? NetworkException
             when (exception?.code) {
                 401, 403 -> {
-                    return ApphudLog.log(message = "Response code: ${exception.code} signal for cancel request",
-                    sendLogToServer = true)
+                    return ApphudLog.log(message = "Response code: ${exception.code} signal for cancel request")
                 }
                 else -> try {
                     val timeout = interrupted.calculate(callable.counter)
@@ -39,8 +38,7 @@ class LoopRunnable<T>(
                     callable.counter += 1
                     when {
                         callable.counter > COUNT -> {
-                            ApphudLog.log(message = "Stop retry $callable after $COUNT steps",
-                                sendLogToServer = true)
+                            ApphudLog.log(message = "Stop retry $callable after $COUNT steps")
                         }
                         else -> run()
                     }
