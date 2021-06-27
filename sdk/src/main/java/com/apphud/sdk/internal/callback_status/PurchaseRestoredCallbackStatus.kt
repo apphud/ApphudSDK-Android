@@ -1,4 +1,4 @@
-package com.apphud.sdk.internal
+package com.apphud.sdk.internal.callback_status
 
 import com.android.billingclient.api.BillingResult
 import com.apphud.sdk.domain.PurchaseRecordDetails
