@@ -2,6 +2,7 @@ package com.apphud.sdk.internal
 
 import com.android.billingclient.api.BillingClient
 import com.android.billingclient.api.BillingResult
+import com.apphud.sdk.internal.callback_status.PurchaseUpdatedCallbackStatus
 import com.apphud.sdk.isSuccess
 import com.apphud.sdk.logMessage
 import java.io.Closeable
@@ -22,7 +23,7 @@ internal class PurchasesUpdated(
                     callback?.invoke(PurchaseUpdatedCallbackStatus.Success(purchases))
                 }
                 else -> {
-                    result.logMessage("failed purchase")
+                    result.logMessage("Failed Purchase")
                     callback?.invoke(PurchaseUpdatedCallbackStatus.Error(result))
                 }
             }

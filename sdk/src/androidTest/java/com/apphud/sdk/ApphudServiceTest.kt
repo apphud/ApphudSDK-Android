@@ -3,7 +3,8 @@ package com.apphud.sdk
 import android.util.Log
 import com.apphud.sdk.body.*
 import com.apphud.sdk.client.ApiClient
-import com.apphud.sdk.client.ApphudService
+import com.apphud.sdk.client.ApphudServiceV1
+import com.apphud.sdk.client.ApphudServiceV2
 import com.apphud.sdk.client.HttpUrlConnectionExecutor
 import com.apphud.sdk.parser.GsonParser
 import com.google.gson.Gson
@@ -18,7 +19,8 @@ class ApphudServiceTest {
     private val userId = "cleaner_303"
     private val deviceId = "cleaner_303"
     private val API_KEY = "app_4sY9cLggXpMDDQMmvc5wXUPGReMp8G"
-    private lateinit var service: ApphudService
+    private lateinit var serviceV1: ApphudServiceV1
+    private lateinit var serviceV2: ApphudServiceV2
 
     @Before
     fun setup() {
@@ -27,7 +29,7 @@ class ApphudServiceTest {
             version = ApphudVersion.V1,
             parser = GsonParser(Gson())
         )
-        service = ApphudService(API_KEY, executor)
+        serviceV1 = ApphudServiceV1(API_KEY, executor)
     }
 
     @Test
@@ -37,12 +39,12 @@ class ApphudServiceTest {
             userId = userId,
             deviceId = deviceId
         )
-        service.registration(body).data.results
+        serviceV1.registration(body).data.results
     }
 
     @Test
     fun productsTest() {
-        val products = service.products()
+        val products = serviceV2.products()
         Log.e("WOW", "load products: ${products.data.results}")
     }
 
@@ -52,7 +54,7 @@ class ApphudServiceTest {
             deviceId,
             adjust_data = mapOf("key" to "value")
         )
-        val response = service.send(body)
+        val response = serviceV1.send(body)
         Log.e("WOW", "send attribution result: ${response.data.results}")
     }
 
@@ -62,7 +64,7 @@ class ApphudServiceTest {
             deviceId,
             facebook_data = mapOf("key" to "value")
         )
-        val response = service.send(body)
+        val response = serviceV1.send(body)
         Log.e("WOW", "send attribution result: ${response.data.results}")
     }
 
@@ -73,7 +75,7 @@ class ApphudServiceTest {
             appsflyer_data = mapOf("key" to "value"),
             appsflyer_id = "AppsflyerId"
         )
-        val response = service.send(body)
+        val response = serviceV1.send(body)
         Log.e("WOW", "send attribution result: ${response.data.results}")
     }
 
@@ -83,7 +85,7 @@ class ApphudServiceTest {
             device_id = deviceId,
             push_token = "This is push token."
         )
-        val response = service.send(body)
+        val response = serviceV1.send(body)
         Log.e("WOW", "send push result: ${response.data.results}")
     }
 
@@ -96,13 +98,15 @@ class ApphudServiceTest {
             purchase_token = "test purchase_token",
             price_currency_code = "RUB",
             price_amount_micros = 111,
-            subscription_period = "test subscription_period"
+            subscription_period = "test subscription_period",
+            paywall_id = null,
+            product_bundle_id = null
         )
         val body = PurchaseBody(
             device_id = deviceId,
             purchases = listOf(item)
         )
-        val response = service.purchase(body)
+        val response = serviceV1.purchase(body)
         Log.e("WOW", "send push result: ${response.data.results}")
     }
 
@@ -143,7 +147,7 @@ class ApphudServiceTest {
                 )
             )
         )
-        val response = service.sendUserProperties(body)
+        val response = serviceV1.sendUserProperties(body)
         Log.e("WOW", "send user properties result: ${response.data.results}")
     }
 }

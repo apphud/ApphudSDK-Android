@@ -14,7 +14,12 @@ import com.android.billingclient.api.SkuDetails
 import com.apphud.sdk.body.*
 import com.apphud.sdk.client.ApphudClient
 import com.apphud.sdk.domain.*
-import com.apphud.sdk.internal.*
+import com.apphud.sdk.internal.ApphudSkuDetailsCallback
+import com.apphud.sdk.internal.BillingWrapper
+import com.apphud.sdk.internal.callback_status.PurchaseCallbackStatus
+import com.apphud.sdk.internal.callback_status.PurchaseHistoryCallbackStatus
+import com.apphud.sdk.internal.callback_status.PurchaseRestoredCallbackStatus
+import com.apphud.sdk.internal.callback_status.PurchaseUpdatedCallbackStatus
 import com.apphud.sdk.parser.GsonParser
 import com.apphud.sdk.parser.Parser
 import com.apphud.sdk.storage.SharedPreferencesStorage
@@ -163,6 +168,7 @@ internal object ApphudInternal {
                     "\n=============================================================")
             return
         }
+        ApphudLog.setClient(client)
         allowIdentifyUser = false
         ApphudLog.log("try restore cachedPaywalls")
         this.paywalls = cachedPaywalls()
@@ -268,7 +274,12 @@ internal object ApphudInternal {
             product?.skuDetails?.let {
                 purchaseInternal(activity, null, product, withValidation, callback)
             } ?: run {
-                fetchDetails(activity, null, product, withValidation, callback)
+                val sku = getSkuDetailsByProductId(product?.product_id!!)
+                if (sku != null) {
+                    purchaseInternal(activity, sku, null, withValidation, callback)
+                } else {
+                    fetchDetails(activity, null, product, withValidation, callback)
+                }
             }
         }
     }
@@ -276,12 +287,12 @@ internal object ApphudInternal {
     private fun fetchDetails(
         activity: Activity,
         productId: String?,
-        product: ApphudProduct?,
+        apphudProduct: ApphudProduct?,
         withValidation: Boolean,
         callback: ((ApphudPurchaseResult) -> Unit)?
     ) {
         skuDetailsForFetchIsLoaded.set(0)
-        val productName: String = productId ?: product?.product_id!!
+        val productName: String = productId ?: apphudProduct?.product_id!!
         ApphudLog.log("Could not find SkuDetails for product id: $productName in memory")
         ApphudLog.log("Now try fetch it from Google Billing")
         val fetchDetailsCallback: ApphudSkuDetailsCallback = { skuList ->
@@ -295,7 +306,7 @@ internal object ApphudInternal {
                 //if we have successfully fetched SkuDetails with target productName
                 getSkuDetailsByProductId(productName)?.let { sku ->
                     //if we have not empty ApphudProduct
-                    product?.let {
+                    apphudProduct?.let {
                         paywalls = cachedPaywalls()
                         it.skuDetails = sku
                         purchaseInternal(activity, null, it, withValidation, callback)
@@ -305,6 +316,9 @@ internal object ApphudInternal {
                 } ?: run {
                     //if we booth SkuType already loaded and we still haven't any SkuDetails
                     val message = "Unable to fetch product with given product id: $productName"
+                    ApphudLog.log(message = message,
+                        apphud_product_id = apphudProduct?.id,
+                        sendLogToServer = true)
                     callback?.invoke(ApphudPurchaseResult(null,
                         null,
                         null,
@@ -323,27 +337,29 @@ internal object ApphudInternal {
     private fun purchaseInternal(
         activity: Activity,
         details: SkuDetails?,
-        product: ApphudProduct?,
+        apphudProduct: ApphudProduct?,
         withValidation: Boolean,
         callback: ((ApphudPurchaseResult) -> Unit)?
     ) {
         billing.acknowledgeCallback = { status, purchase ->
             when (status) {
                 is PurchaseCallbackStatus.Error -> {
-                    val message = "After purchase acknowledge is failed with code: ${status.error}"
-                    ApphudLog.log(message)
+                    val message = "Failed to acknowledge purchase with code: ${status.error}"
+                    ApphudLog.log(message = message,
+                        apphud_product_id = apphudProduct?.id,
+                        sendLogToServer = true)
                     callback?.invoke(ApphudPurchaseResult(null,
                         null,
                         purchase,
                         ApphudError(message)))
                 }
                 is PurchaseCallbackStatus.Success -> {
-                    ApphudLog.log("acknowledge success")
+                    ApphudLog.log("Purchase successfully acknowledged")
                     when {
-                        withValidation -> ackPurchase(purchase, details, product, callback)
+                        withValidation -> ackPurchase(purchase, details, apphudProduct, callback)
                         else -> {
                             callback?.invoke(ApphudPurchaseResult(null, null, purchase, null))
-                            ackPurchase(purchase, details, product, null)
+                            ackPurchase(purchase, details, apphudProduct, null)
                         }
                     }
                 }
@@ -352,20 +368,22 @@ internal object ApphudInternal {
         billing.consumeCallback = { status, purchase ->
             when (status) {
                 is PurchaseCallbackStatus.Error -> {
-                    val message = "After purchase consume is failed with value: ${status.error}"
-                    ApphudLog.log(message)
+                    val message = "Failed to consume purchase with error: ${status.error}"
+                    ApphudLog.log(message = message,
+                        apphud_product_id = apphudProduct?.id,
+                        sendLogToServer = true)
                     callback?.invoke(ApphudPurchaseResult(null,
                         null,
                         purchase,
                         ApphudError(message)))
                 }
                 is PurchaseCallbackStatus.Success -> {
-                    ApphudLog.log("consume callback value: ${status.message}")
+                    ApphudLog.log("Purchase successfully consumed: ${status.message}")
                     when {
-                        withValidation -> ackPurchase(purchase, details, product, callback)
+                        withValidation -> ackPurchase(purchase, details, apphudProduct, callback)
                         else -> {
                             callback?.invoke(ApphudPurchaseResult(null, null, purchase, null))
-                            ackPurchase(purchase, details, product, null)
+                            ackPurchase(purchase, details, apphudProduct, null)
                         }
                     }
                 }
@@ -377,13 +395,15 @@ internal object ApphudInternal {
                     val message = if (details != null) {
                         "Unable to buy product with given product id: ${details.sku} "
                     } else {
-                        "Unable to buy product with given product id: ${product?.skuDetails?.sku} "
+                        "Unable to buy product with given product id: ${apphudProduct?.skuDetails?.sku} "
                     }
                     val error =
                         ApphudError(message = message,
                             secondErrorMessage = purchasesResult.result.debugMessage,
                             errorCode = purchasesResult.result.responseCode
                         )
+                    ApphudLog.log(message = error.toString(),
+                        apphud_product_id = apphudProduct?.id)
                     callback?.invoke(ApphudPurchaseResult(null, null, null, error))
                 }
                 is PurchaseUpdatedCallbackStatus.Success -> {
@@ -391,7 +411,7 @@ internal object ApphudInternal {
                     val detailsType = if (details != null) {
                         details.type
                     } else {
-                        product?.skuDetails?.type
+                        apphudProduct?.skuDetails?.type
                     }
                     purchasesResult.purchases.forEach {
                         when (it.purchaseState) {
@@ -416,7 +436,8 @@ internal object ApphudInternal {
                                 }
                             else -> {
                                 val message = "After purchase state: ${it.purchaseState}"
-                                ApphudLog.log(message)
+                                ApphudLog.log(message = message,
+                                    apphud_product_id = apphudProduct?.id)
                                 callback?.invoke(ApphudPurchaseResult(null,
                                     null,
                                     it,
@@ -429,14 +450,15 @@ internal object ApphudInternal {
         }
         when {
             details != null -> {
-                billing.purchase(activity, details)
+                billing.purchase(activity, details, client)
             }
-            product?.skuDetails != null -> {
-                billing.purchase(activity, product.skuDetails!!)
+            apphudProduct?.skuDetails != null -> {
+                billing.purchase(activity, apphudProduct.skuDetails!!, client)
             }
             else -> {
-                val message = "Unable to buy product with coz SkuDetails is null"
-                ApphudLog.log(message)
+                val message = "Unable to buy product with because SkuDetails is null"
+                ApphudLog.log(message = message,
+                    apphud_product_id = apphudProduct?.id)
                 callback?.invoke(ApphudPurchaseResult(null,
                     null,
                     null,
@@ -448,15 +470,16 @@ internal object ApphudInternal {
     private fun ackPurchase(
         purchase: Purchase,
         details: SkuDetails?,
-        product: ApphudProduct?,
+        apphudProduct: ApphudProduct?,
         callback: ((ApphudPurchaseResult) -> Unit)?
     ) {
         val purchaseBody = details?.let { makePurchaseBody(purchase, it, null, null) }
-            ?: product?.let { makePurchaseBody(purchase, it.skuDetails, it.paywall_id, it.id) }
+            ?: apphudProduct?.let { makePurchaseBody(purchase, it.skuDetails, it.paywall_id, it.id) }
         if (purchaseBody == null) {
             val message =
-                "Error!!! SkuDetails and ApphudProduct cannot be null at the same time !!!"
-            ApphudLog.logE(message)
+                "SkuDetails and ApphudProduct can not be null at the same time"
+            ApphudLog.log(message = message,
+                apphud_product_id = apphudProduct?.id)
             callback?.invoke(ApphudPurchaseResult(null,
                 null,
                 null,
@@ -497,6 +520,9 @@ internal object ApphudInternal {
                             }
                         }
                         else -> {
+                            val message = "Unable to validate purchase with error = ${errors.message} and code = ${errors.errorCode}"
+                            ApphudLog.log(message = message,
+                                apphud_product_id = apphudProduct?.id)
                             callback?.invoke(ApphudPurchaseResult(null,
                                 null,
                                 purchase,
@@ -533,6 +559,7 @@ internal object ApphudInternal {
                                 ApphudError(message = "Restore Purchases is failed for SkuType.SUBS and SkuType.INAPP",
                                     secondErrorMessage = restoreStatus.message,
                                     errorCode = restoreStatus.result?.responseCode)
+                            ApphudLog.log(message = error.toString(), sendLogToServer = true)
                             callback?.invoke(null, null, error)
                         } else {
                             syncPurchasesWithApphud(tempPrevPurchases, callback)
@@ -553,19 +580,46 @@ internal object ApphudInternal {
                 }
             }
         }
-        billing.historyCallback = { purchases ->
+        billing.historyCallback = { purchasesHistoryStatus ->
             purchasesForRestoreIsLoaded.incrementAndGet()
-            if (!purchases.isNullOrEmpty())
-                productsForRestore.addAll(purchases)
+            when (purchasesHistoryStatus) {
+                is PurchaseHistoryCallbackStatus.Error -> {
+                    if (purchasesForRestoreIsLoaded.isBothLoaded()) {
+                        val message =
+                            "Restore Purchase History is failed for SkuType.SUBS and SkuType.INAPP " +
+                                    "with message = ${purchasesHistoryStatus.result?.debugMessage}" +
+                                    " and code = ${purchasesHistoryStatus.result?.responseCode}"
+                        processPurchasesHistoryResults(message, callback)
+                    }
+                }
+                is PurchaseHistoryCallbackStatus.Success -> {
+                    if (!purchasesHistoryStatus.purchases.isNullOrEmpty())
+                        productsForRestore.addAll(purchasesHistoryStatus.purchases)
 
-            if (purchasesForRestoreIsLoaded.isBothLoaded() && !productsForRestore.isNullOrEmpty()) {
-                ApphudLog.log("historyCallback: $productsForRestore")
-                billing.restore(BillingClient.SkuType.SUBS, productsForRestore)
-                billing.restore(BillingClient.SkuType.INAPP, productsForRestore)
+                    if (purchasesForRestoreIsLoaded.isBothLoaded()) {
+                        val message =
+                            "Restore Purchase History is failed for SkuType.SUBS and SkuType.INAPP "
+                        processPurchasesHistoryResults(message, callback)
+                    }
+                }
             }
         }
         billing.queryPurchaseHistory(BillingClient.SkuType.SUBS)
         billing.queryPurchaseHistory(BillingClient.SkuType.INAPP)
+    }
+
+    private fun processPurchasesHistoryResults(
+        message: String,
+        callback: ApphudPurchasesRestoreCallback? = null
+    ) {
+        if (productsForRestore.isNullOrEmpty()) {
+            ApphudLog.log(message = message, sendLogToServer = true)
+            callback?.invoke(null, null, ApphudError(message = message))
+        } else {
+            ApphudLog.log("historyCallback: $productsForRestore")
+            billing.restore(BillingClient.SkuType.SUBS, productsForRestore)
+            billing.restore(BillingClient.SkuType.INAPP, productsForRestore)
+        }
     }
 
     private fun syncPurchasesWithApphud(
@@ -585,6 +639,9 @@ internal object ApphudInternal {
                         callback?.invoke(customer?.subscriptions, customer?.purchases, null)
                     }
                     else -> {
+                        val message =
+                            "Sync Purchases with Apphud is failed with message = ${errors.message} and code = ${errors.errorCode}"
+                        ApphudLog.log(message = message)
                         callback?.invoke(null, null, errors)
                     }
                 }
@@ -682,12 +739,14 @@ internal object ApphudInternal {
         val typeString = getType(value)
         if (typeString == "unknown") {
             val type = value?.let { value::class.java.name } ?: "unknown"
-            ApphudLog.logE("For key '${key.key}' invalid property type: '$type' for 'value'. Must be one of: [Int, Float, Double, Boolean, String or null]")
+            val message = "For key '${key.key}' invalid property type: '$type' for 'value'. Must be one of: [Int, Float, Double, Boolean, String or null]"
+            ApphudLog.logE(message)
             return
         }
         if (increment && !(typeString == "integer" || typeString == "float")) {
             val type = value?.let { value::class.java.name } ?: "unknown"
-            ApphudLog.logE("For key '${key.key}' invalid increment property type: '$type' for 'value'. Must be one of: [Int, Float or Double]")
+            val message = "For key '${key.key}' invalid increment property type: '$type' for 'value'. Must be one of: [Int, Float or Double]"
+            ApphudLog.logE(message)
             return
         }
 
@@ -720,7 +779,8 @@ internal object ApphudInternal {
                     pendingUserProperties.clear()
                     ApphudLog.log("User Properties successfully updated.")
                 } else {
-                    ApphudLog.logE("User Properties update failed with errors")
+                    val message = "User Properties update failed with errors"
+                    ApphudLog.logE(message)
                 }
             }
         }
@@ -842,6 +902,16 @@ internal object ApphudInternal {
             is_new = this.is_new
         )
 
+    internal fun makeErrorLogsBody(message: String, apphud_product_id: String? = null) =
+        ErrorLogsBody(
+            message = message,
+            bundle_id = apphud_product_id,
+            user_id = userId,
+            device_id = deviceId,
+            environment = if (context.isDebuggable()) "sandbox" else "production",
+            timestamp = System.currentTimeMillis()
+        )
+
     internal fun getSkuDetailsList(): MutableList<SkuDetails>? {
         return skuDetails.takeIf { skuDetails.isNotEmpty() }
     }
@@ -884,6 +954,9 @@ internal object ApphudInternal {
                     setNeedsToUpdatePaywalls = true
                 }
             } ?: run {
+                val message =
+                    "Get Paywalls is failed with message = ${error?.message} and code = ${error?.errorCode}"
+                ApphudLog.log(message = message)
                 callback.invoke(null, error)
             }
         }

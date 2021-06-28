@@ -2,15 +2,17 @@ package com.apphud.sdk.client
 
 import com.apphud.sdk.ApiKey
 import com.apphud.sdk.body.*
+import com.apphud.sdk.client.dto.AttributionDto
+import com.apphud.sdk.client.dto.CustomerDto
+import com.apphud.sdk.client.dto.ResponseDto
 import com.google.gson.reflect.TypeToken
-import com.apphud.sdk.client.dto.*
 
 /**
  * Сервис для работы с apphud api
  *
  * Пока используется TypeToken из библиотеки Gson. Нужно будет посмотреть как от этого уйти
  */
-class ApphudService(
+class ApphudServiceV1(
     private val apiKey: ApiKey,
     private val executor: NetworkExecutor
 ) {
@@ -31,19 +33,6 @@ class ApphudService(
         ),
         body
     )
-
-    /**
-     * Получение идентификаторов продуктов
-     */
-    fun products(): ResponseDto<List<ApphudGroupDto>> =
-        executor.call(
-            RequestConfig(
-                path = "products",
-                type = object : TypeToken<ResponseDto<List<ApphudGroupDto>>>(){}.type,
-                queries = mapOf(API_KEY to apiKey),
-                requestType = RequestType.GET
-            )
-        )
 
     /**
      * Отправка атрибуции
@@ -102,15 +91,16 @@ class ApphudService(
         )
 
     /**
-     * Receiving Paywalls
+     * Sending Error Logs
      */
-    fun getPaywalls(): ResponseDto<List<ApphudPaywallDto>> =
+    fun sendErrorLogs(body: ErrorLogsBody): ResponseDto<AttributionDto> =
         executor.call(
             RequestConfig(
-                path = "paywall_configs",
-                type = object : TypeToken<ResponseDto<List<ApphudPaywallDto>>>(){}.type,
+                path = "logs",
+                type = object : TypeToken<ResponseDto<AttributionDto>>(){}.type,
                 queries = mapOf(API_KEY to apiKey),
-                requestType = RequestType.GET
-            )
+                requestType = RequestType.POST
+            ),
+            body
         )
 }

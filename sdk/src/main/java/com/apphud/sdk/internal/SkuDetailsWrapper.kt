@@ -4,9 +4,12 @@ import com.android.billingclient.api.BillingClient
 import com.android.billingclient.api.PurchaseHistoryRecord
 import com.android.billingclient.api.SkuDetails
 import com.android.billingclient.api.SkuDetailsParams
-import com.apphud.sdk.*
 import com.apphud.sdk.ApphudLog
+import com.apphud.sdk.ProductId
 import com.apphud.sdk.domain.PurchaseRecordDetails
+import com.apphud.sdk.internal.callback_status.PurchaseRestoredCallbackStatus
+import com.apphud.sdk.isSuccess
+import com.apphud.sdk.logMessage
 import kotlin.concurrent.thread
 
 typealias SkuType = String
@@ -55,7 +58,7 @@ internal class SkuDetailsWrapper(
                         }
                     }
                     else -> {
-                        result.logMessage("restoreAsync failed for type: $type products: $products")
+                        result.logMessage("RestoreAsync failed for type: $type products: $products")
                         restoreCallback?.invoke(PurchaseRestoredCallbackStatus.Error(result = result, message = type))
                     }
                 }
@@ -90,7 +93,7 @@ internal class SkuDetailsWrapper(
                         manualCallback?.let{ manualCallback.invoke(details.orEmpty()) } ?:
                             detailsCallback?.invoke(details.orEmpty())
                     }
-                    else -> result.logMessage("queryAsync type: $type products: $products")
+                    else -> result.logMessage("Query SkuDetails Async type: $type products: $products")
                 }
             }
         }
