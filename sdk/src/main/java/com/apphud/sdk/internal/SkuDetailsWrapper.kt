@@ -57,7 +57,7 @@ internal class SkuDetailsWrapper(
                         }
                     }
                     else -> {
-                        result.logMessage("restoreAsync failed for type: $type products: $products")
+                        result.logMessage("RestoreAsync failed for type: $type products: $products")
                         restoreCallback?.invoke(PurchaseRestoredCallbackStatus.Error(result = result, message = type))
                     }
                 }
@@ -92,7 +92,7 @@ internal class SkuDetailsWrapper(
                         manualCallback?.let{ manualCallback.invoke(details.orEmpty()) } ?:
                             detailsCallback?.invoke(details.orEmpty())
                     }
-                    else -> result.logMessage("queryAsync type: $type products: $products")
+                    else -> result.logMessage("Query SkuDetails Async type: $type products: $products")
                 }
             }
         }

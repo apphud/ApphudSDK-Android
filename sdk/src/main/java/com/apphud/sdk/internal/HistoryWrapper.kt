@@ -1,11 +1,11 @@
 package com.apphud.sdk.internal
 
 import com.android.billingclient.api.BillingClient
-import com.android.billingclient.api.PurchaseHistoryRecord
+import com.apphud.sdk.internal.callback_status.PurchaseHistoryCallbackStatus
 import com.apphud.sdk.response
 import java.io.Closeable
 
-typealias PurchaseHistoryListener = (List<PurchaseHistoryRecord>) -> Unit
+typealias PurchaseHistoryListener = (PurchaseHistoryCallbackStatus) -> Unit
 
 internal class HistoryWrapper(
     private val billing: BillingClient
@@ -15,9 +15,11 @@ internal class HistoryWrapper(
 
     fun queryPurchaseHistory(@BillingClient.SkuType type: SkuType) {
         billing.queryPurchaseHistoryAsync(type) { result, purchases ->
-            result.response("failed restore purchases") {
-                callback?.invoke(purchases ?: emptyList())
-            }
+            result.response(
+                message = "Failed restore purchases",
+                error = { callback?.invoke(PurchaseHistoryCallbackStatus.Error(result)) },
+                success = { callback?.invoke(PurchaseHistoryCallbackStatus.Success(purchases ?: emptyList()) ) }
+            )
         }
     }
 

@@ -18,4 +18,4 @@ fun BillingResult.response(message: String, error: () -> Unit, success: () -> Un
 
 //TODO Логи будут постоянно идти, нужно делать on/off
 fun BillingResult.logMessage(template: String) =
-    ApphudLog.logE("result failed with code: $responseCode message: $debugMessage template: $template")
+    ApphudLog.logE("Message: $template, failed with code: $responseCode message: $debugMessage")

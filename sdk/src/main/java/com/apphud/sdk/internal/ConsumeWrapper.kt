@@ -3,6 +3,7 @@ package com.apphud.sdk.internal
 import com.android.billingclient.api.BillingClient
 import com.android.billingclient.api.ConsumeParams
 import com.android.billingclient.api.Purchase
+import com.apphud.sdk.internal.callback_status.PurchaseCallbackStatus
 import com.apphud.sdk.response
 import java.io.Closeable
 
@@ -23,9 +24,9 @@ internal class ConsumeWrapper(
             .build()
         billing.consumeAsync(params) { result, value ->
             result.response(
-                "failed response with value: $value",
-                { callBack?.invoke(PurchaseCallbackStatus.Error(value), purchase) },
-                { callBack?.invoke(PurchaseCallbackStatus.Success(value), purchase) }
+                message = "failed response with value: $value",
+                error = { callBack?.invoke(PurchaseCallbackStatus.Error(value), purchase) },
+                success = { callBack?.invoke(PurchaseCallbackStatus.Success(value), purchase) }
             )
         }
     }
