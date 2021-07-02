@@ -14,7 +14,12 @@ import com.android.billingclient.api.SkuDetails
 import com.apphud.sdk.body.*
 import com.apphud.sdk.client.ApphudClient
 import com.apphud.sdk.domain.*
-import com.apphud.sdk.internal.*
+import com.apphud.sdk.internal.ApphudSkuDetailsCallback
+import com.apphud.sdk.internal.BillingWrapper
+import com.apphud.sdk.internal.callback_status.PurchaseCallbackStatus
+import com.apphud.sdk.internal.callback_status.PurchaseHistoryCallbackStatus
+import com.apphud.sdk.internal.callback_status.PurchaseRestoredCallbackStatus
+import com.apphud.sdk.internal.callback_status.PurchaseUpdatedCallbackStatus
 import com.apphud.sdk.parser.GsonParser
 import com.apphud.sdk.parser.Parser
 import com.apphud.sdk.storage.SharedPreferencesStorage
@@ -489,12 +494,11 @@ internal object ApphudInternal {
                             ApphudLog.log("client.purchased: $customer")
 
                             val newSubscriptions =
-                                customer?.subscriptions?.distinctBy { subscriptions ->
-                                    purchase.skus.firstOrNull { it == subscriptions.productId }
-                                }?.first()
-                            val newPurchases = customer?.purchases?.distinctBy { purchases ->
-                                purchase.skus.firstOrNull { it == purchases.productId }
-                            }?.first()
+                                customer?.subscriptions?.firstOrNull { it.productId == purchase.skus.first() }
+
+                            val newPurchases =
+                                customer?.purchases?.firstOrNull { it.productId == purchase.skus.first() }
+
                             storage.customer = customer
                             storage.isNeedSync = false
 
