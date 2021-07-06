@@ -299,6 +299,19 @@ object Apphud {
     }
 
     /**
+     * Will be displayed in AppHud Events dashboard
+     */
+    @kotlin.jvm.JvmStatic
+    fun paywallShown(paywall: ApphudPaywall?) {
+        ApphudInternal.paywallShown(paywall)
+    }
+
+    @kotlin.jvm.JvmStatic
+    fun paywallClosed(paywall: ApphudPaywall?) {
+        ApphudInternal.paywallClosed(paywall)
+    }
+
+    /**
      * Enables debug logs. Better to call this method before SDK initialization.
      */
     @kotlin.jvm.JvmStatic
