@@ -23,7 +23,7 @@ internal class SkuDetailsWrapper(
     var restoreCallback: ApphudSkuDetailsRestoreCallback? = null
 
     fun restoreAsync(@BillingClient.SkuType type: SkuType, records: List<PurchaseHistoryRecord>) {
-        val products = records.map { it.sku }
+        val products = records.map { it.skus }.flatten()
         val params = SkuDetailsParams.newBuilder()
             .setSkusList(products)
             .setType(type)
@@ -40,10 +40,10 @@ internal class SkuDetailsWrapper(
                 when (result.isSuccess()) {
                     true -> {
                         val values = details ?: emptyList()
-                        val purchases = values.map { detail ->
+                        val purchases = values.map { skuDetail ->
                             PurchaseRecordDetails(
-                                record = records.first { it.sku == detail.sku },
-                                details = detail
+                                record = records.first { it.skus.contains(skuDetail.sku) },
+                                details = skuDetail
                             )
                         }
                         when (purchases.isEmpty()) {

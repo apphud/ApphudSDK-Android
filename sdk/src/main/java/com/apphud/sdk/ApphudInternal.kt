@@ -79,6 +79,7 @@ internal object ApphudInternal {
     internal var apphudListener: ApphudListener? = null
 
     private val skuDetails = mutableListOf<SkuDetails>()
+
     /**
      * 0 - we at start point without any skuDetails
      * 1 - we have only one loaded SkuType SUBS or INAPP
@@ -493,10 +494,10 @@ internal object ApphudInternal {
                             ApphudLog.log("client.purchased: $customer")
 
                             val newSubscriptions =
-                                customer?.subscriptions?.firstOrNull { it.productId == purchase.sku }
+                                customer?.subscriptions?.firstOrNull { it.productId == purchase.skus.first() }
 
                             val newPurchases =
-                                customer?.purchases?.firstOrNull { it.productId == purchase.sku }
+                                customer?.purchases?.firstOrNull { it.productId == purchase.skus.first() }
 
                             storage.customer = customer
                             storage.isNeedSync = false
@@ -848,14 +849,17 @@ internal object ApphudInternal {
     }
 
     private fun makePurchaseBody(
-        purchase: Purchase, details: SkuDetails?, paywall_id: String?, apphud_product_id: String?
+        purchase: Purchase,
+        details: SkuDetails?,
+        paywall_id: String?,
+        apphud_product_id: String?
     ) =
         PurchaseBody(
             device_id = deviceId,
             purchases = listOf(
                 PurchaseItemBody(
                     order_id = purchase.orderId,
-                    product_id = purchase.sku,
+                    product_id = details?.let { details.sku } ?: purchase.skus.first(),
                     purchase_token = purchase.purchaseToken,
                     price_currency_code = details?.priceCurrencyCode,
                     price_amount_micros = details?.priceAmountMicros,
@@ -872,7 +876,7 @@ internal object ApphudInternal {
             purchases = purchases.map { purchase ->
                 PurchaseItemBody(
                     order_id = null,
-                    product_id = purchase.record.sku,
+                    product_id = purchase.details.sku,
                     purchase_token = purchase.record.purchaseToken,
                     price_currency_code = purchase.details.priceCurrencyCode,
                     price_amount_micros = purchase.details.priceAmountMicros,
