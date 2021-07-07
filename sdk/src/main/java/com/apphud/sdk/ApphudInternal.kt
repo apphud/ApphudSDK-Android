@@ -1065,16 +1065,6 @@ internal object ApphudInternal {
         )
     }
 
-    private fun paywallPaymentError(paywall: ApphudPaywall?, product_id: String?) {
-        client.trackPaywallEvent(
-            makePaywallEventBody(
-                name = "paywall_payment_error",
-                paywall_id = paywall?.id,
-                product_id = product_id
-            )
-        )
-    }
-
     private fun makePaywallEventBody(name: String, paywall_id: String? = null, product_id: String? = null): PaywallEventBody {
         val properties = mutableMapOf<String, Any>()
         paywall_id?.let { properties.put("paywall_id", it) }
