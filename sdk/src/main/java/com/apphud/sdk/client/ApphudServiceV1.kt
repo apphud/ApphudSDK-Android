@@ -103,4 +103,15 @@ class ApphudServiceV1(
             ),
             body
         )
+
+    fun sendPaywallEvent(body: PaywallEventBody): ResponseDto<AttributionDto> =
+        executor.call(
+            RequestConfig(
+                path = "events",
+                type = object : TypeToken<ResponseDto<AttributionDto>>(){}.type,
+                queries = mapOf(API_KEY to apiKey),
+                requestType = RequestType.POST
+            ),
+            body
+        )
 }

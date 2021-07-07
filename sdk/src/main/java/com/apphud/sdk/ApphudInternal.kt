@@ -396,6 +396,9 @@ internal object ApphudInternal {
                     val message = if (details != null) {
                         "Unable to buy product with given product id: ${details.sku} "
                     } else {
+                        if (purchasesResult.result.responseCode == BillingClient.BillingResponseCode.USER_CANCELED) {
+                            paywallPaymentCancelled(apphudProduct?.paywall_id, apphudProduct?.product_id)
+                        }
                         "Unable to buy product with given product id: ${apphudProduct?.skuDetails?.sku} "
                     }
                     val error =
@@ -451,10 +454,11 @@ internal object ApphudInternal {
         }
         when {
             details != null -> {
-                billing.purchase(activity, details, client)
+                billing.purchase(activity, details)
             }
             apphudProduct?.skuDetails != null -> {
-                billing.purchase(activity, apphudProduct.skuDetails!!, client)
+                paywallCheckoutInitiated(apphudProduct.paywall_id, apphudProduct.product_id)
+                billing.purchase(activity, apphudProduct.skuDetails!!)
             }
             else -> {
                 val message = "Unable to buy product with because SkuDetails is null"
@@ -1023,4 +1027,55 @@ internal object ApphudInternal {
         return productGroups?.toMutableList() ?: mutableListOf()
     }
 
+    fun paywallShown(paywall: ApphudPaywall?) {
+        client.trackPaywallEvent(
+            makePaywallEventBody(
+                name = "paywall_shown",
+                paywall_id = paywall?.id
+            )
+        )
+    }
+
+    fun paywallClosed(paywall: ApphudPaywall?) {
+        client.trackPaywallEvent(
+            makePaywallEventBody(
+                name = "paywall_closed",
+                paywall_id = paywall?.id
+            )
+        )
+    }
+
+    private fun paywallCheckoutInitiated(paywall_id: String?, product_id: String?) {
+        client.trackPaywallEvent(
+            makePaywallEventBody(
+                name = "paywall_checkout_initiated",
+                paywall_id = paywall_id,
+                product_id = product_id
+            )
+        )
+    }
+
+    private fun paywallPaymentCancelled(paywall_id: String?, product_id: String?) {
+        client.trackPaywallEvent(
+            makePaywallEventBody(
+                name = "paywall_payment_cancelled",
+                paywall_id = paywall_id,
+                product_id = product_id
+            )
+        )
+    }
+
+    private fun makePaywallEventBody(name: String, paywall_id: String? = null, product_id: String? = null): PaywallEventBody {
+        val properties = mutableMapOf<String, Any>()
+        paywall_id?.let { properties.put("paywall_id", it) }
+        product_id?.let { properties.put("product_id", it) }
+        return PaywallEventBody(
+            name = name,
+            user_id = userId,
+            device_id = deviceId,
+            environment = if (context.isDebuggable()) "sandbox" else "production",
+            timestamp = System.currentTimeMillis(),
+            properties = if (properties.isNotEmpty()) properties else null
+        )
+    }
 }

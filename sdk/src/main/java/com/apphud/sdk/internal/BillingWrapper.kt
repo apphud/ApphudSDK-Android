@@ -6,7 +6,6 @@ import android.util.SparseArray
 import com.android.billingclient.api.*
 import com.apphud.sdk.ApphudLog
 import com.apphud.sdk.ProductId
-import com.apphud.sdk.client.ApphudClient
 import java.io.Closeable
 
 /**
@@ -98,8 +97,8 @@ internal class BillingWrapper(context: Context) : BillingClientStateListener, Cl
     fun restore(@BillingClient.SkuType type: SkuType, products: List<PurchaseHistoryRecord>) =
         sku.restoreAsync(type, products)
 
-    fun purchase(activity: Activity, details: SkuDetails, client: ApphudClient) {
-        flow.purchases(activity, details, client)
+    fun purchase(activity: Activity, details: SkuDetails) {
+        flow.purchases(activity, details)
     }
 
     fun acknowledge(purchase: Purchase) = acknowledge.purchase(purchase)
