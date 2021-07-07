@@ -1,7 +1,6 @@
 package com.apphud.sdk.domain
 
 import com.android.billingclient.api.SkuDetails
-import com.apphud.sdk.ApphudInternal
 
 data class ApphudProduct(
     /**
@@ -30,15 +29,4 @@ data class ApphudProduct(
     Product Identifier from Paywalls.
      */
     var paywall_id: String?
-) {
-    internal fun findPaywallId(): String? {
-        ApphudInternal.paywalls.forEach { paywall ->
-            paywall.products?.forEach { product ->
-                if (product.product_id == product_id) {
-                    return paywall.id
-                }
-            }
-        }
-        return null
-    }
-}
+)

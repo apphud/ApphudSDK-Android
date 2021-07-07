@@ -397,8 +397,7 @@ internal object ApphudInternal {
                         "Unable to buy product with given product id: ${details.sku} "
                     } else {
                         if (purchasesResult.result.responseCode == BillingClient.BillingResponseCode.USER_CANCELED) {
-                            paywallPaymentCancelled(apphudProduct?.findPaywallId(),
-                                apphudProduct?.product_id)
+                            paywallPaymentCancelled(apphudProduct?.paywall_id, apphudProduct?.product_id)
                         }
                         "Unable to buy product with given product id: ${apphudProduct?.skuDetails?.sku} "
                     }
@@ -458,7 +457,7 @@ internal object ApphudInternal {
                 billing.purchase(activity, details)
             }
             apphudProduct?.skuDetails != null -> {
-                paywallCheckoutInitiated(apphudProduct.findPaywallId(), apphudProduct.product_id)
+                paywallCheckoutInitiated(apphudProduct.paywall_id, apphudProduct.product_id)
                 billing.purchase(activity, apphudProduct.skuDetails!!)
             }
             else -> {
