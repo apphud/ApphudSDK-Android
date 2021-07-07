@@ -79,6 +79,7 @@ internal object ApphudInternal {
     internal var apphudListener: ApphudListener? = null
 
     private val skuDetails = mutableListOf<SkuDetails>()
+
     /**
      * 0 - we at start point without any skuDetails
      * 1 - we have only one loaded SkuType SUBS or INAPP
@@ -395,6 +396,9 @@ internal object ApphudInternal {
                     val message = if (details != null) {
                         "Unable to buy product with given product id: ${details.sku} "
                     } else {
+                        if (purchasesResult.result.responseCode == BillingClient.BillingResponseCode.USER_CANCELED) {
+                            paywallPaymentCancelled(apphudProduct?.paywall_id, apphudProduct?.product_id)
+                        }
                         "Unable to buy product with given product id: ${apphudProduct?.skuDetails?.sku} "
                     }
                     val error =
@@ -450,10 +454,11 @@ internal object ApphudInternal {
         }
         when {
             details != null -> {
-                billing.purchase(activity, details, client)
+                billing.purchase(activity, details)
             }
             apphudProduct?.skuDetails != null -> {
-                billing.purchase(activity, apphudProduct.skuDetails!!, client)
+                paywallCheckoutInitiated(apphudProduct.paywall_id, apphudProduct.product_id)
+                billing.purchase(activity, apphudProduct.skuDetails!!)
             }
             else -> {
                 val message = "Unable to buy product with because SkuDetails is null"
@@ -493,10 +498,10 @@ internal object ApphudInternal {
                             ApphudLog.log("client.purchased: $customer")
 
                             val newSubscriptions =
-                                customer?.subscriptions?.firstOrNull { it.productId == purchase.sku }
+                                customer?.subscriptions?.firstOrNull { it.productId == purchase.skus.first() }
 
                             val newPurchases =
-                                customer?.purchases?.firstOrNull { it.productId == purchase.sku }
+                                customer?.purchases?.firstOrNull { it.productId == purchase.skus.first() }
 
                             storage.customer = customer
                             storage.isNeedSync = false
@@ -848,14 +853,17 @@ internal object ApphudInternal {
     }
 
     private fun makePurchaseBody(
-        purchase: Purchase, details: SkuDetails?, paywall_id: String?, apphud_product_id: String?
+        purchase: Purchase,
+        details: SkuDetails?,
+        paywall_id: String?,
+        apphud_product_id: String?
     ) =
         PurchaseBody(
             device_id = deviceId,
             purchases = listOf(
                 PurchaseItemBody(
                     order_id = purchase.orderId,
-                    product_id = purchase.sku,
+                    product_id = details?.let { details.sku } ?: purchase.skus.first(),
                     purchase_token = purchase.purchaseToken,
                     price_currency_code = details?.priceCurrencyCode,
                     price_amount_micros = details?.priceAmountMicros,
@@ -872,7 +880,7 @@ internal object ApphudInternal {
             purchases = purchases.map { purchase ->
                 PurchaseItemBody(
                     order_id = null,
-                    product_id = purchase.record.sku,
+                    product_id = purchase.details.sku,
                     purchase_token = purchase.record.purchaseToken,
                     price_currency_code = purchase.details.priceCurrencyCode,
                     price_amount_micros = purchase.details.priceAmountMicros,
@@ -1019,4 +1027,55 @@ internal object ApphudInternal {
         return productGroups?.toMutableList() ?: mutableListOf()
     }
 
+    fun paywallShown(paywall: ApphudPaywall?) {
+        client.trackPaywallEvent(
+            makePaywallEventBody(
+                name = "paywall_shown",
+                paywall_id = paywall?.id
+            )
+        )
+    }
+
+    fun paywallClosed(paywall: ApphudPaywall?) {
+        client.trackPaywallEvent(
+            makePaywallEventBody(
+                name = "paywall_closed",
+                paywall_id = paywall?.id
+            )
+        )
+    }
+
+    private fun paywallCheckoutInitiated(paywall_id: String?, product_id: String?) {
+        client.trackPaywallEvent(
+            makePaywallEventBody(
+                name = "paywall_checkout_initiated",
+                paywall_id = paywall_id,
+                product_id = product_id
+            )
+        )
+    }
+
+    private fun paywallPaymentCancelled(paywall_id: String?, product_id: String?) {
+        client.trackPaywallEvent(
+            makePaywallEventBody(
+                name = "paywall_payment_cancelled",
+                paywall_id = paywall_id,
+                product_id = product_id
+            )
+        )
+    }
+
+    private fun makePaywallEventBody(name: String, paywall_id: String? = null, product_id: String? = null): PaywallEventBody {
+        val properties = mutableMapOf<String, Any>()
+        paywall_id?.let { properties.put("paywall_id", it) }
+        product_id?.let { properties.put("product_id", it) }
+        return PaywallEventBody(
+            name = name,
+            user_id = userId,
+            device_id = deviceId,
+            environment = if (context.isDebuggable()) "sandbox" else "production",
+            timestamp = System.currentTimeMillis(),
+            properties = if (properties.isNotEmpty()) properties else null
+        )
+    }
 }

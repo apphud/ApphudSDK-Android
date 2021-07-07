@@ -115,4 +115,17 @@ internal class ApphudClient(apiKey: ApiKey, private val parser: Parser) {
             }
         })
     }
+
+    /**
+     * Send Paywall Events to Apphud Server
+     * */
+    fun trackPaywallEvent(body: PaywallEventBody){
+        val callable = PaywallEventCallable(body, serviceV1)
+        thread.execute(LoopRunnable(callable) { response ->
+            when (response.data.results) {
+                null -> { ApphudLog.log("Paywall Event log was not send") }
+                else -> { ApphudLog.log("Paywall Event log was send successfully") }
+            }
+        })
+    }
 }
