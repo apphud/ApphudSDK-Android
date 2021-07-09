@@ -22,6 +22,7 @@ class SharedPreferencesStorage(
         private const val NEED_RESTART_KEY = "needRestartKey"
 
         private const val FACEBOOK_KEY = "facebookKey"
+        private const val FIREBASE_KEY = "firebaseKey"
         private const val APPSFLYER_KEY = "appsflyerKey"
         private const val PAYWALLS_KEY = "payWallsKey"
         private const val PAYWALLS_TIMESTAMP_KEY = "payWallsTimestampKey"
@@ -91,6 +92,14 @@ class SharedPreferencesStorage(
             val source = parser.toJson(value)
             val editor = preferences.edit()
             editor.putString(FACEBOOK_KEY, source)
+            editor.apply()
+        }
+
+    override var firebase: String?
+        get() = preferences.getString(FIREBASE_KEY, null)
+        set(value) {
+            val editor = preferences.edit()
+            editor.putString(FIREBASE_KEY, value)
             editor.apply()
         }
 
