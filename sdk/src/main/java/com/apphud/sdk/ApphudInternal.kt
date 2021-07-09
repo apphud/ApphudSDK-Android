@@ -662,7 +662,7 @@ internal object ApphudInternal {
     ) {
         val body = when (provider) {
             ApphudAttributionProvider.adjust -> AttributionBody(
-                deviceId,
+                device_id = deviceId,
                 adid = identifier,
                 adjust_data = data ?: emptyMap()
             )
@@ -681,6 +681,13 @@ internal object ApphudInternal {
                     device_id = deviceId,
                     appsflyer_id = identifier,
                     appsflyer_data = data
+                )
+            }
+            ApphudAttributionProvider.firebase -> when (identifier) {
+                null -> null
+                else -> AttributionBody(
+                    device_id = deviceId,
+                    firebase_id = identifier
                 )
             }
         }
