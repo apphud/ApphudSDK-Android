@@ -747,8 +747,9 @@ internal object ApphudInternal {
                         }
                         ApphudAttributionProvider.firebase -> {
                             val temporary = storage.firebase
-                            storage.firebase = when (temporary) {
-                                null -> body.firebase_id
+                            storage.firebase = when {
+                                temporary == null -> body.firebase_id
+                                temporary != body.firebase_id -> body.firebase_id
                                 else -> temporary
                             }
                         }
