@@ -3,10 +3,12 @@ package com.apphud.sdk
 import android.annotation.SuppressLint
 import android.app.Activity
 import android.content.Context
+import android.content.res.Resources
 import android.os.AsyncTask
 import android.os.Build
 import android.os.Handler
 import android.os.Looper
+import androidx.core.os.ConfigurationCompat
 import com.android.billingclient.api.BillingClient
 import com.android.billingclient.api.Purchase
 import com.android.billingclient.api.PurchaseHistoryRecord
@@ -41,7 +43,7 @@ internal object ApphudInternal {
      * @handler use for work with UI-thread. Save to storage, call callbacks
      */
     private val handler: Handler = Handler(Looper.getMainLooper())
-    private val client by lazy { ApphudClient(apiKey, parser) }
+    private var client: ApphudClient? = null
     private val billing by lazy { BillingWrapper(context) }
     private val storage by lazy { SharedPreferencesStorage(context, parser) }
     private var generatedUUID = UUID.randomUUID().toString()
@@ -71,8 +73,8 @@ internal object ApphudInternal {
 
     private var is_new = true
 
-    internal lateinit var apiKey: ApiKey
-    internal lateinit var context: Context
+    private lateinit var apiKey: ApiKey
+    private lateinit var context: Context
 
     internal val currentUser: Customer?
         get() = storage.customer
@@ -148,7 +150,7 @@ internal object ApphudInternal {
         this.userId = id
 
         val body = mkRegistrationBody(id, deviceId)
-        client.registrationUser(body) { customer ->
+        client?.registrationUser(body) { customer ->
             handler.post {
                 storage.customer = customer
                 ApphudLog.log("End updateUserId customer=$customer")
@@ -157,9 +159,10 @@ internal object ApphudInternal {
     }
 
     internal fun initialize(
+        context: Context,
+        apiKey: ApiKey,
         userId: UserId?,
-        deviceId: DeviceId?,
-        isFetchProducts: Boolean = true
+        deviceId: DeviceId?
     ) {
         if (!allowIdentifyUser) {
             ApphudLog.logE("=============================================================" +
@@ -169,7 +172,10 @@ internal object ApphudInternal {
                     "\n=============================================================")
             return
         }
-        ApphudLog.setClient(client)
+        this.apiKey = apiKey
+        this.context = context
+        client = ApphudClient(apiKey, parser)
+        client?.let { ApphudLog.setClient(it) }
         allowIdentifyUser = false
         ApphudLog.log("try restore cachedPaywalls")
         this.paywalls = cachedPaywalls()
@@ -200,7 +206,7 @@ internal object ApphudInternal {
                 apphudListener?.apphudFetchSkuDetailsProducts(skuDetails)
             }
         }
-        client.allProducts { groups ->
+        client?.allProducts { groups ->
             ApphudLog.log("fetchProducts: products from Apphud server: $groups")
             cacheGroups(groups)
             val ids = groups.map { it -> it.products?.map { it.product_id }!! }.flatten()
@@ -216,7 +222,7 @@ internal object ApphudInternal {
         ApphudLog.log("Start registration userId=$userId, deviceId=$deviceId")
 
         val body = mkRegistrationBody(userId!!, this.deviceId)
-        client.registrationUser(body) { customer ->
+        client?.registrationUser(body) { customer ->
             isRegistered = true
             handler.post {
                 ApphudLog.log("registration: registrationUser customer=$customer")
@@ -491,7 +497,7 @@ internal object ApphudInternal {
                 ApphudError(message)))
         } else {
             storage.isNeedSync = true
-            client.purchased(purchaseBody) { customer, errors ->
+            client?.purchased(purchaseBody) { customer, errors ->
                 handler.post {
                     when (errors) {
                         null -> {
@@ -631,7 +637,7 @@ internal object ApphudInternal {
         tempPurchaseRecordDetails: Set<PurchaseRecordDetails>,
         callback: ApphudPurchasesRestoreCallback? = null
     ) {
-        client.purchased(makeRestorePurchasesBody(tempPurchaseRecordDetails.toList())) { customer, errors ->
+        client?.purchased(makeRestorePurchasesBody(tempPurchaseRecordDetails.toList())) { customer, errors ->
             handler.post {
                 when (errors) {
                     null -> {
@@ -715,7 +721,7 @@ internal object ApphudInternal {
 
         ApphudLog.log("before start attribution request: $body")
         body?.let {
-            client.send(body) { attribution ->
+            client?.send(body) { attribution ->
                 ApphudLog.log("Success without saving send attribution: $attribution")
                 handler.post {
                     when (provider) {
@@ -802,7 +808,7 @@ internal object ApphudInternal {
         }
 
         val body = UserPropertiesBody(this.deviceId, properties)
-        client.userProperties(body) { userProperties ->
+        client?.userProperties(body) { userProperties ->
             handler.post {
                 if (userProperties.success) {
                     pendingUserProperties.clear()
@@ -839,6 +845,13 @@ internal object ApphudInternal {
         storage.customer = null
         storage.userId = null
         storage.deviceId = null
+        storage.advertisingId = null
+        storage.isNeedSync = false
+        storage.facebook = null
+        storage.firebase = null
+        storage.appsflyer = null
+        storage.paywalls = null
+        storage.productGroups = null
         userId = null
         generatedUUID = UUID.randomUUID().toString()
         prevPurchases.clear()
@@ -848,6 +861,8 @@ internal object ApphudInternal {
         customProductsFetchedBlock = null
         pendingUserProperties.clear()
         setNeedsToUpdateUserProperties = false
+        client = null
+        allowIdentifyUser = true
     }
 
     private fun updateUser(id: UserId?): UserId {
@@ -917,7 +932,7 @@ internal object ApphudInternal {
 
     private fun mkRegistrationBody(userId: UserId, deviceId: DeviceId) =
         RegistrationBody(
-            locale = Locale.getDefault().formatString(),
+            locale = ConfigurationCompat.getLocales(Resources.getSystem().configuration).get(0).toString(),
             sdk_version = BuildConfig.VERSION_NAME,
             app_version = context.buildAppVersion(),
             device_family = Build.MANUFACTURER,
@@ -1006,7 +1021,7 @@ internal object ApphudInternal {
             return
         }
 
-        client.paywalls { paywalls, errors ->
+        client?.paywalls { paywalls, errors ->
             callback.invoke(paywalls, errors, true)
         }
     }
@@ -1052,7 +1067,7 @@ internal object ApphudInternal {
     }
 
     fun paywallShown(paywall: ApphudPaywall?) {
-        client.trackPaywallEvent(
+        client?.trackPaywallEvent(
             makePaywallEventBody(
                 name = "paywall_shown",
                 paywall_id = paywall?.id
@@ -1061,7 +1076,7 @@ internal object ApphudInternal {
     }
 
     fun paywallClosed(paywall: ApphudPaywall?) {
-        client.trackPaywallEvent(
+        client?.trackPaywallEvent(
             makePaywallEventBody(
                 name = "paywall_closed",
                 paywall_id = paywall?.id
@@ -1070,7 +1085,7 @@ internal object ApphudInternal {
     }
 
     private fun paywallCheckoutInitiated(paywall_id: String?, product_id: String?) {
-        client.trackPaywallEvent(
+        client?.trackPaywallEvent(
             makePaywallEventBody(
                 name = "paywall_checkout_initiated",
                 paywall_id = paywall_id,
@@ -1080,7 +1095,7 @@ internal object ApphudInternal {
     }
 
     private fun paywallPaymentCancelled(paywall_id: String?, product_id: String?) {
-        client.trackPaywallEvent(
+        client?.trackPaywallEvent(
             makePaywallEventBody(
                 name = "paywall_payment_cancelled",
                 paywall_id = paywall_id,
