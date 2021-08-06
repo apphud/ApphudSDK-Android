@@ -37,9 +37,7 @@ object Apphud {
     @kotlin.jvm.JvmStatic
     fun start(context: Context, apiKey: ApiKey, userId: UserId? = null, deviceId: DeviceId? = null)
     {
-        ApphudInternal.apiKey = apiKey
-        ApphudInternal.context = context
-        ApphudInternal.initialize(userId, deviceId)
+        ApphudInternal.initialize(context, apiKey, userId, deviceId)
     }
 
     /**
