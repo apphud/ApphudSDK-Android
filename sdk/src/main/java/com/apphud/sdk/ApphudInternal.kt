@@ -94,6 +94,8 @@ internal object ApphudInternal {
 
     private var customProductsFetchedBlock: ((List<SkuDetails>) -> Unit)? = null
 
+    private var fetchPaywallsDelayedCallback: (() -> Unit)? = null
+
     private val pendingUserProperties = mutableMapOf<String, ApphudUserProperty>()
     private val userPropertiesRunnable = Runnable {
         if (isRegistered) {
@@ -239,6 +241,11 @@ internal object ApphudInternal {
                 if (pendingUserProperties.isNotEmpty() && setNeedsToUpdateUserProperties) {
                     ApphudLog.log("registration: we should update UserProperties")
                     updateUserProperties()
+                }
+
+                if (fetchPaywallsDelayedCallback != null) {
+                    fetchPaywallsDelayedCallback?.invoke()
+                    fetchPaywallsDelayedCallback = null
                 }
             }
         }
@@ -1021,8 +1028,18 @@ internal object ApphudInternal {
             return
         }
 
-        client?.paywalls { paywalls, errors ->
-            callback.invoke(paywalls, errors, true)
+        if (currentUser != null) {
+            client?.paywalls(body = DeviceIdBody(device_id = deviceId)) { paywalls, errors ->
+                callback.invoke(paywalls, errors, true)
+            }
+        } else {
+            ApphudLog.log("User is not yet registered, scheduling paywalls fetch")
+            fetchPaywallsDelayedCallback = {
+                ApphudLog.log("User is registered, now fetching paywalls")
+                client?.paywalls(body = DeviceIdBody(device_id = deviceId)) { paywalls, errors ->
+                    callback.invoke(paywalls, errors, true)
+                }
+            }
         }
     }
 

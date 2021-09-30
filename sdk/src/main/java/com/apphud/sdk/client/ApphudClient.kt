@@ -88,8 +88,8 @@ internal class ApphudClient(apiKey: ApiKey, private val parser: Parser) {
         })
     }
 
-    fun paywalls(callback: PaywallCallback) {
-        val callable = PaywallsCallable(serviceV2)
+    fun paywalls(body: DeviceIdBody, callback: PaywallCallback) {
+        val callable = PaywallsCallable(body, serviceV2)
         thread.execute(LoopRunnable(callable) { response ->
             when (response.data.results) {
                 null -> {
