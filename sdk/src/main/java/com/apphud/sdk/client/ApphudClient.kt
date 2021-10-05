@@ -110,8 +110,8 @@ internal class ApphudClient(apiKey: ApiKey, private val parser: Parser) {
         val callable = ErrorLogsCallable(body, serviceV1)
         thread.execute(LoopRunnable(callable) { response ->
             when (response.data.results) {
-                null -> { ApphudLog.log("Error logs was not send") }
-                else -> { ApphudLog.log("Error logs was send successfully") }
+                null -> { ApphudLog.logI("Error logs was not send") }
+                else -> { ApphudLog.logI("Error logs was send successfully") }
             }
         })
     }

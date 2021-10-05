@@ -22,6 +22,18 @@ internal object ApphudLog {
     }
 
     /**
+     * This is a fun for log info messages.
+     * */
+    fun logI(message: String, apphud_product_id: String? = null, sendLogToServer:Boolean = false) {
+        if (ApphudUtils.logging) {
+            Log.i(TAG, message)
+        }
+        if(sendLogToServer){
+            sendErrorLogs(message, apphud_product_id)
+        }
+    }
+
+    /**
      * This is a fun to force error message logging.
      * */
     fun logE(message: String, apphud_product_id: String? = null) {
