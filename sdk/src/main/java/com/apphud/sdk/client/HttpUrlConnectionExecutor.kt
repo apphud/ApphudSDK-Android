@@ -37,7 +37,8 @@ class HttpUrlConnectionExecutor(
         //TODO move in the setting
         connection.setRequestProperty("Accept", "application/json; utf-8")
         connection.setRequestProperty("Content-Type", "application/json; utf-8")
-        connection.setRequestProperty("X-Platform", "android")
+        connection.setRequestProperty("X-SDK", "android")
+
         config.headers.forEach { entry ->
             connection.setRequestProperty(entry.key, entry.value)
         }
