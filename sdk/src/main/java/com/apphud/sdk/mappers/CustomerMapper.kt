@@ -6,7 +6,8 @@ import com.apphud.sdk.domain.Customer
 import com.apphud.sdk.domain.ApphudUser
 
 class CustomerMapper(
-    private val mapper: SubscriptionMapper
+    private val mapper: SubscriptionMapper,
+    private val paywallsMapper: PaywallsMapper
 ) {
 
     fun map(customer: CustomerDto) = Customer(
@@ -22,6 +23,7 @@ class CustomerMapper(
         purchases = customer.subscriptions
             .filter { it.kind == ApphudKind.NONRENEWABLE.source }
             .mapNotNull { mapper.mapNonRenewable(it) }
-            .sortedByDescending { it.purchasedAt }
+            .sortedByDescending { it.purchasedAt },
+        paywalls = customer.paywalls.mapNotNull{paywallsMapper.map(it)}
     )
 }

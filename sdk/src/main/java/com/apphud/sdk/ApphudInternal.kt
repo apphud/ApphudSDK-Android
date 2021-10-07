@@ -68,6 +68,7 @@ internal object ApphudInternal {
 
     private var allowIdentifyUser = true
     private var isRegistered = false
+    private var didRetrievePaywallsAtThisLaunch = false
 
     internal var userId: UserId? = null
     private lateinit var deviceId: DeviceId
@@ -230,6 +231,17 @@ internal object ApphudInternal {
                 storage.customer = customer
                 apphudListener?.apphudSubscriptionsUpdated(customer.subscriptions)
                 apphudListener?.apphudNonRenewingPurchasesUpdated(customer.purchases)
+
+                if (customer.paywalls.isNotEmpty()) {
+                    updatePaywallsWithSkuDetails(customer.paywalls)
+
+                    this.paywalls.apply {
+                        clear()
+                        addAll(customer.paywalls)
+                    }
+
+                    cachePaywalls(paywalls = this.paywalls)
+                }
 
                 // try to resend purchases, if prev requests was fail
                 if (storage.isNeedSync) {
@@ -947,7 +959,8 @@ internal object ApphudInternal {
             device_id = deviceId,
             time_zone = TimeZone.getDefault().id,
             is_sandbox = context.isDebuggable(),
-            is_new = this.is_new
+            is_new = this.is_new,
+            need_paywalls = !didRetrievePaywallsAtThisLaunch
         )
 
     internal fun makeErrorLogsBody(message: String, apphud_product_id: String? = null) =

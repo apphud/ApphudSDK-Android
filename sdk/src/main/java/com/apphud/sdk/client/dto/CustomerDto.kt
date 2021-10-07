@@ -5,5 +5,6 @@ data class CustomerDto(
     val user_id: String,
     val locale: String,
     val subscriptions: List<SubscriptionDto>,
-    val currency: CurrencyDto?
+    val currency: CurrencyDto?,
+    val paywalls: List<ApphudPaywallDto>
 )

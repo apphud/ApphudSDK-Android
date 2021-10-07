@@ -5,11 +5,15 @@ import com.apphud.sdk.domain.ApphudPaywall
 import com.apphud.sdk.domain.ApphudProduct
 import com.apphud.sdk.parser.Parser
 
-class PaywallsMapper {
+class PaywallsMapper(
+    private val parser: Parser
+){
 
-    fun map(dto: List<ApphudPaywallDto>, parser: Parser): List<ApphudPaywall> =
-        dto.map { paywallDto ->
-            ApphudPaywall(
+    fun map(dto: List<ApphudPaywallDto>): List<ApphudPaywall> =
+        dto.map { paywallDto -> map (paywallDto)
+        }
+
+    fun map(paywallDto: ApphudPaywallDto) = ApphudPaywall(
                 id = paywallDto.id, //paywall id
                 name = paywallDto.name,
                 identifier = paywallDto.identifier,
@@ -26,5 +30,4 @@ class PaywallsMapper {
                     )
                 }
             )
-        }
 }
