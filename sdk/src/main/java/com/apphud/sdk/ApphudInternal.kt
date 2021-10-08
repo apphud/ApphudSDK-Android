@@ -233,6 +233,7 @@ internal object ApphudInternal {
                 apphudListener?.apphudNonRenewingPurchasesUpdated(customer.purchases)
 
                 if (customer.paywalls.isNotEmpty()) {
+                    didRetrievePaywallsAtThisLaunch = true
                     updatePaywallsWithSkuDetails(customer.paywalls)
 
                     this.paywalls.apply {
