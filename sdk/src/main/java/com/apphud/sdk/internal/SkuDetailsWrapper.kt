@@ -40,12 +40,20 @@ internal class SkuDetailsWrapper(
                 when (result.isSuccess()) {
                     true -> {
                         val values = details ?: emptyList()
-                        val purchases = values.map { skuDetail ->
-                            PurchaseRecordDetails(
-                                record = records.first { it.skus.contains(skuDetail.sku) },
-                                details = skuDetail
-                            )
+
+                        val purchases = mutableListOf<PurchaseRecordDetails>()
+                        for (skuDetail in values){
+                            val record = records.firstOrNull() { it.skus.contains(skuDetail.sku) }
+                            record?.let{
+                                purchases.add(
+                                    PurchaseRecordDetails(
+                                        record = it,
+                                        details = skuDetail
+                                    )
+                                )
+                            }
                         }
+
                         when (purchases.isEmpty()) {
                             true -> {
                                 val message = "SkuDetails return empty list for $type and records: $records"
