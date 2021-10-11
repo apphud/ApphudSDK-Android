@@ -5,6 +5,9 @@ package com.apphud.sdk
  */
 internal object ApphudUtils {
 
+    var packageName: String = ""
+        private set
+
     var logging: Boolean = false
         private set
 
@@ -20,5 +23,9 @@ internal object ApphudUtils {
 
     fun disableAdTracking() {
         adTracking = false
+    }
+
+    fun setPackageName(packageName: String) {
+        this.packageName = packageName
     }
 }

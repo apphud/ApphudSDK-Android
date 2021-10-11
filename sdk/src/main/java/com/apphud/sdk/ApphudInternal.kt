@@ -342,9 +342,8 @@ internal object ApphudInternal {
                     }
                 } ?: run {
                     //if we booth SkuType already loaded and we still haven't any SkuDetails
-                    val message = "Unable to fetch product with given product id: $productName"
+                    val message = "Unable to fetch product with given product id: $productName" + apphudProduct?.let{ " [Apphud product ID: " + it.id + "]"}
                     ApphudLog.log(message = message,
-                        apphud_product_id = apphudProduct?.id,
                         sendLogToServer = true)
                     callback?.invoke(ApphudPurchaseResult(null,
                         null,
@@ -371,9 +370,8 @@ internal object ApphudInternal {
         billing.acknowledgeCallback = { status, purchase ->
             when (status) {
                 is PurchaseCallbackStatus.Error -> {
-                    val message = "Failed to acknowledge purchase with code: ${status.error}"
+                    val message = "Failed to acknowledge purchase with code: ${status.error}" + apphudProduct?.let{ " [Apphud product ID: " + it.id + "]"}
                     ApphudLog.log(message = message,
-                        apphud_product_id = apphudProduct?.id,
                         sendLogToServer = true)
                     callback?.invoke(ApphudPurchaseResult(null,
                         null,
@@ -395,9 +393,8 @@ internal object ApphudInternal {
         billing.consumeCallback = { status, purchase ->
             when (status) {
                 is PurchaseCallbackStatus.Error -> {
-                    val message = "Failed to consume purchase with error: ${status.error}"
+                    val message = "Failed to consume purchase with error: ${status.error}" + apphudProduct?.let{ " [Apphud product ID: " + it.id + "]"}
                     ApphudLog.log(message = message,
-                        apphud_product_id = apphudProduct?.id,
                         sendLogToServer = true)
                     callback?.invoke(ApphudPurchaseResult(null,
                         null,
@@ -419,7 +416,7 @@ internal object ApphudInternal {
         billing.purchasesCallback = { purchasesResult ->
             when (purchasesResult) {
                 is PurchaseUpdatedCallbackStatus.Error -> {
-                    val message = if (details != null) {
+                    var message = if (details != null) {
                         "Unable to buy product with given product id: ${details.sku} "
                     } else {
                         if (purchasesResult.result.responseCode == BillingClient.BillingResponseCode.USER_CANCELED) {
@@ -427,13 +424,17 @@ internal object ApphudInternal {
                         }
                         "Unable to buy product with given product id: ${apphudProduct?.skuDetails?.sku} "
                     }
+                    apphudProduct?.let{
+                        message += " [Apphud product ID: " + it.id + "]"
+                    }
+
                     val error =
                         ApphudError(message = message,
                             secondErrorMessage = purchasesResult.result.debugMessage,
                             errorCode = purchasesResult.result.responseCode
                         )
-                    ApphudLog.log(message = error.toString(),
-                        apphud_product_id = apphudProduct?.id)
+                    ApphudLog.log(message = error.toString())
+
                     callback?.invoke(ApphudPurchaseResult(null, null, null, error))
                 }
                 is PurchaseUpdatedCallbackStatus.Success -> {
@@ -465,9 +466,9 @@ internal object ApphudInternal {
                                     }
                                 }
                             else -> {
-                                val message = "After purchase state: ${it.purchaseState}"
-                                ApphudLog.log(message = message,
-                                    apphud_product_id = apphudProduct?.id)
+                                val message = "After purchase state: ${it.purchaseState}" + apphudProduct?.let{ " [Apphud product ID: " + it.id + "]"}
+                                ApphudLog.log(message = message)
+
                                 callback?.invoke(ApphudPurchaseResult(null,
                                     null,
                                     it,
@@ -487,9 +488,8 @@ internal object ApphudInternal {
                 billing.purchase(activity, apphudProduct.skuDetails!!)
             }
             else -> {
-                val message = "Unable to buy product with because SkuDetails is null"
-                ApphudLog.log(message = message,
-                    apphud_product_id = apphudProduct?.id)
+                val message = "Unable to buy product with because SkuDetails is null" + apphudProduct?.let{ " [Apphud product ID: " + it.id + "]"}
+                ApphudLog.log(message = message)
                 callback?.invoke(ApphudPurchaseResult(null,
                     null,
                     null,
@@ -507,10 +507,9 @@ internal object ApphudInternal {
         val purchaseBody = details?.let { makePurchaseBody(purchase, it, null, null) }
             ?: apphudProduct?.let { makePurchaseBody(purchase, it.skuDetails, it.paywall_id, it.id) }
         if (purchaseBody == null) {
-            val message =
-                "SkuDetails and ApphudProduct can not be null at the same time"
-            ApphudLog.log(message = message,
-                apphud_product_id = apphudProduct?.id)
+            val message = "SkuDetails and ApphudProduct can not be null at the same time" + apphudProduct?.let{ " [Apphud product ID: " + it.id + "]"}
+            ApphudLog.log(message = message)
+
             callback?.invoke(ApphudPurchaseResult(null,
                 null,
                 null,
@@ -551,9 +550,8 @@ internal object ApphudInternal {
                             }
                         }
                         else -> {
-                            val message = "Unable to validate purchase with error = ${errors.message} and code = ${errors.errorCode}"
-                            ApphudLog.log(message = message,
-                                apphud_product_id = apphudProduct?.id)
+                            val message = "Unable to validate purchase with error = ${errors.message} and code = ${errors.errorCode}" + apphudProduct?.let{ " [Apphud product ID: " + it.id + "]"}
+                            ApphudLog.log(message = message)
                             callback?.invoke(ApphudPurchaseResult(null,
                                 null,
                                 purchase,
