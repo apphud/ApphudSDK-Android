@@ -1,6 +1,8 @@
 package com.apphud.sdk.client
 
+import android.view.View
 import com.apphud.sdk.ApphudLog
+import com.apphud.sdk.ApphudUtils
 import com.apphud.sdk.client.dto.AttributionDto
 import com.apphud.sdk.client.dto.DataDto
 import com.apphud.sdk.client.dto.ResponseDto
@@ -21,6 +23,13 @@ class HttpUrlConnectionExecutor(
     private val parser: Parser
 ) : NetworkExecutor {
 
+    /**
+     * Set value for X-SDK header.
+     */
+    companion object Shared{
+        var X_SDK: String = "android"
+    }
+
     override fun <O> call(config: RequestConfig): O = call(config, null)
     override fun <I, O> call(config: RequestConfig, input: I?): O = try {
 
@@ -38,6 +47,9 @@ class HttpUrlConnectionExecutor(
         connection.setRequestProperty("Accept", "application/json; utf-8")
         connection.setRequestProperty("Content-Type", "application/json; utf-8")
         connection.setRequestProperty("X-Platform", "android")
+        if(X_SDK.isNotEmpty()){
+            connection.setRequestProperty("X-SDK", X_SDK)
+        }
 
         config.headers.forEach { entry ->
             connection.setRequestProperty(entry.key, entry.value)
