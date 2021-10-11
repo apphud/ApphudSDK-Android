@@ -1,7 +1,9 @@
 package com.apphud.sdk.mappers
 
+import com.apphud.sdk.client.dto.ApphudPaywallDto
 import com.apphud.sdk.client.dto.CustomerDto
 import com.apphud.sdk.domain.ApphudKind
+import com.apphud.sdk.domain.ApphudPaywall
 import com.apphud.sdk.domain.Customer
 import com.apphud.sdk.domain.ApphudUser
 
@@ -24,6 +26,10 @@ class CustomerMapper(
             .filter { it.kind == ApphudKind.NONRENEWABLE.source }
             .mapNotNull { mapper.mapNonRenewable(it) }
             .sortedByDescending { it.purchasedAt },
-        paywalls = customer.paywalls.mapNotNull{paywallsMapper.map(it)}
+        paywalls = customer.paywalls?.let{ paywallsList ->
+            paywallsList.map {paywallsMapper.map(it)}
+        }?: run{
+            mutableListOf<ApphudPaywall>()
+        }
     )
 }
