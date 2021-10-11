@@ -26,7 +26,8 @@ class PaywallsMapper(
                         name = item.name,
                         store = item.store,
                         skuDetails = null,
-                        paywall_id = paywallDto.id //paywall id
+                        paywall_id = paywallDto.id,
+                        paywall_identifier = paywallDto.identifier
                     )
                 }
             )
