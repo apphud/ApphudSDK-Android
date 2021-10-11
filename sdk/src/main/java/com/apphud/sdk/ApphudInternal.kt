@@ -234,14 +234,7 @@ internal object ApphudInternal {
 
                 if (customer.paywalls.isNotEmpty()) {
                     didRetrievePaywallsAtThisLaunch = true
-                    updatePaywallsWithSkuDetails(customer.paywalls)
-
-                    this.paywalls.apply {
-                        clear()
-                        addAll(customer.paywalls)
-                    }
-
-                    cachePaywalls(paywalls = this.paywalls)
+                    processLoadedPaywalls(customer.paywalls)
                 }
 
                 // try to resend purchases, if prev requests was fail
@@ -258,6 +251,19 @@ internal object ApphudInternal {
         }
 
         ApphudLog.log("End registration")
+    }
+
+    private fun processLoadedPaywalls(paywallsToCache : List<ApphudPaywall>, writeToCache: Boolean = true){
+        updatePaywallsWithSkuDetails(paywallsToCache)
+
+        this.paywalls.apply {
+            clear()
+            addAll(paywallsToCache)
+        }
+
+        if(writeToCache){
+            cachePaywalls(paywalls = this.paywalls)
+        }
     }
 
     internal fun productsFetchCallback(callback: (List<SkuDetails>) -> Unit) {
@@ -877,6 +883,7 @@ internal object ApphudInternal {
         setNeedsToUpdateUserProperties = false
         client = null
         allowIdentifyUser = true
+        didRetrievePaywallsAtThisLaunch = false
     }
 
     private fun updateUser(id: UserId?): UserId {
@@ -999,16 +1006,8 @@ internal object ApphudInternal {
         fetchPaywallsIfNeeded { paywalls, error, writeToCache ->
 
             paywalls?.let {
-                if (it.isNotEmpty() && writeToCache) {
-                    cachePaywalls(paywalls = paywalls)
-                }
+                processLoadedPaywalls(it, writeToCache)
 
-                updatePaywallsWithSkuDetails(paywalls)
-
-                this.paywalls.apply {
-                    clear()
-                    addAll(paywalls)
-                }
                 if (skuDetailsIsLoaded.isBothLoaded()) {
                     callback.invoke(paywalls, null)
                 } else {
