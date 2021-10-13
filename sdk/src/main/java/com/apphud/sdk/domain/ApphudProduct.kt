@@ -31,7 +31,7 @@ data class ApphudProduct(
     var paywall_id: String?,
 
     /**
-    Paywall Identifier from Paywall.
+    User Generated Paywall Identifier
      */
     var paywall_identifier: String?
 )
