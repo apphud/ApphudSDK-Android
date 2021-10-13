@@ -1027,7 +1027,7 @@ internal object ApphudInternal {
     ) {
         ApphudLog.log("try fetchPaywallsIfNeeded")
 
-        if (!this.paywalls.isNullOrEmpty() || forceRefresh) {
+        if (!this.paywalls.isNullOrEmpty() && !forceRefresh) {
             ApphudLog.log("Using cached paywalls")
             callback(mutableListOf(*this.paywalls.toTypedArray()), null, false)
             return
