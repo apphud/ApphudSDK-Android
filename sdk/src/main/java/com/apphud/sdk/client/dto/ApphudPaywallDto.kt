@@ -6,6 +6,8 @@ data class ApphudPaywallDto(
     val identifier: String,
     val default: Boolean,
     val json: String,
-    val items: List<ApphudProductDto>
+    val items: List<ApphudProductDto>,
+    val experiment_name: String?,
+    val variation_name: String?
 )
 

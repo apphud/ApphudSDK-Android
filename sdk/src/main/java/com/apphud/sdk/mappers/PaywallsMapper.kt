@@ -29,6 +29,8 @@ class PaywallsMapper(
                         paywall_id = paywallDto.id,
                         paywall_identifier = paywallDto.identifier
                     )
-                }
+                },
+                experimentName = paywallDto.experiment_name,
+                variationName = paywallDto.variation_name
             )
 }

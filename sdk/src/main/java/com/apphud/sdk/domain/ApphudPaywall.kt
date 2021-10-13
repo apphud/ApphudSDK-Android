@@ -6,5 +6,7 @@ data class ApphudPaywall(
     val identifier: String,
     val default: Boolean,
     val json: Map<String, Any>?,
-    val products: List<ApphudProduct>?
+    val products: List<ApphudProduct>?,
+    val experimentName: String?,
+    val variationName: String?
 )
