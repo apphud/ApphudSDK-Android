@@ -16,5 +16,8 @@ class App : Application() {
 
         Apphud.enableDebugLogs()
         Apphud.start(this, Constants.API_KEY)
+        Apphud.getPaywalls { paywalls, error ->
+            print("paywalls finished fetching")
+        }
     }
 }
