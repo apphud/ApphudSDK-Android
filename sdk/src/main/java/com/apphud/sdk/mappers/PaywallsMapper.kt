@@ -18,8 +18,6 @@ class PaywallsMapper(
                 name = paywallDto.name,
                 identifier = paywallDto.identifier,
                 default = paywallDto.default,
-                experimentId = paywallDto.experiment_id,
-                variationIdentifier = paywallDto.variation_identifier,
                 json = parser.fromJson<Map<String, Any>>(paywallDto.json, Map::class.java),
                 products = paywallDto.items.map { item ->
                     ApphudProduct(
