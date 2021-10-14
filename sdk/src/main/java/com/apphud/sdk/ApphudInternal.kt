@@ -9,6 +9,7 @@ import android.os.Build
 import android.os.Handler
 import android.os.Looper
 import androidx.core.os.ConfigurationCompat
+import com.android.billingclient.BuildConfig
 import com.android.billingclient.api.BillingClient
 import com.android.billingclient.api.Purchase
 import com.android.billingclient.api.PurchaseHistoryRecord
@@ -67,6 +68,7 @@ internal object ApphudInternal {
 
     private var allowIdentifyUser = true
     private var isRegistered = false
+    private var didRetrievePaywallsAtThisLaunch = false
 
     internal var userId: UserId? = null
     private lateinit var deviceId: DeviceId
@@ -232,6 +234,11 @@ internal object ApphudInternal {
                 apphudListener?.apphudSubscriptionsUpdated(customer.subscriptions)
                 apphudListener?.apphudNonRenewingPurchasesUpdated(customer.purchases)
 
+                if (customer.paywalls.isNotEmpty()) {
+                    didRetrievePaywallsAtThisLaunch = true
+                    processLoadedPaywalls(customer.paywalls)
+                }
+
                 // try to resend purchases, if prev requests was fail
                 if (storage.isNeedSync) {
                     ApphudLog.log("registration: syncPurchases")
@@ -251,6 +258,19 @@ internal object ApphudInternal {
         }
 
         ApphudLog.log("End registration")
+    }
+
+    private fun processLoadedPaywalls(paywallsToCache : List<ApphudPaywall>, writeToCache: Boolean = true){
+        updatePaywallsWithSkuDetails(paywallsToCache)
+
+        this.paywalls.apply {
+            clear()
+            addAll(paywallsToCache)
+        }
+
+        if(writeToCache){
+            cachePaywalls(paywalls = this.paywalls)
+        }
     }
 
     internal fun productsFetchCallback(callback: (List<SkuDetails>) -> Unit) {
@@ -329,9 +349,8 @@ internal object ApphudInternal {
                     }
                 } ?: run {
                     //if we booth SkuType already loaded and we still haven't any SkuDetails
-                    val message = "Unable to fetch product with given product id: $productName"
+                    val message = "Unable to fetch product with given product id: $productName" + apphudProduct?.let{ " [Apphud product ID: " + it.id + "]"}
                     ApphudLog.log(message = message,
-                        apphud_product_id = apphudProduct?.id,
                         sendLogToServer = true)
                     callback?.invoke(ApphudPurchaseResult(null,
                         null,
@@ -358,9 +377,8 @@ internal object ApphudInternal {
         billing.acknowledgeCallback = { status, purchase ->
             when (status) {
                 is PurchaseCallbackStatus.Error -> {
-                    val message = "Failed to acknowledge purchase with code: ${status.error}"
+                    val message = "Failed to acknowledge purchase with code: ${status.error}" + apphudProduct?.let{ " [Apphud product ID: " + it.id + "]"}
                     ApphudLog.log(message = message,
-                        apphud_product_id = apphudProduct?.id,
                         sendLogToServer = true)
                     callback?.invoke(ApphudPurchaseResult(null,
                         null,
@@ -382,9 +400,8 @@ internal object ApphudInternal {
         billing.consumeCallback = { status, purchase ->
             when (status) {
                 is PurchaseCallbackStatus.Error -> {
-                    val message = "Failed to consume purchase with error: ${status.error}"
+                    val message = "Failed to consume purchase with error: ${status.error}" + apphudProduct?.let{ " [Apphud product ID: " + it.id + "]"}
                     ApphudLog.log(message = message,
-                        apphud_product_id = apphudProduct?.id,
                         sendLogToServer = true)
                     callback?.invoke(ApphudPurchaseResult(null,
                         null,
@@ -406,7 +423,7 @@ internal object ApphudInternal {
         billing.purchasesCallback = { purchasesResult ->
             when (purchasesResult) {
                 is PurchaseUpdatedCallbackStatus.Error -> {
-                    val message = if (details != null) {
+                    var message = if (details != null) {
                         "Unable to buy product with given product id: ${details.sku} "
                     } else {
                         if (purchasesResult.result.responseCode == BillingClient.BillingResponseCode.USER_CANCELED) {
@@ -414,13 +431,17 @@ internal object ApphudInternal {
                         }
                         "Unable to buy product with given product id: ${apphudProduct?.skuDetails?.sku} "
                     }
+                    apphudProduct?.let{
+                        message += " [Apphud product ID: " + it.id + "]"
+                    }
+
                     val error =
                         ApphudError(message = message,
                             secondErrorMessage = purchasesResult.result.debugMessage,
                             errorCode = purchasesResult.result.responseCode
                         )
-                    ApphudLog.log(message = error.toString(),
-                        apphud_product_id = apphudProduct?.id)
+                    ApphudLog.log(message = error.toString())
+
                     callback?.invoke(ApphudPurchaseResult(null, null, null, error))
                 }
                 is PurchaseUpdatedCallbackStatus.Success -> {
@@ -452,9 +473,9 @@ internal object ApphudInternal {
                                     }
                                 }
                             else -> {
-                                val message = "After purchase state: ${it.purchaseState}"
-                                ApphudLog.log(message = message,
-                                    apphud_product_id = apphudProduct?.id)
+                                val message = "After purchase state: ${it.purchaseState}" + apphudProduct?.let{ " [Apphud product ID: " + it.id + "]"}
+                                ApphudLog.log(message = message)
+
                                 callback?.invoke(ApphudPurchaseResult(null,
                                     null,
                                     it,
@@ -474,9 +495,8 @@ internal object ApphudInternal {
                 billing.purchase(activity, apphudProduct.skuDetails!!)
             }
             else -> {
-                val message = "Unable to buy product with because SkuDetails is null"
-                ApphudLog.log(message = message,
-                    apphud_product_id = apphudProduct?.id)
+                val message = "Unable to buy product with because SkuDetails is null" + apphudProduct?.let{ " [Apphud product ID: " + it.id + "]"}
+                ApphudLog.log(message = message)
                 callback?.invoke(ApphudPurchaseResult(null,
                     null,
                     null,
@@ -494,10 +514,9 @@ internal object ApphudInternal {
         val purchaseBody = details?.let { makePurchaseBody(purchase, it, null, null) }
             ?: apphudProduct?.let { makePurchaseBody(purchase, it.skuDetails, it.paywall_id, it.id) }
         if (purchaseBody == null) {
-            val message =
-                "SkuDetails and ApphudProduct can not be null at the same time"
-            ApphudLog.log(message = message,
-                apphud_product_id = apphudProduct?.id)
+            val message = "SkuDetails and ApphudProduct can not be null at the same time" + apphudProduct?.let{ " [Apphud product ID: " + it.id + "]"}
+            ApphudLog.log(message = message)
+
             callback?.invoke(ApphudPurchaseResult(null,
                 null,
                 null,
@@ -538,9 +557,8 @@ internal object ApphudInternal {
                             }
                         }
                         else -> {
-                            val message = "Unable to validate purchase with error = ${errors.message} and code = ${errors.errorCode}"
-                            ApphudLog.log(message = message,
-                                apphud_product_id = apphudProduct?.id)
+                            val message = "Unable to validate purchase with error = ${errors.message} and code = ${errors.errorCode}" + apphudProduct?.let{ " [Apphud product ID: " + it.id + "]"}
+                            ApphudLog.log(message = message)
                             callback?.invoke(ApphudPurchaseResult(null,
                                 null,
                                 purchase,
@@ -870,6 +888,7 @@ internal object ApphudInternal {
         setNeedsToUpdateUserProperties = false
         client = null
         allowIdentifyUser = true
+        didRetrievePaywallsAtThisLaunch = false
     }
 
     private fun updateUser(id: UserId?): UserId {
@@ -953,7 +972,8 @@ internal object ApphudInternal {
             device_id = deviceId,
             time_zone = TimeZone.getDefault().id,
             is_sandbox = context.isDebuggable(),
-            is_new = this.is_new
+            is_new = this.is_new,
+            need_paywalls = !didRetrievePaywallsAtThisLaunch
         )
 
     internal fun makeErrorLogsBody(message: String, apphud_product_id: String? = null) =
@@ -991,16 +1011,8 @@ internal object ApphudInternal {
         fetchPaywallsIfNeeded { paywalls, error, writeToCache ->
 
             paywalls?.let {
-                if (it.isNotEmpty() && writeToCache) {
-                    cachePaywalls(paywalls = paywalls)
-                }
+                processLoadedPaywalls(it, writeToCache)
 
-                updatePaywallsWithSkuDetails(paywalls)
-
-                this.paywalls.apply {
-                    clear()
-                    addAll(paywalls)
-                }
                 if (skuDetailsIsLoaded.isBothLoaded()) {
                     callback.invoke(paywalls, null)
                 } else {
@@ -1022,7 +1034,7 @@ internal object ApphudInternal {
     ) {
         ApphudLog.log("try fetchPaywallsIfNeeded")
 
-        if (!this.paywalls.isNullOrEmpty() || forceRefresh) {
+        if (!this.paywalls.isNullOrEmpty() && !forceRefresh) {
             ApphudLog.log("Using cached paywalls")
             callback(mutableListOf(*this.paywalls.toTypedArray()), null, false)
             return

@@ -1,21 +1,34 @@
 package com.apphud.sdk.client
 
+import android.view.View
 import com.apphud.sdk.ApphudLog
+import com.apphud.sdk.ApphudUtils
+import com.apphud.sdk.client.dto.AttributionDto
+import com.apphud.sdk.client.dto.DataDto
+import com.apphud.sdk.client.dto.ResponseDto
 import com.apphud.sdk.isSuccess
 import com.apphud.sdk.parser.Parser
+import com.google.gson.reflect.TypeToken
 import java.io.BufferedReader
 import java.io.InputStream
 import java.io.InputStreamReader
-import java.net.HttpURLConnection
 import java.net.SocketTimeoutException
 import java.net.URL
 import java.net.UnknownHostException
+import javax.net.ssl.HttpsURLConnection
 
 class HttpUrlConnectionExecutor(
     private val host: String,
     private val version: String,
     private val parser: Parser
 ) : NetworkExecutor {
+
+    /**
+     * Set value for X-SDK header.
+     */
+    companion object Shared{
+        var X_SDK: String = "android"
+    }
 
     override fun <O> call(config: RequestConfig): O = call(config, null)
     override fun <I, O> call(config: RequestConfig, input: I?): O = try {
@@ -28,12 +41,16 @@ class HttpUrlConnectionExecutor(
             .build()
 
         val url = URL(apphudUrl.url)
-        val connection = url.openConnection() as HttpURLConnection
+        val connection = url.openConnection() as HttpsURLConnection
         connection.requestMethod = config.requestType.name
         //TODO move in the setting
         connection.setRequestProperty("Accept", "application/json; utf-8")
         connection.setRequestProperty("Content-Type", "application/json; utf-8")
         connection.setRequestProperty("X-Platform", "android")
+        if(X_SDK.isNotEmpty()){
+            connection.setRequestProperty("X-SDK", X_SDK)
+        }
+
         config.headers.forEach { entry ->
             connection.setRequestProperty(entry.key, entry.value)
         }
@@ -41,9 +58,9 @@ class HttpUrlConnectionExecutor(
         connection.connectTimeout = 10_000
 
         when (config.requestType) {
-            RequestType.GET -> ApphudLog.log("start ${config.requestType} request ${apphudUrl.url} without params")
+            RequestType.GET -> ApphudLog.logI("start ${config.requestType} request ${apphudUrl.url} without params")
             else -> {
-                ApphudLog.log("start ${config.requestType} request ${apphudUrl.url} with params:\n ${
+                ApphudLog.logI("start ${config.requestType} request ${apphudUrl.url} with params:\n ${
                     parser.toJson(input)
                 }")
                 input?.let { source ->
@@ -56,25 +73,33 @@ class HttpUrlConnectionExecutor(
         }
 
         connection.connect()
-
         val response = when (connection.isSuccess) {
             true -> {
-                val response = buildStringBy(connection.inputStream)
-                ApphudLog.log(
+                val serverAnswer = buildStringBy(connection.inputStream)
+                ApphudLog.logI(
                     "finish ${config.requestType} request ${apphudUrl.url} " +
-                            "success with response:\n ${buildPrettyPrintedBy(response)}")
-                parser.fromJson<O>(response, config.type)
+                            "success with response:\n ${buildPrettyPrintedBy(serverAnswer)}")
+
+                if(serverAnswer.isNotEmpty()){
+                    parser.fromJson<O>(serverAnswer, config.type)
+                }else{
+                    //set success response if empty to finish requet
+                    val attributionDto = AttributionDto(true)
+                    val dataDto = DataDto(attributionDto)
+                    val responseDto = ResponseDto(dataDto, null)
+                    parser.fromJson<O>(parser.toJson(responseDto), config.type)
+                }
             }
             else -> {
-                val response = buildStringBy(connection.errorStream)
+                val serverAnswer = buildStringBy(connection.errorStream)
                 ApphudLog.logE(
                     message = "finish ${config.requestType} request ${apphudUrl.url} " +
                             "failed with code: ${connection.responseCode} response: ${
-                                buildPrettyPrintedBy(response)
+                                buildPrettyPrintedBy(serverAnswer)
                             }")
                 when (connection.responseCode) {
                     422 -> {
-                        parser.fromJson<O>(response, config.type)
+                        parser.fromJson<O>(serverAnswer, config.type)
                     }
                     else -> {
                         null
@@ -85,16 +110,9 @@ class HttpUrlConnectionExecutor(
 
         connection.disconnect()
 
-        response ?: exception(connection.responseCode)
+        response?: exception(connection.responseCode)
     } catch (e: Exception) {
-        when (e) {
-            is UnknownHostException, is SocketTimeoutException -> {
-                ApphudLog.log(message = "request failed with exception ${e.message}", sendLogToServer = true)
-            }
-            else -> {
-                ApphudLog.log(message = "request failed with exception ${e.message}", sendLogToServer = true)
-            }
-        }
+        ApphudLog.logI("Throw with exception: $e")
         throw e
     }
 

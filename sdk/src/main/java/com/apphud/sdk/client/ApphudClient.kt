@@ -9,10 +9,10 @@ import com.apphud.sdk.tasks.*
 internal class ApphudClient(apiKey: ApiKey, private val parser: Parser) {
 
     //TODO Про эти мапперы класс ApphudClient знать не должен
-    private val customerMapper = CustomerMapper(SubscriptionMapper())
     private val productMapper = ProductMapper()
-    private val paywallsMapper = PaywallsMapper()
+    private val paywallsMapper = PaywallsMapper(parser)
     private val attributionMapper = AttributionMapper()
+    private val customerMapper = CustomerMapper(SubscriptionMapper(), paywallsMapper)
 
     private val thread = ThreadsUtils()
     private val executorV1: NetworkExecutor = HttpUrlConnectionExecutor(ApiClient.host, ApphudVersion.V1, parser)
@@ -97,7 +97,7 @@ internal class ApphudClient(apiKey: ApiKey, private val parser: Parser) {
                     callback.invoke(null, ApphudError(message = response.errors.toString()))
                 }
                 else -> {
-                    callback.invoke(paywallsMapper.map(response.data.results, parser), null)
+                    callback.invoke(paywallsMapper.map(response.data.results), null)
                 }
             }
         })
@@ -110,8 +110,8 @@ internal class ApphudClient(apiKey: ApiKey, private val parser: Parser) {
         val callable = ErrorLogsCallable(body, serviceV1)
         thread.execute(LoopRunnable(callable) { response ->
             when (response.data.results) {
-                null -> { ApphudLog.log("Error logs was not send") }
-                else -> { ApphudLog.log("Error logs was send successfully") }
+                null -> { ApphudLog.logI("Error logs was not send") }
+                else -> { ApphudLog.logI("Error logs was send successfully") }
             }
         })
     }

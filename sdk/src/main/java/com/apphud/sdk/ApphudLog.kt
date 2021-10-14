@@ -12,21 +12,33 @@ internal object ApphudLog {
     /**
      * This is a fun for log messages.
      * */
-    fun log(message: String, apphud_product_id: String? = null, sendLogToServer:Boolean = false) {
+    fun log(message: String, sendLogToServer:Boolean = false) {
         if (ApphudUtils.logging) {
-            Log.e(TAG, message)
+            Log.d(TAG, message)
         }
         if(sendLogToServer){
-            sendErrorLogs(message, apphud_product_id)
+            sendErrorLogs(message)
+        }
+    }
+
+    /**
+     * This is a fun for log info messages.
+     * */
+    fun logI(message: String, sendLogToServer:Boolean = false) {
+        if (ApphudUtils.logging) {
+            Log.i(TAG, message)
+        }
+        if(sendLogToServer){
+            sendErrorLogs(message)
         }
     }
 
     /**
      * This is a fun to force error message logging.
      * */
-    fun logE(message: String, apphud_product_id: String? = null) {
+    fun logE(message: String) {
         Log.e(TAG, message)
-        sendErrorLogs(message, apphud_product_id)
+        sendErrorLogs(message)
     }
 
     fun setClient(client: ApphudClient) {
@@ -36,9 +48,9 @@ internal object ApphudLog {
     /**
      * Send Error Logs to Apphud Server
      * */
-    private fun sendErrorLogs(message: String, apphud_product_id: String? = null) {
+    private fun sendErrorLogs(message: String) {
         client?.sendErrorLogs(
-            ApphudInternal.makeErrorLogsBody(message, apphud_product_id)
+            ApphudInternal.makeErrorLogsBody(message, ApphudUtils.packageName)
         )
     }
 

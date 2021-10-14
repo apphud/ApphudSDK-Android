@@ -18,7 +18,8 @@ class ProductMapper {
                         name = item.name,
                         store = item.store,
                         skuDetails = null,
-                        paywall_id = null
+                        paywall_id = null,
+                        paywall_identifier = null
                     )
                 }
             )
