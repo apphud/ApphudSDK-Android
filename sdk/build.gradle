@@ -11,7 +11,8 @@ android {
         targetSdkVersion 30
 
         final name = project.properties.sdkVersion
-
+        versionCode 1
+        versionName name
 
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         consumerProguardFiles "consumer-rules.pro"
