@@ -23,11 +23,14 @@ import com.apphud.sdk.internal.callback_status.PurchaseCallbackStatus
 import com.apphud.sdk.internal.callback_status.PurchaseHistoryCallbackStatus
 import com.apphud.sdk.internal.callback_status.PurchaseRestoredCallbackStatus
 import com.apphud.sdk.internal.callback_status.PurchaseUpdatedCallbackStatus
+import com.apphud.sdk.managers.RequestManager
 import com.apphud.sdk.parser.GsonParser
 import com.apphud.sdk.parser.Parser
 import com.apphud.sdk.storage.SharedPreferencesStorage
 import com.apphud.sdk.tasks.advertisingId
 import com.google.gson.GsonBuilder
+import kotlinx.coroutines.*
+import java.lang.Runnable
 import java.util.*
 import java.util.concurrent.atomic.AtomicInteger
 
@@ -54,23 +57,11 @@ internal object ApphudInternal {
     internal var paywalls: MutableList<ApphudPaywall> = mutableListOf()
     internal var productGroups: MutableList<ApphudGroup> = mutableListOf()
 
-    private var advertisingId: String? = null
-        get() = storage.advertisingId
-        set(value) {
-            field = value
-            if (storage.advertisingId != value) {
-                storage.advertisingId = value
-                ApphudLog.log("advertisingId = $advertisingId is fetched and saved")
-            }
-            ApphudLog.log("advertisingId: continue registration")
-            registration(userId, deviceId)
-        }
-
     private var allowIdentifyUser = true
     private var isRegistered = false
     private var didRetrievePaywallsAtThisLaunch = false
 
-    internal var userId: UserId? = null
+    internal lateinit var userId: UserId
     private lateinit var deviceId: DeviceId
 
     private var is_new = true
@@ -83,6 +74,11 @@ internal object ApphudInternal {
     internal var apphudListener: ApphudListener? = null
 
     private val skuDetails = mutableListOf<SkuDetails>()
+
+    val coroutineScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+    val errorHandler = CoroutineExceptionHandler { context, error ->
+        error.message?.let { ApphudLog.logE(it) }
+    }
 
     /**
      * 0 - we at start point without any skuDetails
@@ -135,29 +131,19 @@ internal object ApphudInternal {
             }
         }
 
-    private fun loadAdsId() {
-        if (ApphudUtils.adTracking) {
-            AdvertisingTask().execute()
-        }
-    }
-
-    private class AdvertisingTask : AsyncTask<Void, Void, String?>() {
-        override fun doInBackground(vararg params: Void?): String? = advertisingId(context)
-        override fun onPostExecute(result: String?) {
-            advertisingId = result
-        }
-    }
-
     internal fun updateUserId(userId: UserId) {
         ApphudLog.log("Start updateUserId userId=$userId")
         val id = updateUser(id = userId)
         this.userId = id
 
-        val body = mkRegistrationBody(id, deviceId)
-        client?.registrationUser(body) { customer ->
-            handler.post {
-                storage.customer = customer
-                ApphudLog.log("End updateUserId customer=$customer")
+        coroutineScope.launch(errorHandler) {
+            RequestManager.registration(!didRetrievePaywallsAtThisLaunch, is_new) { customer, error ->
+                customer?.let {
+                    launch(Dispatchers.Main) {
+                        storage.customer = customer
+                        ApphudLog.log("End updateUserId customer=$customer")
+                    }
+                }
             }
         }
     }
@@ -178,6 +164,12 @@ internal object ApphudInternal {
         }
         this.apiKey = apiKey
         this.context = context
+        ApphudLog.log("Start initialize with userId=$userId, deviceId=$deviceId")
+        this.userId = updateUser(id = userId)
+        this.deviceId = updateDevice(id = deviceId)
+
+        RequestManager.setParams(this.context, this.userId, this.deviceId, this.apiKey)
+
         client = ApphudClient(apiKey, parser)
         client?.let { ApphudLog.setClient(it) }
         allowIdentifyUser = false
@@ -186,14 +178,8 @@ internal object ApphudInternal {
         // try to continue anyway, because maybe already has cached data, try to fetch play market products
         fetchProducts()
 
-        ApphudLog.log("Start initialize with userId=$userId, deviceId=$deviceId")
-        this.userId = updateUser(id = userId)
-        this.deviceId = updateDevice(id = deviceId)
         ApphudLog.log("Start initialize with saved userId=${this.userId}, saved deviceId=${this.deviceId}")
-        if (ApphudUtils.adTracking)
-            loadAdsId()
-        else
-            registration(this.userId, this.deviceId)
+        registration(this.userId, this.deviceId)
     }
 
     private fun fetchProducts() {
@@ -210,44 +196,53 @@ internal object ApphudInternal {
                 apphudListener?.apphudFetchSkuDetailsProducts(skuDetails)
             }
         }
-        client?.allProducts { groups ->
-            ApphudLog.log("fetchProducts: products from Apphud server: $groups")
-            cacheGroups(groups)
-            val ids = groups.map { it -> it.products?.map { it.product_id }!! }.flatten()
-            billing.details(BillingClient.SkuType.SUBS, ids)
-            billing.details(BillingClient.SkuType.INAPP, ids)
+
+        coroutineScope.launch(errorHandler) {
+            RequestManager.allProducts { groupsList, _ ->
+                groupsList?.let { groups ->
+                    launch(Dispatchers.Main) {
+                        ApphudLog.log("fetchProducts: products from Apphud server: $groups")
+                        cacheGroups(groups)
+                        val ids = groups.map { it -> it.products?.map { it.product_id }!! }.flatten()
+                        billing.details(BillingClient.SkuType.SUBS, ids)
+                        billing.details(BillingClient.SkuType.INAPP, ids)
+                    }
+                }
+            }
         }
     }
 
     private fun registration(
-        userId: UserId?,
-        deviceId: DeviceId?
+        userId: UserId,
+        deviceId: DeviceId
     ) {
         ApphudLog.log("Start registration userId=$userId, deviceId=$deviceId")
 
-        val body = mkRegistrationBody(userId!!, this.deviceId)
-        client?.registrationUser(body) { customer ->
-            isRegistered = true
-            handler.post {
-                ApphudLog.log("registration: registrationUser customer=$customer")
-                storage.customer = customer
-                apphudListener?.apphudSubscriptionsUpdated(customer.subscriptions)
-                apphudListener?.apphudNonRenewingPurchasesUpdated(customer.purchases)
+        coroutineScope.launch(errorHandler) {
+            RequestManager.registration(!didRetrievePaywallsAtThisLaunch, is_new) { customer, error ->
+                customer?.let {
+                    launch(Dispatchers.Main) {
+                        ApphudLog.log("registration: registrationUser customer=$customer")
+                        storage.customer = customer
+                        apphudListener?.apphudSubscriptionsUpdated(customer.subscriptions)
+                        apphudListener?.apphudNonRenewingPurchasesUpdated(customer.purchases)
 
-                if (customer.paywalls.isNotEmpty()) {
-                    didRetrievePaywallsAtThisLaunch = true
-                    processLoadedPaywalls(customer.paywalls)
-                }
+                        if (customer.paywalls.isNotEmpty()) {
+                            didRetrievePaywallsAtThisLaunch = true
+                            processLoadedPaywalls(customer.paywalls, true)
+                        }
 
-                // try to resend purchases, if prev requests was fail
-                if (storage.isNeedSync) {
-                    ApphudLog.log("registration: syncPurchases")
-                    syncPurchases()
-                }
+                        // try to resend purchases, if prev requests was fail
+                        if (storage.isNeedSync) {
+                            ApphudLog.log("registration: syncPurchases")
+                            syncPurchases()
+                        }
 
-                if (pendingUserProperties.isNotEmpty() && setNeedsToUpdateUserProperties) {
-                    ApphudLog.log("registration: we should update UserProperties")
-                    updateUserProperties()
+                        if (pendingUserProperties.isNotEmpty() && setNeedsToUpdateUserProperties) {
+                            ApphudLog.log("registration: we should update UserProperties")
+                            updateUserProperties()
+                        }
+                    }
                 }
 
                 if (fetchPaywallsDelayedCallback != null) {
@@ -257,20 +252,7 @@ internal object ApphudInternal {
             }
         }
 
-        ApphudLog.log("End registration")
-    }
-
-    private fun processLoadedPaywalls(paywallsToCache : List<ApphudPaywall>, writeToCache: Boolean = true){
-        updatePaywallsWithSkuDetails(paywallsToCache)
-
-        this.paywalls.apply {
-            clear()
-            addAll(paywallsToCache)
-        }
-
-        if(writeToCache){
-            cachePaywalls(paywalls = this.paywalls)
-        }
+        ApphudLog.logI("End registration")
     }
 
     internal fun productsFetchCallback(callback: (List<SkuDetails>) -> Unit) {
@@ -862,14 +844,16 @@ internal object ApphudInternal {
     }
 
     private fun clear() {
+        RequestManager.cleanRegistration()
+
         skuDetailsIsLoaded.set(0)
         skuDetailsForFetchIsLoaded.set(0)
         skuDetailsForRestoreIsLoaded.set(0)
         paywallsDelayedCallback = null
         isRegistered = false
         storage.customer = null
-        storage.userId = null
-        storage.deviceId = null
+        //storage.userId = null
+        //storage.deviceId = null
         storage.advertisingId = null
         storage.isNeedSync = false
         storage.facebook = null
@@ -877,7 +861,6 @@ internal object ApphudInternal {
         storage.appsflyer = null
         storage.paywalls = null
         storage.productGroups = null
-        userId = null
         generatedUUID = UUID.randomUUID().toString()
         prevPurchases.clear()
         tempPrevPurchases.clear()
@@ -956,26 +939,6 @@ internal object ApphudInternal {
             }
         )
 
-    private fun mkRegistrationBody(userId: UserId, deviceId: DeviceId) =
-        RegistrationBody(
-            locale = ConfigurationCompat.getLocales(Resources.getSystem().configuration).get(0).toString(),
-            sdk_version = BuildConfig.VERSION_NAME,
-            app_version = context.buildAppVersion(),
-            device_family = Build.MANUFACTURER,
-            platform = "Android",
-            device_type = Build.MODEL,
-            os_version = Build.VERSION.RELEASE,
-            start_app_version = context.buildAppVersion(),
-            idfv = null,
-            idfa = if (ApphudUtils.adTracking) advertisingId else null,
-            user_id = userId,
-            device_id = deviceId,
-            time_zone = TimeZone.getDefault().id,
-            is_sandbox = context.isDebuggable(),
-            is_new = this.is_new,
-            need_paywalls = !didRetrievePaywallsAtThisLaunch
-        )
-
     internal fun makeErrorLogsBody(message: String, apphud_product_id: String? = null) =
         ErrorLogsBody(
             message = message,
@@ -1007,12 +970,9 @@ internal object ApphudInternal {
 
     internal fun getPaywalls(callback: PaywallCallback) {
         ApphudLog.log("Invoke getPaywalls")
-        setNeedsToUpdatePaywalls = false
-        fetchPaywallsIfNeeded { paywalls, error, writeToCache ->
 
+        fetchPaywallsIfNeeded(true) { paywalls, error ->
             paywalls?.let {
-                processLoadedPaywalls(it, writeToCache)
-
                 if (skuDetailsIsLoaded.isBothLoaded()) {
                     callback.invoke(paywalls, null)
                 } else {
@@ -1020,8 +980,7 @@ internal object ApphudInternal {
                     setNeedsToUpdatePaywalls = true
                 }
             } ?: run {
-                val message =
-                    "Get Paywalls is failed with message = ${error?.message} and code = ${error?.errorCode}"
+                val message = "Get Paywalls is failed with message = ${error?.message} and code = ${error?.errorCode}"
                 ApphudLog.log(message = message)
                 callback.invoke(null, error)
             }
@@ -1030,28 +989,42 @@ internal object ApphudInternal {
 
     private fun fetchPaywallsIfNeeded(
         forceRefresh: Boolean = false,
-        callback: (paywalls: List<ApphudPaywall>?, error: ApphudError?, writeToCache: Boolean) -> Unit
+        callback: (paywalls: List<ApphudPaywall>?, error: ApphudError?) -> Unit
     ) {
         ApphudLog.log("try fetchPaywallsIfNeeded")
 
         if (!this.paywalls.isNullOrEmpty() && !forceRefresh) {
             ApphudLog.log("Using cached paywalls")
-            callback(mutableListOf(*this.paywalls.toTypedArray()), null, false)
+            callback(mutableListOf(*this.paywalls.toTypedArray()), null)
             return
         }
 
-        if (currentUser != null) {
-            client?.paywalls(body = DeviceIdBody(device_id = deviceId)) { paywalls, errors ->
-                callback.invoke(paywalls, errors, true)
-            }
-        } else {
-            ApphudLog.log("User is not yet registered, scheduling paywalls fetch")
-            fetchPaywallsDelayedCallback = {
-                ApphudLog.log("User is registered, now fetching paywalls")
-                client?.paywalls(body = DeviceIdBody(device_id = deviceId)) { paywalls, errors ->
-                    callback.invoke(paywalls, errors, true)
+        coroutineScope.launch(errorHandler) {
+            RequestManager.getPaywalls{ paywalls, error ->
+                paywalls?.let {
+                    launch(Dispatchers.Main) {
+                        ApphudLog.logI("Paywalls loaded successfully")
+                        processLoadedPaywalls(paywalls, true)
+                        callback.invoke(paywalls, null)
+                    }
+                }
+                error?.let{
+                    callback.invoke(null, ApphudError(it.message?:"Get Paywalls is failed"))
                 }
             }
+        }
+    }
+
+    private fun processLoadedPaywalls(paywallsToCache : List<ApphudPaywall>, writeToCache: Boolean = true){
+        updatePaywallsWithSkuDetails(paywallsToCache)
+
+        this.paywalls.apply {
+            clear()
+            addAll(paywallsToCache)
+        }
+
+        if(writeToCache){
+            cachePaywalls(paywalls = this.paywalls)
         }
     }
 

@@ -16,8 +16,30 @@ class App : Application() {
 
         Apphud.enableDebugLogs()
         Apphud.start(this, Constants.API_KEY)
+
         Apphud.getPaywalls { paywalls, error ->
-            print("paywalls finished fetching")
+            error?.let{
+                Log.d("Apphud", "PAYWALLS LOADING 1a FAILED")
+            }
+            paywalls?.let{
+                Log.d("Apphud", "PAYWALLS LOADED 1a")
+            }
+        }
+        Apphud.getPaywalls { paywalls, error ->
+            error?.let{
+                Log.d("Apphud", "PAYWALLS LOADING 2a FAILED")
+            }
+            paywalls?.let{
+                Log.d("Apphud", "PAYWALLS LOADED 2a")
+            }
+        }
+        Apphud.getPaywalls { paywalls, error ->
+            error?.let{
+                Log.d("Apphud", "PAYWALLS LOADING 3a FAILED")
+            }
+            paywalls?.let{
+                Log.d("Apphud", "PAYWALLS LOADED 3a")
+            }
         }
     }
 }

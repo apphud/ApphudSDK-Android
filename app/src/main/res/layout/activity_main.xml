@@ -16,6 +16,36 @@
         app:layout_constraintTop_toTopOf="parent"
         tools:ignore="HardcodedText" />
 
+    <Button
+        android:id="@+id/btnStart"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Start"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@+id/syncButtonViewId"
+        tools:ignore="HardcodedText" />
+
+    <Button
+        android:id="@+id/btnLogout"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Logout"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@+id/btnStart"
+        tools:ignore="HardcodedText" />
+
+    <Button
+        android:id="@+id/btnPaywalls"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Load Paywalls"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@+id/btnLogout"
+        tools:ignore="HardcodedText" />
+
     <androidx.recyclerview.widget.RecyclerView
         android:id="@+id/recyclerViewId"
         android:layout_width="0dp"
@@ -25,6 +55,6 @@
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@+id/syncButtonViewId" />
+        app:layout_constraintTop_toBottomOf="@+id/btnPaywalls" />
 
 </androidx.constraintlayout.widget.ConstraintLayout>

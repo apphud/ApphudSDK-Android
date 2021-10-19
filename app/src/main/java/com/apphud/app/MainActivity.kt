@@ -29,7 +29,7 @@ class MainActivity : AppCompatActivity() {
         val listener = object : ApphudListener {
             override fun apphudSubscriptionsUpdated(subscriptions: List<ApphudSubscription>) {
 
-                Log.d("apphud","SUBSCRIPTIONS UPDATED: ${Apphud.subscriptions() }. Has active subscription: ${Apphud.hasActiveSubscription()}")
+                Log.d("Apphud","SUBSCRIPTIONS UPDATED: ${Apphud.subscriptions() }. Has active subscription: ${Apphud.hasActiveSubscription()}")
 
                 subscriptions.forEach { subscription ->
                     val model = when (val product = products[subscription.productId]) {
@@ -38,7 +38,7 @@ class MainActivity : AppCompatActivity() {
                     }
                     when (val existingSubscription = products[model.productId]?.subscription) {
                         null -> products[model.productId] = model
-                        else -> Log.d("apphud","already has subscription, will not update")
+                        else -> Log.d("Apphud","already has subscription, will not update")
                     }
                 }
 
@@ -74,8 +74,8 @@ class MainActivity : AppCompatActivity() {
             when (model.details) {
                 null -> Log.e("Apphud", "details is empty")
                 else -> Apphud.purchase(this, model.details.sku) { result ->
-                    Log.d("apphud","PURCHASE RESULT: ${Apphud.subscriptions() }. Has active subscription: ${Apphud.hasActiveSubscription()}")
-                    Log.d("apphud", "${result.error?.toString()}")
+                    Log.d("Apphud","PURCHASE RESULT: ${Apphud.subscriptions() }. Has active subscription: ${Apphud.hasActiveSubscription()}")
+                    Log.d("Apphud", "${result.error?.toString()}")
                 }
             }
         }
@@ -83,10 +83,49 @@ class MainActivity : AppCompatActivity() {
         val syncButton: Button = findViewById(R.id.syncButtonViewId)
         syncButton.setOnClickListener {
             Apphud.restorePurchases { subscriptions, purchases, error ->
-                Log.d("apphud", "restorePurchases: subscriptions=${subscriptions?.toString()} purchases=${purchases?.toString()} error=${error?.toString()} ")
+                Log.d("Apphud", "restorePurchases: subscriptions=${subscriptions?.toString()} purchases=${purchases?.toString()} error=${error?.toString()} ")
             }
         }
         val recyclerView = findViewById<RecyclerView>(R.id.recyclerViewId)
         recyclerView.adapter = adapter
+
+        val logoutButton: Button = findViewById(R.id.btnLogout)
+        logoutButton.setOnClickListener {
+            Apphud.logout()
+            Log.d("Apphud", "LOGOUT")
+        }
+
+        val startButton: Button = findViewById(R.id.btnStart)
+        startButton.setOnClickListener {
+            Apphud.start(application, Constants.API_KEY)
+        }
+
+        val paywallsButton: Button = findViewById(R.id.btnPaywalls)
+        paywallsButton.setOnClickListener {
+            Apphud.getPaywalls { paywalls, error ->
+                error?.let{
+                    Log.d("Apphud", "PAYWALLS LOADING 1 FAILED")
+                }
+                paywalls?.let{
+                    Log.d("Apphud", "PAYWALLS LOADED 1")
+                }
+            }
+            Apphud.getPaywalls { paywalls, error ->
+                error?.let{
+                    Log.d("Apphud", "PAYWALLS LOADING 2 FAILED")
+                }
+                paywalls?.let{
+                    Log.d("Apphud", "PAYWALLS LOADED 2")
+                }
+            }
+            Apphud.getPaywalls { paywalls, error ->
+                error?.let{
+                    Log.d("Apphud", "PAYWALLS LOADING 3 FAILED")
+                }
+                paywalls?.let{
+                    Log.d("Apphud", "PAYWALLS LOADED 3")
+                }
+            }
+        }
     }
 }
