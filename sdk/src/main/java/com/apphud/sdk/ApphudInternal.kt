@@ -3,19 +3,13 @@ package com.apphud.sdk
 import android.annotation.SuppressLint
 import android.app.Activity
 import android.content.Context
-import android.content.res.Resources
-import android.os.AsyncTask
-import android.os.Build
 import android.os.Handler
 import android.os.Looper
-import androidx.core.os.ConfigurationCompat
-import com.android.billingclient.BuildConfig
 import com.android.billingclient.api.BillingClient
 import com.android.billingclient.api.Purchase
 import com.android.billingclient.api.PurchaseHistoryRecord
 import com.android.billingclient.api.SkuDetails
 import com.apphud.sdk.body.*
-import com.apphud.sdk.client.ApphudClient
 import com.apphud.sdk.domain.*
 import com.apphud.sdk.internal.ApphudSkuDetailsCallback
 import com.apphud.sdk.internal.BillingWrapper
@@ -27,7 +21,6 @@ import com.apphud.sdk.managers.RequestManager
 import com.apphud.sdk.parser.GsonParser
 import com.apphud.sdk.parser.Parser
 import com.apphud.sdk.storage.SharedPreferencesStorage
-import com.apphud.sdk.tasks.advertisingId
 import com.google.gson.GsonBuilder
 import kotlinx.coroutines.*
 import java.lang.Runnable
@@ -47,7 +40,6 @@ internal object ApphudInternal {
      * @handler use for work with UI-thread. Save to storage, call callbacks
      */
     private val handler: Handler = Handler(Looper.getMainLooper())
-    private var client: ApphudClient? = null
     private val billing by lazy { BillingWrapper(context) }
     private val storage by lazy { SharedPreferencesStorage(context, parser) }
     private var generatedUUID = UUID.randomUUID().toString()
@@ -138,10 +130,13 @@ internal object ApphudInternal {
 
         coroutineScope.launch(errorHandler) {
             RequestManager.registration(!didRetrievePaywallsAtThisLaunch, is_new) { customer, error ->
-                customer?.let {
-                    launch(Dispatchers.Main) {
+                launch(Dispatchers.Main) {
+                    customer?.let {
                         storage.customer = customer
-                        ApphudLog.log("End updateUserId customer=$customer")
+                        ApphudLog.logI("End updateUserId customer=$customer")
+                    }
+                    error?.let{
+                        ApphudLog.logE(it.message)
                     }
                 }
             }
@@ -170,8 +165,6 @@ internal object ApphudInternal {
 
         RequestManager.setParams(this.context, this.userId, this.deviceId, this.apiKey)
 
-        client = ApphudClient(apiKey, parser)
-        client?.let { ApphudLog.setClient(it) }
         allowIdentifyUser = false
         ApphudLog.log("try restore cachedPaywalls")
         this.paywalls = cachedPaywalls()
@@ -198,14 +191,17 @@ internal object ApphudInternal {
         }
 
         coroutineScope.launch(errorHandler) {
-            RequestManager.allProducts { groupsList, _ ->
-                groupsList?.let { groups ->
-                    launch(Dispatchers.Main) {
-                        ApphudLog.log("fetchProducts: products from Apphud server: $groups")
+            RequestManager.allProducts { groupsList, error ->
+                launch(Dispatchers.Main) {
+                    groupsList?.let { groups ->
+                        ApphudLog.logI("fetchProducts: products from Apphud server: $groups")
                         cacheGroups(groups)
                         val ids = groups.map { it -> it.products?.map { it.product_id }!! }.flatten()
                         billing.details(BillingClient.SkuType.SUBS, ids)
                         billing.details(BillingClient.SkuType.INAPP, ids)
+                    }
+                    error?.let{
+                        ApphudLog.logE(it.message)
                     }
                 }
             }
@@ -220,9 +216,9 @@ internal object ApphudInternal {
 
         coroutineScope.launch(errorHandler) {
             RequestManager.registration(!didRetrievePaywallsAtThisLaunch, is_new) { customer, error ->
-                customer?.let {
-                    launch(Dispatchers.Main) {
-                        ApphudLog.log("registration: registrationUser customer=$customer")
+                launch(Dispatchers.Main) {
+                    customer?.let {
+                        ApphudLog.logI("registration: registrationUser customer=$customer")
                         storage.customer = customer
                         apphudListener?.apphudSubscriptionsUpdated(customer.subscriptions)
                         apphudListener?.apphudNonRenewingPurchasesUpdated(customer.purchases)
@@ -243,11 +239,14 @@ internal object ApphudInternal {
                             updateUserProperties()
                         }
                     }
-                }
+                    error?.let {
+                        ApphudLog.logE(it.message)
+                    }
 
-                if (fetchPaywallsDelayedCallback != null) {
-                    fetchPaywallsDelayedCallback?.invoke()
-                    fetchPaywallsDelayedCallback = null
+                    if (fetchPaywallsDelayedCallback != null) {
+                        fetchPaywallsDelayedCallback?.invoke()
+                        fetchPaywallsDelayedCallback = null
+                    }
                 }
             }
         }
@@ -493,60 +492,45 @@ internal object ApphudInternal {
         apphudProduct: ApphudProduct?,
         callback: ((ApphudPurchaseResult) -> Unit)?
     ) {
-        val purchaseBody = details?.let { makePurchaseBody(purchase, it, null, null) }
-            ?: apphudProduct?.let { makePurchaseBody(purchase, it.skuDetails, it.paywall_id, it.id) }
-        if (purchaseBody == null) {
-            val message = "SkuDetails and ApphudProduct can not be null at the same time" + apphudProduct?.let{ " [Apphud product ID: " + it.id + "]"}
-            ApphudLog.log(message = message)
+        coroutineScope.launch(errorHandler) {
+            RequestManager.purchased(purchase, details, apphudProduct) { customer, error ->
+                launch(Dispatchers.Main) {
+                    customer?.let {
+                        val newSubscriptions =
+                            customer.subscriptions.firstOrNull { it.productId == purchase.skus.first() }
 
-            callback?.invoke(ApphudPurchaseResult(null,
-                null,
-                null,
-                ApphudError(message)))
-        } else {
-            storage.isNeedSync = true
-            client?.purchased(purchaseBody) { customer, errors ->
-                handler.post {
-                    when (errors) {
-                        null -> {
-                            ApphudLog.log("client.purchased: $customer")
+                        val newPurchases =
+                            customer.purchases.firstOrNull { it.productId == purchase.skus.first() }
 
-                            val newSubscriptions =
-                                customer?.subscriptions?.firstOrNull { it.productId == purchase.skus.first() }
+                        storage.customer = customer
+                        storage.isNeedSync = false
 
-                            val newPurchases =
-                                customer?.purchases?.firstOrNull { it.productId == purchase.skus.first() }
-
-                            storage.customer = customer
-                            storage.isNeedSync = false
-
-                            if (newSubscriptions == null && newPurchases == null) {
-                                val message =
-                                    "Error! There are no new subscriptions " +
-                                            "or new purchases from the Apphud server " +
-                                            "after the purchase of ${purchaseBody.purchases.first().product_id}"
-                                ApphudLog.logE(message)
-                                callback?.invoke(ApphudPurchaseResult(null,
-                                    null,
-                                    null,
-                                    ApphudError(message)))
-                            } else {
-                                apphudListener?.apphudSubscriptionsUpdated(customer.subscriptions)
-                                callback?.invoke(ApphudPurchaseResult(newSubscriptions,
-                                    newPurchases,
-                                    purchase,
-                                    null))
-                            }
-                        }
-                        else -> {
-                            val message = "Unable to validate purchase with error = ${errors.message} and code = ${errors.errorCode}" + apphudProduct?.let{ " [Apphud product ID: " + it.id + "]"}
-                            ApphudLog.log(message = message)
+                        if (newSubscriptions == null && newPurchases == null) {
+                            val productId = details?.let { details.sku } ?: purchase.skus.first()?:"unknown"
+                            val message =
+                                "Error! There are no new subscriptions " +
+                                        "or new purchases from the Apphud server " +
+                                        "after the purchase of $productId"
+                            ApphudLog.logE(message)
                             callback?.invoke(ApphudPurchaseResult(null,
                                 null,
+                                null,
+                                ApphudError(message)))
+                        } else {
+                            apphudListener?.apphudSubscriptionsUpdated(customer.subscriptions)
+                            callback?.invoke(ApphudPurchaseResult(newSubscriptions,
+                                newPurchases,
                                 purchase,
-                                errors)
-                            )
+                                null))
                         }
+                    }
+                    error?.let {
+                        val message = "Unable to validate purchase with error = ${it.message}" + apphudProduct?.let{ " [Apphud product ID: " + it.id + "]"}
+                        ApphudLog.logI(message = message)
+                        callback?.invoke(ApphudPurchaseResult(null, null,
+                            purchase,
+                            ApphudError(message))
+                        )
                     }
                 }
             }
@@ -644,27 +628,26 @@ internal object ApphudInternal {
         tempPurchaseRecordDetails: Set<PurchaseRecordDetails>,
         callback: ApphudPurchasesRestoreCallback? = null
     ) {
-        client?.purchased(makeRestorePurchasesBody(tempPurchaseRecordDetails.toList())) { customer, errors ->
-            handler.post {
-                when (errors) {
-                    null -> {
+        coroutineScope.launch(errorHandler) {
+            RequestManager.restorePurchases(tempPurchaseRecordDetails) { customer, error ->
+                launch(Dispatchers.Main) {
+                    customer?.let {
                         prevPurchases.addAll(tempPurchaseRecordDetails)
                         storage.isNeedSync = false
                         storage.customer = customer
-                        ApphudLog.log("SyncPurchases: customer was updated $customer")
-                        apphudListener?.apphudSubscriptionsUpdated(customer?.subscriptions!!)
-                        apphudListener?.apphudNonRenewingPurchasesUpdated(customer?.purchases!!)
-                        callback?.invoke(customer?.subscriptions, customer?.purchases, null)
+                        ApphudLog.logI("SyncPurchases: customer was updated $customer")
+                        apphudListener?.apphudSubscriptionsUpdated(customer.subscriptions)
+                        apphudListener?.apphudNonRenewingPurchasesUpdated(customer.purchases)
+                        callback?.invoke(customer.subscriptions, customer.purchases, null)
                     }
-                    else -> {
-                        val message =
-                            "Sync Purchases with Apphud is failed with message = ${errors.message} and code = ${errors.errorCode}"
-                        ApphudLog.log(message = message)
-                        callback?.invoke(null, null, errors)
+                    error?.let {
+                        val message = "Sync Purchases with Apphud is failed with message = ${error.message} and code = ${error.errorCode}"
+                        ApphudLog.logE(message = message)
+                        callback?.invoke(null, null, error)
                     }
                 }
+                ApphudLog.log("SyncPurchases: success send history purchases ${tempPurchaseRecordDetails.toList()}")
             }
-            ApphudLog.log("SyncPurchases: success send history purchases ${tempPurchaseRecordDetails.toList()}")
         }
     }
 
@@ -728,43 +711,48 @@ internal object ApphudInternal {
 
         ApphudLog.log("before start attribution request: $body")
         body?.let {
-            client?.send(body) { attribution ->
-                ApphudLog.log("Success without saving send attribution: $attribution")
-                handler.post {
-                    when (provider) {
-                        ApphudAttributionProvider.appsFlyer -> {
-                            val temporary = storage.appsflyer
-                            storage.appsflyer = when {
-                                temporary == null -> AppsflyerInfo(
-                                    id = body.appsflyer_id,
-                                    data = body.appsflyer_data
-                                )
-                                temporary.id != body.appsflyer_id -> AppsflyerInfo(
-                                    id = body.appsflyer_id,
-                                    data = body.appsflyer_data
-                                )
-                                temporary.data != body.appsflyer_data -> AppsflyerInfo(
-                                    id = body.appsflyer_id,
-                                    data = body.appsflyer_data
-                                )
-                                else -> temporary
+            coroutineScope.launch(errorHandler) {
+                RequestManager.send(it) { attribution, error ->
+                    ApphudLog.logI("Success without saving send attribution: $attribution")
+                    launch(Dispatchers.Main) {
+                        when (provider) {
+                            ApphudAttributionProvider.appsFlyer -> {
+                                val temporary = storage.appsflyer
+                                storage.appsflyer = when {
+                                    temporary == null -> AppsflyerInfo(
+                                        id = body.appsflyer_id,
+                                        data = body.appsflyer_data
+                                    )
+                                    temporary.id != body.appsflyer_id -> AppsflyerInfo(
+                                        id = body.appsflyer_id,
+                                        data = body.appsflyer_data
+                                    )
+                                    temporary.data != body.appsflyer_data -> AppsflyerInfo(
+                                        id = body.appsflyer_id,
+                                        data = body.appsflyer_data
+                                    )
+                                    else -> temporary
+                                }
+                            }
+                            ApphudAttributionProvider.facebook -> {
+                                val temporary = storage.facebook
+                                storage.facebook = when {
+                                    temporary == null -> FacebookInfo(body.facebook_data)
+                                    temporary.data != body.facebook_data -> FacebookInfo(body.facebook_data)
+                                    else -> temporary
+                                }
+                            }
+                            ApphudAttributionProvider.firebase -> {
+                                val temporary = storage.firebase
+                                storage.firebase = when {
+                                    temporary == null -> body.firebase_id
+                                    temporary != body.firebase_id -> body.firebase_id
+                                    else -> temporary
+                                }
                             }
                         }
-                        ApphudAttributionProvider.facebook -> {
-                            val temporary = storage.facebook
-                            storage.facebook = when {
-                                temporary == null -> FacebookInfo(body.facebook_data)
-                                temporary.data != body.facebook_data -> FacebookInfo(body.facebook_data)
-                                else -> temporary
-                            }
-                        }
-                        ApphudAttributionProvider.firebase -> {
-                            val temporary = storage.firebase
-                            storage.firebase = when {
-                                temporary == null -> body.firebase_id
-                                temporary != body.firebase_id -> body.firebase_id
-                                else -> temporary
-                            }
+                        error?.let {
+                            ApphudLog.logE(message = it.message)
                         }
                     }
                 }
@@ -815,14 +803,21 @@ internal object ApphudInternal {
         }
 
         val body = UserPropertiesBody(this.deviceId, properties)
-        client?.userProperties(body) { userProperties ->
-            handler.post {
-                if (userProperties.success) {
-                    pendingUserProperties.clear()
-                    ApphudLog.log("User Properties successfully updated.")
-                } else {
-                    val message = "User Properties update failed with errors"
-                    ApphudLog.logE(message)
+        coroutineScope.launch(errorHandler) {
+            RequestManager.userProperties(body) { userProperties, error ->
+                launch(Dispatchers.Main) {
+                    userProperties?.let{
+                        if (userProperties.success) {
+                            pendingUserProperties.clear()
+                            ApphudLog.logI("User Properties successfully updated.")
+                        } else {
+                            val message = "User Properties update failed with errors"
+                            ApphudLog.logE(message)
+                        }
+                    }
+                    error?.let {
+                        ApphudLog.logE(message = it.message)
+                    }
                 }
             }
         }
@@ -852,8 +847,8 @@ internal object ApphudInternal {
         paywallsDelayedCallback = null
         isRegistered = false
         storage.customer = null
-        //storage.userId = null
-        //storage.deviceId = null
+        storage.userId = null
+        storage.deviceId = null
         storage.advertisingId = null
         storage.isNeedSync = false
         storage.facebook = null
@@ -869,7 +864,6 @@ internal object ApphudInternal {
         customProductsFetchedBlock = null
         pendingUserProperties.clear()
         setNeedsToUpdateUserProperties = false
-        client = null
         allowIdentifyUser = true
         didRetrievePaywallsAtThisLaunch = false
     }
@@ -899,55 +893,6 @@ internal object ApphudInternal {
         storage.deviceId = deviceId
         return deviceId
     }
-
-    private fun makePurchaseBody(
-        purchase: Purchase,
-        details: SkuDetails?,
-        paywall_id: String?,
-        apphud_product_id: String?
-    ) =
-        PurchaseBody(
-            device_id = deviceId,
-            purchases = listOf(
-                PurchaseItemBody(
-                    order_id = purchase.orderId,
-                    product_id = details?.let { details.sku } ?: purchase.skus.first(),
-                    purchase_token = purchase.purchaseToken,
-                    price_currency_code = details?.priceCurrencyCode,
-                    price_amount_micros = details?.priceAmountMicros,
-                    subscription_period = details?.subscriptionPeriod,
-                    paywall_id = paywall_id,
-                    product_bundle_id = apphud_product_id
-                )
-            )
-        )
-
-    private fun makeRestorePurchasesBody(purchases: List<PurchaseRecordDetails>) =
-        PurchaseBody(
-            device_id = deviceId,
-            purchases = purchases.map { purchase ->
-                PurchaseItemBody(
-                    order_id = null,
-                    product_id = purchase.details.sku,
-                    purchase_token = purchase.record.purchaseToken,
-                    price_currency_code = purchase.details.priceCurrencyCode,
-                    price_amount_micros = purchase.details.priceAmountMicros,
-                    subscription_period = purchase.details.subscriptionPeriod,
-                    paywall_id = null,
-                    product_bundle_id = null
-                )
-            }
-        )
-
-    internal fun makeErrorLogsBody(message: String, apphud_product_id: String? = null) =
-        ErrorLogsBody(
-            message = message,
-            bundle_id = apphud_product_id,
-            user_id = userId,
-            device_id = deviceId,
-            environment = if (context.isDebuggable()) "sandbox" else "production",
-            timestamp = System.currentTimeMillis()
-        )
 
     internal fun getSkuDetailsList(): MutableList<SkuDetails>? {
         return skuDetails.takeIf { skuDetails.isNotEmpty() }
@@ -1001,15 +946,15 @@ internal object ApphudInternal {
 
         coroutineScope.launch(errorHandler) {
             RequestManager.getPaywalls{ paywalls, error ->
-                paywalls?.let {
-                    launch(Dispatchers.Main) {
+                launch(Dispatchers.Main) {
+                    paywalls?.let {
                         ApphudLog.logI("Paywalls loaded successfully")
                         processLoadedPaywalls(paywalls, true)
                         callback.invoke(paywalls, null)
                     }
-                }
-                error?.let{
-                    callback.invoke(null, ApphudError(it.message?:"Get Paywalls is failed"))
+                    error?.let {
+                        callback.invoke(null, it)
+                    }
                 }
             }
         }
@@ -1069,54 +1014,26 @@ internal object ApphudInternal {
     }
 
     fun paywallShown(paywall: ApphudPaywall?) {
-        client?.trackPaywallEvent(
-            makePaywallEventBody(
-                name = "paywall_shown",
-                paywall_id = paywall?.id
-            )
-        )
+        coroutineScope.launch(errorHandler) {
+            RequestManager.paywallShown(paywall)
+        }
     }
 
     fun paywallClosed(paywall: ApphudPaywall?) {
-        client?.trackPaywallEvent(
-            makePaywallEventBody(
-                name = "paywall_closed",
-                paywall_id = paywall?.id
-            )
-        )
+        coroutineScope.launch(errorHandler) {
+            RequestManager.paywallClosed(paywall)
+        }
     }
 
     private fun paywallCheckoutInitiated(paywall_id: String?, product_id: String?) {
-        client?.trackPaywallEvent(
-            makePaywallEventBody(
-                name = "paywall_checkout_initiated",
-                paywall_id = paywall_id,
-                product_id = product_id
-            )
-        )
+        coroutineScope.launch(errorHandler) {
+            RequestManager.paywallCheckoutInitiated(paywall_id, product_id)
+        }
     }
 
     private fun paywallPaymentCancelled(paywall_id: String?, product_id: String?) {
-        client?.trackPaywallEvent(
-            makePaywallEventBody(
-                name = "paywall_payment_cancelled",
-                paywall_id = paywall_id,
-                product_id = product_id
-            )
-        )
-    }
-
-    private fun makePaywallEventBody(name: String, paywall_id: String? = null, product_id: String? = null): PaywallEventBody {
-        val properties = mutableMapOf<String, Any>()
-        paywall_id?.let { properties.put("paywall_id", it) }
-        product_id?.let { properties.put("product_id", it) }
-        return PaywallEventBody(
-            name = name,
-            user_id = userId,
-            device_id = deviceId,
-            environment = if (context.isDebuggable()) "sandbox" else "production",
-            timestamp = System.currentTimeMillis(),
-            properties = if (properties.isNotEmpty()) properties else null
-        )
+        coroutineScope.launch(errorHandler) {
+            RequestManager.paywallPaymentCancelled(paywall_id, product_id)
+        }
     }
 }

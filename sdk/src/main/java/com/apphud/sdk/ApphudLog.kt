@@ -2,12 +2,11 @@ package com.apphud.sdk
 
 import android.util.Log
 import com.apphud.sdk.client.ApphudClient
+import com.apphud.sdk.managers.RequestManager
 
 internal object ApphudLog {
 
     private const val TAG = "Apphud"
-
-    private var client: ApphudClient? = null
 
     /**
      * This is a fun for log messages.
@@ -41,17 +40,11 @@ internal object ApphudLog {
         sendErrorLogs(message)
     }
 
-    fun setClient(client: ApphudClient) {
-        this.client = client
-    }
-
     /**
      * Send Error Logs to Apphud Server
      * */
     private fun sendErrorLogs(message: String) {
-        client?.sendErrorLogs(
-            ApphudInternal.makeErrorLogsBody(message, ApphudUtils.packageName)
-        )
+        RequestManager.sendErrorLogs(message)
     }
 
 }

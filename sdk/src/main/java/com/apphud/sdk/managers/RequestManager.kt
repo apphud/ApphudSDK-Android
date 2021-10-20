@@ -2,21 +2,20 @@ package com.apphud.sdk.managers
 
 import android.content.Context
 import android.content.res.Resources
+import android.net.ConnectivityManager
+import android.net.NetworkCapabilities
 import android.os.Build
 import androidx.core.os.ConfigurationCompat
+import com.android.billingclient.api.Purchase
+import com.android.billingclient.api.SkuDetails
 import com.apphud.sdk.*
 import com.apphud.sdk.ApphudUtils
 import com.apphud.sdk.ApphudVersion
-import com.apphud.sdk.body.RegistrationBody
+import com.apphud.sdk.body.*
+import com.apphud.sdk.client.*
 import com.apphud.sdk.client.ApiClient
-import com.apphud.sdk.client.ApphudUrl
-import com.apphud.sdk.client.dto.ApphudGroupDto
-import com.apphud.sdk.client.dto.ApphudPaywallDto
-import com.apphud.sdk.client.dto.CustomerDto
-import com.apphud.sdk.client.dto.ResponseDto
-import com.apphud.sdk.domain.ApphudGroup
-import com.apphud.sdk.domain.ApphudPaywall
-import com.apphud.sdk.domain.Customer
+import com.apphud.sdk.client.dto.*
+import com.apphud.sdk.domain.*
 import com.apphud.sdk.mappers.*
 import com.apphud.sdk.parser.GsonParser
 import com.apphud.sdk.parser.Parser
@@ -25,8 +24,8 @@ import com.google.android.gms.ads.identifier.AdvertisingIdClient
 import com.google.android.gms.common.GooglePlayServicesNotAvailableException
 import com.google.android.gms.common.GooglePlayServicesRepairableException
 import com.google.gson.Gson
+import com.google.gson.JsonSyntaxException
 import com.google.gson.reflect.TypeToken
-import kotlinx.coroutines.*
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
 import okhttp3.Request
@@ -36,9 +35,14 @@ import java.io.BufferedReader
 import java.io.IOException
 import java.io.InputStream
 import java.io.InputStreamReader
-import java.lang.Thread.sleep
 import java.net.URL
 import java.util.*
+import org.json.JSONException
+
+import org.json.JSONObject
+
+
+
 
 object RequestManager {
     private const val API_KEY = "api_key"
@@ -93,10 +97,17 @@ object RequestManager {
 
     fun getOkHttpClient(): OkHttpClient {
         val headersInterceptor = HeadersInterceptor()
-        val logging = HttpLoggingInterceptor(
-            HttpLoggingInterceptor.Logger {
+        val logging = HttpLoggingInterceptor {
+            if (parser.isJson(it)) {
+                buildPrettyPrintedBy(it)?.let { formattedJsonString ->
+                    ApphudLog.logI(formattedJsonString)
+                } ?: run {
+                    ApphudLog.logI(it)
+                }
+            } else {
                 ApphudLog.logI(it)
-            })
+            }
+        }
 
         if (BuildConfig.DEBUG) {
             logging.level = HttpLoggingInterceptor.Level.BODY;
@@ -112,27 +123,32 @@ object RequestManager {
         return builder.build()
     }
 
-    fun performRequest(client: OkHttpClient, request: Request, completionHandler: (String?, Error?) -> Unit){
-        var error: Error? = null
+    fun performRequest(client: OkHttpClient, request: Request, completionHandler: (String?, ApphudError?) -> Unit){
         try {
-            val response = client.newCall(request).execute()
-            if (response.isSuccessful) {
-                response.body?.let {
-                    completionHandler(it.string(), null)
-                }?: run{
-                    completionHandler(null, Error("Response success but result is null"))
+            if(isNetworkAvailable()){
+                val response = client.newCall(request).execute()
+                if (response.isSuccessful) {
+                    response.body?.let {
+                        completionHandler(it.string(), null)
+                    }?: run{
+                        completionHandler(null, ApphudError("Response success but result is null", null, response.code))
+                    }
+                } else {
+                    val  message = "finish ${request.method} request ${request.url} " +
+                            "failed with code: ${response.code} response: ${
+                                buildPrettyPrintedBy(response.body.toString())
+                            }"
+                    completionHandler(null, ApphudError(message, null, response.code))
                 }
-            } else {
-                val  message = "finish ${request.method} request ${request.url} " +
-                        "failed with code: ${response.code} response: ${
-                            buildPrettyPrintedBy(response.body.toString())
-                        }"
-                error = java.lang.Error(message)
-                completionHandler(null, error)
+            }else{
+                val message = "No Internet connection"
+                ApphudLog.logE(message)
+                completionHandler(null, ApphudError(message))
             }
         } catch (e: IOException) {
             e.printStackTrace()
-            completionHandler(null,  Error(e.message))
+            val message = e.message?:"Undefined error"
+            completionHandler(null,  ApphudError(message))
         }
     }
 
@@ -151,12 +167,12 @@ object RequestManager {
         }
     }
 
-    fun makeRequest(request: Request, completionHandler: (String?, Error?) -> Unit) {
+    fun makeRequest(request: Request, completionHandler: (String?, ApphudError?) -> Unit) {
         val httpClient = getOkHttpClient()
         performRequest(httpClient, request, completionHandler)
     }
 
-    fun makeUserRegisteredRequest(request: Request, completionHandler: (String?, Error?) -> Unit) {
+    fun makeUserRegisteredRequest(request: Request, completionHandler: (String?, ApphudError?) -> Unit) {
         val httpClient = getOkHttpClient()
         if(currentUser == null){
             registration(true, true) { customer, error ->
@@ -175,7 +191,6 @@ object RequestManager {
         url: URL,
         params: Any
     ): Request {
-
         val json = parser.toJson(params)
         val mediaType = "application/json; charset=utf-8".toMediaType()
         val requestBody = json.toRequestBody(mediaType)
@@ -183,17 +198,6 @@ object RequestManager {
         val request = Request.Builder()
         return request.url(url)
             .post(requestBody)
-            .build()
-    }
-
-    fun buildPutRequest(url: URL, params: Any): Request {
-        val json = parser.toJson(params)
-        val mediaType = "application/json; charset=utf-8".toMediaType()
-        val requestBody = json.toRequestBody(mediaType)
-
-        return Request.Builder()
-            .url(url)
-            .put(requestBody)
             .build()
     }
 
@@ -205,7 +209,7 @@ object RequestManager {
     }
 
     @Synchronized
-    fun registration(needPaywalls: Boolean, isNew: Boolean, completionHandler: (Customer?, Error?) -> Unit) {
+    fun registration(needPaywalls: Boolean, isNew: Boolean, completionHandler: (Customer?, ApphudError?) -> Unit) {
         if(currentUser == null) {
             //Load advertising id
             if (ApphudUtils.adTracking) {
@@ -214,13 +218,13 @@ object RequestManager {
                     advertisingId = AdvertisingIdClient.getAdvertisingIdInfo(applicationContext).id
                     ApphudLog.logI("success load advertisingId: $advertisingId")
                 } catch (e: IOException) {
-                    ApphudLog.logI("finish load advertisingId $e")
+                    ApphudLog.logE("finish load advertisingId $e")
                 } catch (e: IllegalStateException) {
-                    ApphudLog.logI("finish load advertisingId $e")
+                    ApphudLog.logE("finish load advertisingId $e")
                 } catch (e: GooglePlayServicesNotAvailableException) {
-                    ApphudLog.logI("finish load advertisingId $e")
+                    ApphudLog.logE("finish load advertisingId $e")
                 } catch (e: GooglePlayServicesRepairableException) {
-                    ApphudLog.logI("finish load advertisingId $e")
+                    ApphudLog.logE("finish load advertisingId $e")
                 }
             }
 
@@ -242,26 +246,23 @@ object RequestManager {
                     )
 
                 responseDto?.let { cDto ->
-
-                    //TODO test registration error
-                    //completionHandler(null, Error("Test error"))
-
                     currentUser = cDto.data.results?.let { customerObj ->
                         customerMapper.map(customerObj)
                     }
                     completionHandler(currentUser, null)
                 } ?: run {
-                    completionHandler(null, Error("Response success but result is null"))
+                    completionHandler(null, ApphudError("Response success but result is null"))
                 }
             } catch (ex: Exception) {
-                completionHandler(null, Error(ex.message))
+                val message = ex.message?:"Undefined error"
+                completionHandler(null,  ApphudError(message))
             }
         }else{
             completionHandler(currentUser, null)
         }
     }
 
-    fun getPaywalls(completionHandler: (List<ApphudPaywall>?, Error?) -> Unit) {
+    fun getPaywalls(completionHandler: (List<ApphudPaywall>?, ApphudError?) -> Unit) {
         if(!canPerformRequest()) {
             ApphudLog.logE(::getPaywalls.name + MUST_REGISTER_ERROR)
             return
@@ -284,7 +285,7 @@ object RequestManager {
                     val paywallsList = response.data.results?.let { it1 -> paywallsMapper.map(it1) }
                     completionHandler(paywallsList, null)
                 }?: run{
-                    completionHandler(null, Error("Response success but result is null"))
+                    completionHandler(null, ApphudError("Response success but result is null"))
                 }
             } ?: run {
                 completionHandler(null, error)
@@ -292,7 +293,7 @@ object RequestManager {
         }
     }
 
-    fun allProducts(completionHandler: (List<ApphudGroup>?, Error?) -> Unit) {
+    fun allProducts(completionHandler: (List<ApphudGroup>?, ApphudError?) -> Unit) {
         if(!canPerformRequest()) {
             ApphudLog.logE(::allProducts.name + MUST_REGISTER_ERROR)
             return
@@ -315,12 +316,298 @@ object RequestManager {
                     val productsList = response.data.results?.let { it1 -> productMapper.map(it1) }
                     completionHandler(productsList, null)
                 }?: run{
-                    completionHandler(null, Error("Response success but result is null"))
+                    completionHandler(null, ApphudError("Response success but result is null"))
                 }
             } ?: run {
                 completionHandler(null, error)
             }
         }
+    }
+
+    fun purchased(purchase: Purchase,
+                  details: SkuDetails?,
+                  apphudProduct: ApphudProduct?,
+                  completionHandler: (Customer?, ApphudError?) -> Unit) {
+        if(!canPerformRequest()) {
+            ApphudLog.logE(::purchased.name + MUST_REGISTER_ERROR)
+            return
+        }
+
+        val apphudUrl = ApphudUrl.Builder()
+            .host(ApiClient.host)
+            .version(ApphudVersion.V1)
+            .path("subscriptions")
+            .params(mapOf(API_KEY to apiKey))
+            .build()
+
+        val purchaseBody = details?.let { makePurchaseBody(purchase, it, null, null) }
+            ?: apphudProduct?.let { makePurchaseBody(purchase, it.skuDetails, it.paywall_id, it.id) }
+        if (purchaseBody == null) {
+            val message = "SkuDetails and ApphudProduct can not be null at the same time" + apphudProduct?.let{ " [Apphud product ID: " + it.id + "]"}
+            ApphudLog.logE(message = message)
+            completionHandler.invoke(null, ApphudError(message))
+            return
+        }
+
+        val request = buildPostRequest(URL(apphudUrl.url), purchaseBody)
+
+        makeUserRegisteredRequest(request) { serverResponse, error ->
+            serverResponse?.let {
+                val responseDto: ResponseDto<CustomerDto>? =
+                    parser.fromJson<ResponseDto<CustomerDto>>(
+                        serverResponse,
+                        object : TypeToken<ResponseDto<CustomerDto>>() {}.type
+                    )
+                responseDto?.let { cDto ->
+                    currentUser = cDto.data.results?.let { customerObj ->
+                        customerMapper.map(customerObj)
+                    }
+                    completionHandler(currentUser, null)
+                } ?: run {
+                    completionHandler(null, ApphudError("Response success but result is null"))
+                }
+            } ?: run {
+                completionHandler(null, error)
+            }
+        }
+    }
+
+    fun restorePurchases(purchaseRecordDetailsSet: Set<PurchaseRecordDetails>,
+                  completionHandler: (Customer?, ApphudError?) -> Unit) {
+        if(!canPerformRequest()) {
+            ApphudLog.logE(::restorePurchases.name + MUST_REGISTER_ERROR)
+            return
+        }
+
+        val apphudUrl = ApphudUrl.Builder()
+            .host(ApiClient.host)
+            .version(ApphudVersion.V1)
+            .path("subscriptions")
+            .params(mapOf(API_KEY to apiKey))
+            .build()
+
+        val purchaseBody = makeRestorePurchasesBody(purchaseRecordDetailsSet.toList())
+
+        val request = buildPostRequest(URL(apphudUrl.url), purchaseBody)
+
+        makeUserRegisteredRequest(request) { serverResponse, error ->
+            serverResponse?.let {
+                val responseDto: ResponseDto<CustomerDto>? =
+                    parser.fromJson<ResponseDto<CustomerDto>>(
+                        serverResponse,
+                        object : TypeToken<ResponseDto<CustomerDto>>() {}.type
+                    )
+                responseDto?.let { cDto ->
+                    currentUser = cDto.data.results?.let { customerObj ->
+                        customerMapper.map(customerObj)
+                    }
+                    completionHandler(currentUser, null)
+                } ?: run {
+                    completionHandler(null, ApphudError("Response success but result is null"))
+                }
+            } ?: run {
+                completionHandler(null, error)
+            }
+        }
+    }
+
+    fun send(attributionBody: AttributionBody,  completionHandler: (Attribution?, ApphudError?) -> Unit){
+        if(!canPerformRequest()) {
+            ApphudLog.logE(::send.name + MUST_REGISTER_ERROR)
+            return
+        }
+
+        val apphudUrl = ApphudUrl.Builder()
+            .host(ApiClient.host)
+            .version(ApphudVersion.V1)
+            .path("customers/attribution")
+            .params(mapOf(API_KEY to apiKey))
+            .build()
+
+        val request = buildPostRequest(URL(apphudUrl.url), attributionBody)
+
+        makeUserRegisteredRequest(request) { serverResponse, error ->
+            serverResponse?.let {
+                val responseDto: ResponseDto<AttributionDto>? =
+                    parser.fromJson<ResponseDto<AttributionDto>>(
+                        serverResponse,
+                        object : TypeToken<ResponseDto<AttributionDto>>() {}.type
+                    )
+                responseDto?.let{ response ->
+                    val attribution = response.data.results?.let { it1 -> attributionMapper.map(it1) }
+                    completionHandler(attribution, null)
+                }?: run {
+                    completionHandler(null, ApphudError("Response success but result is null"))
+                }
+            } ?: run {
+                completionHandler(null, error)
+            }
+        }
+    }
+
+    fun userProperties(userPropertiesBody: UserPropertiesBody, completionHandler: (Attribution?, ApphudError?) -> Unit){
+        if(!canPerformRequest()) {
+            ApphudLog.logE(::userProperties.name + MUST_REGISTER_ERROR)
+            return
+        }
+
+        val apphudUrl = ApphudUrl.Builder()
+            .host(ApiClient.host)
+            .version(ApphudVersion.V1)
+            .path("customers/properties")
+            .params(mapOf(API_KEY to apiKey))
+            .build()
+
+        val request = buildPostRequest(URL(apphudUrl.url), userPropertiesBody)
+
+        makeUserRegisteredRequest(request) { serverResponse, error ->
+            serverResponse?.let {
+                val responseDto: ResponseDto<AttributionDto>? =
+                    parser.fromJson<ResponseDto<AttributionDto>>(
+                        serverResponse,
+                        object : TypeToken<ResponseDto<AttributionDto>>() {}.type
+                    )
+                responseDto?.let{ response ->
+                    val attribution = response.data.results?.let { it1 -> attributionMapper.map(it1) }
+                    completionHandler(attribution, null)
+                }?: run {
+                    completionHandler(null, ApphudError("Response success but result is null"))
+                }
+            } ?: run {
+                completionHandler(null, error)
+            }
+        }
+    }
+
+    fun paywallShown(paywall: ApphudPaywall?) {
+        trackPaywallEvent(
+            makePaywallEventBody(
+                name = "paywall_shown",
+                paywall_id = paywall?.id
+            )
+        )
+    }
+
+    fun paywallClosed(paywall: ApphudPaywall?) {
+        trackPaywallEvent(
+            makePaywallEventBody(
+                name = "paywall_closed",
+                paywall_id = paywall?.id
+            )
+        )
+    }
+
+    fun paywallCheckoutInitiated(paywall_id: String?, product_id: String?) {
+        trackPaywallEvent(
+            makePaywallEventBody(
+                name = "paywall_checkout_initiated",
+                paywall_id = paywall_id,
+                product_id = product_id
+            )
+        )
+    }
+
+    fun paywallPaymentCancelled(paywall_id: String?, product_id: String?) {
+        trackPaywallEvent(
+            makePaywallEventBody(
+                name = "paywall_payment_cancelled",
+                paywall_id = paywall_id,
+                product_id = product_id
+            )
+        )
+    }
+
+    private fun trackPaywallEvent(body: PaywallEventBody) {
+        if(!canPerformRequest()) {
+            ApphudLog.logE(::trackPaywallEvent.name + MUST_REGISTER_ERROR)
+            return
+        }
+
+        val apphudUrl = ApphudUrl.Builder()
+            .host(ApiClient.host)
+            .version(ApphudVersion.V1)
+            .path("events")
+            .params(mapOf(API_KEY to apiKey))
+            .build()
+
+        val request = buildPostRequest(URL(apphudUrl.url), body)
+
+        makeUserRegisteredRequest(request) { serverResponse, error ->
+            serverResponse?.let {
+                    ApphudLog.logI("Paywall Event log was send successfully")
+                }?: run {
+                    ApphudLog.logI("Response success but result is null")
+                }
+            error?.let {
+                ApphudLog.logE("Paywall Event log was not send")
+            }
+        }
+    }
+
+    fun sendErrorLogs(message: String){
+        if(!canPerformRequest()) {
+            ApphudLog.logE(::sendErrorLogs.name + MUST_REGISTER_ERROR)
+            return
+        }
+
+        val body = makeErrorLogsBody(message, ApphudUtils.packageName)
+
+        val apphudUrl = ApphudUrl.Builder()
+            .host(ApiClient.host)
+            .version(ApphudVersion.V1)
+            .path("logs")
+            .params(mapOf(API_KEY to apiKey))
+            .build()
+
+        val request = buildPostRequest(URL(apphudUrl.url), body)
+
+        makeUserRegisteredRequest(request) { _, error ->
+            error?.let {
+                ApphudLog.logE("Error logs was not send")
+            }?:run{
+                ApphudLog.logI("Error logs was send successfully")
+            }
+        }
+    }
+
+    private fun isNetworkAvailable(): Boolean {
+        val connectivityManager = applicationContext.getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            val capabilities = connectivityManager.getNetworkCapabilities(connectivityManager.activeNetwork)
+            if (capabilities != null) {
+                when {
+                    capabilities.hasTransport(NetworkCapabilities.TRANSPORT_CELLULAR) -> {
+                        return true
+                    }
+                    capabilities.hasTransport(NetworkCapabilities.TRANSPORT_WIFI) -> {
+                        return true
+                    }
+                    capabilities.hasTransport(NetworkCapabilities.TRANSPORT_ETHERNET) -> {
+                        return true
+                    }
+                }
+            }
+        } else {
+            val activeNetworkInfo = connectivityManager.activeNetworkInfo
+            if (activeNetworkInfo != null && activeNetworkInfo.isConnected) {
+                return true
+            }
+        }
+        return false
+    }
+
+    private fun makePaywallEventBody(name: String, paywall_id: String? = null, product_id: String? = null): PaywallEventBody {
+        val properties = mutableMapOf<String, Any>()
+        paywall_id?.let { properties.put("paywall_id", it) }
+        product_id?.let { properties.put("product_id", it) }
+        return PaywallEventBody(
+            name = name,
+            user_id = ApphudInternal.userId,
+            device_id = deviceId,
+            environment = if (applicationContext.isDebuggable()) "sandbox" else "production",
+            timestamp = System.currentTimeMillis(),
+            properties = if (properties.isNotEmpty()) properties else null
+        )
     }
 
     private fun mkRegistrationBody(needPaywalls: Boolean, isNew: Boolean) =
@@ -343,21 +630,67 @@ object RequestManager {
             need_paywalls = needPaywalls
         )
 
-    //A function to render the raw response from the server in pretty printed style
-    private fun buildPrettyPrintedBy(response: String) =
-        parser.fromJson<Map<String, Any>>(response, Map::class.java)?.let { value ->
-            parser.toJson(value)
-        }
+    private fun makePurchaseBody(
+        purchase: Purchase,
+        details: SkuDetails?,
+        paywall_id: String?,
+        apphud_product_id: String?
+    ) =
+        PurchaseBody(
+            device_id = deviceId,
+            purchases = listOf(
+                PurchaseItemBody(
+                    order_id = purchase.orderId,
+                    product_id = details?.let { details.sku } ?: purchase.skus.first(),
+                    purchase_token = purchase.purchaseToken,
+                    price_currency_code = details?.priceCurrencyCode,
+                    price_amount_micros = details?.priceAmountMicros,
+                    subscription_period = details?.subscriptionPeriod,
+                    paywall_id = paywall_id,
+                    product_bundle_id = apphud_product_id
+                )
+            )
+        )
 
-    private fun buildStringBy(stream: InputStream): String {
-        val reader = InputStreamReader(stream, Charsets.UTF_8)
-        return BufferedReader(reader).use { buffer ->
-            val response = StringBuilder()
-            var line: String?
-            while (buffer.readLine().also { line = it } != null) {
-                response.append(line)
+    private fun makeRestorePurchasesBody(purchases: List<PurchaseRecordDetails>) =
+        PurchaseBody(
+            device_id = deviceId,
+            purchases = purchases.map { purchase ->
+                PurchaseItemBody(
+                    order_id = null,
+                    product_id = purchase.details.sku,
+                    purchase_token = purchase.record.purchaseToken,
+                    price_currency_code = purchase.details.priceCurrencyCode,
+                    price_amount_micros = purchase.details.priceAmountMicros,
+                    subscription_period = purchase.details.subscriptionPeriod,
+                    paywall_id = null,
+                    product_bundle_id = null
+                )
             }
-            response.toString()
+        )
+
+    internal fun makeErrorLogsBody(message: String, apphud_product_id: String? = null) =
+        ErrorLogsBody(
+            message = message,
+            bundle_id = apphud_product_id,
+            user_id = userId,
+            device_id = deviceId,
+            environment = if (applicationContext.isDebuggable()) "sandbox" else "production",
+            timestamp = System.currentTimeMillis()
+        )
+
+    private fun buildPrettyPrintedBy(jsonString: String): String? {
+        var jsonObject: JSONObject? = null
+        try {
+            jsonObject = JSONObject(jsonString)
+        } catch (ignored: JSONException) {
         }
+        try {
+            if (jsonObject != null) {
+                return jsonObject.toString(4)
+            }
+        } catch (ignored: JSONException) {
+        }
+        return null
     }
 }

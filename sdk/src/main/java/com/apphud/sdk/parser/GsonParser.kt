@@ -1,7 +1,9 @@
 package com.apphud.sdk.parser
 
+import com.apphud.sdk.managers.RequestManager
 import com.google.gson.Gson
 import com.google.gson.JsonParseException
+import com.google.gson.JsonSyntaxException
 import java.lang.reflect.Type
 
 class GsonParser(private val gson: Gson) : Parser {
@@ -11,5 +13,14 @@ class GsonParser(private val gson: Gson) : Parser {
         gson.fromJson<O>(json, type)
     } catch (e: JsonParseException) {
         null
+    }
+
+    override fun isJson(jsonString: String?): Boolean {
+        return try {
+            gson.fromJson(jsonString, Any::class.java)
+            true
+        } catch (e: JsonSyntaxException) {
+            false
+        }
     }
 }
