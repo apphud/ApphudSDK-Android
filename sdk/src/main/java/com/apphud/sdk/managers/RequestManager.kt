@@ -74,11 +74,13 @@ object RequestManager {
             ApphudLog.log("advertisingId: continue registration")
         }
 
-    fun setParams(applicationContext: Context, userId: UserId, deviceId: DeviceId, apiKey: String){
+    fun setParams(applicationContext: Context, userId: UserId, deviceId: DeviceId, apiKey: String? = null){
         this.applicationContext = applicationContext
         this.userId = userId
         this.deviceId = deviceId
-        this.apiKey = apiKey
+        apiKey?.let{
+            this.apiKey = it
+        }
         this.storage = SharedPreferencesStorage(this.applicationContext, parser)
         currentUser = null
     }
@@ -602,7 +604,7 @@ object RequestManager {
         product_id?.let { properties.put("product_id", it) }
         return PaywallEventBody(
             name = name,
-            user_id = ApphudInternal.userId,
+            user_id = userId,
             device_id = deviceId,
             environment = if (applicationContext.isDebuggable()) "sandbox" else "production",
             timestamp = System.currentTimeMillis(),

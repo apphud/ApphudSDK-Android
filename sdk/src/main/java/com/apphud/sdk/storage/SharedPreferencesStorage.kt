@@ -1,6 +1,7 @@
 package com.apphud.sdk.storage
 
 import android.content.Context
+import com.apphud.sdk.ApphudInternal
 import com.apphud.sdk.domain.*
 import com.apphud.sdk.isDebuggable
 import com.apphud.sdk.parser.Parser
@@ -151,4 +152,17 @@ class SharedPreferencesStorage(
             editor.putString(GROUP_KEY, source)
             editor.apply()
         }
+
+    fun clean(){
+        customer = null
+        userId = null
+        deviceId = null
+        advertisingId = null
+        isNeedSync = false
+        facebook = null
+        firebase = null
+        appsflyer = null
+        paywalls = null
+        productGroups = null
+    }
 }

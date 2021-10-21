@@ -14,6 +14,7 @@ import com.apphud.sdk.domain.ApphudSubscription
 import com.apphud.app.presentation.ProductModel
 import com.apphud.app.presentation.ProductModelMapper
 import com.apphud.app.presentation.ProductsAdapter
+import com.apphud.sdk.ApphudUserPropertyKey
 
 class MainActivity : AppCompatActivity() {
 
@@ -80,8 +81,8 @@ class MainActivity : AppCompatActivity() {
             }
         }
 
-        val syncButton: Button = findViewById(R.id.syncButtonViewId)
-        syncButton.setOnClickListener {
+        val restoreButton: Button = findViewById(R.id.syncButtonViewId)
+        restoreButton.setOnClickListener {
             Apphud.restorePurchases { subscriptions, purchases, error ->
                 Log.d("Apphud", "restorePurchases: subscriptions=${subscriptions?.toString()} purchases=${purchases?.toString()} error=${error?.toString()} ")
             }
@@ -107,10 +108,13 @@ class MainActivity : AppCompatActivity() {
                     Log.d("Apphud", "PAYWALLS LOADING 1 FAILED")
                 }
                 paywalls?.let{
-                    Log.d("Apphud", "PAYWALLS LOADED 1")
+                    Log.d("Apphud", "PAYWALLS LOADED")
+                    if(it.isNotEmpty()) {
+                        Apphud.paywallShown(it.first())
+                    }
                 }
             }
-            Apphud.getPaywalls { paywalls, error ->
+            /*Apphud.getPaywalls { paywalls, error ->
                 error?.let{
                     Log.d("Apphud", "PAYWALLS LOADING 2 FAILED")
                 }
@@ -125,7 +129,12 @@ class MainActivity : AppCompatActivity() {
                 paywalls?.let{
                     Log.d("Apphud", "PAYWALLS LOADED 3")
                 }
-            }
+            }*/
+        }
+
+        val syncButton: Button = findViewById(R.id.btnSync)
+        syncButton.setOnClickListener {
+            //Apphud.syncPurchases()
         }
     }
 }

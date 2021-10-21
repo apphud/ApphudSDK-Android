@@ -46,29 +46,26 @@ internal object ApphudInternal {
     private var prevPurchases = mutableSetOf<PurchaseRecordDetails>()
     private var tempPrevPurchases = mutableSetOf<PurchaseRecordDetails>()
     private var productsForRestore = mutableListOf<PurchaseHistoryRecord>()
+    private val skuDetails = mutableListOf<SkuDetails>()
     internal var paywalls: MutableList<ApphudPaywall> = mutableListOf()
     internal var productGroups: MutableList<ApphudGroup> = mutableListOf()
 
     private var allowIdentifyUser = true
     private var isRegistered = false
     private var didRetrievePaywallsAtThisLaunch = false
+    private var is_new = true
 
     internal lateinit var userId: UserId
     private lateinit var deviceId: DeviceId
-
-    private var is_new = true
-
-    private lateinit var apiKey: ApiKey
     private lateinit var context: Context
 
     internal val currentUser: Customer?
         get() = storage.customer
     internal var apphudListener: ApphudListener? = null
 
-    private val skuDetails = mutableListOf<SkuDetails>()
 
-    val coroutineScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
-    val errorHandler = CoroutineExceptionHandler { context, error ->
+    private val coroutineScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+    private val errorHandler = CoroutineExceptionHandler { context, error ->
         error.message?.let { ApphudLog.logE(it) }
     }
 
@@ -83,7 +80,6 @@ internal object ApphudInternal {
     private var purchasesForRestoreIsLoaded: AtomicInteger = AtomicInteger(0)
 
     private var customProductsFetchedBlock: ((List<SkuDetails>) -> Unit)? = null
-
     private var fetchPaywallsDelayedCallback: (() -> Unit)? = null
 
     private val pendingUserProperties = mutableMapOf<String, ApphudUserProperty>()
@@ -128,6 +124,8 @@ internal object ApphudInternal {
         val id = updateUser(id = userId)
         this.userId = id
 
+        RequestManager.setParams(this.context, this.userId, this.deviceId)
+
         coroutineScope.launch(errorHandler) {
             RequestManager.registration(!didRetrievePaywallsAtThisLaunch, is_new) { customer, error ->
                 launch(Dispatchers.Main) {
@@ -157,13 +155,12 @@ internal object ApphudInternal {
                     "\n=============================================================")
             return
         }
-        this.apiKey = apiKey
         this.context = context
         ApphudLog.log("Start initialize with userId=$userId, deviceId=$deviceId")
         this.userId = updateUser(id = userId)
         this.deviceId = updateDevice(id = deviceId)
 
-        RequestManager.setParams(this.context, this.userId, this.deviceId, this.apiKey)
+        RequestManager.setParams(this.context, this.userId, this.deviceId, apiKey)
 
         allowIdentifyUser = false
         ApphudLog.log("try restore cachedPaywalls")
@@ -218,6 +215,7 @@ internal object ApphudInternal {
             RequestManager.registration(!didRetrievePaywallsAtThisLaunch, is_new) { customer, error ->
                 launch(Dispatchers.Main) {
                     customer?.let {
+                        isRegistered = true
                         ApphudLog.logI("registration: registrationUser customer=$customer")
                         storage.customer = customer
                         apphudListener?.apphudSubscriptionsUpdated(customer.subscriptions)
@@ -840,31 +838,20 @@ internal object ApphudInternal {
 
     private fun clear() {
         RequestManager.cleanRegistration()
-
+        generatedUUID = UUID.randomUUID().toString()
         skuDetailsIsLoaded.set(0)
         skuDetailsForFetchIsLoaded.set(0)
         skuDetailsForRestoreIsLoaded.set(0)
         paywallsDelayedCallback = null
-        isRegistered = false
-        storage.customer = null
-        storage.userId = null
-        storage.deviceId = null
-        storage.advertisingId = null
-        storage.isNeedSync = false
-        storage.facebook = null
-        storage.firebase = null
-        storage.appsflyer = null
-        storage.paywalls = null
-        storage.productGroups = null
-        generatedUUID = UUID.randomUUID().toString()
+        customProductsFetchedBlock = null
+        storage.clean()
         prevPurchases.clear()
         tempPrevPurchases.clear()
         skuDetails.clear()
-        allowIdentifyUser = true
-        customProductsFetchedBlock = null
         pendingUserProperties.clear()
-        setNeedsToUpdateUserProperties = false
         allowIdentifyUser = true
+        isRegistered = false
+        setNeedsToUpdateUserProperties = false
         didRetrievePaywallsAtThisLaunch = false
     }
 
