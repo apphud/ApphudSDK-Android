@@ -29,7 +29,7 @@ class HttpUrlConnectionExecutor(
      */
     companion object Shared{
         var X_SDK: String = "android"
-        var X_VERSION: String = BuildConfig.VERSION_NAME
+        var X_SDK_VERSION: String = BuildConfig.VERSION_NAME
     }
 
     override fun <O> call(config: RequestConfig): O = call(config, null)
@@ -52,8 +52,8 @@ class HttpUrlConnectionExecutor(
         if(X_SDK.isNotEmpty()){
             connection.setRequestProperty("X-SDK", X_SDK)
         }
-        if(X_VERSION.isNotEmpty()){
-            connection.setRequestProperty("X-Version", X_VERSION)
+        if(X_SDK_VERSION.isNotEmpty()){
+            connection.setRequestProperty("X-SDK-VERSION", X_SDK_VERSION)
         }
 
         config.headers.forEach { entry ->
