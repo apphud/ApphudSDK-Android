@@ -155,7 +155,7 @@ class SharedPreferencesStorage(
         }
 
 
-    fun clean(){
+    fun clean() {
         customer = null
         userId = null
         deviceId = null
@@ -166,6 +166,7 @@ class SharedPreferencesStorage(
         appsflyer = null
         paywalls = null
         productGroups = null
+    }
 
     fun updateCustomer(customer: Customer, apphudListener: ApphudListener?){
         var userIdChanged = false
@@ -182,6 +183,5 @@ class SharedPreferencesStorage(
                 apphudListener.apphudDidChangeUserID(customer.user.userId)
             }
         }
-
     }
 }
