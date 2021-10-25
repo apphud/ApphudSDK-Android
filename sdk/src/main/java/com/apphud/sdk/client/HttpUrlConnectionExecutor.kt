@@ -3,6 +3,7 @@ package com.apphud.sdk.client
 import android.view.View
 import com.apphud.sdk.ApphudLog
 import com.apphud.sdk.ApphudUtils
+import com.apphud.sdk.BuildConfig
 import com.apphud.sdk.client.dto.AttributionDto
 import com.apphud.sdk.client.dto.DataDto
 import com.apphud.sdk.client.dto.ResponseDto
@@ -28,6 +29,7 @@ class HttpUrlConnectionExecutor(
      */
     companion object Shared{
         var X_SDK: String = "android"
+        var X_SDK_VERSION: String = BuildConfig.VERSION_NAME
     }
 
     override fun <O> call(config: RequestConfig): O = call(config, null)
@@ -49,6 +51,9 @@ class HttpUrlConnectionExecutor(
         connection.setRequestProperty("X-Platform", "android")
         if(X_SDK.isNotEmpty()){
             connection.setRequestProperty("X-SDK", X_SDK)
+        }
+        if(X_SDK_VERSION.isNotEmpty()){
+            connection.setRequestProperty("X-SDK-VERSION", X_SDK_VERSION)
         }
 
         config.headers.forEach { entry ->

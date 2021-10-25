@@ -67,6 +67,10 @@ class MainActivity : AppCompatActivity() {
                 }
                 adapter.products = products.values.toList()
             }
+
+            override fun apphudDidChangeUserID(userId: String) {
+                Log.d("apphud", "User id was changed: " + userId)
+            }
         }
         Apphud.setListener(listener)
 

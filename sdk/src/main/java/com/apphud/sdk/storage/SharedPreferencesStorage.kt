@@ -2,6 +2,7 @@ package com.apphud.sdk.storage
 
 import android.content.Context
 import com.apphud.sdk.ApphudInternal
+import com.apphud.sdk.ApphudListener
 import com.apphud.sdk.domain.*
 import com.apphud.sdk.isDebuggable
 import com.apphud.sdk.parser.Parser
@@ -153,6 +154,7 @@ class SharedPreferencesStorage(
             editor.apply()
         }
 
+
     fun clean(){
         customer = null
         userId = null
@@ -164,5 +166,22 @@ class SharedPreferencesStorage(
         appsflyer = null
         paywalls = null
         productGroups = null
+
+    fun updateCustomer(customer: Customer, apphudListener: ApphudListener?){
+        var userIdChanged = false
+        this.customer?.let{
+            if(it.user.userId != customer.user.userId){
+                userIdChanged = true
+            }
+        }
+        this.customer = customer
+        this.userId = customer.user.userId
+
+        if(userIdChanged) {
+            apphudListener?.let{
+                apphudListener.apphudDidChangeUserID(customer.user.userId)
+            }
+        }
+
     }
 }
