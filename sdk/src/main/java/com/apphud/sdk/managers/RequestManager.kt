@@ -40,8 +40,8 @@ import java.util.*
 import org.json.JSONException
 
 import org.json.JSONObject
-
-
+import kotlin.coroutines.resume
+import kotlin.coroutines.suspendCoroutine
 
 
 object RequestManager {
@@ -295,7 +295,38 @@ object RequestManager {
         }
     }
 
-    fun allProducts(completionHandler: (List<ApphudGroup>?, ApphudError?) -> Unit) {
+    suspend fun allProducts() : List<ApphudGroup>? =
+    suspendCoroutine { continuation ->
+        val apphudUrl = ApphudUrl.Builder()
+            .host(ApiClient.host)
+            .version(ApphudVersion.V2)
+            .path("products")
+            .params(mapOf(API_KEY to apiKey))
+            .build()
+
+        val request = buildGetRequest(URL(apphudUrl.url))
+
+        makeRequest(request) { serverResponse, error ->
+            serverResponse?.let {
+                val responseDto: ResponseDto<List<ApphudGroupDto>>? =
+                    parser.fromJson<ResponseDto<List<ApphudGroupDto>>>(serverResponse, object: TypeToken<ResponseDto<List<ApphudGroupDto>>>(){}.type)
+                responseDto?.let{ response ->
+                    val productsList = response.data.results?.let { it1 -> productMapper.map(it1) }
+                    continuation.resume(productsList)
+                }?: run{
+                    ApphudLog.logE("Response success but result is null")
+                    continuation.resume(null)
+                }
+            } ?: run {
+                if (error != null) {
+                    ApphudLog.logE(error.message)
+                }
+                continuation.resume(null)
+            }
+        }
+    }
+
+    /*fun allProducts(completionHandler: (List<ApphudGroup>?, ApphudError?) -> Unit) {
         if(!canPerformRequest()) {
             ApphudLog.logE(::allProducts.name + MUST_REGISTER_ERROR)
             return
@@ -324,7 +355,7 @@ object RequestManager {
                 completionHandler(null, error)
             }
         }
-    }
+    }*/
 
     fun purchased(purchase: Purchase,
                   details: SkuDetails?,
@@ -563,7 +594,7 @@ object RequestManager {
 
         val request = buildPostRequest(URL(apphudUrl.url), body)
 
-        makeUserRegisteredRequest(request) { _, error ->
+        makeRequest(request) { _, error ->
             error?.let {
                 ApphudLog.logE("Error logs was not send")
             }?:run{

@@ -3,15 +3,12 @@ package com.apphud.sdk
 import android.annotation.SuppressLint
 import android.app.Activity
 import android.content.Context
-import android.os.Handler
-import android.os.Looper
 import com.android.billingclient.api.BillingClient
 import com.android.billingclient.api.Purchase
 import com.android.billingclient.api.PurchaseHistoryRecord
 import com.android.billingclient.api.SkuDetails
 import com.apphud.sdk.body.*
 import com.apphud.sdk.domain.*
-import com.apphud.sdk.internal.ApphudSkuDetailsCallback
 import com.apphud.sdk.internal.BillingWrapper
 import com.apphud.sdk.internal.callback_status.PurchaseCallbackStatus
 import com.apphud.sdk.internal.callback_status.PurchaseHistoryCallbackStatus
@@ -23,7 +20,6 @@ import com.apphud.sdk.parser.Parser
 import com.apphud.sdk.storage.SharedPreferencesStorage
 import com.google.gson.GsonBuilder
 import kotlinx.coroutines.*
-import java.lang.Runnable
 import java.util.*
 import java.util.concurrent.atomic.AtomicInteger
 
@@ -36,10 +32,6 @@ internal object ApphudInternal {
         .create()
     private val parser: Parser = GsonParser(builder)
 
-    /**
-     * @handler use for work with UI-thread. Save to storage, call callbacks
-     */
-    private val handler: Handler = Handler(Looper.getMainLooper())
     private val billing by lazy { BillingWrapper(context) }
     private val storage by lazy { SharedPreferencesStorage(context, parser) }
     private var generatedUUID = UUID.randomUUID().toString()
@@ -47,6 +39,7 @@ internal object ApphudInternal {
     private var tempPrevPurchases = mutableSetOf<PurchaseRecordDetails>()
     private var productsForRestore = mutableListOf<PurchaseHistoryRecord>()
     private val skuDetails = mutableListOf<SkuDetails>()
+    private val pendingUserProperties = mutableMapOf<String, ApphudUserProperty>()
     internal var paywalls: MutableList<ApphudPaywall> = mutableListOf()
     internal var productGroups: MutableList<ApphudGroup> = mutableListOf()
 
@@ -74,72 +67,9 @@ internal object ApphudInternal {
      * 1 - we have only one loaded SkuType SUBS or INAPP
      * 2 - we have both loaded SkuType SUBS and INAPP
      * */
-    private var skuDetailsIsLoaded: AtomicInteger = AtomicInteger(0)
-    private var skuDetailsForFetchIsLoaded: AtomicInteger = AtomicInteger(0)
     private var skuDetailsForRestoreIsLoaded: AtomicInteger = AtomicInteger(0)
     private var purchasesForRestoreIsLoaded: AtomicInteger = AtomicInteger(0)
-
     private var customProductsFetchedBlock: ((List<SkuDetails>) -> Unit)? = null
-    private var fetchPaywallsDelayedCallback: (() -> Unit)? = null
-
-    private val pendingUserProperties = mutableMapOf<String, ApphudUserProperty>()
-    private val userPropertiesRunnable = Runnable {
-        if (isRegistered) {
-            updateUserProperties()
-        } else {
-            setNeedsToUpdateUserProperties = true
-        }
-    }
-
-    private var setNeedsToUpdateUserProperties: Boolean = false
-        set(value) {
-            field = value
-            if (value) {
-                handler.removeCallbacks(userPropertiesRunnable)
-                handler.postDelayed(userPropertiesRunnable, 1000L)
-            } else {
-                handler.removeCallbacks(userPropertiesRunnable)
-            }
-        }
-
-    private var paywallsDelayedCallback: PaywallCallback? = null
-
-    private val paywallsRunnable = Runnable {
-        tryInvokePaywallsDelayedCallback()
-    }
-
-    private var setNeedsToUpdatePaywalls: Boolean = false
-        set(value) {
-            field = value
-            if (value) {
-                handler.removeCallbacks(paywallsRunnable)
-                handler.postDelayed(paywallsRunnable, 200L)
-            } else {
-                handler.removeCallbacks(paywallsRunnable)
-            }
-        }
-
-    internal fun updateUserId(userId: UserId) {
-        ApphudLog.log("Start updateUserId userId=$userId")
-        val id = updateUser(id = userId)
-        this.userId = id
-
-        RequestManager.setParams(this.context, this.userId, this.deviceId)
-
-        coroutineScope.launch(errorHandler) {
-            RequestManager.registration(!didRetrievePaywallsAtThisLaunch, is_new) { customer, error ->
-                launch(Dispatchers.Main) {
-                    customer?.let {
-                        storage.customer = customer
-                        ApphudLog.logI("End updateUserId customer=$customer")
-                    }
-                    error?.let{
-                        ApphudLog.logE(it.message)
-                    }
-                }
-            }
-        }
-    }
 
     internal fun initialize(
         context: Context,
@@ -155,54 +85,53 @@ internal object ApphudInternal {
                     "\n=============================================================")
             return
         }
-        this.context = context
+
         ApphudLog.log("Start initialize with userId=$userId, deviceId=$deviceId")
+
+        this.context = context
         this.userId = updateUser(id = userId)
         this.deviceId = updateDevice(id = deviceId)
-
         RequestManager.setParams(this.context, this.userId, this.deviceId, apiKey)
 
         allowIdentifyUser = false
-        ApphudLog.log("try restore cachedPaywalls")
-        this.paywalls = cachedPaywalls()
-        // try to continue anyway, because maybe already has cached data, try to fetch play market products
-        fetchProducts()
 
         ApphudLog.log("Start initialize with saved userId=${this.userId}, saved deviceId=${this.deviceId}")
         registration(this.userId, this.deviceId)
     }
 
-    private fun fetchProducts() {
-        billing.skuCallback = { details ->
-            ApphudLog.log("fetchProducts: details from Google Billing: $details")
-            skuDetailsIsLoaded.incrementAndGet()
-            if (details.isNotEmpty()) {
-                skuDetails.addAll(details)
-            }
-            if (skuDetailsIsLoaded.isBothLoaded()) {
-                paywalls = cachedPaywalls()
-                productGroups = cachedGroups()
-                customProductsFetchedBlock?.invoke(skuDetails)
-                apphudListener?.apphudFetchSkuDetailsProducts(skuDetails)
-            }
-        }
+    private suspend fun fetchProducts(): Boolean {
+            val groupsList = RequestManager.allProducts()
+            groupsList?.let { groups ->
+                ApphudLog.logI("fetchProducts: products from Apphud server: $groups")
+                cacheGroups(groups)
+                val ids = groups.map { it -> it.products?.map { it.product_id }!! }.flatten()
 
-        coroutineScope.launch(errorHandler) {
-            RequestManager.allProducts { groupsList, error ->
-                launch(Dispatchers.Main) {
-                    groupsList?.let { groups ->
-                        ApphudLog.logI("fetchProducts: products from Apphud server: $groups")
-                        cacheGroups(groups)
-                        val ids = groups.map { it -> it.products?.map { it.product_id }!! }.flatten()
-                        billing.details(BillingClient.SkuType.SUBS, ids)
-                        billing.details(BillingClient.SkuType.INAPP, ids)
+                var isInapLoaded = false
+                var isSubsLoaded = false
+                coroutineScope {
+                    val subs = async{billing.detailsEx(BillingClient.SkuType.SUBS, ids)}
+                    subs.await()?.let {
+                        skuDetails.addAll(it)
+                        isSubsLoaded = true
+                    } ?: run {
+                        ApphudLog.logE("Unable to load SUBS details")
                     }
-                    error?.let{
-                        ApphudLog.logE(it.message)
+
+                    val inap =  async{billing.detailsEx(BillingClient.SkuType.INAPP, ids)}
+                    inap.await()?.let {
+                        skuDetails.addAll(it)
+                        isInapLoaded = true
+                    } ?: run {
+                        ApphudLog.logE("Unable to load INAP details")
                     }
                 }
+
+                paywalls = cachedPaywalls()
+                productGroups = cachedGroups()
+
+                return isSubsLoaded && isInapLoaded
             }
-        }
+        return false
     }
 
     private fun registration(
@@ -212,6 +141,10 @@ internal object ApphudInternal {
         ApphudLog.log("Start registration userId=$userId, deviceId=$deviceId")
 
         coroutineScope.launch(errorHandler) {
+            if(!fetchProducts()){
+                ApphudLog.logE("Unable to load products")
+            }
+
             RequestManager.registration(!didRetrievePaywallsAtThisLaunch, is_new) { customer, error ->
                 launch(Dispatchers.Main) {
                     customer?.let {
@@ -232,18 +165,13 @@ internal object ApphudInternal {
                             syncPurchases()
                         }
 
-                        if (pendingUserProperties.isNotEmpty() && setNeedsToUpdateUserProperties) {
+                        if (pendingUserProperties.isNotEmpty()) {
                             ApphudLog.log("registration: we should update UserProperties")
                             updateUserProperties()
                         }
                     }
                     error?.let {
                         ApphudLog.logE(it.message)
-                    }
-
-                    if (fetchPaywallsDelayedCallback != null) {
-                        fetchPaywallsDelayedCallback?.invoke()
-                        fetchPaywallsDelayedCallback = null
                     }
                 }
             }
@@ -277,7 +205,9 @@ internal object ApphudInternal {
             if (sku != null) {
                 purchaseInternal(activity, sku, null, withValidation, callback)
             } else {
-                fetchDetails(activity, productId, null, withValidation, callback)
+                coroutineScope.launch(errorHandler) {
+                    fetchDetails(activity, productId, null, withValidation, callback)
+                }
             }
         } else if (skuDetails != null) {
             //if we have SkuDetails
@@ -291,59 +221,75 @@ internal object ApphudInternal {
                 if (sku != null) {
                     purchaseInternal(activity, sku, null, withValidation, callback)
                 } else {
-                    fetchDetails(activity, null, product, withValidation, callback)
+                    coroutineScope.launch(errorHandler) {
+                        fetchDetails(activity, null, product, withValidation, callback)
+                    }
                 }
             }
         }
     }
 
-    private fun fetchDetails(
+    private suspend fun fetchDetails(
         activity: Activity,
         productId: String?,
         apphudProduct: ApphudProduct?,
         withValidation: Boolean,
         callback: ((ApphudPurchaseResult) -> Unit)?
     ) {
-        skuDetailsForFetchIsLoaded.set(0)
+        val productName: String = productId ?: apphudProduct?.product_id!!
+        if(loadDetails(productName, apphudProduct)){
+            getSkuDetailsByProductId(productName)?.let { sku ->
+                //if we have not empty ApphudProduct
+                apphudProduct?.let {
+                    paywalls = cachedPaywalls()
+                    it.skuDetails = sku
+                    purchaseInternal(activity, null, it, withValidation, callback)
+                } ?: run {
+                    purchaseInternal(activity, sku, null, withValidation, callback)
+                }
+            }
+        }else{
+            val message =
+                "Unable to fetch product with given product id: $productName" + apphudProduct?.let { " [Apphud product ID: " + it.id + "]" }
+            ApphudLog.log(message = message,sendLogToServer = true)
+            callback?.invoke(ApphudPurchaseResult(null,null,null,ApphudError(message)))
+        }
+    }
+
+    private suspend fun loadDetails(
+        productId: String?,
+        apphudProduct: ApphudProduct?) :Boolean
+    {
         val productName: String = productId ?: apphudProduct?.product_id!!
         ApphudLog.log("Could not find SkuDetails for product id: $productName in memory")
         ApphudLog.log("Now try fetch it from Google Billing")
-        val fetchDetailsCallback: ApphudSkuDetailsCallback = { skuList ->
-            skuDetailsForFetchIsLoaded.incrementAndGet()
-            if (skuList.isNotEmpty()) {
-                skuDetails.addAll(skuList)
+
+        return coroutineScope {
+            var isInapLoaded = false
+            var isSubsLoaded = false
+
+            val subs = async { billing.detailsEx(BillingClient.SkuType.SUBS, listOf(productName)) }
+            val inap = async { billing.detailsEx(BillingClient.SkuType.INAPP, listOf(productName)) }
+
+            subs.await()?.let {
+                skuDetails.addAll(it)
+                isSubsLoaded = true
+
                 ApphudLog.log("Google Billing return this info for product id = $productName :")
-                skuList.forEach { ApphudLog.log("$it") }
+                it.forEach { ApphudLog.log("$it") }
+            } ?: run {
+                ApphudLog.logE("Unable to load SUBS details")
             }
-            if (skuDetailsForFetchIsLoaded.isBothLoaded()) {
-                //if we have successfully fetched SkuDetails with target productName
-                getSkuDetailsByProductId(productName)?.let { sku ->
-                    //if we have not empty ApphudProduct
-                    apphudProduct?.let {
-                        paywalls = cachedPaywalls()
-                        it.skuDetails = sku
-                        purchaseInternal(activity, null, it, withValidation, callback)
-                    } ?: run {
-                        purchaseInternal(activity, sku, null, withValidation, callback)
-                    }
-                } ?: run {
-                    //if we booth SkuType already loaded and we still haven't any SkuDetails
-                    val message = "Unable to fetch product with given product id: $productName" + apphudProduct?.let{ " [Apphud product ID: " + it.id + "]"}
-                    ApphudLog.log(message = message,
-                        sendLogToServer = true)
-                    callback?.invoke(ApphudPurchaseResult(null,
-                        null,
-                        null,
-                        ApphudError(message)))
-                }
+
+            inap.await()?.let {
+                skuDetails.addAll(it)
+                isInapLoaded = true
+                it.forEach { ApphudLog.log("$it") }
+            } ?: run {
+                ApphudLog.logE("Unable to load INAP details")
             }
+            return@coroutineScope isSubsLoaded && isInapLoaded
         }
-        billing.details(type = BillingClient.SkuType.SUBS,
-            products = listOf(productName),
-            manualCallback = fetchDetailsCallback)
-        billing.details(type = BillingClient.SkuType.INAPP,
-            products = listOf(productName),
-            manualCallback = fetchDetailsCallback)
     }
 
     private fun purchaseInternal(
@@ -788,11 +734,10 @@ internal object ApphudInternal {
             remove(property.key)
             put(property.key, property)
         }
-        setNeedsToUpdateUserProperties = true
+        updateUserProperties()
     }
 
     private fun updateUserProperties() {
-        setNeedsToUpdateUserProperties = false
         if (pendingUserProperties.isEmpty()) return
 
         val properties = mutableListOf<Map<String, Any?>>()
@@ -821,6 +766,28 @@ internal object ApphudInternal {
         }
     }
 
+    internal fun updateUserId(userId: UserId) {
+        ApphudLog.log("Start updateUserId userId=$userId")
+        val id = updateUser(id = userId)
+        this.userId = id
+
+        RequestManager.setParams(this.context, this.userId, this.deviceId)
+
+        coroutineScope.launch(errorHandler) {
+            RequestManager.registration(!didRetrievePaywallsAtThisLaunch, is_new) { customer, error ->
+                launch(Dispatchers.Main) {
+                    customer?.let {
+                        storage.customer = customer
+                        ApphudLog.logI("End updateUserId customer=$customer")
+                    }
+                    error?.let{
+                        ApphudLog.logE(it.message)
+                    }
+                }
+            }
+        }
+    }
+
     private fun getType(value: Any?): String {
         return when (value) {
             is String -> "string"
@@ -839,10 +806,7 @@ internal object ApphudInternal {
     private fun clear() {
         RequestManager.cleanRegistration()
         generatedUUID = UUID.randomUUID().toString()
-        skuDetailsIsLoaded.set(0)
-        skuDetailsForFetchIsLoaded.set(0)
         skuDetailsForRestoreIsLoaded.set(0)
-        paywallsDelayedCallback = null
         customProductsFetchedBlock = null
         storage.clean()
         prevPurchases.clear()
@@ -851,7 +815,6 @@ internal object ApphudInternal {
         pendingUserProperties.clear()
         allowIdentifyUser = true
         isRegistered = false
-        setNeedsToUpdateUserProperties = false
         didRetrievePaywallsAtThisLaunch = false
     }
 
@@ -889,28 +852,12 @@ internal object ApphudInternal {
         return getSkuDetailsList()?.let { skuList -> skuList.firstOrNull { it.sku == productIdentifier } }
     }
 
-    private fun tryInvokePaywallsDelayedCallback() {
-        ApphudLog.log("Try invoke paywalls delayed callback")
-        if (!paywalls.isNullOrEmpty() && skuDetailsIsLoaded.isBothLoaded()) {
-            setNeedsToUpdatePaywalls = false
-            paywallsDelayedCallback?.invoke(paywalls, null)
-            paywallsDelayedCallback = null
-        } else {
-            setNeedsToUpdatePaywalls = true
-        }
-    }
-
     internal fun getPaywalls(callback: PaywallCallback) {
         ApphudLog.log("Invoke getPaywalls")
 
         fetchPaywallsIfNeeded(true) { paywalls, error ->
             paywalls?.let {
-                if (skuDetailsIsLoaded.isBothLoaded()) {
-                    callback.invoke(paywalls, null)
-                } else {
-                    paywallsDelayedCallback = callback
-                    setNeedsToUpdatePaywalls = true
-                }
+                callback.invoke(paywalls, null)
             } ?: run {
                 val message = "Get Paywalls is failed with message = ${error?.message} and code = ${error?.errorCode}"
                 ApphudLog.log(message = message)

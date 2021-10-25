@@ -71,14 +71,18 @@ class MainActivity : AppCompatActivity() {
         Apphud.setListener(listener)
 
         adapter.onClick = { model ->
-            Log.e("Apphud", "onClick model: $model")
+            Apphud.purchase(this, model.productId){ result ->
+                Log.d("Apphud","PURCHASE RESULT: ${Apphud.subscriptions() }. Has active subscription: ${Apphud.hasActiveSubscription()}")
+                Log.d("Apphud", "${result.error?.toString()}")
+            }
+            /*Log.e("Apphud", "onClick model: $model")
             when (model.details) {
                 null -> Log.e("Apphud", "details is empty")
                 else -> Apphud.purchase(this, model.details.sku) { result ->
                     Log.d("Apphud","PURCHASE RESULT: ${Apphud.subscriptions() }. Has active subscription: ${Apphud.hasActiveSubscription()}")
                     Log.d("Apphud", "${result.error?.toString()}")
                 }
-            }
+            }*/
         }
 
         val restoreButton: Button = findViewById(R.id.syncButtonViewId)

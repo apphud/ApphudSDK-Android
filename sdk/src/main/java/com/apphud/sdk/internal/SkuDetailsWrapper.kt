@@ -4,13 +4,14 @@ import com.android.billingclient.api.BillingClient
 import com.android.billingclient.api.PurchaseHistoryRecord
 import com.android.billingclient.api.SkuDetails
 import com.android.billingclient.api.SkuDetailsParams
+import com.apphud.sdk.*
 import com.apphud.sdk.ApphudLog
-import com.apphud.sdk.ProductId
 import com.apphud.sdk.domain.PurchaseRecordDetails
 import com.apphud.sdk.internal.callback_status.PurchaseRestoredCallbackStatus
-import com.apphud.sdk.isSuccess
-import com.apphud.sdk.logMessage
+import kotlinx.coroutines.delay
 import kotlin.concurrent.thread
+import kotlin.coroutines.resume
+import kotlin.coroutines.suspendCoroutine
 
 typealias SkuType = String
 typealias ApphudSkuDetailsCallback = (List<SkuDetails>) -> Unit
@@ -102,6 +103,38 @@ internal class SkuDetailsWrapper(
                             detailsCallback?.invoke(details.orEmpty())
                     }
                     else -> result.logMessage("Query SkuDetails Async type: $type products: $products")
+                }
+            }
+        }
+    }
+
+    suspend fun queryAsyncEx(
+        @BillingClient.SkuType type: SkuType,
+        products: List<ProductId>
+    ): List<SkuDetails>? =
+    suspendCoroutine { continuation ->
+        val params = SkuDetailsParams.newBuilder()
+            .setSkusList(products)
+            .setType(type)
+            .build()
+
+        thread(start = true, name = "queryAsync+$type") {
+            while (!billing.isReady) {
+                ApphudLog.log("queryAsync is on waiting for ${retryDelay}ms for $type")
+                Thread.sleep(retryDelay)
+                if(retryCount++>=retryCapacity)
+                    break
+            }
+            billing.querySkuDetailsAsync(params) { result, details ->
+                when (result.isSuccess()) {
+                    true -> {
+                        ApphudLog.logI("Query SkuDetails success")
+                        continuation.resume(details.orEmpty())
+                    }
+                    else -> {
+                        result.logMessage("Query SkuDetails Async type: $type products: $products")
+                        continuation.resume(null)
+                    }
                 }
             }
         }

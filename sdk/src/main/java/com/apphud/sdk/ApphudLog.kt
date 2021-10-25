@@ -35,9 +35,12 @@ internal object ApphudLog {
     /**
      * This is a fun to force error message logging.
      * */
-    fun logE(message: String) {
+    fun logE(message: String, sendLogToServer:Boolean = false) {
         Log.e(TAG, message)
-        sendErrorLogs(message)
+
+        if(sendLogToServer){
+            sendErrorLogs(message)
+        }
     }
 
     /**
