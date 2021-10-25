@@ -25,4 +25,9 @@ interface ApphudListener {
     Note that you have to add all product identifiers in Apphud.
      */
     fun apphudFetchSkuDetailsProducts(details: List<SkuDetails>)
+
+    /**
+    Called when user identifier was changed
+     */
+    fun apphudDidChangeUserID(userId: String)
 }

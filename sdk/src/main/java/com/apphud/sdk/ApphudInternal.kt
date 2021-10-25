@@ -156,7 +156,7 @@ internal object ApphudInternal {
         val body = mkRegistrationBody(id, deviceId)
         client?.registrationUser(body) { customer ->
             handler.post {
-                storage.customer = customer
+                storage.updateCustomer(customer, apphudListener)
                 ApphudLog.log("End updateUserId customer=$customer")
             }
         }
@@ -230,7 +230,7 @@ internal object ApphudInternal {
             isRegistered = true
             handler.post {
                 ApphudLog.log("registration: registrationUser customer=$customer")
-                storage.customer = customer
+                storage.updateCustomer(customer, apphudListener)
                 apphudListener?.apphudSubscriptionsUpdated(customer.subscriptions)
                 apphudListener?.apphudNonRenewingPurchasesUpdated(customer.purchases)
 
@@ -535,7 +535,9 @@ internal object ApphudInternal {
                             val newPurchases =
                                 customer?.purchases?.firstOrNull { it.productId == purchase.skus.first() }
 
-                            storage.customer = customer
+                            customer?.let {
+                                storage.updateCustomer(it, apphudListener)
+                            }
                             storage.isNeedSync = false
 
                             if (newSubscriptions == null && newPurchases == null) {
@@ -668,7 +670,9 @@ internal object ApphudInternal {
                     null -> {
                         prevPurchases.addAll(tempPurchaseRecordDetails)
                         storage.isNeedSync = false
-                        storage.customer = customer
+                        customer?.let{
+                            storage.updateCustomer(it, apphudListener)
+                        }
                         ApphudLog.log("SyncPurchases: customer was updated $customer")
                         apphudListener?.apphudSubscriptionsUpdated(customer?.subscriptions!!)
                         apphudListener?.apphudNonRenewingPurchasesUpdated(customer?.purchases!!)
