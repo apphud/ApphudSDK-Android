@@ -150,7 +150,7 @@ internal object ApphudInternal {
                     customer?.let {
                         isRegistered = true
                         ApphudLog.logI("registration: registrationUser customer=$customer")
-                        storage.customer = customer
+                        storage.updateCustomer(it, apphudListener)
                         apphudListener?.apphudSubscriptionsUpdated(customer.subscriptions)
                         apphudListener?.apphudNonRenewingPurchasesUpdated(customer.purchases)
 
@@ -446,7 +446,7 @@ internal object ApphudInternal {
                         val newPurchases =
                             customer.purchases.firstOrNull { it.productId == purchase.skus.first() }
 
-                        storage.customer = customer
+                        storage.updateCustomer(it, apphudListener)
                         storage.isNeedSync = false
 
                         if (newSubscriptions == null && newPurchases == null) {
@@ -578,7 +578,7 @@ internal object ApphudInternal {
                     customer?.let {
                         prevPurchases.addAll(tempPurchaseRecordDetails)
                         storage.isNeedSync = false
-                        storage.customer = customer
+                        storage.updateCustomer(it, apphudListener)
                         ApphudLog.logI("SyncPurchases: customer was updated $customer")
                         apphudListener?.apphudSubscriptionsUpdated(customer.subscriptions)
                         apphudListener?.apphudNonRenewingPurchasesUpdated(customer.purchases)
@@ -777,7 +777,7 @@ internal object ApphudInternal {
             RequestManager.registration(!didRetrievePaywallsAtThisLaunch, is_new) { customer, error ->
                 launch(Dispatchers.Main) {
                     customer?.let {
-                        storage.customer = customer
+                        storage.updateCustomer(it, apphudListener)
                         ApphudLog.logI("End updateUserId customer=$customer")
                     }
                     error?.let{
