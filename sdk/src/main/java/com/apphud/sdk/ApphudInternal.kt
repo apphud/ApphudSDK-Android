@@ -240,7 +240,7 @@ internal object ApphudInternal {
             getSkuDetailsByProductId(productName)?.let { sku ->
                 //if we have not empty ApphudProduct
                 apphudProduct?.let {
-                    paywalls = cachedPaywalls()
+                    //paywalls = cachedPaywalls()
                     it.skuDetails = sku
                     purchaseInternal(activity, null, it, withValidation, callback)
                 } ?: run {
