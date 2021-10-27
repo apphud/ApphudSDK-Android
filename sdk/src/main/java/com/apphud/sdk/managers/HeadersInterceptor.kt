@@ -6,7 +6,7 @@ import okhttp3.Request
 import okhttp3.Response
 import java.io.IOException
 
-class HeadersInterceptor(val apiKey: String) : Interceptor {
+class HeadersInterceptor(private val apiKey: String?) : Interceptor {
     companion object Shared{
         var X_SDK: String = "android"
         var X_SDK_VERSION: String = BuildConfig.VERSION_NAME

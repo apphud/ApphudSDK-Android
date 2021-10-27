@@ -1,7 +1,6 @@
 package com.apphud.sdk
 
 import android.util.Log
-import com.apphud.sdk.client.ApphudClient
 import com.apphud.sdk.managers.RequestManager
 
 internal object ApphudLog {

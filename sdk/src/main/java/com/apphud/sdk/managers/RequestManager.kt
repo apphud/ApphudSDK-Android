@@ -56,9 +56,9 @@ object RequestManager {
     private val customerMapper = CustomerMapper(SubscriptionMapper(), paywallsMapper)
 
     //TODO to be settled
+    private var apiKey: String? = null
     lateinit var userId: UserId
     lateinit var deviceId: DeviceId
-    lateinit var apiKey: String
     lateinit var applicationContext: Context
     lateinit var storage: SharedPreferencesStorage
 
@@ -87,13 +87,14 @@ object RequestManager {
     fun cleanRegistration(){
         currentUser = null
         advertisingId = null
+        apiKey = null
     }
 
     fun canPerformRequest(): Boolean{
         return ::applicationContext.isInitialized
                 && ::userId.isInitialized
                 && ::deviceId.isInitialized
-                && ::apiKey.isInitialized
+                && apiKey != null
     }
 
     fun getOkHttpClient(): OkHttpClient {
@@ -211,6 +212,11 @@ object RequestManager {
 
     @Synchronized
     fun registration(needPaywalls: Boolean, isNew: Boolean, completionHandler: (Customer?, ApphudError?) -> Unit) {
+        if(!canPerformRequest()) {
+            ApphudLog.logE(::registration.name + MUST_REGISTER_ERROR)
+            return
+        }
+
         if(currentUser == null) {
             //Load advertising id
             if (ApphudUtils.adTracking) {

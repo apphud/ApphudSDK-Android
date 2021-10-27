@@ -44,7 +44,6 @@ internal object ApphudInternal {
     internal var productGroups: MutableList<ApphudGroup> = mutableListOf()
 
     private var allowIdentifyUser = true
-    private var isRegistered = false
     private var didRetrievePaywallsAtThisLaunch = false
     private var is_new = true
 
@@ -55,7 +54,6 @@ internal object ApphudInternal {
     internal val currentUser: Customer?
         get() = storage.customer
     internal var apphudListener: ApphudListener? = null
-
 
     private val coroutineScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     private val errorHandler = CoroutineExceptionHandler { context, error ->
@@ -125,10 +123,7 @@ internal object ApphudInternal {
                         ApphudLog.logE("Unable to load INAP details")
                     }
                 }
-
-                paywalls = cachedPaywalls()
                 productGroups = cachedGroups()
-
                 return isSubsLoaded && isInapLoaded
             }
         return false
@@ -141,23 +136,27 @@ internal object ApphudInternal {
         ApphudLog.log("Start registration userId=$userId, deviceId=$deviceId")
 
         coroutineScope.launch(errorHandler) {
-            if(!fetchProducts()){
-                ApphudLog.logE("Unable to load products")
+            fetchProducts()
+            launch(Dispatchers.Main) {
+                if (skuDetails.isNotEmpty()) {
+                    apphudListener?.apphudFetchSkuDetailsProducts(skuDetails)
+                    customProductsFetchedBlock?.invoke(skuDetails)
+                }
             }
 
             RequestManager.registration(!didRetrievePaywallsAtThisLaunch, is_new) { customer, error ->
                 launch(Dispatchers.Main) {
                     customer?.let {
-                        isRegistered = true
                         ApphudLog.logI("registration: registrationUser customer=$customer")
                         storage.updateCustomer(it, apphudListener)
-                        apphudListener?.apphudSubscriptionsUpdated(customer.subscriptions)
-                        apphudListener?.apphudNonRenewingPurchasesUpdated(customer.purchases)
 
                         if (customer.paywalls.isNotEmpty()) {
                             didRetrievePaywallsAtThisLaunch = true
                             processLoadedPaywalls(customer.paywalls, true)
                         }
+
+                        apphudListener?.apphudNonRenewingPurchasesUpdated(customer.purchases)
+                        apphudListener?.apphudSubscriptionsUpdated(customer.subscriptions)
 
                         // try to resend purchases, if prev requests was fail
                         if (storage.isNeedSync) {
@@ -489,7 +488,7 @@ internal object ApphudInternal {
         allowsReceiptRefresh: Boolean = false,
         callback: ApphudPurchasesRestoreCallback? = null
     ) {
-        storage.isNeedSync = true
+        //storage.isNeedSync = true
         productsForRestore.clear()
         tempPrevPurchases.clear()
         purchasesForRestoreIsLoaded.set(0)
@@ -604,6 +603,7 @@ internal object ApphudInternal {
             ApphudAttributionProvider.adjust -> AttributionBody(
                 device_id = deviceId,
                 adid = identifier,
+                need_paywalls = !didRetrievePaywallsAtThisLaunch,
                 adjust_data = data ?: emptyMap()
             )
             ApphudAttributionProvider.facebook -> {
@@ -612,6 +612,7 @@ internal object ApphudInternal {
                     .toMap()
                 AttributionBody(
                     device_id = deviceId,
+                    need_paywalls = !didRetrievePaywallsAtThisLaunch,
                     facebook_data = map
                 )
             }
@@ -620,6 +621,7 @@ internal object ApphudInternal {
                 else -> AttributionBody(
                     device_id = deviceId,
                     appsflyer_id = identifier,
+                    need_paywalls = !didRetrievePaywallsAtThisLaunch,
                     appsflyer_data = data
                 )
             }
@@ -627,6 +629,7 @@ internal object ApphudInternal {
                 null -> null
                 else -> AttributionBody(
                     device_id = deviceId,
+                    need_paywalls = !didRetrievePaywallsAtThisLaunch,
                     firebase_id = identifier
                 )
             }
@@ -745,7 +748,7 @@ internal object ApphudInternal {
             properties.add(it.value.toJSON()!!)
         }
 
-        val body = UserPropertiesBody(this.deviceId, properties)
+        val body = UserPropertiesBody(this.deviceId, !didRetrievePaywallsAtThisLaunch, properties)
         coroutineScope.launch(errorHandler) {
             RequestManager.userProperties(body) { userProperties, error ->
                 launch(Dispatchers.Main) {
@@ -814,7 +817,6 @@ internal object ApphudInternal {
         skuDetails.clear()
         pendingUserProperties.clear()
         allowIdentifyUser = true
-        isRegistered = false
         didRetrievePaywallsAtThisLaunch = false
     }
 

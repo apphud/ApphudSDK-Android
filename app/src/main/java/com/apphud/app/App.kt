@@ -16,7 +16,6 @@ class App : Application() {
         app = this
 
         Apphud.enableDebugLogs()
-        //Apphud.setUserProperty(key = ApphudUserPropertyKey.CustomProperty("nickname"), value = "Vlad")
         Apphud.start(this, Constants.API_KEY)
     }
 }

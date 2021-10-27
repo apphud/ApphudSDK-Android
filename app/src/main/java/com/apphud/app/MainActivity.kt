@@ -15,12 +15,12 @@ import com.apphud.app.presentation.ProductModel
 import com.apphud.app.presentation.ProductModelMapper
 import com.apphud.app.presentation.ProductsAdapter
 import com.apphud.sdk.ApphudUserPropertyKey
+import java.util.*
 
 class MainActivity : AppCompatActivity() {
 
     private val mapper = ProductModelMapper()
     private val adapter = ProductsAdapter()
-
     private var products = mutableMapOf<ProductId, ProductModel>()
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -89,14 +89,15 @@ class MainActivity : AppCompatActivity() {
             }*/
         }
 
+        val recyclerView = findViewById<RecyclerView>(R.id.recyclerViewId)
+        recyclerView.adapter = adapter
+
         val restoreButton: Button = findViewById(R.id.syncButtonViewId)
         restoreButton.setOnClickListener {
             Apphud.restorePurchases { subscriptions, purchases, error ->
                 Log.d("Apphud", "restorePurchases: subscriptions=${subscriptions?.toString()} purchases=${purchases?.toString()} error=${error?.toString()} ")
             }
         }
-        val recyclerView = findViewById<RecyclerView>(R.id.recyclerViewId)
-        recyclerView.adapter = adapter
 
         val logoutButton: Button = findViewById(R.id.btnLogout)
         logoutButton.setOnClickListener {
@@ -118,6 +119,7 @@ class MainActivity : AppCompatActivity() {
                 paywalls?.let{
                     Log.d("Apphud", "PAYWALLS LOADED")
                     if(it.isNotEmpty()) {
+                        Log.d("Apphud", "PAYWALLS SHOWN")
                         Apphud.paywallShown(it.first())
                     }
                 }
@@ -140,9 +142,10 @@ class MainActivity : AppCompatActivity() {
             }*/
         }
 
-        val syncButton: Button = findViewById(R.id.btnSync)
+        val syncButton: Button = findViewById(R.id.btnUpdateUserId)
         syncButton.setOnClickListener {
             //Apphud.syncPurchases()
+            Apphud.updateUserId(UUID.randomUUID().toString())
         }
     }
 }
