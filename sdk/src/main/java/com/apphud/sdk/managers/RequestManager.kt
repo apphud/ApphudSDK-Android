@@ -45,7 +45,6 @@ import kotlin.coroutines.suspendCoroutine
 
 
 object RequestManager {
-    private const val API_KEY = "api_key"
     private const val MUST_REGISTER_ERROR = " :You must call the Apphud.start method once when your application starts before calling any other methods."
 
     private var currentUser: Customer? = null
@@ -98,7 +97,7 @@ object RequestManager {
     }
 
     fun getOkHttpClient(): OkHttpClient {
-        val headersInterceptor = HeadersInterceptor()
+        val headersInterceptor = HeadersInterceptor(apiKey)
         val logging = HttpLoggingInterceptor {
             if (parser.isJson(it)) {
                 buildPrettyPrintedBy(it)?.let { formattedJsonString ->
@@ -234,7 +233,6 @@ object RequestManager {
                 .host(ApiClient.host)
                 .version(ApphudVersion.V1)
                 .path("customers")
-                .params(mapOf(API_KEY to apiKey))
                 .build()
 
             val request = buildPostRequest(URL(apphudUrl.url), mkRegistrationBody(needPaywalls, isNew))
@@ -274,7 +272,6 @@ object RequestManager {
             .host(ApiClient.host)
             .version(ApphudVersion.V2)
             .path("paywall_configs")
-            .params(mapOf(API_KEY to apiKey))
             .build()
 
         val request = buildGetRequest(URL(apphudUrl.url))
@@ -301,7 +298,6 @@ object RequestManager {
             .host(ApiClient.host)
             .version(ApphudVersion.V2)
             .path("products")
-            .params(mapOf(API_KEY to apiKey))
             .build()
 
         val request = buildGetRequest(URL(apphudUrl.url))
@@ -370,7 +366,6 @@ object RequestManager {
             .host(ApiClient.host)
             .version(ApphudVersion.V1)
             .path("subscriptions")
-            .params(mapOf(API_KEY to apiKey))
             .build()
 
         val purchaseBody = details?.let { makePurchaseBody(purchase, it, null, null) }
@@ -416,7 +411,6 @@ object RequestManager {
             .host(ApiClient.host)
             .version(ApphudVersion.V1)
             .path("subscriptions")
-            .params(mapOf(API_KEY to apiKey))
             .build()
 
         val purchaseBody = makeRestorePurchasesBody(purchaseRecordDetailsSet.toList())
@@ -454,7 +448,6 @@ object RequestManager {
             .host(ApiClient.host)
             .version(ApphudVersion.V1)
             .path("customers/attribution")
-            .params(mapOf(API_KEY to apiKey))
             .build()
 
         val request = buildPostRequest(URL(apphudUrl.url), attributionBody)
@@ -488,7 +481,6 @@ object RequestManager {
             .host(ApiClient.host)
             .version(ApphudVersion.V1)
             .path("customers/properties")
-            .params(mapOf(API_KEY to apiKey))
             .build()
 
         val request = buildPostRequest(URL(apphudUrl.url), userPropertiesBody)
@@ -560,7 +552,6 @@ object RequestManager {
             .host(ApiClient.host)
             .version(ApphudVersion.V1)
             .path("events")
-            .params(mapOf(API_KEY to apiKey))
             .build()
 
         val request = buildPostRequest(URL(apphudUrl.url), body)
@@ -589,7 +580,6 @@ object RequestManager {
             .host(ApiClient.host)
             .version(ApphudVersion.V1)
             .path("logs")
-            .params(mapOf(API_KEY to apiKey))
             .build()
 
         val request = buildPostRequest(URL(apphudUrl.url), body)

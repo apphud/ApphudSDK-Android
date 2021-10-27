@@ -6,7 +6,7 @@ import okhttp3.Request
 import okhttp3.Response
 import java.io.IOException
 
-class HeadersInterceptor() : Interceptor {
+class HeadersInterceptor(val apiKey: String) : Interceptor {
     companion object Shared{
         var X_SDK: String = "android"
         var X_SDK_VERSION: String = BuildConfig.VERSION_NAME
@@ -16,6 +16,7 @@ class HeadersInterceptor() : Interceptor {
     override fun intercept(chain: Interceptor.Chain): Response {
         val userAgentRequest: Request = chain.request()
             .newBuilder()
+            .header("Authorization", "Bearer $apiKey")
             .header("Accept", "application/json; utf-8")
             .header("Content-Type", "application/json; utf-8")
             .header("X-Platform", "android")
