@@ -41,6 +41,7 @@ class HttpUrlConnectionExecutor(
         val connection = url.openConnection() as HttpsURLConnection
         connection.requestMethod = config.requestType.name
         //TODO move in the setting
+        connection.setRequestProperty("Authorization", "Bearer " + config.apiKey)
         connection.setRequestProperty("Accept", "application/json; utf-8")
         connection.setRequestProperty("Content-Type", "application/json; utf-8")
         connection.setRequestProperty("X-Platform", "android")
