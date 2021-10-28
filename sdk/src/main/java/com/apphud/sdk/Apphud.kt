@@ -88,7 +88,7 @@ object Apphud {
      */
     @kotlin.jvm.JvmStatic
     fun nonRenewingPurchases(): List<ApphudNonRenewingPurchase> =
-        ApphudInternal.currentUser?.purchases ?: emptyList()
+        ApphudInternal.currentUser?.purchases?: emptyList()
 
     /**
      * Returns `true` if current user has purchased standard in-app purchase with given product identifier.

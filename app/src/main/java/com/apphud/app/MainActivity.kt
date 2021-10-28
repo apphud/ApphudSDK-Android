@@ -75,18 +75,14 @@ class MainActivity : AppCompatActivity() {
         Apphud.setListener(listener)
 
         adapter.onClick = { model ->
-            Apphud.purchase(this, model.productId){ result ->
-                Log.d("Apphud","PURCHASE RESULT: ${Apphud.subscriptions() }. Has active subscription: ${Apphud.hasActiveSubscription()}")
-                Log.d("Apphud", "${result.error?.toString()}")
-            }
-            /*Log.e("Apphud", "onClick model: $model")
+            Log.e("Apphud", "onClick model: $model")
             when (model.details) {
                 null -> Log.e("Apphud", "details is empty")
                 else -> Apphud.purchase(this, model.details.sku) { result ->
-                    Log.d("Apphud","PURCHASE RESULT: ${Apphud.subscriptions() }. Has active subscription: ${Apphud.hasActiveSubscription()}")
-                    Log.d("Apphud", "${result.error?.toString()}")
+                    Log.d("apphud","PURCHASE RESULT: ${Apphud.subscriptions() }. Has active subscription: ${Apphud.hasActiveSubscription()}")
+                    Log.d("apphud", "${result.error?.toString()}")
                 }
-            }*/
+            }
         }
 
         val recyclerView = findViewById<RecyclerView>(R.id.recyclerViewId)
@@ -97,55 +93,6 @@ class MainActivity : AppCompatActivity() {
             Apphud.restorePurchases { subscriptions, purchases, error ->
                 Log.d("Apphud", "restorePurchases: subscriptions=${subscriptions?.toString()} purchases=${purchases?.toString()} error=${error?.toString()} ")
             }
-        }
-
-        val logoutButton: Button = findViewById(R.id.btnLogout)
-        logoutButton.setOnClickListener {
-            Apphud.logout()
-            Log.d("Apphud", "LOGOUT")
-        }
-
-        val startButton: Button = findViewById(R.id.btnStart)
-        startButton.setOnClickListener {
-            Apphud.start(application, Constants.API_KEY)
-        }
-
-        val paywallsButton: Button = findViewById(R.id.btnPaywalls)
-        paywallsButton.setOnClickListener {
-            Apphud.getPaywalls { paywalls, error ->
-                error?.let{
-                    Log.d("Apphud", "PAYWALLS LOADING 1 FAILED")
-                }
-                paywalls?.let{
-                    Log.d("Apphud", "PAYWALLS LOADED")
-                    if(it.isNotEmpty()) {
-                        Log.d("Apphud", "PAYWALLS SHOWN")
-                        Apphud.paywallShown(it.first())
-                    }
-                }
-            }
-            /*Apphud.getPaywalls { paywalls, error ->
-                error?.let{
-                    Log.d("Apphud", "PAYWALLS LOADING 2 FAILED")
-                }
-                paywalls?.let{
-                    Log.d("Apphud", "PAYWALLS LOADED 2")
-                }
-            }
-            Apphud.getPaywalls { paywalls, error ->
-                error?.let{
-                    Log.d("Apphud", "PAYWALLS LOADING 3 FAILED")
-                }
-                paywalls?.let{
-                    Log.d("Apphud", "PAYWALLS LOADED 3")
-                }
-            }*/
-        }
-
-        val syncButton: Button = findViewById(R.id.btnUpdateUserId)
-        syncButton.setOnClickListener {
-            //Apphud.syncPurchases()
-            Apphud.updateUserId(UUID.randomUUID().toString())
         }
     }
 }

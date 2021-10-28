@@ -40,7 +40,6 @@ internal object ApphudInternal {
     private var productsForRestore = mutableListOf<PurchaseHistoryRecord>()
     private val skuDetails = mutableListOf<SkuDetails>()
     private val pendingUserProperties = mutableMapOf<String, ApphudUserProperty>()
-    internal var paywalls: MutableList<ApphudPaywall> = mutableListOf()
     internal var productGroups: MutableList<ApphudGroup> = mutableListOf()
 
     private var allowIdentifyUser = true
@@ -152,7 +151,7 @@ internal object ApphudInternal {
 
                         if (customer.paywalls.isNotEmpty()) {
                             didRetrievePaywallsAtThisLaunch = true
-                            processLoadedPaywalls(customer.paywalls, true)
+                            updatePaywallsWithSkuDetails(customer.paywalls)
                         }
 
                         apphudListener?.apphudNonRenewingPurchasesUpdated(customer.purchases)
@@ -857,7 +856,7 @@ internal object ApphudInternal {
     internal fun getPaywalls(callback: PaywallCallback) {
         ApphudLog.log("Invoke getPaywalls")
 
-        fetchPaywallsIfNeeded(true) { paywalls, error ->
+        /*fetchPaywallsIfNeeded(currentUser.paywalls.isNullOrEmpty()) { paywalls, error ->
             paywalls?.let {
                 callback.invoke(paywalls, null)
             } ?: run {
@@ -865,16 +864,16 @@ internal object ApphudInternal {
                 ApphudLog.log(message = message)
                 callback.invoke(null, error)
             }
-        }
+        }*/
     }
 
     private fun fetchPaywallsIfNeeded(
         forceRefresh: Boolean = false,
         callback: (paywalls: List<ApphudPaywall>?, error: ApphudError?) -> Unit
     ) {
-        ApphudLog.log("try fetchPaywallsIfNeeded")
+        /*ApphudLog.log("try fetchPaywallsIfNeeded")
 
-        if (!this.paywalls.isNullOrEmpty() && !forceRefresh) {
+        if (!forceRefresh) {
             ApphudLog.log("Using cached paywalls")
             callback(mutableListOf(*this.paywalls.toTypedArray()), null)
             return
@@ -893,20 +892,7 @@ internal object ApphudInternal {
                     }
                 }
             }
-        }
-    }
-
-    private fun processLoadedPaywalls(paywallsToCache : List<ApphudPaywall>, writeToCache: Boolean = true){
-        updatePaywallsWithSkuDetails(paywallsToCache)
-
-        this.paywalls.apply {
-            clear()
-            addAll(paywallsToCache)
-        }
-
-        if(writeToCache){
-            cachePaywalls(paywalls = this.paywalls)
-        }
+        }*/
     }
 
     private fun updatePaywallsWithSkuDetails(paywalls: List<ApphudPaywall>) {
@@ -923,18 +909,6 @@ internal object ApphudInternal {
                 product.skuDetails = getSkuDetailsByProductId(product.product_id)
             }
         }
-    }
-
-    private fun cachePaywalls(paywalls: List<ApphudPaywall>) {
-        storage.paywalls = paywalls
-    }
-
-    private fun cachedPaywalls(): MutableList<ApphudPaywall> {
-        val paywalls = storage.paywalls
-        paywalls?.let {
-            updatePaywallsWithSkuDetails(it)
-        }
-        return paywalls?.toMutableList() ?: mutableListOf()
     }
 
     private fun cacheGroups(groups: List<ApphudGroup>) {
