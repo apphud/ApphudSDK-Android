@@ -90,8 +90,16 @@ class MainActivity : AppCompatActivity() {
 
         val restoreButton: Button = findViewById(R.id.syncButtonViewId)
         restoreButton.setOnClickListener {
-            Apphud.restorePurchases { subscriptions, purchases, error ->
+            /*Apphud.restorePurchases { subscriptions, purchases, error ->
                 Log.d("Apphud", "restorePurchases: subscriptions=${subscriptions?.toString()} purchases=${purchases?.toString()} error=${error?.toString()} ")
+            }*/
+            Apphud.getPaywalls { paywalls, error ->
+                paywalls?.let{
+                    Log.d("apphud", "" + it.size)
+                }
+                error?.let{
+                    Log.d("apphud", it.message)
+                }
             }
         }
     }

@@ -26,6 +26,8 @@ import java.util.concurrent.atomic.AtomicInteger
 @SuppressLint("StaticFieldLeak")
 internal object ApphudInternal {
 
+    private const val MUST_REGISTER_ERROR = " :You must call the Apphud.start method once when your application starts before calling any other methods."
+
     private val builder = GsonBuilder()
         .setPrettyPrinting()
         .serializeNulls()//need this to pass nullable values to JSON and from JSON
@@ -93,7 +95,7 @@ internal object ApphudInternal {
         allowIdentifyUser = false
 
         ApphudLog.log("Start initialize with saved userId=${this.userId}, saved deviceId=${this.deviceId}")
-        registration(this.userId, this.deviceId)
+        registration(this.userId, this.deviceId, null)
     }
 
     private suspend fun fetchProducts(): Boolean {
@@ -107,6 +109,8 @@ internal object ApphudInternal {
                 var isSubsLoaded = false
                 coroutineScope {
                     val subs = async{billing.detailsEx(BillingClient.SkuType.SUBS, ids)}
+                    val inap =  async{billing.detailsEx(BillingClient.SkuType.INAPP, ids)}
+
                     subs.await()?.let {
                         skuDetails.addAll(it)
                         isSubsLoaded = true
@@ -114,7 +118,6 @@ internal object ApphudInternal {
                         ApphudLog.logE("Unable to load SUBS details")
                     }
 
-                    val inap =  async{billing.detailsEx(BillingClient.SkuType.INAPP, ids)}
                     inap.await()?.let {
                         skuDetails.addAll(it)
                         isInapLoaded = true
@@ -130,7 +133,8 @@ internal object ApphudInternal {
 
     private fun registration(
         userId: UserId,
-        deviceId: DeviceId
+        deviceId: DeviceId,
+        completionHandler: ((Customer?, ApphudError?) -> Unit)?
     ) {
         ApphudLog.log("Start registration userId=$userId, deviceId=$deviceId")
 
@@ -147,12 +151,12 @@ internal object ApphudInternal {
                 launch(Dispatchers.Main) {
                     customer?.let {
                         ApphudLog.logI("registration: registrationUser customer=$customer")
-                        storage.updateCustomer(it, apphudListener)
-
                         if (customer.paywalls.isNotEmpty()) {
                             didRetrievePaywallsAtThisLaunch = true
                             updatePaywallsWithSkuDetails(customer.paywalls)
                         }
+                        storage.updateCustomer(it, apphudListener)
+                        completionHandler?.invoke(it, error)
 
                         apphudListener?.apphudNonRenewingPurchasesUpdated(customer.purchases)
                         apphudListener?.apphudSubscriptionsUpdated(customer.subscriptions)
@@ -167,6 +171,7 @@ internal object ApphudInternal {
                             ApphudLog.log("registration: we should update UserProperties")
                             updateUserProperties()
                         }
+                        ApphudLog.logI("End registration")
                     }
                     error?.let {
                         ApphudLog.logE(it.message)
@@ -174,8 +179,6 @@ internal object ApphudInternal {
                 }
             }
         }
-
-        ApphudLog.logI("End registration")
     }
 
     internal fun productsFetchCallback(callback: (List<SkuDetails>) -> Unit) {
@@ -856,56 +859,64 @@ internal object ApphudInternal {
     internal fun getPaywalls(callback: PaywallCallback) {
         ApphudLog.log("Invoke getPaywalls")
 
-        /*fetchPaywallsIfNeeded(currentUser.paywalls.isNullOrEmpty()) { paywalls, error ->
-            paywalls?.let {
-                callback.invoke(paywalls, null)
-            } ?: run {
-                val message = "Get Paywalls is failed with message = ${error?.message} and code = ${error?.errorCode}"
-                ApphudLog.log(message = message)
+        checkRegistration{ error ->
+            error?.let{
                 callback.invoke(null, error)
+            }?: run{
+                callback.invoke(currentUser?.paywalls?: emptyList(), null)
             }
-        }*/
+        }
     }
 
-    private fun fetchPaywallsIfNeeded(
-        forceRefresh: Boolean = false,
-        callback: (paywalls: List<ApphudPaywall>?, error: ApphudError?) -> Unit
-    ) {
-        /*ApphudLog.log("try fetchPaywallsIfNeeded")
+    internal fun nonRenewingPurchases(callback: (List<ApphudNonRenewingPurchase>?, error: ApphudError?) -> Unit) {
+        ApphudLog.log("Invoke nonRenewingPurchases")
 
-        if (!forceRefresh) {
-            ApphudLog.log("Using cached paywalls")
-            callback(mutableListOf(*this.paywalls.toTypedArray()), null)
+        checkRegistration{ error ->
+            error?.let{
+                callback.invoke(null, error)
+            }?: run{
+                callback.invoke(currentUser?.purchases?: emptyList(), null)
+            }
+        }
+    }
+
+    internal fun subscriptions(callback: (List<ApphudSubscription>?, error: ApphudError?) -> Unit) {
+        ApphudLog.log("Invoke subscriptions")
+
+        checkRegistration{ error ->
+            error?.let{
+                callback.invoke(null, error)
+            }?: run{
+                callback.invoke(currentUser?.subscriptions?: emptyList(), null)
+            }
+        }
+    }
+
+
+    private fun checkRegistration(callback: (ApphudError?) -> Unit){
+        if(!isInitialized()) {
+            callback.invoke(ApphudError(MUST_REGISTER_ERROR))
             return
         }
 
-        coroutineScope.launch(errorHandler) {
-            RequestManager.getPaywalls{ paywalls, error ->
-                launch(Dispatchers.Main) {
-                    paywalls?.let {
-                        ApphudLog.logI("Paywalls loaded successfully")
-                        processLoadedPaywalls(paywalls, true)
-                        callback.invoke(paywalls, null)
-                    }
-                    error?.let {
-                        callback.invoke(null, it)
-                    }
-                }
+        currentUser?.let{
+            callback.invoke(null)
+        }?:run{
+            registration(this.userId, this.deviceId){ _, error ->
+                callback.invoke(error)
             }
-        }*/
+        }
+    }
+
+    private fun isInitialized(): Boolean{
+        return ::context.isInitialized
+                && ::userId.isInitialized
+                && ::deviceId.isInitialized
     }
 
     private fun updatePaywallsWithSkuDetails(paywalls: List<ApphudPaywall>) {
         paywalls.forEach { paywall ->
             paywall.products?.forEach { product ->
-                product.skuDetails = getSkuDetailsByProductId(product.product_id)
-            }
-        }
-    }
-
-    private fun updateGroupsWithSkuDetails(productGroups: List<ApphudGroup>) {
-        productGroups.forEach { group ->
-            group.products?.forEach { product ->
                 product.skuDetails = getSkuDetailsByProductId(product.product_id)
             }
         }
@@ -921,6 +932,14 @@ internal object ApphudInternal {
             updateGroupsWithSkuDetails(it)
         }
         return productGroups?.toMutableList() ?: mutableListOf()
+    }
+
+    private fun updateGroupsWithSkuDetails(productGroups: List<ApphudGroup>) {
+        productGroups.forEach { group ->
+            group.products?.forEach { product ->
+                product.skuDetails = getSkuDetailsByProductId(product.product_id)
+            }
+        }
     }
 
     fun paywallShown(paywall: ApphudPaywall?) {

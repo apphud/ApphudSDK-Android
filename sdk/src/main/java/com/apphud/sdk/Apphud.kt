@@ -90,6 +90,40 @@ object Apphud {
     fun nonRenewingPurchases(): List<ApphudNonRenewingPurchase> =
         ApphudInternal.currentUser?.purchases?: emptyList()
 
+
+    /**
+     * Fetches  paywalls configured in Apphud dashboard. Paywalls are automatically cached on device.
+     */
+    fun getPaywalls() :List<ApphudPaywall> =
+        ApphudInternal.currentUser?.paywalls ?: emptyList()
+
+    /**
+     * Returns an array of all subscriptions that this user has ever purchased. Subscriptions are cached on device.
+     * Use this method if you have more than one subsription group in your app.
+     */
+    @kotlin.jvm.JvmStatic
+    fun subscriptions(callback: (purchases: List<ApphudSubscription>?, error: ApphudError?) -> Unit){
+        ApphudInternal.subscriptions(callback = callback)
+    }
+
+    /**
+     * Returns an array of all standard in-app purchases (consumables, nonconsumables or nonrenewing subscriptions)
+     * that this user has ever purchased. Purchases are cached on device. This array is sorted by purchase date.
+     * Apphud only tracks consumables if they were purchased after integrating Apphud SDK.
+     */
+    @kotlin.jvm.JvmStatic
+    fun nonRenewingPurchases(callback: (purchases: List<ApphudNonRenewingPurchase>?, error: ApphudError?) -> Unit){
+        ApphudInternal.nonRenewingPurchases(callback = callback)
+    }
+
+    /**
+     * Fetches  paywalls configured in Apphud dashboard. Paywalls are automatically cached on device.
+     */
+    fun getPaywalls(callback: (paywalls: List<ApphudPaywall>?, error: ApphudError?) -> Unit) {
+        ApphudInternal.getPaywalls(callback = callback)
+    }
+
+
     /**
      * Returns `true` if current user has purchased standard in-app purchase with given product identifier.
      * Returns `false` if this product is refunded or never purchased.
@@ -122,13 +156,6 @@ object Apphud {
      */
     @kotlin.jvm.JvmStatic
     fun syncPurchases() = ApphudInternal.syncPurchases()
-
-    /**
-     * Fetches  paywalls configured in Apphud dashboard. Paywalls are automatically cached on device.
-     */
-    fun getPaywalls(callback: (paywalls: List<ApphudPaywall>?, error: ApphudError?) -> Unit) {
-        ApphudInternal.getPaywalls(callback = callback)
-    }
 
     /**
      * Permission groups configured in Apphud dashboard. Groups are cached on device.

@@ -90,14 +90,14 @@ object RequestManager {
         apiKey = null
     }
 
-    fun canPerformRequest(): Boolean{
+    private fun canPerformRequest(): Boolean{
         return ::applicationContext.isInitialized
                 && ::userId.isInitialized
                 && ::deviceId.isInitialized
                 && apiKey != null
     }
 
-    fun getOkHttpClient(): OkHttpClient {
+    private fun getOkHttpClient(): OkHttpClient {
         val headersInterceptor = HeadersInterceptor(apiKey)
         val logging = HttpLoggingInterceptor {
             if (parser.isJson(it)) {
@@ -125,7 +125,7 @@ object RequestManager {
         return builder.build()
     }
 
-    fun performRequest(client: OkHttpClient, request: Request, completionHandler: (String?, ApphudError?) -> Unit){
+    private fun performRequest(client: OkHttpClient, request: Request, completionHandler: (String?, ApphudError?) -> Unit){
         try {
             if(isNetworkAvailable()){
                 val response = client.newCall(request).execute()
@@ -169,12 +169,12 @@ object RequestManager {
         }
     }
 
-    fun makeRequest(request: Request, completionHandler: (String?, ApphudError?) -> Unit) {
+    private fun makeRequest(request: Request, completionHandler: (String?, ApphudError?) -> Unit) {
         val httpClient = getOkHttpClient()
         performRequest(httpClient, request, completionHandler)
     }
 
-    fun makeUserRegisteredRequest(request: Request, completionHandler: (String?, ApphudError?) -> Unit) {
+    private fun makeUserRegisteredRequest(request: Request, completionHandler: (String?, ApphudError?) -> Unit) {
         val httpClient = getOkHttpClient()
         if(currentUser == null){
             registration(true, true) { customer, error ->
@@ -189,7 +189,7 @@ object RequestManager {
         }
     }
 
-    fun buildPostRequest(
+    private fun buildPostRequest(
         url: URL,
         params: Any
     ): Request {
@@ -203,7 +203,7 @@ object RequestManager {
             .build()
     }
 
-    fun buildGetRequest(url: URL): Request {
+    private fun buildGetRequest(url: URL): Request {
         val request = Request.Builder()
         return request.url(url)
             .get()
@@ -268,7 +268,7 @@ object RequestManager {
         }
     }
 
-    fun getPaywalls(completionHandler: (List<ApphudPaywall>?, ApphudError?) -> Unit) {
+    /*fun getPaywalls(completionHandler: (List<ApphudPaywall>?, ApphudError?) -> Unit) {
         if(!canPerformRequest()) {
             ApphudLog.logE(::getPaywalls.name + MUST_REGISTER_ERROR)
             return
@@ -296,7 +296,7 @@ object RequestManager {
                 completionHandler(null, error)
             }
         }
-    }
+    }*/
 
     suspend fun allProducts() : List<ApphudGroup>? =
     suspendCoroutine { continuation ->
