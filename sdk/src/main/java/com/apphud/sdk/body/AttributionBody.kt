@@ -12,5 +12,4 @@ data class AttributionBody(
     val facebook_data: Map<String, Any>? = null,    // Facebook
 
     val firebase_id: String? = null,                // Firebase
-    val need_paywalls: Boolean
 )

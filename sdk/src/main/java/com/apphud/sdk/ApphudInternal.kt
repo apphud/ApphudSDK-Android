@@ -605,7 +605,6 @@ internal object ApphudInternal {
             ApphudAttributionProvider.adjust -> AttributionBody(
                 device_id = deviceId,
                 adid = identifier,
-                need_paywalls = !didRetrievePaywallsAtThisLaunch,
                 adjust_data = data ?: emptyMap()
             )
             ApphudAttributionProvider.facebook -> {
@@ -614,7 +613,6 @@ internal object ApphudInternal {
                     .toMap()
                 AttributionBody(
                     device_id = deviceId,
-                    need_paywalls = !didRetrievePaywallsAtThisLaunch,
                     facebook_data = map
                 )
             }
@@ -623,7 +621,6 @@ internal object ApphudInternal {
                 else -> AttributionBody(
                     device_id = deviceId,
                     appsflyer_id = identifier,
-                    need_paywalls = !didRetrievePaywallsAtThisLaunch,
                     appsflyer_data = data
                 )
             }
@@ -631,7 +628,6 @@ internal object ApphudInternal {
                 null -> null
                 else -> AttributionBody(
                     device_id = deviceId,
-                    need_paywalls = !didRetrievePaywallsAtThisLaunch,
                     firebase_id = identifier
                 )
             }
@@ -754,7 +750,7 @@ internal object ApphudInternal {
             }
         }
 
-        val body = UserPropertiesBody(this.deviceId, !didRetrievePaywallsAtThisLaunch, properties)
+        val body = UserPropertiesBody(this.deviceId, properties)
         coroutineScope.launch(errorHandler) {
             RequestManager.userProperties(body) { userProperties, error ->
                 launch(Dispatchers.Main) {
