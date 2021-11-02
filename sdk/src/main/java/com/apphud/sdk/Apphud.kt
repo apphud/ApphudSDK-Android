@@ -131,6 +131,13 @@ object Apphud {
     }
 
     /**
+     * Fetches  paywalls configured in Apphud dashboard.
+     */
+    @kotlin.jvm.JvmStatic
+    fun getPaywalls(): List<ApphudPaywall> =
+        ApphudInternal.currentUser?.paywalls ?: emptyList()
+
+    /**
      * Permission groups configured in Apphud dashboard. Groups are cached on device.
      * Note that this method may be `null` at first launch of the app.
      */
