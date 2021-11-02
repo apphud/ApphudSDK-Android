@@ -642,7 +642,7 @@ object RequestManager {
     private fun mkRegistrationBody(needPaywalls: Boolean, isNew: Boolean) =
         RegistrationBody(
             locale = ConfigurationCompat.getLocales(Resources.getSystem().configuration).get(0).toString(),
-            sdk_version = com.android.billingclient.BuildConfig.VERSION_NAME,
+            sdk_version = BuildConfig.VERSION_NAME,
             app_version =  this.applicationContext.buildAppVersion(),
             device_family = Build.MANUFACTURER,
             platform = "Android",
