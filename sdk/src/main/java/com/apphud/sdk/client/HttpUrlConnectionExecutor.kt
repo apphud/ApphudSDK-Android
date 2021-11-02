@@ -81,10 +81,9 @@ class HttpUrlConnectionExecutor(
                     "finish ${config.requestType} request ${apphudUrl.url} " +
                             "success with response:\n ${buildPrettyPrintedBy(serverAnswer)}")
 
-                if(serverAnswer.isNotEmpty()){
+                if(serverAnswer.isNotEmpty() && serverAnswer.toLowerCase() != "ok"){
                     parser.fromJson<O>(serverAnswer, config.type)
                 }else{
-                    //set success response if empty to finish requet
                     val attributionDto = AttributionDto(true)
                     val dataDto = DataDto(attributionDto)
                     val responseDto = ResponseDto(dataDto, null)

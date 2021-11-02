@@ -15,7 +15,7 @@ class LoopRunnable<T>(
 ) : PriorityRunnable {
 
     companion object {
-        private const val COUNT = 10
+        const val COUNT = 10
     }
 
     override val priority: Int = callable.priority

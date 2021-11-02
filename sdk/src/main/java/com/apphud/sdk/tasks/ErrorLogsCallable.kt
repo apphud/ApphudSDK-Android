@@ -11,7 +11,7 @@ internal class ErrorLogsCallable(
 ) : PriorityCallable<ResponseDto<AttributionDto>> {
     override val priority: Int = Int.MAX_VALUE
     override fun call(): ResponseDto<AttributionDto> = serviceV1.sendErrorLogs(body)
-    private var _counter: Int = 0
+    private var _counter: Int = LoopRunnable.COUNT
     override var counter: Int
         get() = _counter
         set(value) {
