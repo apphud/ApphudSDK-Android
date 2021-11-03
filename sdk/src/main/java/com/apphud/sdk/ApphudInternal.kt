@@ -52,6 +52,7 @@ internal object ApphudInternal {
 
     internal lateinit var userId: UserId
     private lateinit var deviceId: DeviceId
+    private lateinit var apiKey: ApiKey
     private lateinit var context: Context
 
     internal var currentUser: Customer? = null
@@ -91,7 +92,8 @@ internal object ApphudInternal {
         this.context = context
         this.userId = updateUser(id = userId)
         this.deviceId = updateDevice(id = deviceId)
-        RequestManager.setParams(this.context, this.userId, this.deviceId, apiKey)
+        this.apiKey = apiKey
+        RequestManager.setParams(this.context, this.userId, this.deviceId, this.apiKey)
 
         allowIdentifyUser = false
 
@@ -831,19 +833,14 @@ internal object ApphudInternal {
                 val id = updateUser(id = userId)
                 this.userId = id
 
-                RequestManager.setParams(this.context, this.userId, this.deviceId)
-
-                coroutineScope.launch(errorHandler) {
-                    RequestManager.registration(!didRetrievePaywallsAtThisLaunch, is_new) { customer, error ->
-                        launch(Dispatchers.Main) {
-                            customer?.let {
-                                storage.updateCustomer(it, apphudListener)
-                                ApphudLog.logI("End updateUserId customer=$customer")
-                            }
-                            error?.let{
-                                ApphudLog.logE(it.message)
-                            }
-                        }
+                RequestManager.setParams(this.context, this.userId, this.deviceId, this.apiKey)
+                registration(this.userId, this.deviceId){ customer, error ->
+                    customer?.let {
+                        storage.updateCustomer(it, apphudListener)
+                        ApphudLog.logI("End updateUserId customer=$customer")
+                    }
+                    error?.let{
+                        ApphudLog.logE(it.message)
                     }
                 }
             }
@@ -936,7 +933,6 @@ internal object ApphudInternal {
 
     private fun checkRegistration(callback: (ApphudError?) -> Unit){
         if(!isInitialized()) {
-            ApphudLog.logE(MUST_REGISTER_ERROR)
             callback.invoke(ApphudError(MUST_REGISTER_ERROR))
             return
         }
@@ -954,6 +950,7 @@ internal object ApphudInternal {
         return ::context.isInitialized
                 && ::userId.isInitialized
                 && ::deviceId.isInitialized
+                && ::apiKey.isInitialized
     }
 
     private fun getType(value: Any?): String {
