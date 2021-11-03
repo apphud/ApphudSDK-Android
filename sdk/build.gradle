@@ -18,7 +18,7 @@ ext {
     PUBLISH_SCM_URL = 'https://github.com/apphud/ApphudSDK-Android/tree/master'
 }
 
-apply from: "${rootProject.projectDir}/scripts/publish-module.gradle"
+//apply from: "${rootProject.projectDir}/scripts/publish-module.gradle"
 
 android {
     compileSdkVersion 30
@@ -31,8 +31,6 @@ android {
         versionCode 1
         final name = project.properties.sdkVersion
         versionName name
-
-        buildConfigField "String", "VERSION_NAME", "\"" + name + "\""
 
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         consumerProguardFiles "consumer-rules.pro"
