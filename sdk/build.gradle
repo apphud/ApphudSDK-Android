@@ -2,6 +2,24 @@ apply plugin: 'com.android.library'
 apply plugin: 'kotlin-android'
 apply plugin: 'kotlin-android-extensions'
 
+ext {
+    PUBLISH_GROUP_ID = 'com.apphud'
+    PUBLISH_VERSION = project.properties.sdkVersion
+    PUBLISH_ARTIFACT_ID = 'ApphudSDK-Android'
+    PUBLISH_DESCRIPTION = 'Apphud Android SDK is a lightweight open-source library to manage auto-renewable subscriptions and other in-app purchases in your Android app. No backend required.'
+    PUBLISH_URL = 'https://github.com/apphud/ApphudSDK-Android'
+    PUBLISH_LICENSE_NAME = 'MIT'
+    PUBLISH_LICENSE_URL = 'https://github.com/apphud/ApphudSDK-Android/'
+    PUBLISH_DEVELOPER_ID = 'apphud'
+    PUBLISH_DEVELOPER_NAME = 'Apphud'
+    PUBLISH_DEVELOPER_EMAIL = 'hi@apphud.com'
+    PUBLISH_SCM_CONNECTION = 'scm:git:github.com:apphud/ApphudSDK-Android.git'
+    PUBLISH_SCM_DEVELOPER_CONNECTION = 'scm:git:ssh://github.com:apphud/ApphudSDK-Android.git'
+    PUBLISH_SCM_URL = 'https://github.com/apphud/ApphudSDK-Android/tree/master'
+}
+
+apply from: "${rootProject.projectDir}/scripts/publish-module.gradle"
+
 android {
     compileSdkVersion 30
     buildToolsVersion "30.0.2"
@@ -10,9 +28,11 @@ android {
         minSdkVersion 16
         targetSdkVersion 30
 
-        final name = project.properties.sdkVersion
         versionCode 1
+        final name = project.properties.sdkVersion
         versionName name
+
+        buildConfigField "String", "VERSION_NAME", "\"" + name + "\""
 
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         consumerProguardFiles "consumer-rules.pro"
@@ -30,7 +50,7 @@ dependencies {
     implementation fileTree(dir: "libs", include: ["*.jar"])
     implementation "org.jetbrains.kotlin:kotlin-stdlib:$kotlin_version"
     implementation 'com.android.billingclient:billing:4.0.0'
-    implementation "com.google.code.gson:gson:2.8.6"
+    implementation "com.google.code.gson:gson:2.8.8"
     //TODO работает только версия 15.0.0
     implementation 'com.google.android.gms:play-services-ads:15.0.0'
 

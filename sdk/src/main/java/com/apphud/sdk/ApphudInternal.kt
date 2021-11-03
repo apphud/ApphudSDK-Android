@@ -9,7 +9,6 @@ import android.os.Build
 import android.os.Handler
 import android.os.Looper
 import androidx.core.os.ConfigurationCompat
-import com.android.billingclient.BuildConfig
 import com.android.billingclient.api.BillingClient
 import com.android.billingclient.api.Purchase
 import com.android.billingclient.api.PurchaseHistoryRecord
@@ -820,9 +819,11 @@ internal object ApphudInternal {
             setOnce = setOnce,
             type = typeString)
 
-        pendingUserProperties.run {
-            remove(property.key)
-            put(property.key, property)
+        synchronized(pendingUserProperties){
+            pendingUserProperties.run {
+                remove(property.key)
+                put(property.key, property)
+            }
         }
         setNeedsToUpdateUserProperties = true
     }
@@ -832,8 +833,11 @@ internal object ApphudInternal {
         if (pendingUserProperties.isEmpty()) return
 
         val properties = mutableListOf<Map<String, Any?>>()
-        pendingUserProperties.forEach {
-            properties.add(it.value.toJSON()!!)
+
+        synchronized(pendingUserProperties) {
+            pendingUserProperties.forEach {
+                properties.add(it.value.toJSON()!!)
+            }
         }
 
         val body = UserPropertiesBody(this.deviceId, properties)

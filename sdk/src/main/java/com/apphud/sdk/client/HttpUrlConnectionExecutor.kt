@@ -1,21 +1,16 @@
 package com.apphud.sdk.client
 
-import android.view.View
 import com.apphud.sdk.ApphudLog
-import com.apphud.sdk.ApphudUtils
 import com.apphud.sdk.BuildConfig
 import com.apphud.sdk.client.dto.AttributionDto
 import com.apphud.sdk.client.dto.DataDto
 import com.apphud.sdk.client.dto.ResponseDto
 import com.apphud.sdk.isSuccess
 import com.apphud.sdk.parser.Parser
-import com.google.gson.reflect.TypeToken
 import java.io.BufferedReader
 import java.io.InputStream
 import java.io.InputStreamReader
-import java.net.SocketTimeoutException
 import java.net.URL
-import java.net.UnknownHostException
 import javax.net.ssl.HttpsURLConnection
 
 class HttpUrlConnectionExecutor(
@@ -46,6 +41,7 @@ class HttpUrlConnectionExecutor(
         val connection = url.openConnection() as HttpsURLConnection
         connection.requestMethod = config.requestType.name
         //TODO move in the setting
+        connection.setRequestProperty("Authorization", "Bearer " + config.apiKey)
         connection.setRequestProperty("Accept", "application/json; utf-8")
         connection.setRequestProperty("Content-Type", "application/json; utf-8")
         connection.setRequestProperty("X-Platform", "android")
@@ -85,10 +81,9 @@ class HttpUrlConnectionExecutor(
                     "finish ${config.requestType} request ${apphudUrl.url} " +
                             "success with response:\n ${buildPrettyPrintedBy(serverAnswer)}")
 
-                if(serverAnswer.isNotEmpty()){
+                if(serverAnswer.isNotEmpty() && serverAnswer.toLowerCase() != "ok"){
                     parser.fromJson<O>(serverAnswer, config.type)
                 }else{
-                    //set success response if empty to finish requet
                     val attributionDto = AttributionDto(true)
                     val dataDto = DataDto(attributionDto)
                     val responseDto = ResponseDto(dataDto, null)

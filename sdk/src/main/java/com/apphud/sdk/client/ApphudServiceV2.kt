@@ -19,7 +19,6 @@ class ApphudServiceV2(
 ) {
 
     companion object {
-        private const val API_KEY = "api_key"
         private const val device_id = "device_id"
     }
 
@@ -31,7 +30,7 @@ class ApphudServiceV2(
             RequestConfig(
                 path = "products",
                 type = object : TypeToken<ResponseDto<List<ApphudGroupDto>>>(){}.type,
-                queries = mapOf(API_KEY to apiKey),
+                apiKey = apiKey,
                 requestType = RequestType.GET
             )
         )
@@ -44,7 +43,8 @@ class ApphudServiceV2(
             RequestConfig(
                 path = "paywall_configs",
                 type = object : TypeToken<ResponseDto<List<ApphudPaywallDto>>>(){}.type,
-                queries = mapOf(API_KEY to apiKey, device_id to body.device_id),
+                apiKey = apiKey,
+                queries = mapOf(device_id to body.device_id),
                 requestType = RequestType.GET
             )
         )

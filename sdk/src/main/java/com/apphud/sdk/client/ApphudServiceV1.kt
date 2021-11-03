@@ -16,11 +16,6 @@ class ApphudServiceV1(
     private val apiKey: ApiKey,
     private val executor: NetworkExecutor
 ) {
-
-    companion object {
-        private const val API_KEY = "api_key"
-    }
-
     /**
      * Регистрация юзера
      */
@@ -28,7 +23,7 @@ class ApphudServiceV1(
         RequestConfig(
             path = "customers",
             type = object : TypeToken<ResponseDto<CustomerDto>>() {}.type,
-            queries = mapOf(API_KEY to apiKey),
+            apiKey = apiKey,
             requestType = RequestType.POST
         ),
         body
@@ -42,7 +37,7 @@ class ApphudServiceV1(
             RequestConfig(
                 path = "customers/attribution",
                 type = object : TypeToken<ResponseDto<AttributionDto>>(){}.type,
-                queries = mapOf(API_KEY to apiKey),
+                apiKey = apiKey,
                 requestType = RequestType.POST
             ),
             body
@@ -56,7 +51,7 @@ class ApphudServiceV1(
             RequestConfig(
                 path = "customers/push_token",
                 type = object : TypeToken<ResponseDto<AttributionDto>>(){}.type,
-                queries = mapOf(API_KEY to apiKey),
+                apiKey = apiKey,
                 requestType = RequestType.PUT
             ),
             body
@@ -70,7 +65,7 @@ class ApphudServiceV1(
             RequestConfig(
                 path = "subscriptions",
                 type = object : TypeToken<ResponseDto<CustomerDto>>() {}.type,
-                queries = mapOf(API_KEY to apiKey),
+                apiKey = apiKey,
                 requestType = RequestType.POST
             ),
             body
@@ -84,7 +79,7 @@ class ApphudServiceV1(
             RequestConfig(
                 path = "customers/properties",
                 type = object : TypeToken<ResponseDto<AttributionDto>>(){}.type,
-                queries = mapOf(API_KEY to apiKey),
+                apiKey = apiKey,
                 requestType = RequestType.POST
             ),
             body
@@ -98,7 +93,7 @@ class ApphudServiceV1(
             RequestConfig(
                 path = "logs",
                 type = object : TypeToken<ResponseDto<AttributionDto>>(){}.type,
-                queries = mapOf(API_KEY to apiKey),
+                apiKey = apiKey,
                 requestType = RequestType.POST
             ),
             body
@@ -109,7 +104,7 @@ class ApphudServiceV1(
             RequestConfig(
                 path = "events",
                 type = object : TypeToken<ResponseDto<AttributionDto>>(){}.type,
-                queries = mapOf(API_KEY to apiKey),
+                apiKey = apiKey,
                 requestType = RequestType.POST
             ),
             body
