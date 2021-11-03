@@ -32,8 +32,6 @@ android {
         final name = project.properties.sdkVersion
         versionName name
 
-        buildConfigField "String", "VERSION_NAME", "\"" + name + "\""
-
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         consumerProguardFiles "consumer-rules.pro"
     }
