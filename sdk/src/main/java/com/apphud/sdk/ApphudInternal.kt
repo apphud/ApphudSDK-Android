@@ -168,7 +168,8 @@ internal object ApphudInternal {
         deviceId: DeviceId?
     ) {
         if (!allowIdentifyUser) {
-            ApphudLog.logE("=============================================================" +
+            ApphudLog.logE(
+                    "=============================================================" +
                     "\nAbort initializing, because Apphud SDK already initialized." +
                     "\nYou can only call `Apphud.start()` once per app lifecycle." +
                     "\nOr if `Apphud.logout()` was called previously." +
@@ -998,10 +999,6 @@ internal object ApphudInternal {
         return skuDetails.takeIf { skuDetails.isNotEmpty() }
     }
 
-    internal fun getSkuDetailsByProductId(productIdentifier: String): SkuDetails? {
-        return getSkuDetailsList()?.let { skuList -> skuList.firstOrNull { it.sku == productIdentifier } }
-    }
-
     private fun tryInvokePaywallsDelayedCallback() {
         ApphudLog.log("Try invoke paywalls delayed callback")
         if (!paywalls.isNullOrEmpty() && skuDetailsIsLoaded.isBothLoaded()) {
@@ -1015,51 +1012,12 @@ internal object ApphudInternal {
 
     internal fun getPaywalls(callback: PaywallCallback) {
         ApphudLog.log("Invoke getPaywalls")
-        setNeedsToUpdatePaywalls = false
-        fetchPaywallsIfNeeded { paywalls, error, writeToCache ->
 
-            paywalls?.let {
-                processLoadedPaywalls(it, writeToCache)
-
-                if (skuDetailsIsLoaded.isBothLoaded()) {
-                    callback.invoke(paywalls, null)
-                } else {
-                    paywallsDelayedCallback = callback
-                    setNeedsToUpdatePaywalls = true
-                }
-            } ?: run {
-                val message =
-                    "Get Paywalls is failed with message = ${error?.message} and code = ${error?.errorCode}"
-                ApphudLog.log(message = message)
-                callback.invoke(null, error)
-            }
-        }
-    }
-
-    private fun fetchPaywallsIfNeeded(
-        forceRefresh: Boolean = false,
-        callback: (paywalls: List<ApphudPaywall>?, error: ApphudError?, writeToCache: Boolean) -> Unit
-    ) {
-        ApphudLog.log("try fetchPaywallsIfNeeded")
-
-        if (!this.paywalls.isNullOrEmpty() && !forceRefresh) {
-            ApphudLog.log("Using cached paywalls")
-            callback(mutableListOf(*this.paywalls.toTypedArray()), null, false)
-            return
-        }
-
-        if (currentUser != null) {
-            client?.paywalls(body = DeviceIdBody(device_id = deviceId)) { paywalls, errors ->
-                callback.invoke(paywalls, errors, true)
-            }
-        } else {
-            ApphudLog.log("User is not yet registered, scheduling paywalls fetch")
-            fetchPaywallsDelayedCallback = {
-                ApphudLog.log("User is registered, now fetching paywalls")
-                client?.paywalls(body = DeviceIdBody(device_id = deviceId)) { paywalls, errors ->
-                    callback.invoke(paywalls, errors, true)
-                }
-            }
+        if(skuDetailsIsLoaded.isBothLoaded()){
+            callback.invoke(this.paywalls, null)
+        }else{
+            paywallsDelayedCallback = callback
+            setNeedsToUpdatePaywalls = true
         }
     }
 
@@ -1077,6 +1035,10 @@ internal object ApphudInternal {
                 product.skuDetails = getSkuDetailsByProductId(product.product_id)
             }
         }
+    }
+
+    internal fun getSkuDetailsByProductId(productIdentifier: String): SkuDetails? {
+        return getSkuDetailsList()?.let { skuList -> skuList.firstOrNull { it.sku == productIdentifier } }
     }
 
     private fun cachePaywalls(paywalls: List<ApphudPaywall>) {
