@@ -105,7 +105,7 @@ internal object ApphudInternal {
 
 
     private val mutex = Mutex()
-    private var productsLoaded = AtomicInteger(0)
+    private var productsLoaded = AtomicInteger(0) //to know that products already loaded by another thread
     private fun registration(
         userId: UserId,
         deviceId: DeviceId,
@@ -129,13 +129,14 @@ internal object ApphudInternal {
                     RequestManager.registration(!didRetrievePaywallsAtThisLaunch, is_new) { customer, error ->
                         launch(Dispatchers.Main) {
                             customer?.let {
-                                currentUser = it
-
                                 if (customer.paywalls.isNotEmpty()) {
                                     didRetrievePaywallsAtThisLaunch = true
                                     updatePaywallsWithSkuDetails(customer.paywalls)
                                 }
+
+                                currentUser = it
                                 storage.updateCustomer(it, apphudListener)
+
                                 completionHandler?.invoke(it, error)
 
                                 apphudListener?.apphudNonRenewingPurchasesUpdated(customer.purchases)
@@ -154,12 +155,18 @@ internal object ApphudInternal {
                                 ApphudLog.logI("End registration")
                             }
                             error?.let {
-                                ApphudLog.logE(it.message)
-                                completionHandler?.invoke(null, it)
+                                storage.customer?.let{
+                                    currentUser = it
+                                    completionHandler?.invoke(it, null)
+                                }?:run{
+                                    ApphudLog.logE(it.message)
+                                    completionHandler?.invoke(null, it)
+                                }
                             }
                         }
                     }
                 }else{
+                    //TODO use from cache
                     completionHandler?.invoke(null, ApphudError("Unable to restore products and sku details before registration at Apphud"))
                 }
             }
@@ -170,7 +177,6 @@ internal object ApphudInternal {
         val groupsList = RequestManager.allProducts()
         groupsList?.let { groups ->
             ApphudLog.logI("fetchProducts: products from Apphud server: $groups")
-            cacheGroups(groups)
             val ids = groups.map { it -> it.products?.map { it.product_id }!! }.flatten()
 
             var isInapLoaded = false
@@ -193,9 +199,14 @@ internal object ApphudInternal {
                     ApphudLog.logE("Unable to load INAP details")
                 }
             }
+
+            updateGroupsWithSkuDetails(groups)
+            cacheGroups(groups)
+
             productGroups = cachedGroups()
-            if(isSubsLoaded && isInapLoaded)
-                productsLoaded.incrementAndGet()
+
+            if(isSubsLoaded && isInapLoaded) productsLoaded.incrementAndGet()
+
             return isSubsLoaded && isInapLoaded
         }
         return false
@@ -847,6 +858,7 @@ internal object ApphudInternal {
         }
     }
 
+    // Async methods that check registration
     internal fun getPaywalls(callback: PaywallCallback) {
         ApphudLog.log("Invoke getPaywalls")
 
@@ -972,6 +984,7 @@ internal object ApphudInternal {
         RequestManager.cleanRegistration()
         generatedUUID = UUID.randomUUID().toString()
         skuDetailsForRestoreIsLoaded.set(0)
+        productsLoaded.set(0)
         customProductsFetchedBlock = null
         storage.clean()
         prevPurchases.clear()
@@ -1029,11 +1042,7 @@ internal object ApphudInternal {
     }
 
     private fun cachedGroups(): MutableList<ApphudGroup> {
-        val productGroups = storage.productGroups
-        productGroups?.let {
-            updateGroupsWithSkuDetails(it)
-        }
-        return productGroups?.toMutableList() ?: mutableListOf()
+        return storage.productGroups?.toMutableList() ?: mutableListOf()
     }
 
     private fun updateGroupsWithSkuDetails(productGroups: List<ApphudGroup>) {
