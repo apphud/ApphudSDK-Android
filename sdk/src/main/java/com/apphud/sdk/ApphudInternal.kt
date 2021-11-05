@@ -96,8 +96,9 @@ internal object ApphudInternal {
         RequestManager.setParams(this.context, this.userId, this.deviceId, this.apiKey)
 
         allowIdentifyUser = false
-
         ApphudLog.log("Start initialize with saved userId=${this.userId}, saved deviceId=${this.deviceId}")
+
+        productGroups = cachedGroups()
 
         //TODO comment to emulate unsuccess registration on start
         registration(this.userId, this.deviceId, null)
