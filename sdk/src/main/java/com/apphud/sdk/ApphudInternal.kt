@@ -43,7 +43,7 @@ internal object ApphudInternal {
     private var tempPrevPurchases = mutableSetOf<PurchaseRecordDetails>()
     private var productsForRestore = mutableListOf<PurchaseHistoryRecord>()
     private val skuDetails = mutableListOf<SkuDetails>()
-    var paywalls = mutableListOf<ApphudPaywall>()
+    internal var paywalls = mutableListOf<ApphudPaywall>()
     private val pendingUserProperties = mutableMapOf<String, ApphudUserProperty>()
     internal var productGroups: MutableList<ApphudGroup> = mutableListOf()
 
@@ -100,6 +100,7 @@ internal object ApphudInternal {
         ApphudLog.log("Start initialize with saved userId=${this.userId}, saved deviceId=${this.deviceId}")
 
         productGroups = cachedGroups()
+        paywalls = cachedPaywalls()
 
         //TODO comment to emulate unsuccess registration on start
         registration(this.userId, this.deviceId, null)
@@ -218,6 +219,7 @@ internal object ApphudInternal {
             updatePaywallsWithSkuDetails(customer.paywalls)
             paywalls.clear()
             paywalls.addAll(customer.paywalls)
+            cachePaywalls(paywalls)
         }
 
         currentUser = customer
@@ -292,7 +294,6 @@ internal object ApphudInternal {
             getSkuDetailsByProductId(productName)?.let { sku ->
                 //if we have not empty ApphudProduct
                 apphudProduct?.let {
-                    //paywalls = cachedPaywalls()
                     it.skuDetails = sku
                     purchaseInternal(activity, null, it, withValidation, callback)
                 } ?: run {
@@ -1061,6 +1062,14 @@ internal object ApphudInternal {
 
     private fun cachedGroups(): MutableList<ApphudGroup> {
         return storage.productGroups?.toMutableList() ?: mutableListOf()
+    }
+
+    private fun cachePaywalls(paywalls: List<ApphudPaywall>) {
+        storage.paywalls = paywalls
+    }
+
+    private fun cachedPaywalls(): MutableList<ApphudPaywall> {
+        return storage.paywalls?.toMutableList() ?: mutableListOf()
     }
 
     private fun updateGroupsWithSkuDetails(productGroups: List<ApphudGroup>) {

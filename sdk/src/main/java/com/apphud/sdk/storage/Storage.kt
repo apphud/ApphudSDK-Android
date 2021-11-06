@@ -12,4 +12,5 @@ interface Storage {
     var firebase: String?
     var appsflyer: AppsflyerInfo?
     var productGroups: List<ApphudGroup>?
+    var paywalls: List<ApphudPaywall>?
 }

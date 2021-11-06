@@ -136,6 +136,24 @@ class SharedPreferencesStorage(
             editor.apply()
         }
 
+    override var paywalls: List<ApphudPaywall>?
+        get() {
+            val timestamp = preferences.getLong(PAYWALLS_TIMESTAMP_KEY, -1L) + (cacheTimeout * 1000)
+            val currentTime = System.currentTimeMillis()
+            return if (currentTime < timestamp) {
+                val source = preferences.getString(PAYWALLS_KEY, null)
+                val type = object : TypeToken<List<ApphudPaywall>>() {}.type
+                parser.fromJson<List<ApphudPaywall>>(source, type)
+            } else null
+        }
+        set(value) {
+            val source = parser.toJson(value)
+            val editor = preferences.edit()
+            editor.putLong(PAYWALLS_TIMESTAMP_KEY, System.currentTimeMillis())
+            editor.putString(PAYWALLS_KEY, source)
+            editor.apply()
+        }
+
 
     fun clean() {
         customer = null
@@ -147,6 +165,7 @@ class SharedPreferencesStorage(
         firebase = null
         appsflyer = null
         productGroups = null
+        paywalls = null
     }
 
     fun updateCustomer(customer: Customer, apphudListener: ApphudListener?){
