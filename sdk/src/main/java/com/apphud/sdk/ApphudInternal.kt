@@ -43,6 +43,7 @@ internal object ApphudInternal {
     private var tempPrevPurchases = mutableSetOf<PurchaseRecordDetails>()
     private var productsForRestore = mutableListOf<PurchaseHistoryRecord>()
     private val skuDetails = mutableListOf<SkuDetails>()
+    var paywalls = mutableListOf<ApphudPaywall>()
     private val pendingUserProperties = mutableMapOf<String, ApphudUserProperty>()
     internal var productGroups: MutableList<ApphudGroup> = mutableListOf()
 
@@ -129,15 +130,13 @@ internal object ApphudInternal {
                 if(productsLoaded.get() > 0){
                     RequestManager.registration(!didRetrievePaywallsAtThisLaunch, is_new) { customer, error ->
                         launch(Dispatchers.Main) {
-                            customer?.let {
-                                if (customer.paywalls.isNotEmpty()) {
-                                    didRetrievePaywallsAtThisLaunch = true
-                                    updatePaywallsWithSkuDetails(customer.paywalls)
+                            if(customer == null && error == null){
+                                currentUser?.let{
+                                    completionHandler?.invoke(it, error)
                                 }
-
-                                currentUser = it
-                                storage.updateCustomer(it, apphudListener)
-
+                            }
+                            customer?.let {
+                                processCustomer(it)
                                 completionHandler?.invoke(it, error)
 
                                 apphudListener?.apphudNonRenewingPurchasesUpdated(customer.purchases)
@@ -213,6 +212,17 @@ internal object ApphudInternal {
         return false
     }
 
+    private fun processCustomer(customer: Customer){
+        if (customer.paywalls.isNotEmpty()) {
+            didRetrievePaywallsAtThisLaunch = true
+            updatePaywallsWithSkuDetails(customer.paywalls)
+            paywalls.clear()
+            paywalls.addAll(customer.paywalls)
+        }
+
+        currentUser = customer
+        storage.updateCustomer(customer, apphudListener)
+    }
 
     internal fun productsFetchCallback(callback: (List<SkuDetails>) -> Unit) {
         customProductsFetchedBlock = callback
@@ -487,7 +497,8 @@ internal object ApphudInternal {
                         val newPurchases =
                             customer.purchases.firstOrNull { it.productId == purchase.skus.first() }
 
-                        storage.updateCustomer(it, apphudListener)
+                        processCustomer(it)
+
                         storage.isNeedSync = false
 
                         if (newSubscriptions == null && newPurchases == null) {
@@ -594,9 +605,7 @@ internal object ApphudInternal {
                                 productsForRestore.addAll(purchasesHistoryStatus.purchases)
 
                             if (purchasesForRestoreIsLoaded.isBothLoaded()) {
-                                val message =
-                                    "Restore Purchase History is failed for SkuType.SUBS and SkuType.INAPP "
-                                processPurchasesHistoryResults(message, callback)
+                                processPurchasesHistoryResults(null, callback)
                             }
                         }
                     }
@@ -608,12 +617,18 @@ internal object ApphudInternal {
     }
 
     private fun processPurchasesHistoryResults(
-        message: String,
+        message: String?,
         callback: ApphudPurchasesRestoreCallback? = null
     ) {
         if (productsForRestore.isNullOrEmpty()) {
-            ApphudLog.log(message = message, sendLogToServer = true)
-            callback?.invoke(null, null, ApphudError(message = message))
+            message?.let{
+                ApphudLog.log(message = it, sendLogToServer = true)
+                callback?.invoke(null, null, ApphudError(message = it))
+            }?:run{
+                currentUser?.let{
+                    callback?.invoke(it.subscriptions, it.purchases, null)
+                }
+            }
         } else {
             ApphudLog.log("historyCallback: $productsForRestore")
             billing.restore(BillingClient.SkuType.SUBS, productsForRestore)
@@ -631,7 +646,9 @@ internal object ApphudInternal {
                     customer?.let {
                         prevPurchases.addAll(tempPurchaseRecordDetails)
                         storage.isNeedSync = false
-                        storage.updateCustomer(it, apphudListener)
+
+                        processCustomer(it)
+
                         ApphudLog.logI("SyncPurchases: customer was updated $customer")
                         apphudListener?.apphudSubscriptionsUpdated(customer.subscriptions)
                         apphudListener?.apphudNonRenewingPurchasesUpdated(customer.purchases)
@@ -848,7 +865,7 @@ internal object ApphudInternal {
                 RequestManager.setParams(this.context, this.userId, this.deviceId, this.apiKey)
                 registration(this.userId, this.deviceId){ customer, error ->
                     customer?.let {
-                        storage.updateCustomer(it, apphudListener)
+                        processCustomer(it)
                         ApphudLog.logI("End updateUserId customer=$customer")
                     }
                     error?.let{
@@ -867,7 +884,7 @@ internal object ApphudInternal {
             error?.let{
                 callback.invoke(null, error)
             }?: run{
-                callback.invoke(currentUser?.paywalls?: emptyList(), null)
+                callback.invoke(paywalls?: emptyList(), null)
             }
         }
     }

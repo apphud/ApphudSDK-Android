@@ -264,7 +264,7 @@ object RequestManager {
                 completionHandler(null,  ApphudError(message))
             }
         }else{
-            completionHandler(currentUser, null)
+            completionHandler(null, null)
         }
     }
 

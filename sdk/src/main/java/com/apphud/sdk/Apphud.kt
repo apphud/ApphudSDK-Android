@@ -95,7 +95,7 @@ object Apphud {
      * Fetches  paywalls configured in Apphud dashboard. Paywalls are automatically cached on device.
      */
     fun getPaywalls() :List<ApphudPaywall> =
-        ApphudInternal.currentUser?.paywalls ?: emptyList()
+        ApphudInternal.paywalls
 
     /**
      * Returns an array of all subscriptions that this user has ever purchased. Subscriptions are cached on device.
