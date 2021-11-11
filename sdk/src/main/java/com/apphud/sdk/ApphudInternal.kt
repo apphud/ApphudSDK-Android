@@ -237,6 +237,7 @@ internal object ApphudInternal {
                 if (customer.paywalls.isNotEmpty()) {
                     didRetrievePaywallsAtThisLaunch = true
                     processLoadedPaywalls(customer.paywalls)
+                    apphudListener?.paywallsDidLoadCallback(this.paywalls)
                 }
 
                 // try to resend purchases, if prev requests was fail

@@ -2,6 +2,7 @@ package com.apphud.sdk
 
 import com.android.billingclient.api.SkuDetails
 import com.apphud.sdk.domain.ApphudNonRenewingPurchase
+import com.apphud.sdk.domain.ApphudPaywall
 import com.apphud.sdk.domain.ApphudSubscription
 
 interface ApphudListener {
@@ -30,4 +31,9 @@ interface ApphudListener {
     Called when user identifier was changed
      */
     fun apphudDidChangeUserID(userId: String)
+
+    /**
+    Called when paywall loaded
+     */
+    fun paywallsDidLoadCallback(paywalls: List<ApphudPaywall>)
 }

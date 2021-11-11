@@ -131,6 +131,13 @@ object Apphud {
     }
 
     /**
+     * Fetches  paywalls configured in Apphud dashboard. Paywalls are automatically cached on device.
+     */
+    fun paywalls() :List<ApphudPaywall>{
+        return ApphudInternal.paywalls
+    }
+
+    /**
      * Permission groups configured in Apphud dashboard. Groups are cached on device.
      * Note that this method may be `null` at first launch of the app.
      */
