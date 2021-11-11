@@ -16,4 +16,5 @@
 .cxx
 /keys
 /keys/*
-
+/qa
+/qa/*
