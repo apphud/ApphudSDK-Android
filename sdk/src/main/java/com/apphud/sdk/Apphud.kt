@@ -90,14 +90,6 @@ object Apphud {
     fun nonRenewingPurchases(): List<ApphudNonRenewingPurchase> =
         ApphudInternal.currentUser?.purchases?: emptyList()
 
-
-    /**
-     * Fetches  paywalls configured in Apphud dashboard. Paywalls are automatically cached on device.
-     */
-    fun getPaywalls(callback: (paywalls: List<ApphudPaywall>?, error: ApphudError?) -> Unit) {
-        ApphudInternal.getPaywalls(callback = callback)
-    }
-
     /**
      * Fetches  paywalls configured in Apphud dashboard. Paywalls are automatically cached on device.
      */

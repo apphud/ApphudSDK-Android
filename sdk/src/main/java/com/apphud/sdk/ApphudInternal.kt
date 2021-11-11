@@ -878,31 +878,6 @@ internal object ApphudInternal {
         }
     }
 
-    // Async methods that check registration
-    internal fun getPaywalls(callback: PaywallCallback) {
-        ApphudLog.log("Invoke getPaywalls")
-
-        checkRegistration{ error ->
-            error?.let{
-                callback.invoke(null, error)
-            }?: run{
-                callback.invoke(paywalls?: emptyList(), null)
-            }
-        }
-    }
-
-    internal fun nonRenewingPurchases(callback: (List<ApphudNonRenewingPurchase>?, error: ApphudError?) -> Unit) {
-        ApphudLog.log("Invoke nonRenewingPurchases")
-
-        checkRegistration{ error ->
-            error?.let{
-                callback.invoke(null, error)
-            }?: run{
-                callback.invoke(currentUser?.purchases?: emptyList(), null)
-            }
-        }
-    }
-
     internal fun subscriptions(callback: (List<ApphudSubscription>?, error: ApphudError?) -> Unit) {
         ApphudLog.log("Invoke subscriptions")
 
