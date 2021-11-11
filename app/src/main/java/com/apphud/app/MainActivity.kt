@@ -15,6 +15,7 @@ import com.apphud.app.presentation.ProductModel
 import com.apphud.app.presentation.ProductModelMapper
 import com.apphud.app.presentation.ProductsAdapter
 import com.apphud.sdk.ApphudUserPropertyKey
+import com.apphud.sdk.domain.ApphudPaywall
 import java.util.*
 
 class MainActivity : AppCompatActivity() {
@@ -70,6 +71,10 @@ class MainActivity : AppCompatActivity() {
 
             override fun apphudDidChangeUserID(userId: String) {
                 Log.d("apphud", "User id was changed: " + userId)
+            }
+
+            override fun paywallsDidLoadCallback(paywalls: List<ApphudPaywall>) {
+                Log.d("apphud", "Paywall loaded")
             }
         }
         Apphud.setListener(listener)

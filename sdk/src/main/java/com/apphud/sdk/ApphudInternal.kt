@@ -137,6 +137,7 @@ internal object ApphudInternal {
                             completionHandler?.invoke(it, null)
                             apphudListener?.apphudNonRenewingPurchasesUpdated(customer.purchases)
                             apphudListener?.apphudSubscriptionsUpdated(customer.subscriptions)
+                            apphudListener?.paywallsDidLoadCallback(paywalls)
 
                             // try to resend purchases, if prev requests was fail
                             if (storage.isNeedSync) {
