@@ -13,7 +13,6 @@ import com.apphud.sdk.ApphudUtils
 import com.apphud.sdk.ApphudVersion
 import com.apphud.sdk.body.*
 import com.apphud.sdk.client.*
-import com.apphud.sdk.client.ApiClient
 import com.apphud.sdk.client.dto.*
 import com.apphud.sdk.domain.*
 import com.apphud.sdk.mappers.*
@@ -24,22 +23,19 @@ import com.google.android.gms.ads.identifier.AdvertisingIdClient
 import com.google.android.gms.common.GooglePlayServicesNotAvailableException
 import com.google.android.gms.common.GooglePlayServicesRepairableException
 import com.google.gson.Gson
-import com.google.gson.JsonSyntaxException
 import com.google.gson.reflect.TypeToken
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import okhttp3.RequestBody.Companion.toRequestBody
 import okhttp3.logging.HttpLoggingInterceptor
-import java.io.BufferedReader
 import java.io.IOException
-import java.io.InputStream
-import java.io.InputStreamReader
 import java.net.URL
 import java.util.*
 import org.json.JSONException
 
 import org.json.JSONObject
+import java.net.HttpCookie
 import kotlin.coroutines.resume
 import kotlin.coroutines.suspendCoroutine
 
@@ -48,6 +44,7 @@ object RequestManager {
     private const val MUST_REGISTER_ERROR = " :You must call the Apphud.start method once when your application starts before calling any other methods."
 
     private var currentUser: Customer? = null
+
     val parser: Parser = GsonParser(Gson())
 
     private val productMapper = ProductMapper()
@@ -184,7 +181,7 @@ object RequestManager {
                     completionHandler(null, error)
                 }
             }
-        }else {
+        }else{
             performRequest(httpClient, request, completionHandler)
         }
     }
@@ -208,6 +205,64 @@ object RequestManager {
         return request.url(url)
             .get()
             .build()
+    }
+
+    suspend fun registrationSync(needPaywalls: Boolean, isNew: Boolean) :Customer? =
+    suspendCoroutine { continuation ->
+        if(!canPerformRequest()) {
+            ApphudLog.logE(::registration.name + MUST_REGISTER_ERROR)
+            continuation.resume(null)
+        }
+        if(currentUser == null) {
+            //Load advertising id
+            if (ApphudUtils.adTracking) {
+                try {
+                    ApphudLog.logI("start load advertisingId")
+                    advertisingId = AdvertisingIdClient.getAdvertisingIdInfo(applicationContext).id
+                    ApphudLog.logI("success load advertisingId: $advertisingId")
+                } catch (e: IOException) {
+                    ApphudLog.logE("finish load advertisingId $e")
+                } catch (e: IllegalStateException) {
+                    ApphudLog.logE("finish load advertisingId $e")
+                } catch (e: GooglePlayServicesNotAvailableException) {
+                    ApphudLog.logE("finish load advertisingId $e")
+                } catch (e: GooglePlayServicesRepairableException) {
+                    ApphudLog.logE("finish load advertisingId $e")
+                }
+            }
+
+            val apphudUrl = ApphudUrl.Builder()
+                .host(HeadersInterceptor.HOST)
+                .version(ApphudVersion.V1)
+                .path("customers")
+                .build()
+
+            val request = buildPostRequest(URL(apphudUrl.url), mkRegistrationBody(needPaywalls, isNew))
+            val httpClient = getOkHttpClient()
+            try {
+                val serverResponse = performRequestSync(httpClient, request)
+                val responseDto: ResponseDto<CustomerDto>? =
+                    parser.fromJson<ResponseDto<CustomerDto>>(
+                        serverResponse,
+                        object : TypeToken<ResponseDto<CustomerDto>>() {}.type
+                    )
+
+                responseDto?.let { cDto ->
+                    currentUser = cDto.data.results?.let { customerObj ->
+                        customerMapper.map(customerObj)
+                    }
+                    continuation.resume(currentUser)
+                } ?: run {
+                    continuation.resume(null)
+                }
+            } catch (ex: Exception) {
+                val message = ex.message?:"Undefined error"
+                ApphudLog.logE(message)
+                continuation.resume(null)
+            }
+        }else{
+            continuation.resume(null)
+        }
     }
 
     @Synchronized
@@ -236,7 +291,7 @@ object RequestManager {
             }
 
             val apphudUrl = ApphudUrl.Builder()
-                .host(ApiClient.host)
+                .host(HeadersInterceptor.HOST)
                 .version(ApphudVersion.V1)
                 .path("customers")
                 .build()
@@ -275,7 +330,7 @@ object RequestManager {
         }
 
         val apphudUrl = ApphudUrl.Builder()
-            .host(ApiClient.host)
+            .host(HeadersInterceptor.HOST)
             .version(ApphudVersion.V2)
             .path("paywall_configs")
             .build()
@@ -301,7 +356,7 @@ object RequestManager {
     suspend fun allProducts() : List<ApphudGroup>? =
     suspendCoroutine { continuation ->
         val apphudUrl = ApphudUrl.Builder()
-            .host(ApiClient.host)
+            .host(HeadersInterceptor.HOST)
             .version(ApphudVersion.V2)
             .path("products")
             .build()
@@ -335,7 +390,7 @@ object RequestManager {
         }
 
         val apphudUrl = ApphudUrl.Builder()
-            .host(ApiClient.host)
+            .host(HeadersInterceptor.HOST)
             .version(ApphudVersion.V2)
             .path("products")
             .params(mapOf(API_KEY to apiKey))
@@ -369,7 +424,7 @@ object RequestManager {
         }
 
         val apphudUrl = ApphudUrl.Builder()
-            .host(ApiClient.host)
+            .host(HeadersInterceptor.HOST)
             .version(ApphudVersion.V1)
             .path("subscriptions")
             .build()
@@ -414,7 +469,7 @@ object RequestManager {
         }
 
         val apphudUrl = ApphudUrl.Builder()
-            .host(ApiClient.host)
+            .host(HeadersInterceptor.HOST)
             .version(ApphudVersion.V1)
             .path("subscriptions")
             .build()
@@ -451,7 +506,7 @@ object RequestManager {
         }
 
         val apphudUrl = ApphudUrl.Builder()
-            .host(ApiClient.host)
+            .host(HeadersInterceptor.HOST)
             .version(ApphudVersion.V1)
             .path("customers/attribution")
             .build()
@@ -484,7 +539,7 @@ object RequestManager {
         }
 
         val apphudUrl = ApphudUrl.Builder()
-            .host(ApiClient.host)
+            .host(HeadersInterceptor.HOST)
             .version(ApphudVersion.V1)
             .path("customers/properties")
             .build()
@@ -555,7 +610,7 @@ object RequestManager {
         }
 
         val apphudUrl = ApphudUrl.Builder()
-            .host(ApiClient.host)
+            .host(HeadersInterceptor.HOST)
             .version(ApphudVersion.V1)
             .path("events")
             .build()
@@ -583,7 +638,7 @@ object RequestManager {
         val body = makeErrorLogsBody(message, ApphudUtils.packageName)
 
         val apphudUrl = ApphudUrl.Builder()
-            .host(ApiClient.host)
+            .host(HeadersInterceptor.HOST)
             .version(ApphudVersion.V1)
             .path("logs")
             .build()

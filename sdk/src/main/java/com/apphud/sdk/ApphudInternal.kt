@@ -129,45 +129,37 @@ internal object ApphudInternal {
                 }
 
                 if(productsLoaded.get() > 0){
-                    RequestManager.registration(!didRetrievePaywallsAtThisLaunch, is_new) { customer, error ->
+                    val customer = RequestManager.registrationSync(!didRetrievePaywallsAtThisLaunch, is_new)
+                    customer?.let {
+                        processCustomer(it)
+
                         launch(Dispatchers.Main) {
-                            if(customer == null && error == null){
-                                currentUser?.let{
-                                    completionHandler?.invoke(it, error)
-                                }
-                            }
-                            customer?.let {
-                                processCustomer(it)
-                                completionHandler?.invoke(it, error)
+                            completionHandler?.invoke(it, null)
+                            apphudListener?.apphudNonRenewingPurchasesUpdated(customer.purchases)
+                            apphudListener?.apphudSubscriptionsUpdated(customer.subscriptions)
 
-                                apphudListener?.apphudNonRenewingPurchasesUpdated(customer.purchases)
-                                apphudListener?.apphudSubscriptionsUpdated(customer.subscriptions)
-
-                                // try to resend purchases, if prev requests was fail
-                                if (storage.isNeedSync) {
-                                    ApphudLog.log("registration: syncPurchases")
-                                    syncPurchases()
-                                }
-
-                                if (pendingUserProperties.isNotEmpty()) {
-                                    ApphudLog.log("registration: we should update UserProperties")
-                                    updateUserProperties()
-                                }
-                                ApphudLog.logI("End registration")
+                            // try to resend purchases, if prev requests was fail
+                            if (storage.isNeedSync) {
+                                ApphudLog.log("registration: syncPurchases")
+                                syncPurchases()
                             }
-                            error?.let {
-                                storage.customer?.let{
-                                    currentUser = it
-                                    completionHandler?.invoke(it, null)
-                                }?:run{
-                                    ApphudLog.logE(it.message)
-                                    completionHandler?.invoke(null, it)
-                                }
+
+                            if (pendingUserProperties.isNotEmpty()) {
+                                ApphudLog.log("registration: we should update UserProperties")
+                                updateUserProperties()
                             }
+                            ApphudLog.logI("End registration")
+                        }
+                    }?: run{
+                        storage.customer?.let{
+                            currentUser = it
+                            completionHandler?.invoke(it, null)
+                        }?:run{
+                            ApphudLog.logE("Registration error")
+                            completionHandler?.invoke(null, ApphudError("Registration error"))
                         }
                     }
                 }else{
-                    //TODO use from cache
                     completionHandler?.invoke(null, ApphudError("Unable to restore products and sku details before registration at Apphud"))
                 }
             }
@@ -641,27 +633,35 @@ internal object ApphudInternal {
         tempPurchaseRecordDetails: Set<PurchaseRecordDetails>,
         callback: ApphudPurchasesRestoreCallback? = null
     ) {
-        coroutineScope.launch(errorHandler) {
-            RequestManager.restorePurchases(tempPurchaseRecordDetails) { customer, error ->
-                launch(Dispatchers.Main) {
-                    customer?.let {
-                        prevPurchases.addAll(tempPurchaseRecordDetails)
-                        storage.isNeedSync = false
+        checkRegistration{ error ->
+            error?.let{
+                val message = "Sync Purchases with Apphud is failed with message = ${error.message} and code = ${error.errorCode}"
+                ApphudLog.logE(message = message)
+                callback?.invoke(null, null, error)
+            }?: run{
+                coroutineScope.launch(errorHandler) {
+                    RequestManager.restorePurchases(tempPurchaseRecordDetails) { customer, error ->
+                        launch(Dispatchers.Main) {
+                            customer?.let {
+                                prevPurchases.addAll(tempPurchaseRecordDetails)
+                                storage.isNeedSync = false
 
-                        processCustomer(it)
+                                processCustomer(it)
 
-                        ApphudLog.logI("SyncPurchases: customer was updated $customer")
-                        apphudListener?.apphudSubscriptionsUpdated(customer.subscriptions)
-                        apphudListener?.apphudNonRenewingPurchasesUpdated(customer.purchases)
-                        callback?.invoke(customer.subscriptions, customer.purchases, null)
-                    }
-                    error?.let {
-                        val message = "Sync Purchases with Apphud is failed with message = ${error.message} and code = ${error.errorCode}"
-                        ApphudLog.logE(message = message)
-                        callback?.invoke(null, null, error)
+                                ApphudLog.logI("SyncPurchases: customer was updated $customer")
+                                apphudListener?.apphudSubscriptionsUpdated(customer.subscriptions)
+                                apphudListener?.apphudNonRenewingPurchasesUpdated(customer.purchases)
+                                callback?.invoke(customer.subscriptions, customer.purchases, null)
+                            }
+                            error?.let {
+                                val message = "Sync Purchases with Apphud is failed with message = ${error.message} and code = ${error.errorCode}"
+                                ApphudLog.logE(message = message)
+                                callback?.invoke(null, null, error)
+                            }
+                        }
+                        ApphudLog.log("SyncPurchases: success send history purchases ${tempPurchaseRecordDetails.toList()}")
                     }
                 }
-                ApphudLog.log("SyncPurchases: success send history purchases ${tempPurchaseRecordDetails.toList()}")
             }
         }
     }
@@ -1001,6 +1001,7 @@ internal object ApphudInternal {
 
     private fun clear() {
         RequestManager.cleanRegistration()
+        currentUser = null
         generatedUUID = UUID.randomUUID().toString()
         skuDetailsForRestoreIsLoaded.set(0)
         productsLoaded.set(0)
