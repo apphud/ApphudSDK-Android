@@ -42,10 +42,10 @@ internal object ApphudInternal {
     private var prevPurchases = mutableSetOf<PurchaseRecordDetails>()
     private var tempPrevPurchases = mutableSetOf<PurchaseRecordDetails>()
     private var productsForRestore = mutableListOf<PurchaseHistoryRecord>()
-    private val skuDetails = mutableListOf<SkuDetails>()
-    internal var paywalls = mutableListOf<ApphudPaywall>()
+    private var skuDetails = mutableListOf<SkuDetails>()
     private val pendingUserProperties = mutableMapOf<String, ApphudUserProperty>()
     internal var productGroups: MutableList<ApphudGroup> = mutableListOf()
+    internal var paywalls = mutableListOf<ApphudPaywall>()
 
     private var allowIdentifyUser = true
     private var didRetrievePaywallsAtThisLaunch = false
@@ -91,9 +91,13 @@ internal object ApphudInternal {
         ApphudLog.log("Start initialize with userId=$userId, deviceId=$deviceId")
 
         this.context = context
+        this.apiKey = apiKey
+
+        val needRegistration = needRegistration()
+        ApphudLog.logI("Need registration: " + needRegistration)
+
         this.userId = updateUser(id = userId)
         this.deviceId = updateDevice(id = deviceId)
-        this.apiKey = apiKey
         RequestManager.setParams(this.context, this.userId, this.deviceId, this.apiKey)
 
         allowIdentifyUser = false
@@ -101,11 +105,23 @@ internal object ApphudInternal {
 
         productGroups = cachedGroups()
         paywalls = cachedPaywalls()
+        skuDetails = cachedSkuDetails()
 
-        //TODO comment to emulate unsuccess registration on start
-        registration(this.userId, this.deviceId, null)
+        if(needRegistration) {
+            registration(this.userId, this.deviceId, null)
+        }else{
+            currentUser = storage.customer
+            RequestManager.currentUser = currentUser
+        }
     }
 
+    private fun needRegistration(): Boolean{
+        if(storage.userId.isNullOrEmpty()
+            || storage.needRegistration()
+            || storage.deviceId.isNullOrEmpty()
+            || storage.customer == null) return true
+        return false
+    }
 
     private val mutex = Mutex()
     private var productsLoaded = AtomicInteger(0) //to know that products already loaded by another thread
@@ -121,6 +137,7 @@ internal object ApphudInternal {
                     if (fetchProducts()) {
                         launch(Dispatchers.Main) {
                             if (skuDetails.isNotEmpty()) {
+                                cacheSkuDetails(skuDetails)
                                 apphudListener?.apphudFetchSkuDetailsProducts(skuDetails)
                                 customProductsFetchedBlock?.invoke(skuDetails)
                             }
@@ -132,6 +149,7 @@ internal object ApphudInternal {
                     val customer = RequestManager.registrationSync(!didRetrievePaywallsAtThisLaunch, is_new)
                     customer?.let {
                         processCustomer(it)
+                        storage.lastRegistration = System.currentTimeMillis()
 
                         launch(Dispatchers.Main) {
                             completionHandler?.invoke(it, null)
@@ -1031,6 +1049,14 @@ internal object ApphudInternal {
                 product.skuDetails = getSkuDetailsByProductId(product.product_id)
             }
         }
+    }
+
+    private fun cacheSkuDetails(details: List<SkuDetails>) {
+        storage.skuDetails = details
+    }
+
+    private fun cachedSkuDetails(): MutableList<SkuDetails> {
+        return storage.skuDetails?.toMutableList() ?: mutableListOf()
     }
 
     private fun cacheGroups(groups: List<ApphudGroup>) {

@@ -10,7 +10,7 @@ import java.io.IOException
 class HeadersInterceptor(private val apiKey: String?) : Interceptor {
     companion object Shared{
         const val X_SDK_VERSION: String = BuildConfig.VERSION_NAME
-        var X_SDK: String = "android"
+        var X_SDK: String = "Kotlin"
         var HOST: String = ApiClient.host
     }
 
@@ -18,6 +18,7 @@ class HeadersInterceptor(private val apiKey: String?) : Interceptor {
     override fun intercept(chain: Interceptor.Chain): Response {
         val userAgentRequest: Request = chain.request()
             .newBuilder()
+            .header("User-Agent", "Apphud Android ($X_SDK $X_SDK_VERSION)")
             .header("Authorization", "Bearer $apiKey")
             .header("Accept", "application/json; utf-8")
             .header("Content-Type", "application/json; utf-8")

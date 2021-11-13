@@ -43,7 +43,7 @@ import kotlin.coroutines.suspendCoroutine
 object RequestManager {
     private const val MUST_REGISTER_ERROR = " :You must call the Apphud.start method once when your application starts before calling any other methods."
 
-    private var currentUser: Customer? = null
+    var currentUser: Customer? = null
 
     val parser: Parser = GsonParser(Gson())
 
