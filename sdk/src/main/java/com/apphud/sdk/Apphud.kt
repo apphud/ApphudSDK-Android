@@ -126,13 +126,6 @@ object Apphud {
     /**
      * Fetches  paywalls configured in Apphud dashboard. Paywalls are automatically cached on device.
      */
-    fun getPaywalls(callback: (paywalls: List<ApphudPaywall>?, error: ApphudError?) -> Unit) {
-        ApphudInternal.getPaywalls(callback = callback)
-    }
-
-    /**
-     * Fetches  paywalls configured in Apphud dashboard. Paywalls are automatically cached on device.
-     */
     fun paywalls() :List<ApphudPaywall>{
         return ApphudInternal.paywalls
     }

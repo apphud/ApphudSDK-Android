@@ -23,7 +23,7 @@ class HttpUrlConnectionExecutor(
      * Set value for X-SDK header.
      */
     companion object Shared{
-        var X_SDK: String = "android"
+        var X_SDK: String = "Kotlin"
         var X_SDK_VERSION: String = BuildConfig.VERSION_NAME
     }
 
@@ -41,6 +41,7 @@ class HttpUrlConnectionExecutor(
         val connection = url.openConnection() as HttpsURLConnection
         connection.requestMethod = config.requestType.name
         //TODO move in the setting
+        connection.setRequestProperty("User-Agent", "Apphud Android ($X_SDK $X_SDK_VERSION)")
         connection.setRequestProperty("Authorization", "Bearer " + config.apiKey)
         connection.setRequestProperty("Accept", "application/json; utf-8")
         connection.setRequestProperty("Content-Type", "application/json; utf-8")

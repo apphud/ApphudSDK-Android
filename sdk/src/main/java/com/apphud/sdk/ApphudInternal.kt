@@ -196,6 +196,14 @@ internal object ApphudInternal {
             registration(this.userId, this.deviceId)
     }
 
+    private fun needRegistration(): Boolean{
+        if(storage.userId.isNullOrEmpty()
+            || storage.needRegistration()
+            || storage.deviceId.isNullOrEmpty()
+            || storage.customer == null) return true
+        return false
+    }
+
     private fun fetchProducts() {
         billing.skuCallback = { details ->
             ApphudLog.log("fetchProducts: details from Google Billing: $details")
@@ -225,39 +233,41 @@ internal object ApphudInternal {
     ) {
         ApphudLog.log("Start registration userId=$userId, deviceId=$deviceId")
 
-        val body = mkRegistrationBody(userId!!, this.deviceId)
-        client?.registrationUser(body) { customer ->
-            isRegistered = true
-            handler.post {
-                ApphudLog.log("registration: registrationUser customer=$customer")
-                storage.updateCustomer(customer, apphudListener)
-                apphudListener?.apphudSubscriptionsUpdated(customer.subscriptions)
-                apphudListener?.apphudNonRenewingPurchasesUpdated(customer.purchases)
+        if(needRegistration()) {
+            val body = mkRegistrationBody(userId!!, this.deviceId)
+            client?.registrationUser(body) { customer ->
+                isRegistered = true
+                handler.post {
+                    ApphudLog.log("registration: registrationUser customer=$customer")
+                    storage.lastRegistration = System.currentTimeMillis()
+                    storage.updateCustomer(customer, apphudListener)
+                    apphudListener?.apphudSubscriptionsUpdated(customer.subscriptions)
+                    apphudListener?.apphudNonRenewingPurchasesUpdated(customer.purchases)
 
-                if (customer.paywalls.isNotEmpty()) {
-                    didRetrievePaywallsAtThisLaunch = true
-                    processLoadedPaywalls(customer.paywalls)
-                    apphudListener?.paywallsDidLoadCallback(this.paywalls)
-                }
+                    if (customer.paywalls.isNotEmpty()) {
+                        didRetrievePaywallsAtThisLaunch = true
+                        processLoadedPaywalls(customer.paywalls)
+                        apphudListener?.paywallsDidLoadCallback(this.paywalls)
+                    }
 
-                // try to resend purchases, if prev requests was fail
-                if (storage.isNeedSync) {
-                    ApphudLog.log("registration: syncPurchases")
-                    syncPurchases()
-                }
+                    // try to resend purchases, if prev requests was fail
+                    if (storage.isNeedSync) {
+                        ApphudLog.log("registration: syncPurchases")
+                        syncPurchases()
+                    }
 
-                if (pendingUserProperties.isNotEmpty() && setNeedsToUpdateUserProperties) {
-                    ApphudLog.log("registration: we should update UserProperties")
-                    updateUserProperties()
-                }
+                    if (pendingUserProperties.isNotEmpty() && setNeedsToUpdateUserProperties) {
+                        ApphudLog.log("registration: we should update UserProperties")
+                        updateUserProperties()
+                    }
 
-                if (fetchPaywallsDelayedCallback != null) {
-                    fetchPaywallsDelayedCallback?.invoke()
-                    fetchPaywallsDelayedCallback = null
+                    if (fetchPaywallsDelayedCallback != null) {
+                        fetchPaywallsDelayedCallback?.invoke()
+                        fetchPaywallsDelayedCallback = null
+                    }
                 }
             }
         }
-
         ApphudLog.log("End registration")
     }
 
@@ -887,6 +897,7 @@ internal object ApphudInternal {
         storage.appsflyer = null
         storage.paywalls = null
         storage.productGroups = null
+        storage.lastRegistration = 0L
         userId = null
         generatedUUID = UUID.randomUUID().toString()
         prevPurchases.clear()

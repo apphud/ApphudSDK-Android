@@ -29,6 +29,7 @@ class SharedPreferencesStorage(
         private const val PAYWALLS_TIMESTAMP_KEY = "payWallsTimestampKey"
         private const val GROUP_KEY = "apphudGroupKey"
         private const val GROUP_TIMESTAMP_KEY = "apphudGroupTimestampKey"
+        private const val LAST_REGISTRATION_KEY = "lastRegistrationKey"
     }
 
     private val preferences = context.getSharedPreferences(
@@ -168,5 +169,19 @@ class SharedPreferencesStorage(
                 apphudListener.apphudDidChangeUserID(customer.user.userId)
             }
         }
+    }
+
+    override var lastRegistration: Long
+        get() = preferences.getLong(LAST_REGISTRATION_KEY, 0L)
+        set(value) {
+            val editor = preferences.edit()
+            editor.putLong(LAST_REGISTRATION_KEY, value)
+            editor.apply()
+        }
+
+    fun needRegistration() :Boolean{
+        val timestamp = lastRegistration + (cacheTimeout * 1000)
+        val currentTime = System.currentTimeMillis()
+        return currentTime > timestamp
     }
 }

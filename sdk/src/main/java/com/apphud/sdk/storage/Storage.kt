@@ -13,4 +13,5 @@ interface Storage {
     var appsflyer: AppsflyerInfo?
     var paywalls: List<ApphudPaywall>?
     var productGroups: List<ApphudGroup>?
+    var lastRegistration: Long
 }
