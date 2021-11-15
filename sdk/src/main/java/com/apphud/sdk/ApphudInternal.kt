@@ -120,9 +120,9 @@ internal object ApphudInternal {
 
     private fun needRegistration(): Boolean{
         if(storage.userId.isNullOrEmpty()
-            || storage.needRegistration()
             || storage.deviceId.isNullOrEmpty()
-            || storage.customer == null) return true
+            || storage.customer == null
+            || storage.needRegistration()) return true
         return false
     }
 
