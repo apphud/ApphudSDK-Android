@@ -902,6 +902,7 @@ internal object ApphudInternal {
         storage.appsflyer = null
         storage.paywalls = null
         storage.productGroups = null
+        storage.skuDetails = null
         storage.lastRegistration = 0L
         userId = null
         generatedUUID = UUID.randomUUID().toString()
