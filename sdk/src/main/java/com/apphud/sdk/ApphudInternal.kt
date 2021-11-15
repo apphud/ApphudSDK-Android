@@ -44,7 +44,7 @@ internal object ApphudInternal {
      */
     private val handler: Handler = Handler(Looper.getMainLooper())
     private var client: ApphudClient? = null
-    private val billing by lazy { BillingWrapper(context) }
+    private lateinit var billing :BillingWrapper
     private val storage by lazy { SharedPreferencesStorage(context, parser) }
     private var generatedUUID = UUID.randomUUID().toString()
     private var prevPurchases = mutableSetOf<PurchaseRecordDetails>()
@@ -81,7 +81,7 @@ internal object ApphudInternal {
         get() = storage.customer
     internal var apphudListener: ApphudListener? = null
 
-    private val skuDetails = mutableListOf<SkuDetails>()
+    private var skuDetails = mutableListOf<SkuDetails>()
 
     /**
      * 0 - we at start point without any skuDetails
@@ -168,8 +168,8 @@ internal object ApphudInternal {
         deviceId: DeviceId?
     ) {
         if (!allowIdentifyUser) {
-            ApphudLog.logE(
-                    "=============================================================" +
+            ApphudLog.logI(" " +
+                    "\n=============================================================" +
                     "\nAbort initializing, because Apphud SDK already initialized." +
                     "\nYou can only call `Apphud.start()` once per app lifecycle." +
                     "\nOr if `Apphud.logout()` was called previously." +
@@ -178,13 +178,15 @@ internal object ApphudInternal {
         }
         this.apiKey = apiKey
         this.context = context
+        billing = BillingWrapper(context)
         client = ApphudClient(apiKey, parser)
         client?.let { ApphudLog.setClient(it) }
         allowIdentifyUser = false
-        ApphudLog.log("try restore cachedPaywalls")
+
+        ApphudLog.log("Restore paywall and product groups from cache")
+        this.skuDetails = cachedSkuDetails()
         this.paywalls = cachedPaywalls()
-        // try to continue anyway, because maybe already has cached data, try to fetch play market products
-        fetchProducts()
+        this.productGroups = cachedGroups()
 
         ApphudLog.log("Start initialize with userId=$userId, deviceId=$deviceId")
         this.userId = updateUser(id = userId)
@@ -210,6 +212,7 @@ internal object ApphudInternal {
             skuDetailsIsLoaded.incrementAndGet()
             if (details.isNotEmpty()) {
                 skuDetails.addAll(details)
+                cacheSkuDetails(skuDetails)
             }
             if (skuDetailsIsLoaded.isBothLoaded()) {
                 paywalls = cachedPaywalls()
@@ -234,6 +237,8 @@ internal object ApphudInternal {
         ApphudLog.log("Start registration userId=$userId, deviceId=$deviceId")
 
         if(needRegistration()) {
+            fetchProducts()
+
             val body = mkRegistrationBody(userId!!, this.deviceId)
             client?.registrationUser(body) { customer ->
                 isRegistered = true
@@ -1075,6 +1080,14 @@ internal object ApphudInternal {
             updateGroupsWithSkuDetails(it)
         }
         return productGroups?.toMutableList() ?: mutableListOf()
+    }
+
+    private fun cacheSkuDetails(details: List<SkuDetails>) {
+        storage.skuDetails = details
+    }
+
+    private fun cachedSkuDetails(): MutableList<SkuDetails> {
+        return storage.skuDetails?.toMutableList() ?: mutableListOf()
     }
 
     fun paywallShown(paywall: ApphudPaywall?) {

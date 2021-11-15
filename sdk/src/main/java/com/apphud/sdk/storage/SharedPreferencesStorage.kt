@@ -1,6 +1,7 @@
 package com.apphud.sdk.storage
 
 import android.content.Context
+import com.android.billingclient.api.SkuDetails
 import com.apphud.sdk.ApphudListener
 import com.apphud.sdk.domain.*
 import com.apphud.sdk.isDebuggable
@@ -29,6 +30,8 @@ class SharedPreferencesStorage(
         private const val PAYWALLS_TIMESTAMP_KEY = "payWallsTimestampKey"
         private const val GROUP_KEY = "apphudGroupKey"
         private const val GROUP_TIMESTAMP_KEY = "apphudGroupTimestampKey"
+        private const val SKU_KEY = "skuKey"
+        private const val SKU_TIMESTAMP_KEY = "skuTimestampKey"
         private const val LAST_REGISTRATION_KEY = "lastRegistrationKey"
     }
 
@@ -170,6 +173,25 @@ class SharedPreferencesStorage(
             }
         }
     }
+
+    override var skuDetails: List<SkuDetails>?
+        get() {
+            val timestamp = preferences.getLong(SKU_TIMESTAMP_KEY, -1L) + (cacheTimeout * 1000)
+            val currentTime = System.currentTimeMillis()
+            return if (currentTime < timestamp) {
+                val source = preferences.getString(SKU_KEY, null)
+                val type = object : TypeToken<List<SkuDetails>>() {}.type
+                parser.fromJson<List<SkuDetails>>(source, type)
+            } else null
+        }
+        set(value) {
+            val source = parser.toJson(value)
+            val editor = preferences.edit()
+            editor.putLong(SKU_TIMESTAMP_KEY, System.currentTimeMillis())
+            editor.putString(SKU_KEY, source)
+            editor.apply()
+        }
+
 
     override var lastRegistration: Long
         get() = preferences.getLong(LAST_REGISTRATION_KEY, 0L)
