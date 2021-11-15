@@ -200,9 +200,9 @@ internal object ApphudInternal {
 
     private fun needRegistration(): Boolean{
         if(storage.userId.isNullOrEmpty()
-            || storage.needRegistration()
             || storage.deviceId.isNullOrEmpty()
-            || storage.customer == null) return true
+            || storage.customer == null
+            || storage.needRegistration()) return true
         return false
     }
 
@@ -273,7 +273,6 @@ internal object ApphudInternal {
                 }
             }
         }
-        ApphudLog.log("End registration")
     }
 
     private fun processLoadedPaywalls(paywallsToCache : List<ApphudPaywall>, writeToCache: Boolean = true){
