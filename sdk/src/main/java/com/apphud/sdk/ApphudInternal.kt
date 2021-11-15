@@ -172,10 +172,14 @@ internal object ApphudInternal {
                     }?: run{
                         storage.customer?.let{
                             currentUser = it
-                            completionHandler?.invoke(it, null)
+                            launch(Dispatchers.Main) {
+                                completionHandler?.invoke(it, null)
+                            }
                         }?:run{
                             ApphudLog.logE("Registration error")
-                            completionHandler?.invoke(null, ApphudError("Registration error"))
+                            launch(Dispatchers.Main) {
+                                completionHandler?.invoke(null, ApphudError("Registration error"))
+                            }
                         }
                     }
                 }else{
