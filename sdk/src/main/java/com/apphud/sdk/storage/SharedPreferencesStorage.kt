@@ -2,7 +2,6 @@ package com.apphud.sdk.storage
 
 import android.content.Context
 import com.android.billingclient.api.SkuDetails
-import com.apphud.sdk.ApphudInternal
 import com.apphud.sdk.ApphudListener
 import com.apphud.sdk.domain.*
 import com.apphud.sdk.isDebuggable
@@ -202,6 +201,7 @@ class SharedPreferencesStorage(
         appsflyer = null
         productGroups = null
         paywalls = null
+        skuDetails = null
     }
 
     fun updateCustomer(customer: Customer, apphudListener: ApphudListener?){

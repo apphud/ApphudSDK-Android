@@ -36,7 +36,7 @@ internal object ApphudInternal {
         .create()
     private val parser: Parser = GsonParser(builder)
 
-    private val billing by lazy { BillingWrapper(context) }
+    private lateinit var billing: BillingWrapper
     private val storage by lazy { SharedPreferencesStorage(context, parser) }
     private var generatedUUID = UUID.randomUUID().toString()
     private var prevPurchases = mutableSetOf<PurchaseRecordDetails>()
@@ -80,11 +80,12 @@ internal object ApphudInternal {
         deviceId: DeviceId?
     ) {
         if (!allowIdentifyUser) {
-            ApphudLog.logE("=============================================================" +
-                    "\nAbort initializing, because Apphud SDK already initialized." +
-                    "\nYou can only call `Apphud.start()` once per app lifecycle." +
-                    "\nOr if `Apphud.logout()` was called previously." +
-                    "\n=============================================================")
+            ApphudLog.logE(" " +
+                "\n=============================================================" +
+                "\nAbort initializing, because Apphud SDK already initialized." +
+                "\nYou can only call `Apphud.start()` once per app lifecycle." +
+                "\nOr if `Apphud.logout()` was called previously." +
+                "\n=============================================================")
             return
         }
 
@@ -93,6 +94,8 @@ internal object ApphudInternal {
         this.context = context
         this.apiKey = apiKey
 
+        billing = BillingWrapper(context)
+        
         val needRegistration = needRegistration()
         ApphudLog.logI("Need registration: " + needRegistration)
 
