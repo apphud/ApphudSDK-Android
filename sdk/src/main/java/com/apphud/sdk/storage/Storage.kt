@@ -1,5 +1,6 @@
 package com.apphud.sdk.storage
 
+import com.android.billingclient.api.SkuDetails
 import com.apphud.sdk.domain.*
 
 interface Storage {
@@ -13,4 +14,6 @@ interface Storage {
     var appsflyer: AppsflyerInfo?
     var paywalls: List<ApphudPaywall>?
     var productGroups: List<ApphudGroup>?
+    var lastRegistration: Long
+    var skuDetails: List<SkuDetails>?
 }

@@ -14,6 +14,7 @@ import com.apphud.sdk.domain.ApphudSubscription
 import com.apphud.app.presentation.ProductModel
 import com.apphud.app.presentation.ProductModelMapper
 import com.apphud.app.presentation.ProductsAdapter
+import com.apphud.sdk.domain.ApphudPaywall
 
 class MainActivity : AppCompatActivity() {
 
@@ -69,6 +70,10 @@ class MainActivity : AppCompatActivity() {
 
             override fun apphudDidChangeUserID(userId: String) {
                 Log.d("apphud", "User id was changed: " + userId)
+            }
+
+            override fun paywallsDidLoadCallback(paywalls: List<ApphudPaywall>) {
+                Log.d("apphud", "paywalls is loaded")
             }
         }
         Apphud.setListener(listener)

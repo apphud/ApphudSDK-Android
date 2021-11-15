@@ -1,7 +1,9 @@
 package com.apphud.sdk.storage
 
 import android.content.Context
+import com.android.billingclient.api.SkuDetails
 import com.apphud.sdk.ApphudListener
+import com.apphud.sdk.ApphudLog
 import com.apphud.sdk.domain.*
 import com.apphud.sdk.isDebuggable
 import com.apphud.sdk.parser.Parser
@@ -29,6 +31,9 @@ class SharedPreferencesStorage(
         private const val PAYWALLS_TIMESTAMP_KEY = "payWallsTimestampKey"
         private const val GROUP_KEY = "apphudGroupKey"
         private const val GROUP_TIMESTAMP_KEY = "apphudGroupTimestampKey"
+        private const val SKU_KEY = "skuKey"
+        private const val SKU_TIMESTAMP_KEY = "skuTimestampKey"
+        private const val LAST_REGISTRATION_KEY = "lastRegistrationKey"
     }
 
     private val preferences = context.getSharedPreferences(
@@ -167,6 +172,57 @@ class SharedPreferencesStorage(
             apphudListener?.let{
                 apphudListener.apphudDidChangeUserID(customer.user.userId)
             }
+        }
+    }
+
+    override var skuDetails: List<SkuDetails>?
+        get() {
+            val timestamp = preferences.getLong(SKU_TIMESTAMP_KEY, -1L) + (cacheTimeout * 1000)
+            val currentTime = System.currentTimeMillis()
+            return if (currentTime < timestamp) {
+                val source = preferences.getString(SKU_KEY, null)
+                val type = object : TypeToken<List<SkuDetails>>() {}.type
+                parser.fromJson<List<SkuDetails>>(source, type)
+            } else null
+        }
+        set(value) {
+            val source = parser.toJson(value)
+            val editor = preferences.edit()
+            editor.putLong(SKU_TIMESTAMP_KEY, System.currentTimeMillis())
+            editor.putString(SKU_KEY, source)
+            editor.apply()
+        }
+
+
+    override var lastRegistration: Long
+        get() = preferences.getLong(LAST_REGISTRATION_KEY, 0L)
+        set(value) {
+            val editor = preferences.edit()
+            editor.putLong(LAST_REGISTRATION_KEY, value)
+            editor.apply()
+        }
+
+    fun needRegistration() :Boolean {
+        val timestamp = lastRegistration + (cacheTimeout * 1000)
+        val currentTime = System.currentTimeMillis()
+        val customerWithPurchases = customer?.let{
+            !(it.purchases.isEmpty() && it.subscriptions.isEmpty())
+        }?: false
+
+        return if(customerWithPurchases){
+            ApphudLog.logI("User with purchases: perform registration")
+            true
+        }
+        else {
+            val result = currentTime > timestamp
+            if(result){
+                ApphudLog.logI("User without purchases: perform registration")
+            }else{
+                val minutes = (timestamp - currentTime)/60_000L
+                val seconds = (timestamp - currentTime - minutes * 60_000L)/1_000L
+                ApphudLog.logI("User without purchases: registration will available after ${minutes}min. ${seconds}sec.")
+            }
+            return result
         }
     }
 }
