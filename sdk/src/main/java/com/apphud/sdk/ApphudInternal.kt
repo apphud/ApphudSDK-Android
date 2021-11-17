@@ -3,6 +3,8 @@ package com.apphud.sdk
 import android.annotation.SuppressLint
 import android.app.Activity
 import android.content.Context
+import android.os.Handler
+import android.os.Looper
 import com.android.billingclient.api.BillingClient
 import com.android.billingclient.api.Purchase
 import com.android.billingclient.api.PurchaseHistoryRecord
@@ -43,9 +45,29 @@ internal object ApphudInternal {
     private var tempPrevPurchases = mutableSetOf<PurchaseRecordDetails>()
     private var productsForRestore = mutableListOf<PurchaseHistoryRecord>()
     private var skuDetails = mutableListOf<SkuDetails>()
-    private val pendingUserProperties = mutableMapOf<String, ApphudUserProperty>()
     internal var productGroups: MutableList<ApphudGroup> = mutableListOf()
     internal var paywalls = mutableListOf<ApphudPaywall>()
+
+    private val handler: Handler = Handler(Looper.getMainLooper())
+    private val pendingUserProperties = mutableMapOf<String, ApphudUserProperty>()
+    private val userPropertiesRunnable = Runnable {
+        if (currentUser != null) {
+            updateUserProperties()
+        } else {
+            setNeedsToUpdateUserProperties = true
+        }
+    }
+
+    private var setNeedsToUpdateUserProperties: Boolean = false
+        set(value) {
+            field = value
+            if (value) {
+                handler.removeCallbacks(userPropertiesRunnable)
+                handler.postDelayed(userPropertiesRunnable, 1000L)
+            } else {
+                handler.removeCallbacks(userPropertiesRunnable)
+            }
+        }
 
     private var allowIdentifyUser = true
     private var didRetrievePaywallsAtThisLaunch = false
@@ -166,7 +188,7 @@ internal object ApphudInternal {
                                 syncPurchases()
                             }
 
-                            if (pendingUserProperties.isNotEmpty()) {
+                            if (pendingUserProperties.isNotEmpty() && setNeedsToUpdateUserProperties) {
                                 ApphudLog.log("registration: we should update UserProperties")
                                 updateUserProperties()
                             }
@@ -839,10 +861,18 @@ internal object ApphudInternal {
                 put(property.key, property)
             }
         }
-        updateUserProperties()
+
+        synchronized(pendingUserProperties){
+            pendingUserProperties.run {
+                remove(property.key)
+                put(property.key, property)
+            }
+        }
+        setNeedsToUpdateUserProperties = true
     }
 
     private fun updateUserProperties() {
+        setNeedsToUpdateUserProperties = false
         if (pendingUserProperties.isEmpty()) return
 
         checkRegistration{ error ->
@@ -1014,6 +1044,7 @@ internal object ApphudInternal {
         pendingUserProperties.clear()
         allowIdentifyUser = true
         didRetrievePaywallsAtThisLaunch = false
+        setNeedsToUpdateUserProperties = false
     }
 
     private fun updateUser(id: UserId?): UserId {
