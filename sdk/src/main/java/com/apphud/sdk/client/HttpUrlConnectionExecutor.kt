@@ -14,7 +14,6 @@ import java.net.URL
 import javax.net.ssl.HttpsURLConnection
 
 class HttpUrlConnectionExecutor(
-    private val host: String,
     private val version: String,
     private val parser: Parser
 ) : NetworkExecutor {
@@ -25,13 +24,14 @@ class HttpUrlConnectionExecutor(
     companion object Shared{
         var X_SDK: String = "Kotlin"
         var X_SDK_VERSION: String = BuildConfig.VERSION_NAME
+        var HOST: String = ApiClient.host
     }
 
     override fun <O> call(config: RequestConfig): O = call(config, null)
     override fun <I, O> call(config: RequestConfig, input: I?): O = try {
 
         val apphudUrl = ApphudUrl.Builder()
-            .host(host)
+            .host(HOST)
             .version(version)
             .path(config.path)
             .params(config.queries)
