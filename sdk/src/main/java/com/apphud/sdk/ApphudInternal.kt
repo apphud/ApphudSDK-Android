@@ -1090,11 +1090,26 @@ internal object ApphudInternal {
     }
 
     private fun cacheSkuDetails(details: List<SkuDetails>) {
-        storage.skuDetails = details
+        val skuDetailsToCache :MutableList<String> = mutableListOf()
+        details.forEach{
+            skuDetailsToCache.add(it.originalJson)
+        }
+        storage.skuDetails = skuDetailsToCache
     }
 
     private fun cachedSkuDetails(): MutableList<SkuDetails> {
-        return storage.skuDetails?.toMutableList() ?: mutableListOf()
+        val result :MutableList<SkuDetails> = mutableListOf()
+        try{
+            val skuDetailsFromCache = storage.skuDetails?.toMutableList() ?: mutableListOf()
+            skuDetailsFromCache.forEach{
+                result.add(SkuDetails(it))
+            }
+        }catch (ex: Exception){
+            ex.message?.let{
+                ApphudLog.logE(it)
+            }
+        }
+        return result
     }
 
     private fun cacheGroups(groups: List<ApphudGroup>) {

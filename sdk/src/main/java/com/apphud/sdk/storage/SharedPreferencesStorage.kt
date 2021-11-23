@@ -158,14 +158,14 @@ class SharedPreferencesStorage(
             editor.apply()
         }
 
-    override var skuDetails: List<SkuDetails>?
+    override var skuDetails: List<String>?
         get() {
             val timestamp = preferences.getLong(SKU_TIMESTAMP_KEY, -1L) + (cacheTimeout * 1000)
             val currentTime = System.currentTimeMillis()
             return if (currentTime < timestamp) {
                 val source = preferences.getString(SKU_KEY, null)
-                val type = object : TypeToken<List<SkuDetails>>() {}.type
-                parser.fromJson<List<SkuDetails>>(source, type)
+                val type = object : TypeToken<List<String>>() {}.type
+                parser.fromJson<List<String>>(source, type)
             } else null
         }
         set(value) {

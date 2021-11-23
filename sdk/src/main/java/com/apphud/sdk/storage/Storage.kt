@@ -15,5 +15,5 @@ interface Storage {
     var appsflyer: AppsflyerInfo?
     var productGroups: List<ApphudGroup>?
     var paywalls: List<ApphudPaywall>?
-    var skuDetails: List<SkuDetails>?
+    var skuDetails: List<String>?
 }
