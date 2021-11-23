@@ -15,5 +15,5 @@ interface Storage {
     var paywalls: List<ApphudPaywall>?
     var productGroups: List<ApphudGroup>?
     var lastRegistration: Long
-    var skuDetails: List<SkuDetails>?
+    var skuDetails: List<String>?
 }

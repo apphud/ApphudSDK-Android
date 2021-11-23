@@ -2,7 +2,6 @@ package com.apphud.sdk
 
 import android.util.Log
 import com.apphud.sdk.body.*
-import com.apphud.sdk.client.ApiClient
 import com.apphud.sdk.client.ApphudServiceV1
 import com.apphud.sdk.client.ApphudServiceV2
 import com.apphud.sdk.client.HttpUrlConnectionExecutor
@@ -25,7 +24,6 @@ class ApphudServiceTest {
     @Before
     fun setup() {
         val executor = HttpUrlConnectionExecutor(
-            host = ApiClient.host,
             version = ApphudVersion.V1,
             parser = GsonParser(Gson())
         )
