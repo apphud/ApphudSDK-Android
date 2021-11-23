@@ -1100,7 +1100,7 @@ internal object ApphudInternal {
             }
         }catch (ex: Exception){
             ex.message?.let{
-                ApphudLog.log(it)
+                ApphudLog.logE(it)
             }
         }
         return result
