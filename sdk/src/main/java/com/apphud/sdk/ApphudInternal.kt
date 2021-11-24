@@ -206,32 +206,40 @@ internal object ApphudInternal {
     }
 
     private fun fetchProducts() {
-        client?.allProducts { groups ->
-            ApphudLog.log("fetchProducts: products from Apphud server: $groups")
-            cacheGroups(groups)
-            val ids = groups.map { it -> it.products?.map { it.product_id }!! }.flatten()
-            fetchDetails(ids)
+        try {
+            client?.allProducts { groups ->
+                ApphudLog.log("fetchProducts: products from Apphud server: $groups")
+                cacheGroups(groups)
+                fetchDetails(groups)
+            }
+        }catch(ex: Exception){
+            ApphudLog.logE("Something went wrong" + ex.message)
         }
     }
 
-    private fun fetchDetails(ids: List<ProductId>) {
-        if(ids.isNotEmpty()){
-            skuDetails.clear()
-            billing.skuCallback = { details ->
-                ApphudLog.log("fetchDetails: details from Google Billing: $details")
-                skuDetailsIsLoaded.incrementAndGet()
-                if (details.isNotEmpty()) {
-                    skuDetails.addAll(details)
+    private fun fetchDetails(groups: List<ApphudGroup>) {
+        try {
+            val ids = groups.map { it -> it.products?.map { it.product_id }!! }.flatten()
+            if(ids.isNotEmpty()){
+                skuDetails.clear()
+                billing.skuCallback = { details ->
+                    ApphudLog.log("fetchDetails: details from Google Billing: $details")
+                    skuDetailsIsLoaded.incrementAndGet()
+                    if (details.isNotEmpty()) {
+                        skuDetails.addAll(details)
+                    }
+                    if (skuDetailsIsLoaded.isBothLoaded()) {
+                        paywalls = cachedPaywalls()
+                        productGroups = cachedGroups()
+                        customProductsFetchedBlock?.invoke(skuDetails)
+                        apphudListener?.apphudFetchSkuDetailsProducts(skuDetails)
+                    }
                 }
-                if (skuDetailsIsLoaded.isBothLoaded()) {
-                    paywalls = cachedPaywalls()
-                    productGroups = cachedGroups()
-                    customProductsFetchedBlock?.invoke(skuDetails)
-                    apphudListener?.apphudFetchSkuDetailsProducts(skuDetails)
-                }
+                billing.details(BillingClient.SkuType.SUBS, ids)
+                billing.details(BillingClient.SkuType.INAPP, ids)
             }
-            billing.details(BillingClient.SkuType.SUBS, ids)
-            billing.details(BillingClient.SkuType.INAPP, ids)
+        }catch(ex: Exception){
+            ApphudLog.logE("Fetch products sku details failed : " + ex.message, false)
         }
     }
 
@@ -279,8 +287,7 @@ internal object ApphudInternal {
             }
         } else{
             if(this.productGroups.isNotEmpty()) {
-                val ids = this.productGroups.map { it -> it.products?.map { it.product_id }!! }.flatten()
-                fetchDetails(ids)
+                fetchDetails(this.productGroups)
             }else{
                 fetchProducts()
             }
