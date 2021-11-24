@@ -184,7 +184,7 @@ internal object ApphudInternal {
         allowIdentifyUser = false
 
         ApphudLog.log("Restore paywall and product groups from cache")
-        this.skuDetails = cachedSkuDetails()
+        fetchProducts()
         this.paywalls = cachedPaywalls()
         this.productGroups = cachedGroups()
 
@@ -238,8 +238,6 @@ internal object ApphudInternal {
         ApphudLog.log("Start registration userId=$userId, deviceId=$deviceId")
 
         if(needRegistration()) {
-            fetchProducts()
-
             val body = mkRegistrationBody(userId!!, this.deviceId)
             client?.registrationUser(body) { customer ->
                 isRegistered = true
