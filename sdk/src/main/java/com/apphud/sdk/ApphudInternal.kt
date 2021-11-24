@@ -281,6 +281,8 @@ internal object ApphudInternal {
             if(this.productGroups.isNotEmpty()) {
                 val ids = this.productGroups.map { it -> it.products?.map { it.product_id }!! }.flatten()
                 fetchDetails(ids)
+            }else{
+                fetchProducts()
             }
         }
     }
