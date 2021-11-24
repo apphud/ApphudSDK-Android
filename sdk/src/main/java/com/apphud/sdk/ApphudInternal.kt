@@ -184,7 +184,6 @@ internal object ApphudInternal {
         allowIdentifyUser = false
 
         ApphudLog.log("Restore paywall and product groups from cache")
-        fetchProducts()
         this.paywalls = cachedPaywalls()
         this.productGroups = cachedGroups()
 
@@ -207,24 +206,30 @@ internal object ApphudInternal {
     }
 
     private fun fetchProducts() {
-        skuDetails.clear()
-        billing.skuCallback = { details ->
-            ApphudLog.log("fetchProducts: details from Google Billing: $details")
-            skuDetailsIsLoaded.incrementAndGet()
-            if (details.isNotEmpty()) {
-                skuDetails.addAll(details)
-            }
-            if (skuDetailsIsLoaded.isBothLoaded()) {
-                paywalls = cachedPaywalls()
-                productGroups = cachedGroups()
-                customProductsFetchedBlock?.invoke(skuDetails)
-                apphudListener?.apphudFetchSkuDetailsProducts(skuDetails)
-            }
-        }
         client?.allProducts { groups ->
             ApphudLog.log("fetchProducts: products from Apphud server: $groups")
             cacheGroups(groups)
             val ids = groups.map { it -> it.products?.map { it.product_id }!! }.flatten()
+            fetchDetails(ids)
+        }
+    }
+
+    private fun fetchDetails(ids: List<ProductId>) {
+        if(ids.isNotEmpty()){
+            skuDetails.clear()
+            billing.skuCallback = { details ->
+                ApphudLog.log("fetchDetails: details from Google Billing: $details")
+                skuDetailsIsLoaded.incrementAndGet()
+                if (details.isNotEmpty()) {
+                    skuDetails.addAll(details)
+                }
+                if (skuDetailsIsLoaded.isBothLoaded()) {
+                    paywalls = cachedPaywalls()
+                    productGroups = cachedGroups()
+                    customProductsFetchedBlock?.invoke(skuDetails)
+                    apphudListener?.apphudFetchSkuDetailsProducts(skuDetails)
+                }
+            }
             billing.details(BillingClient.SkuType.SUBS, ids)
             billing.details(BillingClient.SkuType.INAPP, ids)
         }
@@ -237,6 +242,8 @@ internal object ApphudInternal {
         ApphudLog.log("Start registration userId=$userId, deviceId=$deviceId")
 
         if(needRegistration()) {
+            fetchProducts()
+
             val body = mkRegistrationBody(userId!!, this.deviceId)
             client?.registrationUser(body) { customer ->
                 isRegistered = true
@@ -269,6 +276,11 @@ internal object ApphudInternal {
                         fetchPaywallsDelayedCallback = null
                     }
                 }
+            }
+        } else{
+            if(this.productGroups.isNotEmpty()) {
+                val ids = this.productGroups.map { it -> it.products?.map { it.product_id }!! }.flatten()
+                fetchDetails(ids)
             }
         }
     }
