@@ -213,7 +213,6 @@ internal object ApphudInternal {
             skuDetailsIsLoaded.incrementAndGet()
             if (details.isNotEmpty()) {
                 skuDetails.addAll(details)
-                cacheSkuDetails(skuDetails)
             }
             if (skuDetailsIsLoaded.isBothLoaded()) {
                 paywalls = cachedPaywalls()
