@@ -124,15 +124,22 @@ object RequestManager {
 
     private fun performRequest(client: OkHttpClient, request: Request, completionHandler: (String?, ApphudError?) -> Unit){
         try {
-            if(isNetworkAvailable()){
+            if(HeadersInterceptor.isBlocked){
+                val message = "SDK networking is locked until application restart"
+                ApphudLog.logE(message)
+                completionHandler(null, ApphudError(message))
+            }else if(isNetworkAvailable()){
                 val response = client.newCall(request).execute()
                 if (response.isSuccessful) {
                     response.body?.let {
                         completionHandler(it.string(), null)
                     }?: run{
-                        completionHandler(null, ApphudError("Response success but result is null", null, response.code))
+                        completionHandler(null, ApphudError("Request failed", null, response.code))
                     }
                 } else {
+                    if(response.code == 403){
+                        HeadersInterceptor.isBlocked = true
+                    }
                     val  message = "finish ${request.method} request ${request.url} " +
                             "failed with code: ${response.code} response: ${
                                 buildPrettyPrintedBy(response.body.toString())
@@ -153,15 +160,28 @@ object RequestManager {
 
     @Throws(Exception::class)
     fun performRequestSync(client: OkHttpClient, request: Request): String{
-        val response = client.newCall(request).execute()
-        val responseBody = response.body!!.string()
-        if (response.isSuccessful) {
-            return responseBody
-        } else {
-            val  message = "finish ${request.method} request ${request.url} " +
-                    "failed with code: ${response.code} response: ${
-                        buildPrettyPrintedBy(responseBody)
-                    }"
+        if(HeadersInterceptor.isBlocked){
+            val message = "SDK networking is locked until application restart"
+            ApphudLog.logE(message)
+            throw Exception(message)
+        }else if(isNetworkAvailable()){
+            val response = client.newCall(request).execute()
+            val responseBody = response.body!!.string()
+            if (response.isSuccessful) {
+                return responseBody
+            } else {
+                if(response.code == 403){
+                    HeadersInterceptor.isBlocked = true
+                }
+                val  message = "finish ${request.method} request ${request.url} " +
+                        "failed with code: ${response.code} response: ${
+                            buildPrettyPrintedBy(responseBody)
+                        }"
+                throw Exception(message)
+            }
+        }else{
+            val message = "No Internet connection"
+            ApphudLog.logE(message)
             throw Exception(message)
         }
     }
@@ -312,7 +332,7 @@ object RequestManager {
                     }
                     completionHandler(currentUser, null)
                 } ?: run {
-                    completionHandler(null, ApphudError("Response success but result is null"))
+                    completionHandler(null, ApphudError("Registration failed"))
                 }
             } catch (ex: Exception) {
                 val message = ex.message?:"Undefined error"
@@ -345,7 +365,7 @@ object RequestManager {
                     val paywallsList = response.data.results?.let { it1 -> paywallsMapper.map(it1) }
                     completionHandler(paywallsList, null)
                 }?: run{
-                    completionHandler(null, ApphudError("Response success but result is null"))
+                    completionHandler(null, ApphudError("Request paywalls failed"))
                 }
             } ?: run {
                 completionHandler(null, error)
@@ -371,7 +391,7 @@ object RequestManager {
                     val productsList = response.data.results?.let { it1 -> productMapper.map(it1) }
                     continuation.resume(productsList)
                 }?: run{
-                    ApphudLog.logE("Response success but result is null")
+                    ApphudLog.logE("Failed to load products")
                     continuation.resume(null)
                 }
             } ?: run {
@@ -406,7 +426,7 @@ object RequestManager {
                     val productsList = response.data.results?.let { it1 -> productMapper.map(it1) }
                     completionHandler(productsList, null)
                 }?: run{
-                    completionHandler(null, ApphudError("Response success but result is null"))
+                    completionHandler(null, ApphudError("Loading products failed"))
                 }
             } ?: run {
                 completionHandler(null, error)
@@ -453,7 +473,7 @@ object RequestManager {
                     }
                     completionHandler(currentUser, null)
                 } ?: run {
-                    completionHandler(null, ApphudError("Response success but result is null"))
+                    completionHandler(null, ApphudError("Purchase failed"))
                 }
             } ?: run {
                 completionHandler(null, error)
@@ -491,7 +511,7 @@ object RequestManager {
                     }
                     completionHandler(currentUser, null)
                 } ?: run {
-                    completionHandler(null, ApphudError("Response success but result is null"))
+                    completionHandler(null, ApphudError("Failed to restore purchases"))
                 }
             } ?: run {
                 completionHandler(null, error)
@@ -524,7 +544,7 @@ object RequestManager {
                     val attribution = response.data.results?.let { it1 -> attributionMapper.map(it1) }
                     completionHandler(attribution, null)
                 }?: run {
-                    completionHandler(null, ApphudError("Response success but result is null"))
+                    completionHandler(null, ApphudError("Failed to send attribution"))
                 }
             } ?: run {
                 completionHandler(null, error)
@@ -557,7 +577,7 @@ object RequestManager {
                     val attribution = response.data.results?.let { it1 -> attributionMapper.map(it1) }
                     completionHandler(attribution, null)
                 }?: run {
-                    completionHandler(null, ApphudError("Response success but result is null"))
+                    completionHandler(null, ApphudError("Failed to send properties"))
                 }
             } ?: run {
                 completionHandler(null, error)
@@ -621,7 +641,7 @@ object RequestManager {
             serverResponse?.let {
                     ApphudLog.logI("Paywall Event log was send successfully")
                 }?: run {
-                    ApphudLog.logI("Response success but result is null")
+                    ApphudLog.logI("Failed to send paywall event")
                 }
             error?.let {
                 ApphudLog.logE("Paywall Event log was not send")
