@@ -213,7 +213,7 @@ internal object ApphudInternal {
                 fetchDetails(groups)
             }
         }catch(ex: Exception){
-            ApphudLog.logE("Something went wrong" + ex.message)
+            ApphudLog.logE("Fetch products failed : " + ex.message, false)
         }
     }
 
