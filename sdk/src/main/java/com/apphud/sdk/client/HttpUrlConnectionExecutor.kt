@@ -25,93 +25,106 @@ class HttpUrlConnectionExecutor(
         var X_SDK: String = "Kotlin"
         var X_SDK_VERSION: String = BuildConfig.VERSION_NAME
         var HOST: String = ApiClient.host
+        var isBlocked: Boolean = false
     }
 
     override fun <O> call(config: RequestConfig): O = call(config, null)
     override fun <I, O> call(config: RequestConfig, input: I?): O = try {
 
-        val apphudUrl = ApphudUrl.Builder()
-            .host(HOST)
-            .version(version)
-            .path(config.path)
-            .params(config.queries)
-            .build()
+        if(isBlocked){
+            val errorBlocked = "SDK networking is locked until application restart"
+            ApphudLog.logE(errorBlocked, false)
+            val dataDto = DataDto(null)
+            val responseDto = ResponseDto(dataDto, listOf{errorBlocked})
+            parser.fromJson<O>(parser.toJson(responseDto), config.type)!!
+        }else{
+            val apphudUrl = ApphudUrl.Builder()
+                .host(HOST)
+                .version(version)
+                .path(config.path)
+                .params(config.queries)
+                .build()
 
-        val url = URL(apphudUrl.url)
-        val connection = url.openConnection() as HttpsURLConnection
-        connection.requestMethod = config.requestType.name
-        //TODO move in the setting
-        connection.setRequestProperty("User-Agent", "Apphud Android ($X_SDK $X_SDK_VERSION)")
-        connection.setRequestProperty("Authorization", "Bearer " + config.apiKey)
-        connection.setRequestProperty("Accept", "application/json; utf-8")
-        connection.setRequestProperty("Content-Type", "application/json; utf-8")
-        connection.setRequestProperty("X-Platform", "android")
-        if(X_SDK.isNotEmpty()){
-            connection.setRequestProperty("X-SDK", X_SDK)
-        }
-        if(X_SDK_VERSION.isNotEmpty()){
-            connection.setRequestProperty("X-SDK-VERSION", X_SDK_VERSION)
-        }
+            val url = URL(apphudUrl.url)
+            val connection = url.openConnection() as HttpsURLConnection
+            connection.requestMethod = config.requestType.name
+            //TODO move in the setting
+            connection.setRequestProperty("User-Agent", "Apphud Android ($X_SDK $X_SDK_VERSION)")
+            connection.setRequestProperty("Authorization", "Bearer " + config.apiKey)
+            connection.setRequestProperty("Accept", "application/json; utf-8")
+            connection.setRequestProperty("Content-Type", "application/json; utf-8")
+            connection.setRequestProperty("X-Platform", "android")
+            if(X_SDK.isNotEmpty()){
+                connection.setRequestProperty("X-SDK", X_SDK)
+            }
+            if(X_SDK_VERSION.isNotEmpty()){
+                connection.setRequestProperty("X-SDK-VERSION", X_SDK_VERSION)
+            }
 
-        config.headers.forEach { entry ->
-            connection.setRequestProperty(entry.key, entry.value)
-        }
-        connection.readTimeout = 10_000
-        connection.connectTimeout = 10_000
+            config.headers.forEach { entry ->
+                connection.setRequestProperty(entry.key, entry.value)
+            }
+            connection.readTimeout = 10_000
+            connection.connectTimeout = 10_000
 
-        when (config.requestType) {
-            RequestType.GET -> ApphudLog.logI("start ${config.requestType} request ${apphudUrl.url} without params")
-            else -> {
-                ApphudLog.logI("start ${config.requestType} request ${apphudUrl.url} with params:\n ${
-                    parser.toJson(input)
-                }")
-                input?.let { source ->
-                    connection.doOutput = true
-                    connection.outputStream.use { stream ->
-                        stream.write(parser.toJson(source).toByteArray(Charsets.UTF_8))
+            when (config.requestType) {
+                RequestType.GET -> ApphudLog.logI("start ${config.requestType} request ${apphudUrl.url} without params")
+                else -> {
+                    ApphudLog.logI("start ${config.requestType} request ${apphudUrl.url} with params:\n ${
+                        parser.toJson(input)
+                    }")
+                    input?.let { source ->
+                        connection.doOutput = true
+                        connection.outputStream.use { stream ->
+                            stream.write(parser.toJson(source).toByteArray(Charsets.UTF_8))
+                        }
                     }
                 }
             }
-        }
 
-        connection.connect()
-        val response = when (connection.isSuccess) {
-            true -> {
-                val serverAnswer = buildStringBy(connection.inputStream)
-                ApphudLog.logI(
-                    "finish ${config.requestType} request ${apphudUrl.url} " +
-                            "success with response:\n ${buildPrettyPrintedBy(serverAnswer)}")
+            connection.connect()
+            val response = when (connection.isSuccess) {
+                true -> {
+                    val serverAnswer = buildStringBy(connection.inputStream)
+                    ApphudLog.logI(
+                        "finish ${config.requestType} request ${apphudUrl.url} " +
+                                "success with response:\n ${buildPrettyPrintedBy(serverAnswer)}")
 
-                if(serverAnswer.isNotEmpty() && serverAnswer.toLowerCase() != "ok"){
-                    parser.fromJson<O>(serverAnswer, config.type)
-                }else{
-                    val attributionDto = AttributionDto(true)
-                    val dataDto = DataDto(attributionDto)
-                    val responseDto = ResponseDto(dataDto, null)
-                    parser.fromJson<O>(parser.toJson(responseDto), config.type)
-                }
-            }
-            else -> {
-                val serverAnswer = buildStringBy(connection.errorStream)
-                ApphudLog.logE(
-                    message = "finish ${config.requestType} request ${apphudUrl.url} " +
-                            "failed with code: ${connection.responseCode} response: ${
-                                buildPrettyPrintedBy(serverAnswer)
-                            }")
-                when (connection.responseCode) {
-                    422 -> {
+                    if(serverAnswer.isNotEmpty() && serverAnswer.toLowerCase() != "ok"){
                         parser.fromJson<O>(serverAnswer, config.type)
+                    }else{
+                        val attributionDto = AttributionDto(true)
+                        val dataDto = DataDto(attributionDto)
+                        val responseDto = ResponseDto(dataDto, null)
+                        parser.fromJson<O>(parser.toJson(responseDto), config.type)
                     }
-                    else -> {
-                        null
+                }
+                else -> {
+                    val serverAnswer = buildStringBy(connection.errorStream)
+                    ApphudLog.logE(
+                        message = "finish ${config.requestType} request ${apphudUrl.url} " +
+                                "failed with code: ${connection.responseCode} response: ${
+                                    buildPrettyPrintedBy(serverAnswer)
+                                }")
+                    when (connection.responseCode) {
+                        403 -> {
+                            isBlocked = true
+                            parser.fromJson<O>(serverAnswer, config.type)
+                        }
+                        422 -> {
+                            parser.fromJson<O>(serverAnswer, config.type)
+                        }
+                        else -> {
+                            null
+                        }
                     }
                 }
             }
+
+            connection.disconnect()
+
+            response?: exception(connection.responseCode)
         }
-
-        connection.disconnect()
-
-        response?: exception(connection.responseCode)
     } catch (e: Exception) {
         ApphudLog.logI("Throw with exception: $e")
         throw e
