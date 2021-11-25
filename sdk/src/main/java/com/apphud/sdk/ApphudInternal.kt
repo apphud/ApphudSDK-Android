@@ -128,9 +128,9 @@ internal object ApphudInternal {
         allowIdentifyUser = false
         ApphudLog.log("Start initialize with saved userId=${this.userId}, saved deviceId=${this.deviceId}")
 
+        skuDetails = cachedSkuDetails()
         productGroups = cachedGroups()
         paywalls = cachedPaywalls()
-        skuDetails = cachedSkuDetails()
 
         if(needRegistration) {
             registration(this.userId, this.deviceId, null)
@@ -162,7 +162,6 @@ internal object ApphudInternal {
                     if (fetchProducts()) {
                         launch(Dispatchers.Main) {
                             if (skuDetails.isNotEmpty()) {
-                                cacheSkuDetails(skuDetails)
                                 apphudListener?.apphudFetchSkuDetailsProducts(skuDetails)
                                 customProductsFetchedBlock?.invoke(skuDetails)
                             }
@@ -217,40 +216,51 @@ internal object ApphudInternal {
     private suspend fun fetchProducts(): Boolean {
         val groupsList = RequestManager.allProducts()
         groupsList?.let { groups ->
-            ApphudLog.logI("fetchProducts: products from Apphud server: $groups")
-            val ids = groups.map { it -> it.products?.map { it.product_id }!! }.flatten()
+            val result = fetchDetails(groups)
+            if(result){
+                //et to know to another threads that details are loaded successfully
+                productsLoaded.incrementAndGet()
 
-            var isInapLoaded = false
-            var isSubsLoaded = false
-            coroutineScope {
-                val subs = async{billing.detailsEx(BillingClient.SkuType.SUBS, ids)}
-                val inap =  async{billing.detailsEx(BillingClient.SkuType.INAPP, ids)}
+                //cache groups
+                cacheGroups(groups)
 
-                subs.await()?.let {
-                    skuDetails.addAll(it)
-                    isSubsLoaded = true
-                } ?: run {
-                    ApphudLog.logE("Unable to load SUBS details")
-                }
-
-                inap.await()?.let {
-                    skuDetails.addAll(it)
-                    isInapLoaded = true
-                } ?: run {
-                    ApphudLog.logE("Unable to load INAP details")
-                }
+                //reload products and paywall from cache to invalidate sku details inside
+                productGroups = cachedGroups()
+                paywalls = cachedPaywalls()
             }
-
-            updateGroupsWithSkuDetails(groups)
-            cacheGroups(groups)
-
-            productGroups = cachedGroups()
-
-            if(isSubsLoaded && isInapLoaded) productsLoaded.incrementAndGet()
-
-            return isSubsLoaded && isInapLoaded
+            return result
         }
         return false
+    }
+
+    private suspend fun fetchDetails(groups :List<ApphudGroup>): Boolean {
+        val ids = groups.map { it -> it.products?.map { it.product_id }!! }.flatten()
+
+        var isInapLoaded = false
+        var isSubsLoaded = false
+        skuDetails.clear()
+
+        coroutineScope {
+            val subs = async{billing.detailsEx(BillingClient.SkuType.SUBS, ids)}
+            val inap =  async{billing.detailsEx(BillingClient.SkuType.INAPP, ids)}
+
+            subs.await()?.let {
+                skuDetails.addAll(it)
+                isSubsLoaded = true
+            } ?: run {
+                ApphudLog.logE("Unable to load SUBS details", false)
+            }
+
+            inap.await()?.let {
+                skuDetails.addAll(it)
+                isInapLoaded = true
+            } ?: run {
+                ApphudLog.logE("Unable to load INAP details", false)
+            }
+
+            cacheSkuDetails(skuDetails)
+        }
+        return isSubsLoaded && isInapLoaded
     }
 
     private fun processCustomer(customer: Customer){
@@ -1073,20 +1083,9 @@ internal object ApphudInternal {
         return deviceId
     }
 
+    //SkuDetail cache ======================================
     internal fun getSkuDetailsList(): MutableList<SkuDetails>? {
         return skuDetails.takeIf { skuDetails.isNotEmpty() }
-    }
-
-    internal fun getSkuDetailsByProductId(productIdentifier: String): SkuDetails? {
-        return getSkuDetailsList()?.let { skuList -> skuList.firstOrNull { it.sku == productIdentifier } }
-    }
-
-    private fun updatePaywallsWithSkuDetails(paywalls: List<ApphudPaywall>) {
-        paywalls.forEach { paywall ->
-            paywall.products?.forEach { product ->
-                product.skuDetails = getSkuDetailsByProductId(product.product_id)
-            }
-        }
     }
 
     private fun cacheSkuDetails(details: List<SkuDetails>) {
@@ -1112,20 +1111,21 @@ internal object ApphudInternal {
         return result
     }
 
+    internal fun getSkuDetailsByProductId(productIdentifier: String): SkuDetails? {
+        return getSkuDetailsList()?.let { skuList -> skuList.firstOrNull { it.sku == productIdentifier } }
+    }
+
+    //Groups cache ======================================
     private fun cacheGroups(groups: List<ApphudGroup>) {
         storage.productGroups = groups
     }
 
     private fun cachedGroups(): MutableList<ApphudGroup> {
-        return storage.productGroups?.toMutableList() ?: mutableListOf()
-    }
-
-    private fun cachePaywalls(paywalls: List<ApphudPaywall>) {
-        storage.paywalls = paywalls
-    }
-
-    private fun cachedPaywalls(): MutableList<ApphudPaywall> {
-        return storage.paywalls?.toMutableList() ?: mutableListOf()
+        val productGroups = storage.productGroups
+        productGroups?.let {
+            updateGroupsWithSkuDetails(it)
+        }
+        return productGroups?.toMutableList() ?: mutableListOf()
     }
 
     private fun updateGroupsWithSkuDetails(productGroups: List<ApphudGroup>) {
@@ -1135,4 +1135,26 @@ internal object ApphudInternal {
             }
         }
     }
+
+    //Paywalls cache ======================================
+    private fun cachePaywalls(paywalls: List<ApphudPaywall>) {
+        storage.paywalls = paywalls
+    }
+
+    private fun cachedPaywalls(): MutableList<ApphudPaywall> {
+        val paywalls = storage.paywalls
+        paywalls?.let {
+            updatePaywallsWithSkuDetails(it)
+        }
+        return paywalls?.toMutableList() ?: mutableListOf()
+    }
+
+    private fun updatePaywallsWithSkuDetails(paywalls: List<ApphudPaywall>) {
+        paywalls.forEach { paywall ->
+            paywall.products?.forEach { product ->
+                product.skuDetails = getSkuDetailsByProductId(product.product_id)
+            }
+        }
+    }
+
 }
