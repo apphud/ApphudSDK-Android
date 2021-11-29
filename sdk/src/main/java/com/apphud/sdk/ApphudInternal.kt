@@ -554,10 +554,10 @@ internal object ApphudInternal {
 
                         if (newSubscriptions == null && newPurchases == null) {
                             val productId = details?.let { details.sku } ?: purchase.skus.first()?:"unknown"
-                            val message =
-                                "Error! There are no new subscriptions " +
-                                        "or new purchases from the Apphud server " +
-                                        "after the purchase of $productId"
+                            val message = "Unable to validate purchase ($productId). " +
+                                    "Ensure Google Service Credentials are correct and have necessary permissions. " +
+                                    "Check https://docs.apphud.com/getting-started/creating-app#google-play-service-credentials or contact support."
+
                             ApphudLog.logE(message)
                             callback?.invoke(ApphudPurchaseResult(null,
                                 null,
@@ -700,16 +700,23 @@ internal object ApphudInternal {
                 coroutineScope.launch(errorHandler) {
                     RequestManager.restorePurchases(tempPurchaseRecordDetails) { customer, error ->
                         launch(Dispatchers.Main) {
-                            customer?.let {
-                                prevPurchases.addAll(tempPurchaseRecordDetails)
-                                storage.isNeedSync = false
+                            customer?.let{
+                                if(tempPurchaseRecordDetails.size > it.subscriptions.size + it.purchases.size){
+                                    val message = "Unable to restore purchases. " +
+                                            "Ensure Google Service Credentials are correct and have necessary permissions. " +
+                                            "Check https://docs.apphud.com/getting-started/creating-app#google-play-service-credentials or contact support."
+                                    ApphudLog.logE(message = message)
+                                    callback?.invoke(null, null, ApphudError(message))
+                                }else{
+                                    prevPurchases.addAll(tempPurchaseRecordDetails)
+                                    storage.isNeedSync = false
+                                    storage.updateCustomer(it, apphudListener)
 
-                                processCustomer(it)
-
-                                ApphudLog.logI("SyncPurchases: customer was updated $customer")
-                                apphudListener?.apphudSubscriptionsUpdated(customer.subscriptions)
-                                apphudListener?.apphudNonRenewingPurchasesUpdated(customer.purchases)
-                                callback?.invoke(customer.subscriptions, customer.purchases, null)
+                                    ApphudLog.log("SyncPurchases: customer was updated $customer")
+                                    apphudListener?.apphudSubscriptionsUpdated(it.subscriptions)
+                                    apphudListener?.apphudNonRenewingPurchasesUpdated(it.purchases)
+                                    callback?.invoke(it.subscriptions, it.purchases, null)
+                                }
                             }
                             error?.let {
                                 val message = "Sync Purchases with Apphud is failed with message = ${error.message} and code = ${error.errorCode}"
