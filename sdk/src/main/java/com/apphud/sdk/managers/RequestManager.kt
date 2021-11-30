@@ -585,6 +585,42 @@ object RequestManager {
         }
     }
 
+    fun grantPromotional(daysCount: Int, productId: String?, permissionGroup: ApphudGroup?, completionHandler: (Customer?, ApphudError?) -> Unit) {
+        if(!canPerformRequest()) {
+            ApphudLog.logE(::grantPromotional.name + MUST_REGISTER_ERROR)
+            return
+        }
+
+        val apphudUrl = ApphudUrl.Builder()
+            .host(HeadersInterceptor.HOST)
+            .version(ApphudVersion.V1)
+            .path("promotions")
+            .build()
+
+        val request = buildPostRequest(URL(apphudUrl.url), grantPromotionalBody(daysCount, productId, permissionGroup))
+        val httpClient = getOkHttpClient()
+        try {
+            val serverResponse = performRequestSync(httpClient, request)
+            val responseDto: ResponseDto<CustomerDto>? =
+                parser.fromJson<ResponseDto<CustomerDto>>(
+                    serverResponse,
+                    object : TypeToken<ResponseDto<CustomerDto>>() {}.type
+                )
+
+            responseDto?.let { cDto ->
+                currentUser = cDto.data.results?.let { customerObj ->
+                    customerMapper.map(customerObj)
+                }
+                completionHandler(currentUser, null)
+            } ?: run {
+                completionHandler(null, ApphudError("Promotional request failed"))
+            }
+        } catch (ex: Exception) {
+            val message = ex.message?:"Undefined error"
+            completionHandler(null,  ApphudError(message))
+        }
+    }
+
     fun paywallShown(paywall: ApphudPaywall?) {
         trackPaywallEvent(
             makePaywallEventBody(
@@ -782,6 +818,16 @@ object RequestManager {
             environment = if (applicationContext.isDebuggable()) "sandbox" else "production",
             timestamp = System.currentTimeMillis()
         )
+
+    internal fun grantPromotionalBody(daysCount: Int, productId: String? = null, permissionGroup: ApphudGroup? = null): GrantPromotionalBody {
+        return GrantPromotionalBody(
+            duration = daysCount,
+            user_id = userId,
+            device_id = deviceId,
+            product_id = productId,
+            product_group_id = permissionGroup?.id
+        )
+    }
 
     private fun buildPrettyPrintedBy(jsonString: String): String? {
         var jsonObject: JSONObject? = null

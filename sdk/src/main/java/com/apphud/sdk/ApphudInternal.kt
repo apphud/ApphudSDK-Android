@@ -1164,4 +1164,29 @@ internal object ApphudInternal {
         }
     }
 
+    fun grantPromotional(daysCount: Int, productId: String?, permissionGroup: ApphudGroup?, callback: ((Boolean) -> Unit)?) {
+        checkRegistration { error ->
+            error?.let {
+                callback?.invoke(false)
+            } ?: run {
+                coroutineScope.launch(errorHandler) {
+                    RequestManager.grantPromotional(daysCount, productId, permissionGroup) { customer, error ->
+                        launch(Dispatchers.Main) {
+                            customer?.let {
+                                callback?.invoke(true)
+                                ApphudLog.logI("Promotional is granted")
+                            } ?: run {
+                                callback?.invoke(false)
+                                ApphudLog.logI("Promotional is NOT granted")
+                            }
+                            error?.let {
+                                callback?.invoke(false)
+                                ApphudLog.logI("Promotional is NOT granted")
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
 }
