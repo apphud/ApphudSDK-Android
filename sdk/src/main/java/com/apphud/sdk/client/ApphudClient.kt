@@ -2,6 +2,7 @@ package com.apphud.sdk.client
 
 import com.apphud.sdk.*
 import com.apphud.sdk.body.*
+import com.apphud.sdk.domain.Customer
 import com.apphud.sdk.mappers.*
 import com.apphud.sdk.parser.Parser
 import com.apphud.sdk.tasks.*
@@ -125,6 +126,19 @@ internal class ApphudClient(apiKey: ApiKey, private val parser: Parser) {
             when (response.data.results) {
                 null -> { ApphudLog.log("Paywall Event log was not send") }
                 else -> { ApphudLog.log("Paywall Event log was send successfully") }
+            }
+        })
+    }
+
+    /**
+     * Send Promotional request to Apphud Server
+     * */
+    fun grantPromotional(body: GrantPromotionalBody, callback: (Customer?) -> Unit) {
+        val callable = PromotionalCallable(body, serviceV1)
+        thread.execute(LoopRunnable(callable) { response ->
+            when (response.data.results) {
+                null -> callback.invoke(null)
+                else -> callback.invoke(customerMapper.map(response.data.results))
             }
         })
     }

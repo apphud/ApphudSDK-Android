@@ -286,6 +286,7 @@ internal object ApphudInternal {
                 }
             }
         } else{
+            isRegistered = true
             if(this.productGroups.isNotEmpty()) {
                 fetchDetails(this.productGroups)
             }else{
@@ -1182,5 +1183,34 @@ internal object ApphudInternal {
             timestamp = System.currentTimeMillis(),
             properties = if (properties.isNotEmpty()) properties else null
         )
+    }
+
+    private fun grantPromotionalBody(daysCount: Int, productId: String? = null, permissionGroup: ApphudGroup? = null): GrantPromotionalBody {
+        return GrantPromotionalBody(
+            duration = daysCount,
+            user_id = userId,
+            device_id = deviceId,
+            product_id = productId,
+            product_group_id = permissionGroup?.id
+        )
+    }
+
+    fun grantPromotional(daysCount: Int, productId: String?, permissionGroup: ApphudGroup?, callback: ((Boolean) -> Unit)?) {
+        if(isRegistered){
+            val body = grantPromotionalBody(daysCount, productId, permissionGroup)
+            client?.grantPromotional(body) { customer ->
+                customer?.let{
+                    ApphudLog.logI("Promotional is granted")
+                    handler.post {
+                        callback?.invoke(true)
+                    }
+                }?: run{
+                    ApphudLog.logI("Promotional is NOT granted")
+                    handler.post {
+                        callback?.invoke(false)
+                    }
+                }
+            }
+        }
     }
 }
