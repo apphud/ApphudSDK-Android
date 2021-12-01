@@ -712,6 +712,9 @@ internal object ApphudInternal {
                                     storage.isNeedSync = false
                                     storage.updateCustomer(it, apphudListener)
 
+                                    currentUser = storage.customer
+                                    RequestManager.currentUser = currentUser
+
                                     ApphudLog.log("SyncPurchases: customer was updated $customer")
                                     apphudListener?.apphudSubscriptionsUpdated(it.subscriptions)
                                     apphudListener?.apphudNonRenewingPurchasesUpdated(it.purchases)
