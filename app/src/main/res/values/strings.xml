@@ -1,0 +1,31 @@
+<resources>
+    <string name="app_name">Apphud Demo</string>
+    <string name="nav_header_title">Apphud Demo</string>
+    <string name="nav_header_subtitle">hi@apphud.com</string>
+    <string name="nav_header_desc">Navigation header</string>
+
+    <string name="menu_customer">Customer</string>
+    <string name="menu_paywalls">Paywalls</string>
+    <string name="menu_products">Products</string>
+    <string name="menu_groups">Permission groups</string>
+    <string name="menu_purchases">Purchases</string>
+
+    <string name="customerTitle">User ID:</string>
+    <string name="info">Sdk:</string>
+    <string name="app_version">App version:</string>
+    <string name="success">Success</string>
+    <string name="purchased_at">Purchased At:</string>
+    <string name="expires_at">Expires At:</string>
+    <string name="status">Status:</string>
+    <string name="name">Product name:</string>
+    <string name="id">Product id:</string>
+    <string name="price">Price:</string>
+    <string name="sync_purchases">Sync purchases</string>
+    <string name="is_default">Is default: </string>
+    <string name="experiment">Experiment: </string>
+    <string name="variation">Variation: </string>
+    <string name="json">Json</string>
+    <string name="restore_success">Success: restored purchases count %s</string>
+    <!-- TODO: Remove or change this placeholder text -->
+    <string name="hello_blank_fragment">Hello blank fragment</string>
+</resources>
