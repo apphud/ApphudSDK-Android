@@ -272,8 +272,10 @@ internal object ApphudInternal {
             cachePaywalls(paywalls)
         }
 
-        currentUser = customer
+
+        userId = customer.user.userId
         storage.updateCustomer(customer, apphudListener)
+        currentUser = storage.customer
     }
 
     internal fun productsFetchCallback(callback: (List<SkuDetails>) -> Unit) {
@@ -710,6 +712,7 @@ internal object ApphudInternal {
                                 }else{
                                     prevPurchases.addAll(tempPurchaseRecordDetails)
                                     storage.isNeedSync = false
+                                    userId = customer.user.userId
                                     storage.updateCustomer(it, apphudListener)
 
                                     currentUser = storage.customer
