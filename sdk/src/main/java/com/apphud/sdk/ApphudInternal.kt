@@ -591,7 +591,7 @@ internal object ApphudInternal {
             error?.let{
                 callback.invoke(null, null, error)
             }?: run{
-                syncPurchases(allowsReceiptRefresh = true, callback = callback)
+                syncPurchases(allowsReceiptRefresh = false, callback = callback)
             }
         }
     }
