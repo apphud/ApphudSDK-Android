@@ -93,8 +93,17 @@ object Apphud {
     /**
      * Fetches  paywalls configured in Apphud dashboard. Paywalls are automatically cached on device.
      */
-    fun paywalls() :List<ApphudPaywall> =
-        ApphudInternal.paywalls
+    fun paywalls() :List<ApphudPaywall>{
+        return ApphudInternal.getPaywalls()
+    }
+
+    /**
+     * Permission groups configured in Apphud dashboard. Groups are cached on device.
+     * Note that this method may be `null` at first launch of the app.
+     */
+    fun permissionGroups(): List<ApphudGroup> {
+        return ApphudInternal.permissionGroups()
+    }
 
     /**
      * Returns `true` if current user has purchased standard in-app purchase with given product identifier.
@@ -128,14 +137,6 @@ object Apphud {
      */
     @kotlin.jvm.JvmStatic
     fun syncPurchases() = ApphudInternal.syncPurchases()
-
-    /**
-     * Permission groups configured in Apphud dashboard. Groups are cached on device.
-     * Note that this method may be `null` at first launch of the app.
-     */
-    fun permissionGroups(): List<ApphudGroup> {
-        return ApphudInternal.productGroups
-    }
 
     /**
      * Implements `Restore Purchases` mechanism. Basically it just sends current Play Market Purchase Tokens to Apphud and returns subscriptions info.

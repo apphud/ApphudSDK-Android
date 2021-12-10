@@ -129,8 +129,8 @@ internal object ApphudInternal {
         ApphudLog.log("Start initialize with saved userId=${this.userId}, saved deviceId=${this.deviceId}")
 
         skuDetails = cachedSkuDetails()
-        productGroups = cachedGroups()
-        paywalls = cachedPaywalls()
+        readGroupsFromCache()
+        readPaywallsFromCache()
 
         if(needRegistration) {
             registration(this.userId, this.deviceId, null)
@@ -225,8 +225,8 @@ internal object ApphudInternal {
                 cacheGroups(groups)
 
                 //reload products and paywall from cache to invalidate sku details inside
-                productGroups = cachedGroups()
-                paywalls = cachedPaywalls()
+                readGroupsFromCache()
+                readPaywallsFromCache()
             }
             return result
         }
@@ -267,9 +267,8 @@ internal object ApphudInternal {
         if (customer.paywalls.isNotEmpty()) {
             didRetrievePaywallsAtThisLaunch = true
             updatePaywallsWithSkuDetails(customer.paywalls)
-            paywalls.clear()
-            paywalls.addAll(customer.paywalls)
-            cachePaywalls(paywalls)
+            cachePaywalls(customer.paywalls)
+            readPaywallsFromCache()
         }
 
 
@@ -1128,17 +1127,36 @@ internal object ApphudInternal {
         return getSkuDetailsList()?.let { skuList -> skuList.firstOrNull { it.sku == productIdentifier } }
     }
 
+    fun getPaywalls() : List<ApphudPaywall>{
+        var out: MutableList<ApphudPaywall>
+        synchronized(this.paywalls){
+            out = this.paywalls.toCollection(mutableListOf())
+        }
+        return out
+    }
+
+    fun permissionGroups(): List<ApphudGroup> {
+        var out: MutableList<ApphudGroup>
+        synchronized(this.productGroups){
+            out = this.productGroups.toCollection(mutableListOf())
+        }
+        return out
+    }
+
+
     //Groups cache ======================================
     private fun cacheGroups(groups: List<ApphudGroup>) {
         storage.productGroups = groups
     }
 
-    private fun cachedGroups(): MutableList<ApphudGroup> {
+    private fun readGroupsFromCache() {
         val productGroups = storage.productGroups
         productGroups?.let {
             updateGroupsWithSkuDetails(it)
         }
-        return productGroups?.toMutableList() ?: mutableListOf()
+        synchronized(this.productGroups){
+            this.productGroups =  productGroups?.toMutableList() ?: mutableListOf()
+        }
     }
 
     private fun updateGroupsWithSkuDetails(productGroups: List<ApphudGroup>) {
@@ -1154,12 +1172,14 @@ internal object ApphudInternal {
         storage.paywalls = paywalls
     }
 
-    private fun cachedPaywalls(): MutableList<ApphudPaywall> {
+    private fun readPaywallsFromCache() {
         val paywalls = storage.paywalls
         paywalls?.let {
             updatePaywallsWithSkuDetails(it)
         }
-        return paywalls?.toMutableList() ?: mutableListOf()
+        synchronized(this.paywalls){
+            this.paywalls =  paywalls?.toMutableList() ?: mutableListOf()
+        }
     }
 
     private fun updatePaywallsWithSkuDetails(paywalls: List<ApphudPaywall>) {
