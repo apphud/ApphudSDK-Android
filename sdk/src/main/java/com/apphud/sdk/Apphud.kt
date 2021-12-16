@@ -56,6 +56,13 @@ object Apphud {
     fun userId(): UserId? = ApphudInternal.userId
 
     /**
+     * Returns current device ID. You should use it only if you want to implement custom logout/login flow by saving User ID & Device ID pair for each app user.
+     */
+    fun deviceId(): String {
+        return ApphudInternal.deviceId
+    }
+
+    /**
      * Returns true if user has active subscription.
      * Use this method to determine whether or not to unlock premium functionality to the user.
      */

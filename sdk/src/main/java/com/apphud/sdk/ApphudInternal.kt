@@ -70,7 +70,7 @@ internal object ApphudInternal {
     private var didRetrievePaywallsAtThisLaunch = false
 
     internal var userId: UserId? = null
-    private lateinit var deviceId: DeviceId
+    internal lateinit var deviceId: DeviceId
 
     private var is_new = true
 
