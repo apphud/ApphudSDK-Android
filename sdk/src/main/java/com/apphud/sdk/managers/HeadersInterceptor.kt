@@ -22,7 +22,7 @@ class HeadersInterceptor(private val apiKey: String?) : Interceptor {
             .header("User-Agent", "Apphud Android ($X_SDK $X_SDK_VERSION)")
             .header("Authorization", "Bearer $apiKey")
             .header("Accept", "application/json; utf-8")
-            .header("Content-Type", "application/json; utf-8")
+            .header("Content-Type", "application/json; charset=utf-8")
             .header("X-Platform", "android")
             .header("X-SDK", X_SDK)
             .header("X-SDK-VERSION", X_SDK_VERSION)
