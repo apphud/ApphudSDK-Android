@@ -787,7 +787,8 @@ object RequestManager {
                     price_amount_micros = details?.priceAmountMicros,
                     subscription_period = details?.subscriptionPeriod,
                     paywall_id = paywall_id,
-                    product_bundle_id = apphud_product_id
+                    product_bundle_id = apphud_product_id,
+                    observer_mode = false
                 )
             )
         )
@@ -804,7 +805,8 @@ object RequestManager {
                     price_amount_micros = purchase.details.priceAmountMicros,
                     subscription_period = purchase.details.subscriptionPeriod,
                     paywall_id = null,
-                    product_bundle_id = null
+                    product_bundle_id = null,
+                    observer_mode = true
                 )
             }
         )
