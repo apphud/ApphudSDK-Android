@@ -11,7 +11,7 @@ data class ApphudUserProperty(
     val value: Any?,
     val increment: Boolean = false,
     val setOnce: Boolean = false,
-    val type: String = ""
+    var type: String = ""
 ) {
 
     fun toJSON(): MutableMap<String, Any?>? {
@@ -34,22 +34,27 @@ data class ApphudUserProperty(
     }
 
     internal fun getValue() :Any{
-        when(type){
-            "string" -> {
-                return value.toString()
+        try{
+            when(type){
+                "string" -> {
+                    return value.toString()
+                }
+                "boolean" -> {
+                    return value.toString().toBoolean()
+                }
+                "integer" -> {
+                    return value.toString().toDouble().toInt()
+                }
+                "float" -> {
+                    return value.toString().toDouble().toFloat()
+                }
+                "double" -> {
+                    value.toString().toDouble()
+                }
             }
-            "boolean" -> {
-                return value.toString().toBoolean()
-            }
-            "integer" -> {
-                return value.toString().toDouble().toInt()
-            }
-            "float" -> {
-                return value.toString().toDouble().toFloat()
-            }
-            "double" -> {
-                value.toString().toDouble()
-            }
+        }catch (ex: Exception){
+            type = "string"
+            ApphudLog.logE(ex.message?:"Unable to parse property value. Processed as string.")
         }
 
         return value.toString()

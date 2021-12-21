@@ -125,7 +125,7 @@ object RequestManager {
     private fun performRequest(client: OkHttpClient, request: Request, completionHandler: (String?, ApphudError?) -> Unit){
         try {
             if(HeadersInterceptor.isBlocked){
-                val message = "SDK networking is locked until application restart"
+                val message = "Unable to perform API requests, because your account has been suspended."
                 ApphudLog.logE(message)
                 completionHandler(null, ApphudError(message))
             }else if(isNetworkAvailable()){
@@ -481,7 +481,7 @@ object RequestManager {
         }
     }
 
-    fun restorePurchases(purchaseRecordDetailsSet: Set<PurchaseRecordDetails>,
+    fun restorePurchases(purchaseRecordDetailsSet: Set<PurchaseRecordDetails>, skipObserverModeParam: Boolean,
                   completionHandler: (Customer?, ApphudError?) -> Unit) {
         if(!canPerformRequest()) {
             ApphudLog.logE(::restorePurchases.name + MUST_REGISTER_ERROR)
@@ -494,7 +494,7 @@ object RequestManager {
             .path("subscriptions")
             .build()
 
-        val purchaseBody = makeRestorePurchasesBody(purchaseRecordDetailsSet.toList())
+        val purchaseBody = makeRestorePurchasesBody(purchaseRecordDetailsSet.toList(), skipObserverModeParam)
 
         val request = buildPostRequest(URL(apphudUrl.url), purchaseBody)
 
@@ -779,7 +779,7 @@ object RequestManager {
         PurchaseBody(
             device_id = deviceId,
             purchases = listOf(
-                PurchaseItemBody(
+                PurchaseItemObserverBody(
                     order_id = purchase.orderId,
                     product_id = details?.let { details.sku } ?: purchase.skus.first(),
                     purchase_token = purchase.purchaseToken,
@@ -793,23 +793,41 @@ object RequestManager {
             )
         )
 
-    private fun makeRestorePurchasesBody(purchases: List<PurchaseRecordDetails>) =
-        PurchaseBody(
-            device_id = deviceId,
-            purchases = purchases.map { purchase ->
-                PurchaseItemBody(
-                    order_id = null,
-                    product_id = purchase.details.sku,
-                    purchase_token = purchase.record.purchaseToken,
-                    price_currency_code = purchase.details.priceCurrencyCode,
-                    price_amount_micros = purchase.details.priceAmountMicros,
-                    subscription_period = purchase.details.subscriptionPeriod,
-                    paywall_id = null,
-                    product_bundle_id = null,
-                    observer_mode = true
-                )
-            }
-        )
+    private fun makeRestorePurchasesBody(purchases: List<PurchaseRecordDetails>, skipObserverModeParam: Boolean) =
+        if(skipObserverModeParam){
+            PurchaseBody(
+                device_id = deviceId,
+                purchases = purchases.map { purchase ->
+                    PurchaseItemBody(
+                        order_id = null,
+                        product_id = purchase.details.sku,
+                        purchase_token = purchase.record.purchaseToken,
+                        price_currency_code = purchase.details.priceCurrencyCode,
+                        price_amount_micros = purchase.details.priceAmountMicros,
+                        subscription_period = purchase.details.subscriptionPeriod,
+                        paywall_id = null,
+                        product_bundle_id = null
+                    )
+                }
+            )
+        }else{
+            PurchaseBody(
+                device_id = deviceId,
+                purchases = purchases.map { purchase ->
+                    PurchaseItemObserverBody(
+                        order_id = null,
+                        product_id = purchase.details.sku,
+                        purchase_token = purchase.record.purchaseToken,
+                        price_currency_code = purchase.details.priceCurrencyCode,
+                        price_amount_micros = purchase.details.priceAmountMicros,
+                        subscription_period = purchase.details.subscriptionPeriod,
+                        paywall_id = null,
+                        product_bundle_id = null,
+                        observer_mode = true
+                    )
+                }
+            )
+        }
 
     internal fun makeErrorLogsBody(message: String, apphud_product_id: String? = null) =
         ErrorLogsBody(

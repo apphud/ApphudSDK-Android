@@ -112,6 +112,7 @@ internal object ApphudInternal {
         }
 
         ApphudLog.log("Start initialize with userId=$userId, deviceId=$deviceId")
+        if(apiKey.isEmpty()) throw Exception("ApiKey can't be empty")
 
         this.context = context
         this.apiKey = apiKey
@@ -590,7 +591,7 @@ internal object ApphudInternal {
             error?.let{
                 callback.invoke(null, null, error)
             }?: run{
-                syncPurchases(allowsReceiptRefresh = false, callback = callback)
+                syncPurchases(allowsReceiptRefresh = true, callback = callback)
             }
         }
     }
@@ -622,7 +623,7 @@ internal object ApphudInternal {
                                     ApphudLog.log(message = error.toString(), sendLogToServer = true)
                                     callback?.invoke(null, null, error)
                                 } else {
-                                    syncPurchasesWithApphud(tempPrevPurchases, callback)
+                                    syncPurchasesWithApphud(tempPrevPurchases, callback, allowsReceiptRefresh)
                                 }
                             }
                         }
@@ -634,7 +635,7 @@ internal object ApphudInternal {
                                 if (!allowsReceiptRefresh && prevPurchases.containsAll(tempPrevPurchases)) {
                                     ApphudLog.log("SyncPurchases: Don't send equal purchases from prev state")
                                 } else {
-                                    syncPurchasesWithApphud(tempPrevPurchases, callback)
+                                    syncPurchasesWithApphud(tempPrevPurchases, callback, allowsReceiptRefresh)
                                 }
                             }
                         }
@@ -690,7 +691,8 @@ internal object ApphudInternal {
 
     private fun syncPurchasesWithApphud(
         tempPurchaseRecordDetails: Set<PurchaseRecordDetails>,
-        callback: ApphudPurchasesRestoreCallback? = null
+        callback: ApphudPurchasesRestoreCallback? = null,
+        skipObserverModeParam: Boolean
     ) {
         checkRegistration{ error ->
             error?.let{
@@ -699,16 +701,19 @@ internal object ApphudInternal {
                 callback?.invoke(null, null, error)
             }?: run{
                 coroutineScope.launch(errorHandler) {
-                    RequestManager.restorePurchases(tempPurchaseRecordDetails) { customer, error ->
+                    RequestManager.restorePurchases(tempPurchaseRecordDetails, skipObserverModeParam) { customer, error ->
                         launch(Dispatchers.Main) {
                             customer?.let{
-                                if(tempPurchaseRecordDetails.size > it.subscriptions.size + it.purchases.size){
-                                    val message = "Unable to restore purchases. " +
-                                            "Ensure Google Service Credentials are correct and have necessary permissions. " +
-                                            "Check https://docs.apphud.com/getting-started/creating-app#google-play-service-credentials or contact support."
-                                    ApphudLog.logE(message = message)
-                                    callback?.invoke(null, null, ApphudError(message))
-                                }else{
+                                customer?.let{
+                                    if(tempPurchaseRecordDetails.size > 0 && (it.subscriptions.size + it.purchases.size) == 0) {
+                                        val message = "Unable to completely validate all purchases. " +
+                                                "Ensure Google Service Credentials are correct and have necessary permissions. " +
+                                                "Check https://docs.apphud.com/getting-started/creating-app#google-play-service-credentials or contact support."
+                                        ApphudLog.logE(message = message)
+                                    }else{
+                                        ApphudLog.log("SyncPurchases: customer was successfully updated $customer")
+                                    }
+
                                     prevPurchases.addAll(tempPurchaseRecordDetails)
                                     storage.isNeedSync = false
                                     userId = customer.user.userId
@@ -905,10 +910,16 @@ internal object ApphudInternal {
             error?.let{
                 ApphudLog.logE(it.message)
             }?: run{
+
                 val properties = mutableListOf<Map<String, Any?>>()
+                val sentPropertiesForSave = mutableListOf<ApphudUserProperty>()
+
                 synchronized(pendingUserProperties) {
                     pendingUserProperties.forEach {
                         properties.add(it.value.toJSON()!!)
+                        if(!it.value.increment && it.value.value != null) {
+                            sentPropertiesForSave.add(it.value)
+                        }
                     }
                 }
 
@@ -918,7 +929,17 @@ internal object ApphudInternal {
                         launch(Dispatchers.Main) {
                             userProperties?.let{
                                 if (userProperties.success) {
-                                    pendingUserProperties.clear()
+
+                                    val propertiesInStorage = storage.properties
+                                    sentPropertiesForSave.forEach{
+                                        propertiesInStorage?.put(it.key, it)
+                                    }
+                                    storage.properties = propertiesInStorage
+
+                                    synchronized(pendingUserProperties){
+                                        pendingUserProperties.clear()
+                                    }
+
                                     ApphudLog.logI("User Properties successfully updated.")
                                 } else {
                                     val message = "User Properties update failed with errors"
