@@ -32,7 +32,7 @@ class HttpUrlConnectionExecutor(
     override fun <I, O> call(config: RequestConfig, input: I?): O = try {
 
         if(isBlocked){
-            val errorBlocked = "SDK networking is locked until application restart"
+            val errorBlocked = "Unable to perform API requests, because your account has been suspended."
             ApphudLog.logE(errorBlocked, false)
             val dataDto = DataDto(null)
             val responseDto = ResponseDto(dataDto, listOf{errorBlocked})

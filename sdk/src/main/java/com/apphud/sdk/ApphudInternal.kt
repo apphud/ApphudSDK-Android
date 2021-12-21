@@ -576,7 +576,7 @@ internal object ApphudInternal {
                             storage.isNeedSync = false
 
                             if (newSubscriptions == null && newPurchases == null) {
-                                val message = "Unable to validate purchase (${purchaseBody.purchases.first().product_id}). " +
+                                val message = "Unable to validate purchase (${purchaseBody.purchases.first()}). " +
                                         "Ensure Google Service Credentials are correct and have necessary permissions. " +
                                         "Check https://docs.apphud.com/getting-started/creating-app#google-play-service-credentials or contact support."
                                 ApphudLog.logE(message)
@@ -634,7 +634,7 @@ internal object ApphudInternal {
                             ApphudLog.log(message = error.toString(), sendLogToServer = true)
                             callback?.invoke(null, null, error)
                         } else {
-                            syncPurchasesWithApphud(tempPrevPurchases, callback)
+                            syncPurchasesWithApphud(tempPrevPurchases, callback, allowsReceiptRefresh)
                         }
                     }
                 }
@@ -646,7 +646,7 @@ internal object ApphudInternal {
                         if (!allowsReceiptRefresh && prevPurchases.containsAll(tempPrevPurchases)) {
                             ApphudLog.log("SyncPurchases: Don't send equal purchases from prev state")
                         } else {
-                            syncPurchasesWithApphud(tempPrevPurchases, callback)
+                            syncPurchasesWithApphud(tempPrevPurchases, callback, allowsReceiptRefresh)
                         }
                     }
                 }
@@ -696,29 +696,31 @@ internal object ApphudInternal {
 
     private fun syncPurchasesWithApphud(
         tempPurchaseRecordDetails: Set<PurchaseRecordDetails>,
-        callback: ApphudPurchasesRestoreCallback? = null
+        callback: ApphudPurchasesRestoreCallback? = null,
+        skipObserverModeParam: Boolean
     ) {
-        client?.purchased(makeRestorePurchasesBody(tempPurchaseRecordDetails.toList())) { customer, errors ->
+        client?.purchased(makeRestorePurchasesBody(tempPurchaseRecordDetails.toList(), skipObserverModeParam)) { customer, errors ->
             handler.post {
                 when (errors) {
                     null -> {
                         customer?.let{
-                            if(tempPurchaseRecordDetails.size > it.subscriptions.size + it.purchases.size){
-                                val message = "Unable to restore purchases. " +
+                            if(tempPurchaseRecordDetails.size > 0 && (it.subscriptions.size + it.purchases.size) == 0) {
+                                val message = "Unable to completely validate all purchases. " +
                                         "Ensure Google Service Credentials are correct and have necessary permissions. " +
                                         "Check https://docs.apphud.com/getting-started/creating-app#google-play-service-credentials or contact support."
                                 ApphudLog.logE(message = message)
-                                callback?.invoke(null, null, ApphudError(message))
                             }else{
-                                prevPurchases.addAll(tempPurchaseRecordDetails)
-                                storage.isNeedSync = false
-                                storage.updateCustomer(it, apphudListener)
-
-                                ApphudLog.log("SyncPurchases: customer was updated $customer")
-                                apphudListener?.apphudSubscriptionsUpdated(it.subscriptions)
-                                apphudListener?.apphudNonRenewingPurchasesUpdated(it.purchases)
-                                callback?.invoke(it.subscriptions, it.purchases, null)
+                                ApphudLog.log("SyncPurchases: customer was successfully updated $customer")
                             }
+
+                            prevPurchases.addAll(tempPurchaseRecordDetails)
+                            storage.isNeedSync = false
+                            storage.updateCustomer(it, apphudListener)
+                            this.userId = storage.userId
+
+                            apphudListener?.apphudSubscriptionsUpdated(it.subscriptions)
+                            apphudListener?.apphudNonRenewingPurchasesUpdated(it.purchases)
+                            callback?.invoke(it.subscriptions, it.purchases, null)
                         }
                     }
                     else -> {
@@ -980,7 +982,7 @@ internal object ApphudInternal {
         PurchaseBody(
             device_id = deviceId,
             purchases = listOf(
-                PurchaseItemBody(
+                PurchaseItemObserverBody(
                     order_id = purchase.orderId,
                     product_id = details?.let { details.sku } ?: purchase.skus.first(),
                     purchase_token = purchase.purchaseToken,
@@ -994,23 +996,41 @@ internal object ApphudInternal {
             )
         )
 
-    private fun makeRestorePurchasesBody(purchases: List<PurchaseRecordDetails>) =
-        PurchaseBody(
-            device_id = deviceId,
-            purchases = purchases.map { purchase ->
-                PurchaseItemBody(
-                    order_id = null,
-                    product_id = purchase.details.sku,
-                    purchase_token = purchase.record.purchaseToken,
-                    price_currency_code = purchase.details.priceCurrencyCode,
-                    price_amount_micros = purchase.details.priceAmountMicros,
-                    subscription_period = purchase.details.subscriptionPeriod,
-                    paywall_id = null,
-                    product_bundle_id = null,
-                    observer_mode = true
-                )
-            }
-        )
+    private fun makeRestorePurchasesBody(purchases: List<PurchaseRecordDetails>, skipObserverModeParam: Boolean) =
+        if(skipObserverModeParam){
+            PurchaseBody(
+                device_id = deviceId,
+                purchases = purchases.map { purchase ->
+                    PurchaseItemBody(
+                        order_id = null,
+                        product_id = purchase.details.sku,
+                        purchase_token = purchase.record.purchaseToken,
+                        price_currency_code = purchase.details.priceCurrencyCode,
+                        price_amount_micros = purchase.details.priceAmountMicros,
+                        subscription_period = purchase.details.subscriptionPeriod,
+                        paywall_id = null,
+                        product_bundle_id = null
+                    )
+                }
+            )
+        }else{
+            PurchaseBody(
+                device_id = deviceId,
+                purchases = purchases.map { purchase ->
+                    PurchaseItemObserverBody(
+                        order_id = null,
+                        product_id = purchase.details.sku,
+                        purchase_token = purchase.record.purchaseToken,
+                        price_currency_code = purchase.details.priceCurrencyCode,
+                        price_amount_micros = purchase.details.priceAmountMicros,
+                        subscription_period = purchase.details.subscriptionPeriod,
+                        paywall_id = null,
+                        product_bundle_id = null,
+                        observer_mode = true
+                    )
+                }
+            )
+        }
 
     private fun mkRegistrationBody(userId: UserId, deviceId: DeviceId) =
         RegistrationBody(
