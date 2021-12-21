@@ -863,6 +863,10 @@ internal object ApphudInternal {
             setOnce = setOnce,
             type = typeString)
 
+        if(!storage.needSendProperty(property)){
+            return
+        }
+
         synchronized(pendingUserProperties){
             pendingUserProperties.run {
                 remove(property.key)

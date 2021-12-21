@@ -3,6 +3,7 @@ package com.apphud.sdk.storage
 import android.content.Context
 import com.apphud.sdk.ApphudListener
 import com.apphud.sdk.ApphudLog
+import com.apphud.sdk.ApphudUserProperty
 import com.apphud.sdk.domain.*
 import com.apphud.sdk.isDebuggable
 import com.apphud.sdk.parser.Parser
@@ -22,6 +23,7 @@ class SharedPreferencesStorage(
         private const val DEVICE_ID_KEY = "deviceIdKey"
         private const val ADVERTISING_DI_KEY = "advertisingIdKey"
         private const val NEED_RESTART_KEY = "needRestartKey"
+        private const val PROPERTIES_KEY = "propertiesKey"
 
         private const val FACEBOOK_KEY = "facebookKey"
         private const val FIREBASE_KEY = "firebaseKey"
@@ -223,5 +225,60 @@ class SharedPreferencesStorage(
             }
             return result
         }
+    }
+
+    override var properties: HashMap<String, ApphudUserProperty>?
+        get() {
+            val source = preferences.getString(PROPERTIES_KEY, null)
+            val type = object : TypeToken<HashMap<String, ApphudUserProperty>>() {}.type
+            return parser.fromJson<HashMap<String, ApphudUserProperty>>(source, type)
+        }
+        set(value) {
+            val source = parser.toJson(value)
+            val editor = preferences.edit()
+            editor.putString(PROPERTIES_KEY, source)
+            editor.apply()
+        }
+
+    fun needSendProperty(property: ApphudUserProperty) :Boolean{
+        if(properties == null){
+            properties = hashMapOf()
+        }
+        properties?.let{
+            if(property.value == null){
+                //clean property
+                if(it.containsKey(property.key)) {
+                    it.remove(property.key)
+                    properties = it
+                }
+                return true
+            }
+
+            if(it.containsKey(property.key)) {
+                if(it[property.key]?.setOnce == true){
+                    val message = "Sending a property with key '${property.key}' is skipped. The property was previously specified as not updatable"
+                    ApphudLog.logI(message)
+                    return false
+                }
+                if(property.increment){
+                    //clean property to allow to set any value after increment
+                    if(it.containsKey(property.key)) {
+                        it.remove(property.key)
+                        properties = it
+                    }
+                    return true
+                }
+                if (it[property.key]?.getValue() == property.getValue()  && !property.setOnce){
+                    val message = "Sending a property with key '${property.key}' is skipped. Property value was not changed"
+                    ApphudLog.logI(message)
+                    return false
+                }
+            }
+            it[property.key] = property
+
+            properties = it
+        }
+
+        return true
     }
 }
