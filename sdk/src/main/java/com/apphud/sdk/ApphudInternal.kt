@@ -865,6 +865,10 @@ internal object ApphudInternal {
             setOnce = setOnce,
             type = typeString)
 
+        if(!storage.needSendProperty(property)){
+            return
+        }
+
         synchronized(pendingUserProperties){
             pendingUserProperties.run {
                 remove(property.key)
@@ -933,6 +937,7 @@ internal object ApphudInternal {
         storage.productGroups = null
         storage.skuDetails = null
         storage.lastRegistration = 0L
+        storage.properties = null
         userId = null
         generatedUUID = UUID.randomUUID().toString()
         prevPurchases.clear()
