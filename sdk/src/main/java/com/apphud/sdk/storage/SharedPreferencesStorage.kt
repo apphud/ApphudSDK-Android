@@ -274,9 +274,6 @@ class SharedPreferencesStorage(
                     return false
                 }
             }
-            it[property.key] = property
-
-            properties = it
         }
 
         return true

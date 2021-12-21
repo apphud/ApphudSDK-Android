@@ -883,10 +883,14 @@ internal object ApphudInternal {
         if (pendingUserProperties.isEmpty()) return
 
         val properties = mutableListOf<Map<String, Any?>>()
+        val sentPropertiesForSave = mutableListOf<ApphudUserProperty>()
 
         synchronized(pendingUserProperties) {
             pendingUserProperties.forEach {
                 properties.add(it.value.toJSON()!!)
+                if(!it.value.increment && it.value.value != null) {
+                    sentPropertiesForSave.add(it.value)
+                }
             }
         }
 
@@ -894,7 +898,15 @@ internal object ApphudInternal {
         client?.userProperties(body) { userProperties ->
             handler.post {
                 if (userProperties.success) {
-                    pendingUserProperties.clear()
+                    val propertiesInStorage = storage.properties
+                    sentPropertiesForSave.forEach{
+                        propertiesInStorage?.put(it.key, it)
+                    }
+                    storage.properties = propertiesInStorage
+
+                    synchronized(pendingUserProperties){
+                        pendingUserProperties.clear()
+                    }
                     ApphudLog.log("User Properties successfully updated.")
                 } else {
                     val message = "User Properties update failed with errors"
