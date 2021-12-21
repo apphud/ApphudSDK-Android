@@ -6,7 +6,7 @@ internal const val JSON_NAME_SET_ONCE = "set_once"
 internal const val JSON_NAME_KIND = "kind"
 internal const val JSON_NAME_INCREMENT = "increment"
 
-internal data class ApphudUserProperty(
+data class ApphudUserProperty(
     val key: String,
     val value: Any?,
     val increment: Boolean = false,
@@ -32,5 +32,28 @@ internal data class ApphudUserProperty(
         }
         return jsonParamsString
     }
+
+    internal fun getValue() :Any{
+        when(type){
+            "string" -> {
+                return value.toString()
+            }
+            "boolean" -> {
+                return value.toString().toBoolean()
+            }
+            "integer" -> {
+                return value.toString().toDouble().toInt()
+            }
+            "float" -> {
+                return value.toString().toDouble().toFloat()
+            }
+            "double" -> {
+                value.toString().toDouble()
+            }
+        }
+
+        return value.toString()
+    }
+
 
 }

@@ -1,6 +1,7 @@
 package com.apphud.sdk.storage
 
 import com.android.billingclient.api.SkuDetails
+import com.apphud.sdk.ApphudUserProperty
 import com.apphud.sdk.domain.*
 
 interface Storage {
@@ -16,4 +17,5 @@ interface Storage {
     var productGroups: List<ApphudGroup>?
     var paywalls: List<ApphudPaywall>?
     var skuDetails: List<String>?
+    var properties: HashMap<String, ApphudUserProperty>?
 }
