@@ -176,6 +176,8 @@ internal object ApphudInternal {
                     "\n=============================================================")
             return
         }
+        if(apiKey.isEmpty()) throw Exception("ApiKey can't be empty")
+
         this.apiKey = apiKey
         this.context = context
         billing = BillingWrapper(context)
