@@ -935,6 +935,7 @@ internal object ApphudInternal {
         storage.productGroups = null
         storage.skuDetails = null
         storage.lastRegistration = 0L
+        storage.properties = null
         userId = null
         generatedUUID = UUID.randomUUID().toString()
         prevPurchases.clear()
