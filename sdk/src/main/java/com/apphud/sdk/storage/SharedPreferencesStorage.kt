@@ -216,6 +216,7 @@ class SharedPreferencesStorage(
         productGroups = null
         paywalls = null
         skuDetails = null
+        properties = null
     }
 
     fun needRegistration() :Boolean {
