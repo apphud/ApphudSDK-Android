@@ -109,4 +109,15 @@ class ApphudServiceV1(
             ),
             body
         )
+
+    fun sendPromotionalRequest(body: GrantPromotionalBody): ResponseDto<CustomerDto> =
+        executor.call(
+            RequestConfig(
+                path = "promotions",
+                type = object : TypeToken<ResponseDto<CustomerDto>>(){}.type,
+                apiKey = apiKey,
+                requestType = RequestType.POST
+            ),
+            body
+        )
 }

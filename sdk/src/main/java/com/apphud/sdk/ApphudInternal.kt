@@ -70,7 +70,7 @@ internal object ApphudInternal {
     private var didRetrievePaywallsAtThisLaunch = false
 
     internal var userId: UserId? = null
-    private lateinit var deviceId: DeviceId
+    internal lateinit var deviceId: DeviceId
 
     private var is_new = true
 
@@ -176,6 +176,8 @@ internal object ApphudInternal {
                     "\n=============================================================")
             return
         }
+        if(apiKey.isEmpty()) throw Exception("ApiKey can't be empty")
+
         this.apiKey = apiKey
         this.context = context
         billing = BillingWrapper(context)
@@ -286,6 +288,7 @@ internal object ApphudInternal {
                 }
             }
         } else{
+            isRegistered = true
             if(this.productGroups.isNotEmpty()) {
                 fetchDetails(this.productGroups)
             }else{
@@ -575,10 +578,9 @@ internal object ApphudInternal {
                             storage.isNeedSync = false
 
                             if (newSubscriptions == null && newPurchases == null) {
-                                val message =
-                                    "Error! There are no new subscriptions " +
-                                            "or new purchases from the Apphud server " +
-                                            "after the purchase of ${purchaseBody.purchases.first().product_id}"
+                                val message = "Unable to validate purchase (${purchaseBody.purchases.first()}). " +
+                                        "Ensure Google Service Credentials are correct and have necessary permissions. " +
+                                        "Check https://docs.apphud.com/getting-started/creating-app#google-play-service-credentials or contact support."
                                 ApphudLog.logE(message)
                                 callback?.invoke(ApphudPurchaseResult(null,
                                     null,
@@ -634,7 +636,7 @@ internal object ApphudInternal {
                             ApphudLog.log(message = error.toString(), sendLogToServer = true)
                             callback?.invoke(null, null, error)
                         } else {
-                            syncPurchasesWithApphud(tempPrevPurchases, callback)
+                            syncPurchasesWithApphud(tempPrevPurchases, callback, allowsReceiptRefresh)
                         }
                     }
                 }
@@ -646,7 +648,7 @@ internal object ApphudInternal {
                         if (!allowsReceiptRefresh && prevPurchases.containsAll(tempPrevPurchases)) {
                             ApphudLog.log("SyncPurchases: Don't send equal purchases from prev state")
                         } else {
-                            syncPurchasesWithApphud(tempPrevPurchases, callback)
+                            syncPurchasesWithApphud(tempPrevPurchases, callback, allowsReceiptRefresh)
                         }
                     }
                 }
@@ -696,21 +698,32 @@ internal object ApphudInternal {
 
     private fun syncPurchasesWithApphud(
         tempPurchaseRecordDetails: Set<PurchaseRecordDetails>,
-        callback: ApphudPurchasesRestoreCallback? = null
+        callback: ApphudPurchasesRestoreCallback? = null,
+        skipObserverModeParam: Boolean
     ) {
-        client?.purchased(makeRestorePurchasesBody(tempPurchaseRecordDetails.toList())) { customer, errors ->
+        client?.purchased(makeRestorePurchasesBody(tempPurchaseRecordDetails.toList(), skipObserverModeParam)) { customer, errors ->
             handler.post {
                 when (errors) {
                     null -> {
-                        prevPurchases.addAll(tempPurchaseRecordDetails)
-                        storage.isNeedSync = false
                         customer?.let{
+                            if(tempPurchaseRecordDetails.size > 0 && (it.subscriptions.size + it.purchases.size) == 0) {
+                                val message = "Unable to completely validate all purchases. " +
+                                        "Ensure Google Service Credentials are correct and have necessary permissions. " +
+                                        "Check https://docs.apphud.com/getting-started/creating-app#google-play-service-credentials or contact support."
+                                ApphudLog.logE(message = message)
+                            }else{
+                                ApphudLog.log("SyncPurchases: customer was successfully updated $customer")
+                            }
+
+                            prevPurchases.addAll(tempPurchaseRecordDetails)
+                            storage.isNeedSync = false
                             storage.updateCustomer(it, apphudListener)
+                            this.userId = storage.userId
+
+                            apphudListener?.apphudSubscriptionsUpdated(it.subscriptions)
+                            apphudListener?.apphudNonRenewingPurchasesUpdated(it.purchases)
+                            callback?.invoke(it.subscriptions, it.purchases, null)
                         }
-                        ApphudLog.log("SyncPurchases: customer was updated $customer")
-                        apphudListener?.apphudSubscriptionsUpdated(customer?.subscriptions!!)
-                        apphudListener?.apphudNonRenewingPurchasesUpdated(customer?.purchases!!)
-                        callback?.invoke(customer?.subscriptions, customer?.purchases, null)
                     }
                     else -> {
                         val message =
@@ -854,6 +867,10 @@ internal object ApphudInternal {
             setOnce = setOnce,
             type = typeString)
 
+        if(!storage.needSendProperty(property)){
+            return
+        }
+
         synchronized(pendingUserProperties){
             pendingUserProperties.run {
                 remove(property.key)
@@ -868,10 +885,14 @@ internal object ApphudInternal {
         if (pendingUserProperties.isEmpty()) return
 
         val properties = mutableListOf<Map<String, Any?>>()
+        val sentPropertiesForSave = mutableListOf<ApphudUserProperty>()
 
         synchronized(pendingUserProperties) {
             pendingUserProperties.forEach {
                 properties.add(it.value.toJSON()!!)
+                if(!it.value.increment && it.value.value != null) {
+                    sentPropertiesForSave.add(it.value)
+                }
             }
         }
 
@@ -879,7 +900,15 @@ internal object ApphudInternal {
         client?.userProperties(body) { userProperties ->
             handler.post {
                 if (userProperties.success) {
-                    pendingUserProperties.clear()
+                    val propertiesInStorage = storage.properties
+                    sentPropertiesForSave.forEach{
+                        propertiesInStorage?.put(it.key, it)
+                    }
+                    storage.properties = propertiesInStorage
+
+                    synchronized(pendingUserProperties){
+                        pendingUserProperties.clear()
+                    }
                     ApphudLog.log("User Properties successfully updated.")
                 } else {
                     val message = "User Properties update failed with errors"
@@ -922,6 +951,7 @@ internal object ApphudInternal {
         storage.productGroups = null
         storage.skuDetails = null
         storage.lastRegistration = 0L
+        storage.properties = null
         userId = null
         generatedUUID = UUID.randomUUID().toString()
         prevPurchases.clear()
@@ -971,7 +1001,7 @@ internal object ApphudInternal {
         PurchaseBody(
             device_id = deviceId,
             purchases = listOf(
-                PurchaseItemBody(
+                PurchaseItemObserverBody(
                     order_id = purchase.orderId,
                     product_id = details?.let { details.sku } ?: purchase.skus.first(),
                     purchase_token = purchase.purchaseToken,
@@ -979,27 +1009,47 @@ internal object ApphudInternal {
                     price_amount_micros = details?.priceAmountMicros,
                     subscription_period = details?.subscriptionPeriod,
                     paywall_id = paywall_id,
-                    product_bundle_id = apphud_product_id
+                    product_bundle_id = apphud_product_id,
+                    observer_mode = false
                 )
             )
         )
 
-    private fun makeRestorePurchasesBody(purchases: List<PurchaseRecordDetails>) =
-        PurchaseBody(
-            device_id = deviceId,
-            purchases = purchases.map { purchase ->
-                PurchaseItemBody(
-                    order_id = null,
-                    product_id = purchase.details.sku,
-                    purchase_token = purchase.record.purchaseToken,
-                    price_currency_code = purchase.details.priceCurrencyCode,
-                    price_amount_micros = purchase.details.priceAmountMicros,
-                    subscription_period = purchase.details.subscriptionPeriod,
-                    paywall_id = null,
-                    product_bundle_id = null
-                )
-            }
-        )
+    private fun makeRestorePurchasesBody(purchases: List<PurchaseRecordDetails>, skipObserverModeParam: Boolean) =
+        if(skipObserverModeParam){
+            PurchaseBody(
+                device_id = deviceId,
+                purchases = purchases.map { purchase ->
+                    PurchaseItemBody(
+                        order_id = null,
+                        product_id = purchase.details.sku,
+                        purchase_token = purchase.record.purchaseToken,
+                        price_currency_code = purchase.details.priceCurrencyCode,
+                        price_amount_micros = purchase.details.priceAmountMicros,
+                        subscription_period = purchase.details.subscriptionPeriod,
+                        paywall_id = null,
+                        product_bundle_id = null
+                    )
+                }
+            )
+        }else{
+            PurchaseBody(
+                device_id = deviceId,
+                purchases = purchases.map { purchase ->
+                    PurchaseItemObserverBody(
+                        order_id = null,
+                        product_id = purchase.details.sku,
+                        purchase_token = purchase.record.purchaseToken,
+                        price_currency_code = purchase.details.priceCurrencyCode,
+                        price_amount_micros = purchase.details.priceAmountMicros,
+                        subscription_period = purchase.details.subscriptionPeriod,
+                        paywall_id = null,
+                        product_bundle_id = null,
+                        observer_mode = true
+                    )
+                }
+            )
+        }
 
     private fun mkRegistrationBody(userId: UserId, deviceId: DeviceId) =
         RegistrationBody(
@@ -1174,5 +1224,34 @@ internal object ApphudInternal {
             timestamp = System.currentTimeMillis(),
             properties = if (properties.isNotEmpty()) properties else null
         )
+    }
+
+    private fun grantPromotionalBody(daysCount: Int, productId: String? = null, permissionGroup: ApphudGroup? = null): GrantPromotionalBody {
+        return GrantPromotionalBody(
+            duration = daysCount,
+            user_id = userId,
+            device_id = deviceId,
+            product_id = productId,
+            product_group_id = permissionGroup?.id
+        )
+    }
+
+    fun grantPromotional(daysCount: Int, productId: String?, permissionGroup: ApphudGroup?, callback: ((Boolean) -> Unit)?) {
+        if(isRegistered){
+            val body = grantPromotionalBody(daysCount, productId, permissionGroup)
+            client?.grantPromotional(body) { customer ->
+                customer?.let{
+                    ApphudLog.logI("Promotional is granted")
+                    handler.post {
+                        callback?.invoke(true)
+                    }
+                }?: run{
+                    ApphudLog.logI("Promotional is NOT granted")
+                    handler.post {
+                        callback?.invoke(false)
+                    }
+                }
+            }
+        }
     }
 }

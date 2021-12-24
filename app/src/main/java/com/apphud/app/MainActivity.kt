@@ -2,100 +2,78 @@ package com.apphud.app
 
 import android.os.Bundle
 import android.util.Log
-import android.widget.Button
+import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
-import androidx.recyclerview.widget.RecyclerView
+import com.google.android.material.navigation.NavigationView
+import androidx.navigation.findNavController
+import androidx.navigation.ui.AppBarConfiguration
+import androidx.navigation.ui.navigateUp
+import androidx.navigation.ui.setupActionBarWithNavController
+import androidx.drawerlayout.widget.DrawerLayout
+import androidx.core.view.GravityCompat
 import com.android.billingclient.api.SkuDetails
-import com.apphud.sdk.ApphudListener
+import com.apphud.app.databinding.ActivityMainBinding
 import com.apphud.sdk.Apphud
-import com.apphud.sdk.ProductId
+import com.apphud.sdk.ApphudListener
 import com.apphud.sdk.domain.ApphudNonRenewingPurchase
-import com.apphud.sdk.domain.ApphudSubscription
-import com.apphud.app.presentation.ProductModel
-import com.apphud.app.presentation.ProductModelMapper
-import com.apphud.app.presentation.ProductsAdapter
 import com.apphud.sdk.domain.ApphudPaywall
+import com.apphud.sdk.domain.ApphudSubscription
 
 class MainActivity : AppCompatActivity() {
 
-    private val mapper = ProductModelMapper()
-    private val adapter = ProductsAdapter()
-
-    private var products = mutableMapOf<ProductId, ProductModel>()
+    private lateinit var appBarConfiguration: AppBarConfiguration
+    private lateinit var binding: ActivityMainBinding
+    private lateinit var me: MainActivity
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        setContentView(R.layout.activity_main)
+        me = this
 
-        val listener = object : ApphudListener {
-            override fun apphudSubscriptionsUpdated(subscriptions: List<ApphudSubscription>) {
+        binding = ActivityMainBinding.inflate(layoutInflater)
+        setContentView(binding.root)
 
-                Log.d("apphud","SUBSCRIPTIONS UPDATED: ${Apphud.subscriptions() }. Has active subscription: ${Apphud.hasActiveSubscription()}")
+        setSupportActionBar(binding.appBarMain.toolbar)
 
-                subscriptions.forEach { subscription ->
-                    val model = when (val product = products[subscription.productId]) {
-                        null -> mapper.map(subscription)
-                        else -> mapper.map(product, subscription)
-                    }
-                    when (val existingSubscription = products[model.productId]?.subscription) {
-                        null -> products[model.productId] = model
-                        else -> Log.d("apphud","already has subscription, will not update")
-                    }
-                }
+        val drawerLayout: DrawerLayout = binding.drawerLayout
+        val navView: NavigationView = binding.navView
+        val navController = findNavController(R.id.nav_host_fragment_content_main)
 
-                adapter.products = products.values.toList()
-            }
+        appBarConfiguration = AppBarConfiguration(
+            setOf(R.id.nav_customer,
+                  R.id.nav_groups,
+                  R.id.nav_purchases
+            ), drawerLayout
+        )
+        setupActionBarWithNavController(navController, appBarConfiguration)
 
-            override fun apphudNonRenewingPurchasesUpdated(purchases: List<ApphudNonRenewingPurchase>) {
-                purchases.forEach { purchase ->
-                    val model = when (val product = products[purchase.productId]) {
-                        null -> mapper.map(purchase)
-                        else -> mapper.map(product, purchase)
-                    }
-                    products[model.productId] = model
-                }
-                adapter.products = products.values.toList()
-            }
-
-            override fun apphudFetchSkuDetailsProducts(details: List<SkuDetails>) {
-                details.forEach { detail ->
-                    val model = when (val product = products[detail.sku]) {
-                        null -> mapper.map(detail)
-                        else -> mapper.map(product, detail)
-                    }
-                    products[model.productId] = model
-                }
-                adapter.products = products.values.toList()
-            }
-
-            override fun apphudDidChangeUserID(userId: String) {
-                Log.d("apphud", "User id was changed: " + userId)
-            }
-
-            override fun paywallsDidLoadCallback(paywalls: List<ApphudPaywall>) {
-                Log.d("apphud", "paywalls is loaded")
-            }
+        navView.setNavigationItemSelectedListener {
+            navController.navigate(it.itemId)
+            drawerLayout.closeDrawer(GravityCompat.START)
+            true
         }
-        Apphud.setListener(listener)
+    }
 
-        adapter.onClick = { model ->
-            Log.e("Apphud", "onClick model: $model")
-            when (model.details) {
-                null -> Log.e("Apphud", "details is empty")
-                else -> Apphud.purchase(this, model.details.sku) { result ->
-                    Log.d("apphud","PURCHASE RESULT: ${Apphud.subscriptions() }. Has active subscription: ${Apphud.hasActiveSubscription()}")
-                    Log.d("apphud", "${result.error?.toString()}")
+    override fun onSupportNavigateUp(): Boolean {
+        val navController = findNavController(R.id.nav_host_fragment_content_main)
+        return navController.navigateUp(appBarConfiguration) || super.onSupportNavigateUp()
+    }
+
+    private var backPress: Long = 0
+    override fun onBackPressed() {
+        if (binding.drawerLayout.isDrawerOpen(GravityCompat.START)) {
+            binding.drawerLayout.closeDrawer(GravityCompat.START)
+        } else {
+            if(!findNavController(R.id.nav_host_fragment_content_main).navigateUp()){
+                if (backPress + 2000 > System.currentTimeMillis()) {
+                    super.onBackPressed()
+                } else {
+                    Toast.makeText(
+                        baseContext, "Please press again to exit!",
+                        Toast.LENGTH_SHORT
+                    ).show()
+                    backPress = System.currentTimeMillis()
                 }
             }
         }
-
-        val syncButton: Button = findViewById(R.id.syncButtonViewId)
-        syncButton.setOnClickListener {
-            Apphud.restorePurchases { subscriptions, purchases, error ->
-                Log.d("apphud", "restorePurchases: subscriptions=${subscriptions?.toString()} purchases=${purchases?.toString()} error=${error?.toString()} ")
-            }
-        }
-        val recyclerView = findViewById<RecyclerView>(R.id.recyclerViewId)
-        recyclerView.adapter = adapter
     }
 }
