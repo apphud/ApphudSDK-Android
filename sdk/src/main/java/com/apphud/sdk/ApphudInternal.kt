@@ -1240,4 +1240,8 @@ internal object ApphudInternal {
             }
         }
     }
+
+    internal fun getPackageName(): String{
+        return context.packageName
+    }
 }

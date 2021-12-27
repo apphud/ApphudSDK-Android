@@ -129,7 +129,11 @@ object RequestManager {
                 ApphudLog.logE(message)
                 completionHandler(null, ApphudError(message))
             }else if(isNetworkAvailable()){
+                val startTime = System.currentTimeMillis()
                 val response = client.newCall(request).execute()
+                val endTime = System.currentTimeMillis()
+                ApphudLog.logBenchmark(request.url.encodedPath, endTime - startTime)
+
                 if (response.isSuccessful) {
                     response.body?.let {
                         completionHandler(it.string(), null)
@@ -165,7 +169,11 @@ object RequestManager {
             ApphudLog.logE(message)
             throw Exception(message)
         }else if(isNetworkAvailable()){
+            val startTime = System.currentTimeMillis()
             val response = client.newCall(request).execute()
+            val endTime = System.currentTimeMillis()
+            ApphudLog.logBenchmark(request.url.encodedPath, endTime - startTime)
+
             val responseBody = response.body!!.string()
             if (response.isSuccessful) {
                 return responseBody
@@ -706,6 +714,29 @@ object RequestManager {
                 ApphudLog.logE("Error logs was not send")
             }?:run{
                 ApphudLog.logI("Error logs was send successfully")
+            }
+        }
+    }
+
+    fun sendBenchmarkLogs(body: BenchmarkBody){
+        if(!canPerformRequest()) {
+            ApphudLog.logE(::sendErrorLogs.name + MUST_REGISTER_ERROR)
+            return
+        }
+
+        val apphudUrl = ApphudUrl.Builder()
+            .host(HeadersInterceptor.HOST)
+            .version(ApphudVersion.V2)
+            .path("logs")
+            .build()
+
+        val request = buildPostRequest(URL(apphudUrl.url), body)
+
+        makeRequest(request) { _, error ->
+            error?.let {
+                ApphudLog.logE("Benchmark logs was not send")
+            }?:run{
+                ApphudLog.logI("Benchmark logs was send successfully")
             }
         }
     }
