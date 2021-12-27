@@ -23,7 +23,7 @@ class LoopRunnable<T>(
         try {
             callback.invoke(callable.call())
         } catch (e: Exception) {
-            if(callable !is ErrorLogsCallable && callable.counter == 0){
+            if(callable !is BenchmarkLogsCallable && callable !is ErrorLogsCallable && callable.counter == 0){
                 when (e) {
                     is UnknownHostException -> {
                         ApphudLog.log( "request failed with exception ${e.message}")
@@ -32,7 +32,7 @@ class LoopRunnable<T>(
                         e.message?.let {
                             ApphudLog.log(
                                 message = "request failed with exception ${e.message}",
-                                sendLogToServer = true
+                                sendLogToServer = false
                             )
                         }
                     }
@@ -40,7 +40,7 @@ class LoopRunnable<T>(
                         e.message?.let {
                             ApphudLog.log(
                                 message = "request failed with exception ${e.message}",
-                                sendLogToServer = true
+                                sendLogToServer = false
                             )
                         }
                     }

@@ -2,9 +2,12 @@ package com.apphud.sdk.client
 
 import com.apphud.sdk.ApiKey
 import com.apphud.sdk.ApphudInternal
+import com.apphud.sdk.body.BenchmarkBody
 import com.apphud.sdk.body.DeviceIdBody
+import com.apphud.sdk.body.ErrorLogsBody
 import com.apphud.sdk.client.dto.ApphudGroupDto
 import com.apphud.sdk.client.dto.ApphudPaywallDto
+import com.apphud.sdk.client.dto.AttributionDto
 import com.apphud.sdk.client.dto.ResponseDto
 import com.google.gson.reflect.TypeToken
 
@@ -48,4 +51,19 @@ class ApphudServiceV2(
                 requestType = RequestType.GET
             )
         )
+
+    /**
+     * Sending Banchmark Logs
+     */
+    fun sendBenchmarkLogs(body: BenchmarkBody): ResponseDto<AttributionDto> =
+        executor.call(
+            RequestConfig(
+                path = "logs",
+                type = object : TypeToken<ResponseDto<AttributionDto>>(){}.type,
+                apiKey = apiKey,
+                requestType = RequestType.POST
+            ),
+            body
+        )
+
 }

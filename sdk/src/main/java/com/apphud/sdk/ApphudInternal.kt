@@ -388,7 +388,7 @@ internal object ApphudInternal {
                     //if we booth SkuType already loaded and we still haven't any SkuDetails
                     val message = "Unable to fetch product with given product id: $productName" + apphudProduct?.let{ " [Apphud product ID: " + it.id + "]"}
                     ApphudLog.log(message = message,
-                        sendLogToServer = true)
+                        sendLogToServer = false)
                     callback?.invoke(ApphudPurchaseResult(null,
                         null,
                         null,
@@ -416,7 +416,7 @@ internal object ApphudInternal {
                 is PurchaseCallbackStatus.Error -> {
                     val message = "Failed to acknowledge purchase with code: ${status.error}" + apphudProduct?.let{ " [Apphud product ID: " + it.id + "]"}
                     ApphudLog.log(message = message,
-                        sendLogToServer = true)
+                        sendLogToServer = false)
                     callback?.invoke(ApphudPurchaseResult(null,
                         null,
                         purchase,
@@ -439,7 +439,7 @@ internal object ApphudInternal {
                 is PurchaseCallbackStatus.Error -> {
                     val message = "Failed to consume purchase with error: ${status.error}" + apphudProduct?.let{ " [Apphud product ID: " + it.id + "]"}
                     ApphudLog.log(message = message,
-                        sendLogToServer = true)
+                        sendLogToServer = false)
                     callback?.invoke(ApphudPurchaseResult(null,
                         null,
                         purchase,
@@ -633,7 +633,7 @@ internal object ApphudInternal {
                                 ApphudError(message = "Restore Purchases is failed for SkuType.SUBS and SkuType.INAPP",
                                     secondErrorMessage = restoreStatus.message,
                                     errorCode = restoreStatus.result?.responseCode)
-                            ApphudLog.log(message = error.toString(), sendLogToServer = true)
+                            ApphudLog.log(message = error.toString(), sendLogToServer = false)
                             callback?.invoke(null, null, error)
                         } else {
                             syncPurchasesWithApphud(tempPrevPurchases, callback, allowsReceiptRefresh)
@@ -687,7 +687,7 @@ internal object ApphudInternal {
         callback: ApphudPurchasesRestoreCallback? = null
     ) {
         if (productsForRestore.isNullOrEmpty()) {
-            ApphudLog.log(message = message, sendLogToServer = true)
+            ApphudLog.log(message = message, sendLogToServer = false)
             callback?.invoke(null, null, ApphudError(message = message))
         } else {
             ApphudLog.log("historyCallback: $productsForRestore")
@@ -1253,5 +1253,9 @@ internal object ApphudInternal {
                 }
             }
         }
+    }
+
+    internal fun getPackageName(): String{
+        return context.packageName
     }
 }

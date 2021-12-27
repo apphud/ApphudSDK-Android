@@ -2,6 +2,7 @@ package com.apphud.sdk.client
 
 import com.apphud.sdk.*
 import com.apphud.sdk.body.*
+import com.apphud.sdk.domain.Attribution
 import com.apphud.sdk.domain.Customer
 import com.apphud.sdk.mappers.*
 import com.apphud.sdk.parser.Parser
@@ -113,6 +114,19 @@ internal class ApphudClient(apiKey: ApiKey, private val parser: Parser) {
             when (response.data.results) {
                 null -> { ApphudLog.log("Error logs was not send") }
                 else -> { ApphudLog.log("Error logs was send successfully") }
+            }
+        })
+    }
+
+    /**
+     * For internal use only
+     * */
+    fun sendBenchmarkLogs(body: BenchmarkBody){
+        val callable = BenchmarkLogsCallable(body, serviceV2)
+        thread.execute(LoopRunnable(callable) { response ->
+            when (response.data.results) {
+                null -> {ApphudLog.log("Benchmark logs was not send")}
+                else -> {ApphudLog.log("Benchmark logs is sent")}
             }
         })
     }

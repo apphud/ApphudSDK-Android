@@ -7,6 +7,7 @@ import com.apphud.sdk.client.dto.DataDto
 import com.apphud.sdk.client.dto.ResponseDto
 import com.apphud.sdk.isSuccess
 import com.apphud.sdk.parser.Parser
+import com.apphud.sdk.tasks.RegistrationCallable
 import java.io.BufferedReader
 import java.io.InputStream
 import java.io.InputStreamReader
@@ -82,9 +83,13 @@ class HttpUrlConnectionExecutor(
                 }
             }
 
+            val startTime = System.currentTimeMillis()
             connection.connect()
             val response = when (connection.isSuccess) {
                 true -> {
+                    val endTime = System.currentTimeMillis()
+                    ApphudLog.logBenchmark("/" + version + "/" + config.path, endTime - startTime)
+
                     val serverAnswer = buildStringBy(connection.inputStream)
                     ApphudLog.logI(
                         "finish ${config.requestType} request ${apphudUrl.url} " +
@@ -107,6 +112,9 @@ class HttpUrlConnectionExecutor(
                                     buildPrettyPrintedBy(serverAnswer)
                                 }")
                     when (connection.responseCode) {
+                        /*404 -> {
+                            parser.fromJson<O>("{\"data\": {\"results\": {\"success\": false}},\"errors\": null}", config.type)
+                        }*/
                         403 -> {
                             isBlocked = true
                             parser.fromJson<O>(serverAnswer, config.type)
