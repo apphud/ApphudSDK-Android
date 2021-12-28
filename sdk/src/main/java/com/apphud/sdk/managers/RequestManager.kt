@@ -169,10 +169,8 @@ object RequestManager {
             ApphudLog.logE(message)
             throw Exception(message)
         }else if(isNetworkAvailable()){
-            val startTime = System.currentTimeMillis()
             val response = client.newCall(request).execute()
-            val endTime = System.currentTimeMillis()
-            ApphudLog.logBenchmark(request.url.encodedPath, endTime - startTime)
+            ApphudLog.logBenchmark(request.url.encodedPath, response.receivedResponseAtMillis - response.sentRequestAtMillis)
 
             val responseBody = response.body!!.string()
             if (response.isSuccessful) {
