@@ -119,7 +119,7 @@ internal object ApphudInternal {
 
         billing = BillingWrapper(context)
         
-        val needRegistration = needRegistration()
+        val needRegistration = needRegistration(userId)
         ApphudLog.logI("Need registration: " + needRegistration)
 
         this.userId = updateUser(id = userId)
@@ -141,7 +141,14 @@ internal object ApphudInternal {
         }
     }
 
-    private fun needRegistration(): Boolean{
+    private fun needRegistration(passedUserId: String?): Boolean{
+        passedUserId?.let{
+            if(!storage.userId.isNullOrEmpty()){
+                if(it != storage.userId) {
+                    return true
+                }
+            }
+        }
         if(storage.userId.isNullOrEmpty()
             || storage.deviceId.isNullOrEmpty()
             || storage.customer == null
