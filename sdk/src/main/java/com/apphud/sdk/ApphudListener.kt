@@ -32,9 +32,22 @@ interface ApphudListener {
      */
     fun apphudDidChangeUserID(userId: String)
 
+    /**
+    Called when paywalls are loaded, however SkuDetails may still be nil at the moment
+     */
+    fun paywallsDidLoad(paywalls: List<ApphudPaywall>)
 
     /**
-    Called when paywall loaded
+    Called when paywalls are fully loaded with their SkuDetails
+    */
+    fun paywallsDidFullyLoad(paywalls: List<ApphudPaywall>)
+
+
+    /**
+     1. распараллелить загрузку продуктов v2/products и post v1/customers
+     2. добавить ретрай на запросы post v1/customers и v2/products
+     3. добавить эти два листенера выше, первый вызовется тогда, когда загрузятся пейволы, т.е. когда зарегался кастомер
+     4. второй листенер пусть вызывается тогда, когда доступны SkuDetails в пейволах
+     5.
      */
-    fun paywallsDidLoadCallback(paywalls: List<ApphudPaywall>)
 }

@@ -790,19 +790,33 @@ internal object ApphudInternal {
                 val temporary = storage.appsflyer
                 when {
                     temporary == null -> Unit
-                    temporary.id == body?.appsflyer_id -> return
-                    temporary.data == body?.appsflyer_data -> return
+                    (temporary.id == body?.appsflyer_id) && (temporary.data == body?.appsflyer_data)-> {
+                        Already submitted the same ${Firebase | AppsFlyer | Facebook | Adjust} attribution, skipping
+                        return
+                    }
                 }
             }
             ApphudAttributionProvider.facebook -> {
                 val temporary = storage.facebook
                 when {
                     temporary == null -> Unit
-                    temporary.data == body?.facebook_data -> return
+                    temporary.data == body?.facebook_data -> {
+                        Already submitted the same ${Firebase | AppsFlyer | Facebook | Adjust} attribution, skipping
+                        return
+                    }
                 }
             }
             ApphudAttributionProvider.firebase -> {
-                if (storage.firebase == body?.firebase_id) return
+                if (storage.firebase == body?.firebase_id) {
+                    Already submitted the same ${Firebase | AppsFlyer | Facebook | Adjust} attribution, skipping
+                    return
+                }
+            }
+            ApphudAttributionProvider.adjust -> {
+                if (storage.adid == body?.adid) {
+                    Already submitted the same Adjust attribution, skipping
+                    return
+                }
             }
         }
 
@@ -814,6 +828,7 @@ internal object ApphudInternal {
                 body?.let {
                     coroutineScope.launch(errorHandler) {
                         RequestManager.send(it) { attribution, error ->
+                            Did send ${AppsFlyer | Adjust | Facebook | Firebase} attribution data to Apphud
                             ApphudLog.logI("Success without saving send attribution: $attribution")
                             launch(Dispatchers.Main) {
                                 when (provider) {
@@ -824,11 +839,7 @@ internal object ApphudInternal {
                                                 id = body.appsflyer_id,
                                                 data = body.appsflyer_data
                                             )
-                                            temporary.id != body.appsflyer_id -> AppsflyerInfo(
-                                                id = body.appsflyer_id,
-                                                data = body.appsflyer_data
-                                            )
-                                            temporary.data != body.appsflyer_data -> AppsflyerInfo(
+                                            (temporary.id != body.appsflyer_id) || (temporary.data != body.appsflyer_data)-> AppsflyerInfo(
                                                 id = body.appsflyer_id,
                                                 data = body.appsflyer_data
                                             )
@@ -851,6 +862,7 @@ internal object ApphudInternal {
                                             else -> temporary
                                         }
                                     }
+                                    save adid to storage
                                 }
                                 error?.let {
                                     ApphudLog.logE(message = it.message)
