@@ -94,6 +94,10 @@ internal class BillingWrapper(context: Context) : BillingClientStateListener, Cl
                 manualCallback: ApphudSkuDetailsCallback? = null) =
         sku.queryAsync(type = type, products = products, manualCallback = manualCallback)
 
+    suspend fun detailsEx(@BillingClient.SkuType type: SkuType, products: List<ProductId>) : List<SkuDetails>? =
+        sku.queryAsyncEx(type = type, products = products)
+
+
     fun restore(@BillingClient.SkuType type: SkuType, products: List<PurchaseHistoryRecord>) =
         sku.restoreAsync(type, products)
 

@@ -1,6 +1,7 @@
 package com.apphud.sdk.storage
 
 import android.content.Context
+import com.android.billingclient.api.SkuDetails
 import com.apphud.sdk.ApphudListener
 import com.apphud.sdk.ApphudLog
 import com.apphud.sdk.ApphudUserProperty
@@ -42,7 +43,7 @@ class SharedPreferencesStorage(
         MODE
     )
 
-    val cacheTimeout = if (context.isDebuggable()) 60L else 3600L
+    val cacheTimeout = if (context.isDebuggable()) 120L else 3600L
 
     override var userId: String?
         get() = preferences.getString(USER_ID_KEY, null)
@@ -123,6 +124,24 @@ class SharedPreferencesStorage(
             editor.apply()
         }
 
+    override var productGroups: List<ApphudGroup>?
+        get() {
+            val timestamp = preferences.getLong(GROUP_TIMESTAMP_KEY, -1L) + (cacheTimeout * 1000)
+            val currentTime = System.currentTimeMillis()
+            return if (currentTime < timestamp) {
+                val source = preferences.getString(GROUP_KEY, null)
+                val type = object : TypeToken<List<ApphudGroup>>() {}.type
+                return parser.fromJson<List<ApphudGroup>>(source, type)
+            } else null
+        }
+        set(value) {
+            val source = parser.toJson(value)
+            val editor = preferences.edit()
+            editor.putLong(GROUP_TIMESTAMP_KEY, System.currentTimeMillis())
+            editor.putString(GROUP_KEY, source)
+            editor.apply()
+        }
+
     override var paywalls: List<ApphudPaywall>?
         get() {
             val timestamp = preferences.getLong(PAYWALLS_TIMESTAMP_KEY, -1L) + (cacheTimeout * 1000)
@@ -141,21 +160,29 @@ class SharedPreferencesStorage(
             editor.apply()
         }
 
-    override var productGroups: List<ApphudGroup>?
+    override var skuDetails: List<String>?
         get() {
-            val timestamp = preferences.getLong(GROUP_TIMESTAMP_KEY, -1L) + (cacheTimeout * 1000)
+            val timestamp = preferences.getLong(SKU_TIMESTAMP_KEY, -1L) + (cacheTimeout * 1000)
             val currentTime = System.currentTimeMillis()
             return if (currentTime < timestamp) {
-                val source = preferences.getString(GROUP_KEY, null)
-                val type = object : TypeToken<List<ApphudGroup>>() {}.type
-                return parser.fromJson<List<ApphudGroup>>(source, type)
+                val source = preferences.getString(SKU_KEY, null)
+                val type = object : TypeToken<List<String>>() {}.type
+                parser.fromJson<List<String>>(source, type)
             } else null
         }
         set(value) {
             val source = parser.toJson(value)
             val editor = preferences.edit()
-            editor.putLong(GROUP_TIMESTAMP_KEY, System.currentTimeMillis())
-            editor.putString(GROUP_KEY, source)
+            editor.putLong(SKU_TIMESTAMP_KEY, System.currentTimeMillis())
+            editor.putString(SKU_KEY, source)
+            editor.apply()
+        }
+
+    override var lastRegistration: Long
+        get() = preferences.getLong(LAST_REGISTRATION_KEY, 0L)
+        set(value) {
+            val editor = preferences.edit()
+            editor.putLong(LAST_REGISTRATION_KEY, value)
             editor.apply()
         }
 
@@ -176,32 +203,21 @@ class SharedPreferencesStorage(
         }
     }
 
-    override var skuDetails: List<String>?
-        get() {
-            val timestamp = preferences.getLong(SKU_TIMESTAMP_KEY, -1L) + (cacheTimeout * 1000)
-            val currentTime = System.currentTimeMillis()
-            return if (currentTime < timestamp) {
-                val source = preferences.getString(SKU_KEY, null)
-                val type = object : TypeToken<List<String>>() {}.type
-                parser.fromJson<List<String>>(source, type)
-            } else null
-        }
-        set(value) {
-            val source = parser.toJson(value)
-            val editor = preferences.edit()
-            editor.putLong(SKU_TIMESTAMP_KEY, System.currentTimeMillis())
-            editor.putString(SKU_KEY, source)
-            editor.apply()
-        }
-
-
-    override var lastRegistration: Long
-        get() = preferences.getLong(LAST_REGISTRATION_KEY, 0L)
-        set(value) {
-            val editor = preferences.edit()
-            editor.putLong(LAST_REGISTRATION_KEY, value)
-            editor.apply()
-        }
+    fun clean() {
+        lastRegistration = 0L
+        customer = null
+        userId = null
+        deviceId = null
+        advertisingId = null
+        isNeedSync = false
+        facebook = null
+        firebase = null
+        appsflyer = null
+        productGroups = null
+        paywalls = null
+        skuDetails = null
+        properties = null
+    }
 
     fun needRegistration() :Boolean {
         val timestamp = lastRegistration + (cacheTimeout * 1000)

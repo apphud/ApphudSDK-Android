@@ -32,6 +32,7 @@ interface ApphudListener {
      */
     fun apphudDidChangeUserID(userId: String)
 
+
     /**
     Called when paywall loaded
      */
