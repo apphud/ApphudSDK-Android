@@ -1,0 +1,47 @@
+{
+  "project_info": {
+    "project_number": "73151043304",
+    "project_id": "apphud-test-app",
+    "storage_bucket": "apphud-test-app.appspot.com"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:73151043304:android:e63f53958dd88c0b89db5d",
+        "android_client_info": {
+          "package_name": "com.apphud.app"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "73151043304-3a16ame56nakrtgo8aklms4ionvp4uq4.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAE-Gg1kLvRcsUDXC4YPNNILmt5LQU_fTk"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "73151043304-3a16ame56nakrtgo8aklms4ionvp4uq4.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "73151043304-97rmmsm9bb6t00pvi0dk80lt23vvuc3r.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.apphud.testapplication",
+                "app_store_id": "1534917201"
+              }
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

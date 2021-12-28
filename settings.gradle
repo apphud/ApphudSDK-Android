@@ -1,3 +1,4 @@
 include ':sdk'
 include ':app'
+include ':qa'
 rootProject.name = "DemoApp"
