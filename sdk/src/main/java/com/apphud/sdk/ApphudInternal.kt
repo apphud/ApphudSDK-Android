@@ -165,57 +165,87 @@ internal object ApphudInternal {
     ) {
         ApphudLog.log("Start registration userId=$userId, deviceId=$deviceId")
         coroutineScope.launch(errorHandler) {
+            var customer: Customer? = null
+
             mutex.withLock {
-                if(productsLoaded.get() == 0) {
-                    if (fetchProducts()) {
-                        launch(Dispatchers.Main) {
-                            if (skuDetails.isNotEmpty()) {
-                                apphudListener?.apphudFetchSkuDetailsProducts(skuDetails)
-                                customProductsFetchedBlock?.invoke(skuDetails)
+                if(currentUser == null) {
+                    ApphudLog.log("Registration: currentUser == null")
+                    val threads = listOf(
+                        async {
+                            ApphudLog.log("Registration: load products")
+                            if (productsLoaded.get() == 0) {
+                                if (fetchProducts()) {
+                                    launch(Dispatchers.Main) {
+                                        if (skuDetails.isNotEmpty()) {
+                                            ApphudLog.log("Registration: products loaded")
+                                            apphudListener?.apphudFetchSkuDetailsProducts(skuDetails)
+                                            customProductsFetchedBlock?.invoke(skuDetails)
+                                        }
+                                    }
+                                }
+                            }
+                        },
+                        async {
+                            ApphudLog.log("Registration: load customer")
+                            customer = RequestManager.registrationSync(
+                                !didRetrievePaywallsAtThisLaunch,
+                                is_new
+                            )
+                            customer?.let {
+                                ApphudLog.log("Registration: customer loaded")
+                                storage.lastRegistration = System.currentTimeMillis()
+                                launch(Dispatchers.Main) {
+                                    ApphudLog.log("Registration: notify paywallsDidLoad")
+                                    apphudListener?.paywallsDidLoad(paywalls)
+                                }
+
+                            } ?: run {
+                                ApphudLog.log("Registration: restore from cache")
+                                storage.customer?.let {
+                                    currentUser = it
+                                    launch(Dispatchers.Main) {
+                                        completionHandler?.invoke(it, null)
+                                    }
+                                } ?: run {
+                                    ApphudLog.logE("Registration: error")
+                                    launch(Dispatchers.Main) {
+                                        completionHandler?.invoke(
+                                            null,
+                                            ApphudError("Registration: error")
+                                        )
+                                    }
+                                }
                             }
                         }
-                    }
-                }
-
-                if(productsLoaded.get() > 0){
-                    val customer = RequestManager.registrationSync(!didRetrievePaywallsAtThisLaunch, is_new)
-                    customer?.let {
-                        processCustomer(it)
-                        storage.lastRegistration = System.currentTimeMillis()
-
-                        launch(Dispatchers.Main) {
-                            completionHandler?.invoke(it, null)
-                            apphudListener?.apphudNonRenewingPurchasesUpdated(customer.purchases)
-                            apphudListener?.apphudSubscriptionsUpdated(customer.subscriptions)
-                            apphudListener?.paywallsDidLoadCallback(paywalls)
-
-                            // try to resend purchases, if prev requests was fail
-                            if (storage.isNeedSync) {
-                                ApphudLog.log("registration: syncPurchases")
-                                syncPurchases()
-                            }
-
-                            if (pendingUserProperties.isNotEmpty() && setNeedsToUpdateUserProperties) {
-                                ApphudLog.log("registration: we should update UserProperties")
-                                updateUserProperties()
-                            }
-                            ApphudLog.logI("End registration")
-                        }
-                    }?: run{
-                        storage.customer?.let{
-                            currentUser = it
+                    )
+                    threads.awaitAll()?.let {
+                        ApphudLog.log("Registration: both requests processed")
+                        customer?.let {
+                            ApphudLog.log("Registration: processCustomer")
+                            processCustomer(it)
                             launch(Dispatchers.Main) {
                                 completionHandler?.invoke(it, null)
-                            }
-                        }?:run{
-                            ApphudLog.logE("Registration error")
-                            launch(Dispatchers.Main) {
-                                completionHandler?.invoke(null, ApphudError("Registration error"))
+                                apphudListener?.apphudNonRenewingPurchasesUpdated(it.purchases)
+                                apphudListener?.apphudSubscriptionsUpdated(it.subscriptions)
+                                apphudListener?.paywallsDidFullyLoad(paywalls)
+                                ApphudLog.log("Registration: notify paywallsDidFullyLoad")
+
+                                // try to resend purchases, if prev requests was fail
+                                if (storage.isNeedSync) {
+                                    ApphudLog.log("Registration: syncPurchases")
+                                    syncPurchases()
+                                }
+
+                                if (pendingUserProperties.isNotEmpty() && setNeedsToUpdateUserProperties) {
+                                    ApphudLog.log("Registration: we should update UserProperties")
+                                    updateUserProperties()
+                                }
+                                ApphudLog.logI("Registration: completed")
                             }
                         }
                     }
                 }else{
-                    completionHandler?.invoke(null, ApphudError("Unable to restore products and sku details before registration at Apphud"))
+                    ApphudLog.log("Registration: already registered, skipping")
                 }
             }
         }
@@ -226,7 +256,7 @@ internal object ApphudInternal {
         groupsList?.let { groups ->
             val result = fetchDetails(groups)
             if(result){
-                //et to know to another threads that details are loaded successfully
+                //Let to know to another threads that details are loaded successfully
                 productsLoaded.incrementAndGet()
 
                 //cache groups
@@ -791,7 +821,7 @@ internal object ApphudInternal {
                 when {
                     temporary == null -> Unit
                     (temporary.id == body?.appsflyer_id) && (temporary.data == body?.appsflyer_data)-> {
-                        Already submitted the same ${Firebase | AppsFlyer | Facebook | Adjust} attribution, skipping
+                        ApphudLog.logI("Already submitted the same AppsFlyer attribution, skipping")
                         return
                     }
                 }
@@ -801,21 +831,25 @@ internal object ApphudInternal {
                 when {
                     temporary == null -> Unit
                     temporary.data == body?.facebook_data -> {
-                        Already submitted the same ${Firebase | AppsFlyer | Facebook | Adjust} attribution, skipping
+                        ApphudLog.logI("Already submitted the same Facebook attribution, skipping")
                         return
                     }
                 }
             }
             ApphudAttributionProvider.firebase -> {
                 if (storage.firebase == body?.firebase_id) {
-                    Already submitted the same ${Firebase | AppsFlyer | Facebook | Adjust} attribution, skipping
+                    ApphudLog.logI("Already submitted the same Firebase attribution, skipping")
                     return
                 }
             }
             ApphudAttributionProvider.adjust -> {
-                if (storage.adid == body?.adid) {
-                    Already submitted the same Adjust attribution, skipping
-                    return
+                val temporary = storage.adjust
+                when {
+                    temporary == null -> Unit
+                    (temporary.adid == body?.adid) && (temporary.adjust_data == body?.adjust_data)-> {
+                        ApphudLog.logI("Already submitted the same Adjust attribution, skipping")
+                        return
+                    }
                 }
             }
         }
@@ -828,8 +862,7 @@ internal object ApphudInternal {
                 body?.let {
                     coroutineScope.launch(errorHandler) {
                         RequestManager.send(it) { attribution, error ->
-                            Did send ${AppsFlyer | Adjust | Facebook | Firebase} attribution data to Apphud
-                            ApphudLog.logI("Success without saving send attribution: $attribution")
+                            ApphudLog.logI("Did send $attribution attribution data to Apphud")
                             launch(Dispatchers.Main) {
                                 when (provider) {
                                     ApphudAttributionProvider.appsFlyer -> {
@@ -862,7 +895,20 @@ internal object ApphudInternal {
                                             else -> temporary
                                         }
                                     }
-                                    save adid to storage
+                                    ApphudAttributionProvider.adjust -> {
+                                        val temporary = storage.adjust
+                                        storage.adjust = when {
+                                            temporary == null -> AdjustInfo(
+                                                adid = body.adid,
+                                                adjust_data = body.adjust_data
+                                            )
+                                            (temporary.adid != body.adid) || (temporary.adjust_data != body.adjust_data)-> AdjustInfo(
+                                                adid = body.adid,
+                                                adjust_data = body.adjust_data
+                                            )
+                                            else -> temporary
+                                        }
+                                    }
                                 }
                                 error?.let {
                                     ApphudLog.logE(message = it.message)

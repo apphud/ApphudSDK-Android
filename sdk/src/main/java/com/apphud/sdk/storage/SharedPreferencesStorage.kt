@@ -29,6 +29,7 @@ class SharedPreferencesStorage(
         private const val FACEBOOK_KEY = "facebookKey"
         private const val FIREBASE_KEY = "firebaseKey"
         private const val APPSFLYER_KEY = "appsflyerKey"
+        private const val ADJUST_KEY = "adjustKey"
         private const val PAYWALLS_KEY = "payWallsKey"
         private const val PAYWALLS_TIMESTAMP_KEY = "payWallsTimestampKey"
         private const val GROUP_KEY = "apphudGroupKey"
@@ -121,6 +122,19 @@ class SharedPreferencesStorage(
             val source = parser.toJson(value)
             val editor = preferences.edit()
             editor.putString(APPSFLYER_KEY, source)
+            editor.apply()
+        }
+
+    override var adjust: AdjustInfo?
+        get() {
+            val source = preferences.getString(ADJUST_KEY, null)
+            val type = object : TypeToken<AdjustInfo>() {}.type
+            return parser.fromJson<AdjustInfo>(source, type)
+        }
+        set(value) {
+            val source = parser.toJson(value)
+            val editor = preferences.edit()
+            editor.putString(ADJUST_KEY, source)
             editor.apply()
         }
 
@@ -217,6 +231,7 @@ class SharedPreferencesStorage(
         paywalls = null
         skuDetails = null
         properties = null
+        adjust = null
     }
 
     fun needRegistration() :Boolean {

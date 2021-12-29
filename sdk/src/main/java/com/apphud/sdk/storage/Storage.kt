@@ -14,6 +14,7 @@ interface Storage {
     var facebook: FacebookInfo?
     var firebase: String?
     var appsflyer: AppsflyerInfo?
+    var adjust: AdjustInfo?
     var productGroups: List<ApphudGroup>?
     var paywalls: List<ApphudPaywall>?
     var skuDetails: List<String>?

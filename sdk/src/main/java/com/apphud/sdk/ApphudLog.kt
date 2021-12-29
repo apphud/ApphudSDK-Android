@@ -113,6 +113,4 @@ internal object ApphudLog {
             }
         }
     }
-
-
 }

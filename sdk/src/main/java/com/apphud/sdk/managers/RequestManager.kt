@@ -94,7 +94,8 @@ object RequestManager {
                 && apiKey != null
     }
 
-    private fun getOkHttpClient(): OkHttpClient {
+    private fun getOkHttpClient(retry: Boolean = true): OkHttpClient {
+        val retryInterceptor = HttpRetryInterceptor()
         val headersInterceptor = HeadersInterceptor(apiKey)
         val logging = HttpLoggingInterceptor {
             if (parser.isJson(it)) {
@@ -115,7 +116,7 @@ object RequestManager {
         }
 
         var builder = OkHttpClient.Builder()
-
+        if(retry) builder.addInterceptor(retryInterceptor)
         builder.addNetworkInterceptor(headersInterceptor)
         builder.addNetworkInterceptor(logging)
 
@@ -192,8 +193,8 @@ object RequestManager {
         }
     }
 
-    private fun makeRequest(request: Request, completionHandler: (String?, ApphudError?) -> Unit) {
-        val httpClient = getOkHttpClient()
+    private fun makeRequest(request: Request, retry: Boolean = true, completionHandler: (String?, ApphudError?) -> Unit) {
+        val httpClient = getOkHttpClient(retry)
         performRequest(httpClient, request, completionHandler)
     }
 
@@ -707,7 +708,7 @@ object RequestManager {
 
         val request = buildPostRequest(URL(apphudUrl.url), body)
 
-        makeRequest(request) { _, error ->
+        makeRequest(request, false) { _, error ->
             error?.let {
                 ApphudLog.logE("Error logs was not send")
             }?:run{
@@ -730,7 +731,7 @@ object RequestManager {
 
         val request = buildPostRequest(URL(apphudUrl.url), body)
 
-        makeRequest(request) { _, error ->
+        makeRequest(request, false) { _, error ->
             error?.let {
                 ApphudLog.logE("Benchmark logs was not send")
             }?:run{
