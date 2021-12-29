@@ -20,16 +20,21 @@ import com.apphud.sdk.managers.RequestManager
 import com.apphud.sdk.parser.GsonParser
 import com.apphud.sdk.parser.Parser
 import com.apphud.sdk.storage.SharedPreferencesStorage
+import com.google.android.gms.ads.identifier.AdvertisingIdClient
+import com.google.android.gms.common.GooglePlayServicesNotAvailableException
+import com.google.android.gms.common.GooglePlayServicesRepairableException
 import com.google.gson.GsonBuilder
 import kotlinx.coroutines.*
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
+import java.io.IOException
 import java.util.*
 import java.util.concurrent.atomic.AtomicInteger
 
 @SuppressLint("StaticFieldLeak")
 internal object ApphudInternal {
 
+    //region === Variables ===
     private const val MUST_REGISTER_ERROR = " :You must call the Apphud.start method once when your application starts before calling any other methods."
 
     private val builder = GsonBuilder()
@@ -94,7 +99,9 @@ internal object ApphudInternal {
     private var skuDetailsForRestoreIsLoaded: AtomicInteger = AtomicInteger(0)
     private var purchasesForRestoreIsLoaded: AtomicInteger = AtomicInteger(0)
     private var customProductsFetchedBlock: ((List<SkuDetails>) -> Unit)? = null
+    //endregion
 
+    //region === Start ===
     internal fun initialize(
         context: Context,
         apiKey: ApiKey,
@@ -140,7 +147,9 @@ internal object ApphudInternal {
             RequestManager.currentUser = currentUser
         }
     }
+    //endregion
 
+    //region === Registration ===
     private fun needRegistration(passedUserId: String?): Boolean{
         passedUserId?.let{
             if(!storage.userId.isNullOrEmpty()){
@@ -166,7 +175,7 @@ internal object ApphudInternal {
         ApphudLog.log("Start registration userId=$userId, deviceId=$deviceId")
         coroutineScope.launch(errorHandler) {
             var customer: Customer? = null
-
+            var repeatRegistration: Boolean? = false
             mutex.withLock {
                 if(currentUser == null) {
                     ApphudLog.log("Registration: currentUser == null")
@@ -216,10 +225,22 @@ internal object ApphudInternal {
                                     }
                                 }
                             }
+                        },
+                        async {
+                            ApphudLog.log("Registration: load advertisingId")
+                            val advertisingId = RequestManager.fetchAdvertisingId()
+                            advertisingId?.let{
+                                ApphudLog.log("Registration: loaded advertisingId=$advertisingId")
+                                if(RequestManager.advertisingId.isNullOrEmpty() || RequestManager.advertisingId != it){
+                                    ApphudLog.log("Registration: store new advertisingId. Need to repeat registration")
+                                    repeatRegistration = true
+                                    RequestManager.advertisingId = it
+                                }
+                            }
                         }
                     )
                     threads.awaitAll()?.let {
-                        ApphudLog.log("Registration: both requests processed")
+                        ApphudLog.log("Registration: all requests processed")
                         customer?.let {
                             ApphudLog.log("Registration: processCustomer")
                             processCustomer(it)
@@ -237,10 +258,24 @@ internal object ApphudInternal {
                                 }
 
                                 if (pendingUserProperties.isNotEmpty() && setNeedsToUpdateUserProperties) {
-                                    ApphudLog.log("Registration: we should update UserProperties")
+                                    ApphudLog.log("Registration: we should to update UserProperties")
                                     updateUserProperties()
                                 }
                                 ApphudLog.logI("Registration: completed")
+                            }
+
+                            if(repeatRegistration == true) {
+                                ApphudLog.logI("Registration: silently repeat registration")
+                                customer = RequestManager.registrationSync(
+                                    !didRetrievePaywallsAtThisLaunch,
+                                    is_new,
+                                    true
+                                )
+                                customer?.let{
+                                    ApphudLog.logI("Registration: repeat registration success")
+                                }?:run{
+                                    ApphudLog.logI("Registration: repeat registration failed")
+                                }
                             }
                         }
                     }
@@ -321,7 +356,9 @@ internal object ApphudInternal {
             customProductsFetchedBlock?.invoke(skuDetails)
         }
     }
+    //endregion
 
+    //region === Purchases ===
     /**
      * This is main purchase fun
      * At start we should fill only **ONE** of this parameters: **productId** or **skuDetails** or **product**
@@ -622,7 +659,9 @@ internal object ApphudInternal {
             }
         }
     }
+    //endregion
 
+    //region === Restore purchases ===
     internal fun restorePurchases(callback: ApphudPurchasesRestoreCallback) {
         checkRegistration{ error ->
             error?.let{
@@ -777,7 +816,9 @@ internal object ApphudInternal {
             }
         }
     }
+    //endregion
 
+    //region === Attribution ===
     internal fun addAttribution(
         provider: ApphudAttributionProvider,
         data: Map<String, Any>? = null,
@@ -920,7 +961,9 @@ internal object ApphudInternal {
             }
         }
     }
+    //endregion
 
+    //region === User Properties ===
     internal fun setUserProperty(
         key: ApphudUserPropertyKey,
         value: Any?,
@@ -1044,6 +1087,50 @@ internal object ApphudInternal {
             }
         }
     }
+    //endregion
+
+    //region === Primary methods ===
+    fun getPaywalls() : List<ApphudPaywall>{
+        var out: MutableList<ApphudPaywall>
+        synchronized(this.paywalls){
+            out = this.paywalls.toCollection(mutableListOf())
+        }
+        return out
+    }
+
+    fun permissionGroups(): List<ApphudGroup> {
+        var out: MutableList<ApphudGroup>
+        synchronized(this.productGroups){
+            out = this.productGroups.toCollection(mutableListOf())
+        }
+        return out
+    }
+
+    fun grantPromotional(daysCount: Int, productId: String?, permissionGroup: ApphudGroup?, callback: ((Boolean) -> Unit)?) {
+        checkRegistration { error ->
+            error?.let {
+                callback?.invoke(false)
+            } ?: run {
+                coroutineScope.launch(errorHandler) {
+                    RequestManager.grantPromotional(daysCount, productId, permissionGroup) { customer, error ->
+                        launch(Dispatchers.Main) {
+                            customer?.let {
+                                callback?.invoke(true)
+                                ApphudLog.logI("Promotional is granted")
+                            } ?: run {
+                                callback?.invoke(false)
+                                ApphudLog.logI("Promotional is NOT granted")
+                            }
+                            error?.let {
+                                callback?.invoke(false)
+                                ApphudLog.logI("Promotional is NOT granted")
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
 
     internal fun subscriptions(callback: (List<ApphudSubscription>?, error: ApphudError?) -> Unit) {
         ApphudLog.log("Invoke subscriptions")
@@ -1119,6 +1206,12 @@ internal object ApphudInternal {
             }
         }
     }
+    //endregion
+
+    //region === Secondary methods ===
+    internal fun getPackageName(): String{
+        return context.packageName
+    }
 
     private fun isInitialized(): Boolean{
         return ::context.isInitialized
@@ -1184,56 +1277,9 @@ internal object ApphudInternal {
         storage.deviceId = deviceId
         return deviceId
     }
+    //endregion
 
-    //SkuDetail cache ======================================
-    internal fun getSkuDetailsList(): MutableList<SkuDetails>? {
-        return skuDetails.takeIf { skuDetails.isNotEmpty() }
-    }
-
-    private fun cacheSkuDetails(details: List<SkuDetails>) {
-        val skuDetailsToCache :MutableList<String> = mutableListOf()
-        details.forEach{
-            skuDetailsToCache.add(it.originalJson)
-        }
-        storage.skuDetails = skuDetailsToCache
-    }
-
-    private fun cachedSkuDetails(): MutableList<SkuDetails> {
-        val result :MutableList<SkuDetails> = mutableListOf()
-        try{
-            val skuDetailsFromCache = storage.skuDetails?.toMutableList() ?: mutableListOf()
-            skuDetailsFromCache.forEach{
-                result.add(SkuDetails(it))
-            }
-        }catch (ex: Exception){
-            ex.message?.let{
-                ApphudLog.logE(it)
-            }
-        }
-        return result
-    }
-
-    internal fun getSkuDetailsByProductId(productIdentifier: String): SkuDetails? {
-        return getSkuDetailsList()?.let { skuList -> skuList.firstOrNull { it.sku == productIdentifier } }
-    }
-
-    fun getPaywalls() : List<ApphudPaywall>{
-        var out: MutableList<ApphudPaywall>
-        synchronized(this.paywalls){
-            out = this.paywalls.toCollection(mutableListOf())
-        }
-        return out
-    }
-
-    fun permissionGroups(): List<ApphudGroup> {
-        var out: MutableList<ApphudGroup>
-        synchronized(this.productGroups){
-            out = this.productGroups.toCollection(mutableListOf())
-        }
-        return out
-    }
-
-
+    //region === Cache ===
     //Groups cache ======================================
     private fun cacheGroups(groups: List<ApphudGroup>) {
         storage.productGroups = groups
@@ -1280,33 +1326,36 @@ internal object ApphudInternal {
         }
     }
 
-    fun grantPromotional(daysCount: Int, productId: String?, permissionGroup: ApphudGroup?, callback: ((Boolean) -> Unit)?) {
-        checkRegistration { error ->
-            error?.let {
-                callback?.invoke(false)
-            } ?: run {
-                coroutineScope.launch(errorHandler) {
-                    RequestManager.grantPromotional(daysCount, productId, permissionGroup) { customer, error ->
-                        launch(Dispatchers.Main) {
-                            customer?.let {
-                                callback?.invoke(true)
-                                ApphudLog.logI("Promotional is granted")
-                            } ?: run {
-                                callback?.invoke(false)
-                                ApphudLog.logI("Promotional is NOT granted")
-                            }
-                            error?.let {
-                                callback?.invoke(false)
-                                ApphudLog.logI("Promotional is NOT granted")
-                            }
-                        }
-                    }
-                }
-            }
-        }
+    //SkuDetail cache ======================================
+    internal fun getSkuDetailsList(): MutableList<SkuDetails>? {
+        return skuDetails.takeIf { skuDetails.isNotEmpty() }
     }
 
-    internal fun getPackageName(): String{
-        return context.packageName
+    private fun cacheSkuDetails(details: List<SkuDetails>) {
+        val skuDetailsToCache :MutableList<String> = mutableListOf()
+        details.forEach{
+            skuDetailsToCache.add(it.originalJson)
+        }
+        storage.skuDetails = skuDetailsToCache
     }
+
+    private fun cachedSkuDetails(): MutableList<SkuDetails> {
+        val result :MutableList<SkuDetails> = mutableListOf()
+        try{
+            val skuDetailsFromCache = storage.skuDetails?.toMutableList() ?: mutableListOf()
+            skuDetailsFromCache.forEach{
+                result.add(SkuDetails(it))
+            }
+        }catch (ex: Exception){
+            ex.message?.let{
+                ApphudLog.logE(it)
+            }
+        }
+        return result
+    }
+
+    internal fun getSkuDetailsByProductId(productIdentifier: String): SkuDetails? {
+        return getSkuDetailsList()?.let { skuList -> skuList.firstOrNull { it.sku == productIdentifier } }
+    }
+    //endregion
 }

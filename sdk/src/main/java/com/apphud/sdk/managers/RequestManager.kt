@@ -41,7 +41,8 @@ import kotlin.coroutines.suspendCoroutine
 
 
 object RequestManager {
-    private const val MUST_REGISTER_ERROR = " :You must call the Apphud.start method once when your application starts before calling any other methods."
+    private const val MUST_REGISTER_ERROR =
+        " :You must call the Apphud.start method once when your application starts before calling any other methods."
 
     var currentUser: Customer? = null
 
@@ -59,7 +60,7 @@ object RequestManager {
     lateinit var applicationContext: Context
     lateinit var storage: SharedPreferencesStorage
 
-    private var advertisingId: String? = null
+    var advertisingId: String? = null
         get() = storage.advertisingId
         set(value) {
             field = value
@@ -67,27 +68,31 @@ object RequestManager {
                 storage.advertisingId = value
                 ApphudLog.log("advertisingId = $advertisingId is fetched and saved")
             }
-            ApphudLog.log("advertisingId: continue registration")
         }
 
-    fun setParams(applicationContext: Context, userId: UserId, deviceId: DeviceId, apiKey: String? = null){
+    fun setParams(
+        applicationContext: Context,
+        userId: UserId,
+        deviceId: DeviceId,
+        apiKey: String? = null
+    ) {
         this.applicationContext = applicationContext
         this.userId = userId
         this.deviceId = deviceId
-        apiKey?.let{
+        apiKey?.let {
             this.apiKey = it
         }
         this.storage = SharedPreferencesStorage(this.applicationContext, parser)
         currentUser = null
     }
 
-    fun cleanRegistration(){
+    fun cleanRegistration() {
         currentUser = null
         advertisingId = null
         apiKey = null
     }
 
-    private fun canPerformRequest(): Boolean{
+    private fun canPerformRequest(): Boolean {
         return ::applicationContext.isInitialized
                 && ::userId.isInitialized
                 && ::deviceId.isInitialized
@@ -111,25 +116,30 @@ object RequestManager {
 
         if (BuildConfig.DEBUG) {
             logging.level = HttpLoggingInterceptor.Level.BODY;
-        }else{
+        } else {
             logging.level = HttpLoggingInterceptor.Level.NONE
         }
 
         var builder = OkHttpClient.Builder()
-        if(retry) builder.addInterceptor(retryInterceptor)
+        if (retry) builder.addInterceptor(retryInterceptor)
         builder.addNetworkInterceptor(headersInterceptor)
         builder.addNetworkInterceptor(logging)
 
         return builder.build()
     }
 
-    private fun performRequest(client: OkHttpClient, request: Request, completionHandler: (String?, ApphudError?) -> Unit){
+    private fun performRequest(
+        client: OkHttpClient,
+        request: Request,
+        completionHandler: (String?, ApphudError?) -> Unit
+    ) {
         try {
-            if(HeadersInterceptor.isBlocked){
-                val message = "Unable to perform API requests, because your account has been suspended."
+            if (HeadersInterceptor.isBlocked) {
+                val message =
+                    "Unable to perform API requests, because your account has been suspended."
                 ApphudLog.logE(message)
                 completionHandler(null, ApphudError(message))
-            }else if(isNetworkAvailable()){
+            } else if (isNetworkAvailable()) {
                 val startTime = System.currentTimeMillis()
                 val response = client.newCall(request).execute()
                 val endTime = System.currentTimeMillis()
@@ -138,69 +148,79 @@ object RequestManager {
                 if (response.isSuccessful) {
                     response.body?.let {
                         completionHandler(it.string(), null)
-                    }?: run{
+                    } ?: run {
                         completionHandler(null, ApphudError("Request failed", null, response.code))
                     }
                 } else {
-                    if(response.code == 403){
+                    if (response.code == 403) {
                         HeadersInterceptor.isBlocked = true
                     }
-                    val  message = "finish ${request.method} request ${request.url} " +
+                    val message = "finish ${request.method} request ${request.url} " +
                             "failed with code: ${response.code} response: ${
                                 buildPrettyPrintedBy(response.body.toString())
                             }"
                     completionHandler(null, ApphudError(message, null, response.code))
                 }
-            }else{
+            } else {
                 val message = "No Internet connection"
                 ApphudLog.logE(message)
                 completionHandler(null, ApphudError(message))
             }
         } catch (e: IOException) {
             e.printStackTrace()
-            val message = e.message?:"Undefined error"
-            completionHandler(null,  ApphudError(message))
+            val message = e.message ?: "Undefined error"
+            completionHandler(null, ApphudError(message))
         }
     }
 
     @Throws(Exception::class)
-    fun performRequestSync(client: OkHttpClient, request: Request): String{
-        if(HeadersInterceptor.isBlocked){
+    fun performRequestSync(client: OkHttpClient, request: Request): String {
+        if (HeadersInterceptor.isBlocked) {
             val message = "SDK networking is locked until application restart"
             ApphudLog.logE(message)
             throw Exception(message)
-        }else if(isNetworkAvailable()){
+        } else if (isNetworkAvailable()) {
             val response = client.newCall(request).execute()
-            ApphudLog.logBenchmark(request.url.encodedPath, response.receivedResponseAtMillis - response.sentRequestAtMillis)
+            ApphudLog.logBenchmark(
+                request.url.encodedPath,
+                response.receivedResponseAtMillis - response.sentRequestAtMillis
+            )
 
             val responseBody = response.body!!.string()
             if (response.isSuccessful) {
                 return responseBody
             } else {
-                if(response.code == 403){
+                if (response.code == 403) {
                     HeadersInterceptor.isBlocked = true
                 }
-                val  message = "finish ${request.method} request ${request.url} " +
+                val message = "finish ${request.method} request ${request.url} " +
                         "failed with code: ${response.code} response: ${
                             buildPrettyPrintedBy(responseBody)
                         }"
                 throw Exception(message)
             }
-        }else{
+        } else {
             val message = "No Internet connection"
             ApphudLog.logE(message)
             throw Exception(message)
         }
     }
 
-    private fun makeRequest(request: Request, retry: Boolean = true, completionHandler: (String?, ApphudError?) -> Unit) {
+    private fun makeRequest(
+        request: Request,
+        retry: Boolean = true,
+        completionHandler: (String?, ApphudError?) -> Unit
+    ) {
         val httpClient = getOkHttpClient(retry)
         performRequest(httpClient, request, completionHandler)
     }
 
-    private fun makeUserRegisteredRequest(request: Request, completionHandler: (String?, ApphudError?) -> Unit) {
+    private fun makeUserRegisteredRequest(
+        request: Request,
+        completionHandler: (String?, ApphudError?) -> Unit
+    ) {
         val httpClient = getOkHttpClient()
-        if(currentUser == null){
+        if (currentUser == null) {
             registration(true, true) { customer, error ->
                 customer?.let {
                     performRequest(httpClient, request, completionHandler)
@@ -208,7 +228,7 @@ object RequestManager {
                     completionHandler(null, error)
                 }
             }
-        }else{
+        } else {
             performRequest(httpClient, request, completionHandler)
         }
     }
@@ -234,30 +254,35 @@ object RequestManager {
             .build()
     }
 
-    suspend fun registrationSync(needPaywalls: Boolean, isNew: Boolean) :Customer? =
+    suspend fun fetchAdvertisingId(): String? =
+    suspendCoroutine { continuation ->
+        //Load advertising id
+        var advId :String? = null
+        if (ApphudUtils.adTracking) {
+            try {
+                ApphudLog.logI("start load advertisingId")
+                advId = AdvertisingIdClient.getAdvertisingIdInfo(applicationContext).id
+                ApphudLog.logI("success load advertisingId: $advertisingId")
+            } catch (e: IOException) {
+                ApphudLog.logE("finish load advertisingId $e")
+            } catch (e: IllegalStateException) {
+                ApphudLog.logE("finish load advertisingId $e")
+            } catch (e: GooglePlayServicesNotAvailableException) {
+                ApphudLog.logE("finish load advertisingId $e")
+            } catch (e: GooglePlayServicesRepairableException) {
+                ApphudLog.logE("finish load advertisingId $e")
+            }
+        }
+        continuation.resume(advId)
+    }
+
+    suspend fun registrationSync(needPaywalls: Boolean, isNew: Boolean, forceRegistration: Boolean = false) :Customer? =
     suspendCoroutine { continuation ->
         if(!canPerformRequest()) {
-            ApphudLog.logE(::registration.name + MUST_REGISTER_ERROR)
+            ApphudLog.logE("registrationSync $MUST_REGISTER_ERROR")
             continuation.resume(null)
         }
-        if(currentUser == null) {
-            //Load advertising id
-            if (ApphudUtils.adTracking) {
-                try {
-                    ApphudLog.logI("start load advertisingId")
-                    advertisingId = AdvertisingIdClient.getAdvertisingIdInfo(applicationContext).id
-                    ApphudLog.logI("success load advertisingId: $advertisingId")
-                } catch (e: IOException) {
-                    ApphudLog.logE("finish load advertisingId $e")
-                } catch (e: IllegalStateException) {
-                    ApphudLog.logE("finish load advertisingId $e")
-                } catch (e: GooglePlayServicesNotAvailableException) {
-                    ApphudLog.logE("finish load advertisingId $e")
-                } catch (e: GooglePlayServicesRepairableException) {
-                    ApphudLog.logE("finish load advertisingId $e")
-                }
-            }
-
+        if(currentUser == null || forceRegistration) {
             val apphudUrl = ApphudUrl.Builder()
                 .host(HeadersInterceptor.HOST)
                 .version(ApphudVersion.V1)
@@ -288,7 +313,7 @@ object RequestManager {
                 continuation.resume(null)
             }
         }else{
-            continuation.resume(null)
+            continuation.resume(currentUser)
         }
     }
 
@@ -300,23 +325,6 @@ object RequestManager {
         }
 
         if(currentUser == null) {
-            //Load advertising id
-            if (ApphudUtils.adTracking) {
-                try {
-                    ApphudLog.logI("start load advertisingId")
-                    advertisingId = AdvertisingIdClient.getAdvertisingIdInfo(applicationContext).id
-                    ApphudLog.logI("success load advertisingId: $advertisingId")
-                } catch (e: IOException) {
-                    ApphudLog.logE("finish load advertisingId $e")
-                } catch (e: IllegalStateException) {
-                    ApphudLog.logE("finish load advertisingId $e")
-                } catch (e: GooglePlayServicesNotAvailableException) {
-                    ApphudLog.logE("finish load advertisingId $e")
-                } catch (e: GooglePlayServicesRepairableException) {
-                    ApphudLog.logE("finish load advertisingId $e")
-                }
-            }
-
             val apphudUrl = ApphudUrl.Builder()
                 .host(HeadersInterceptor.HOST)
                 .version(ApphudVersion.V1)
