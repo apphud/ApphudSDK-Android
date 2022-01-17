@@ -22,7 +22,6 @@ import com.apphud.sdk.storage.SharedPreferencesStorage
 import com.google.android.gms.ads.identifier.AdvertisingIdClient
 import com.google.android.gms.common.GooglePlayServicesNotAvailableException
 import com.google.android.gms.common.GooglePlayServicesRepairableException
-import com.google.gson.Gson
 import com.google.gson.reflect.TypeToken
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
@@ -35,9 +34,13 @@ import java.util.*
 import org.json.JSONException
 
 import org.json.JSONObject
-import java.net.HttpCookie
 import kotlin.coroutines.resume
 import kotlin.coroutines.suspendCoroutine
+import com.google.gson.GsonBuilder
+import okhttp3.Response
+import okhttp3.ResponseBody
+import okio.Buffer
+import java.nio.charset.Charset
 
 
 object RequestManager {
@@ -46,7 +49,8 @@ object RequestManager {
 
     var currentUser: Customer? = null
 
-    val parser: Parser = GsonParser(Gson())
+    val gson = GsonBuilder().serializeNulls().create()
+    val parser: Parser = GsonParser(gson)
 
     private val productMapper = ProductMapper()
     private val paywallsMapper = PaywallsMapper(parser)
@@ -115,7 +119,7 @@ object RequestManager {
         }
 
         if (BuildConfig.DEBUG) {
-            logging.level = HttpLoggingInterceptor.Level.BODY;
+            logging.level = HttpLoggingInterceptor.Level.NONE //BODY
         } else {
             logging.level = HttpLoggingInterceptor.Level.NONE
         }
@@ -126,6 +130,54 @@ object RequestManager {
         builder.addNetworkInterceptor(logging)
 
         return builder.build()
+    }
+
+    private fun logRequestStart(request: Request){
+        try {
+            var body: String? = ""
+            request.body?.let {
+                val buffer = Buffer()
+                it.writeTo(buffer)
+
+                body = buffer.readString(Charset.forName("UTF-8"))
+                body?.let {
+                    if (parser.isJson(it)) {
+                        body = buildPrettyPrintedBy(it)
+                    }
+                }
+
+                body?.let {
+                    if (it.isNotEmpty()) {
+                        body = "\n" + it
+                    }
+                } ?: {
+                    body = ""
+                }
+            }
+            ApphudLog.logI("Start " + request.method + " request " + request.url + " with params:" + body)
+        }catch (ex: Exception){
+            ApphudLog.logE(ex.message?:"")
+        }
+    }
+
+    private fun logRequestFinish(request: Request, response: Response){
+        try{
+            val responseBody = response.body
+            val source = responseBody?.source()
+            source?.request(Long.MAX_VALUE)
+
+            val buffer = source?.buffer?.clone()?.readString(Charset.forName("UTF-8"))
+            var outputBody = ""
+            buffer?.let{
+                if (parser.isJson(buffer)) {
+                    outputBody = buildPrettyPrintedBy(it)?:""
+                }
+            }
+
+            ApphudLog.logI("Finished " + request.method + " request " + request.url + " with response: " + response.code + "\n" + outputBody)
+        }catch (ex: Exception){
+            ApphudLog.logE(ex.message?:"")
+        }
     }
 
     private fun performRequest(
@@ -140,11 +192,16 @@ object RequestManager {
                 ApphudLog.logE(message)
                 completionHandler(null, ApphudError(message))
             } else if (isNetworkAvailable()) {
+
+                logRequestStart(request)
                 val response = client.newCall(request).execute()
+
                 ApphudLog.logBenchmark(
                         request.url.encodedPath,
                         response.receivedResponseAtMillis - response.sentRequestAtMillis
                 )
+                logRequestFinish(request, response)
+
                 if (response.isSuccessful) {
                     response.body?.let {
                         completionHandler(it.string(), null)
@@ -180,11 +237,14 @@ object RequestManager {
             ApphudLog.logE(message)
             throw Exception(message)
         } else if (isNetworkAvailable()) {
+            logRequestStart(request)
+
             val response = client.newCall(request).execute()
             ApphudLog.logBenchmark(
                 request.url.encodedPath,
                 response.receivedResponseAtMillis - response.sentRequestAtMillis
             )
+            logRequestFinish(request, response)
 
             val responseBody = response.body!!.string()
             if (response.isSuccessful) {
