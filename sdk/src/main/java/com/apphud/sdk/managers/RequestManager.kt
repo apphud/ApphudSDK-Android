@@ -140,11 +140,11 @@ object RequestManager {
                 ApphudLog.logE(message)
                 completionHandler(null, ApphudError(message))
             } else if (isNetworkAvailable()) {
-                val startTime = System.currentTimeMillis()
                 val response = client.newCall(request).execute()
-                val endTime = System.currentTimeMillis()
-                ApphudLog.logBenchmark(request.url.encodedPath, endTime - startTime)
-
+                ApphudLog.logBenchmark(
+                        request.url.encodedPath,
+                        response.receivedResponseAtMillis - response.sentRequestAtMillis
+                )
                 if (response.isSuccessful) {
                     response.body?.let {
                         completionHandler(it.string(), null)
@@ -262,7 +262,7 @@ object RequestManager {
             try {
                 ApphudLog.logI("start load advertisingId")
                 advId = AdvertisingIdClient.getAdvertisingIdInfo(applicationContext).id
-                ApphudLog.logI("success load advertisingId: $advertisingId")
+                ApphudLog.logI("success load advertisingId: $advId")
             } catch (e: IOException) {
                 ApphudLog.logE("finish load advertisingId $e")
             } catch (e: IllegalStateException) {

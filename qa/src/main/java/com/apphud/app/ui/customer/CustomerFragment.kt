@@ -115,7 +115,11 @@ class CustomerFragment : Fragment() {
                 storage.userId = userId
             }
 
-            override fun paywallsDidLoadCallback(paywalls: List<ApphudPaywall>) {
+            override fun paywallsDidLoad(paywalls: List<ApphudPaywall>) {
+
+            }
+
+            override fun paywallsDidFullyLoad(paywalls: List<ApphudPaywall>) {
 
             }
         }

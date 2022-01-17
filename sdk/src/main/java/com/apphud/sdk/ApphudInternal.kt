@@ -35,7 +35,7 @@ import java.util.concurrent.atomic.AtomicInteger
 internal object ApphudInternal {
 
     //region === Variables ===
-    private const val MUST_REGISTER_ERROR = " :You must call the Apphud.start method once when your application starts before calling any other methods."
+    private const val MUST_REGISTER_ERROR = " :You must call `Apphud.start` method before calling any other methods."
 
     private val builder = GsonBuilder()
         .setPrettyPrinting()
@@ -118,7 +118,7 @@ internal object ApphudInternal {
             return
         }
 
-        ApphudLog.log("Start initialize with userId=$userId, deviceId=$deviceId")
+        ApphudLog.log("Start initialization with userId=$userId, deviceId=$deviceId")
         if(apiKey.isEmpty()) throw Exception("ApiKey can't be empty")
 
         this.context = context
