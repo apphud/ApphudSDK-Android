@@ -8,6 +8,7 @@ import com.apphud.app.R
 import com.apphud.app.ui.storage.StorageManager
 import com.apphud.sdk.Apphud
 import com.apphud.sdk.ApphudAttributionProvider
+import com.apphud.sdk.ApphudUserPropertyKey
 import com.appsflyer.AppsFlyerConversionListener
 import com.appsflyer.AppsFlyerLib
 import com.facebook.FacebookSdk
@@ -164,6 +165,9 @@ object AnalyticsManager {
 
     fun initAnalytics(application : Application){
 
+        Apphud.setUserProperty(ApphudUserPropertyKey.Name, null)
+        Apphud.setUserProperty(ApphudUserPropertyKey.Email, "some@example.com")
+
         integrations = storage.integrations
 
         //Firebase
@@ -214,9 +218,6 @@ object AnalyticsManager {
             AppsFlyerLib.getInstance().setDebugLog(true)
             AppsFlyerLib.getInstance().init(appsFlyerKey, listener, application)
             AppsFlyerLib.getInstance().start(application)
-
-            val uid = AppsFlyerLib.getInstance().getAppsFlyerUID(application)
-            Apphud.addAttribution(ApphudAttributionProvider.appsFlyer, null, uid)
         }
 
         //Amplitude
