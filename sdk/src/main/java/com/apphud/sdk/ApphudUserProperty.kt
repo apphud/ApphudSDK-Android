@@ -1,7 +1,5 @@
 package com.apphud.sdk
 
-import java.lang.Exception
-
 internal const val JSON_NAME_NAME = "name"
 internal const val JSON_NAME_VALUE = "value"
 internal const val JSON_NAME_SET_ONCE = "set_once"
@@ -61,5 +59,6 @@ data class ApphudUserProperty(
 
         return value.toString()
     }
+
 
 }

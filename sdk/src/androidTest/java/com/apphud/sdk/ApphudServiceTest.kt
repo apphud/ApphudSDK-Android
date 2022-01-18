@@ -2,9 +2,7 @@ package com.apphud.sdk
 
 import android.util.Log
 import com.apphud.sdk.body.*
-import com.apphud.sdk.client.ApphudServiceV1
-import com.apphud.sdk.client.ApphudServiceV2
-import com.apphud.sdk.client.HttpUrlConnectionExecutor
+import com.apphud.sdk.client.ApiClient
 import com.apphud.sdk.parser.GsonParser
 import com.google.gson.Gson
 import org.junit.Before
@@ -15,7 +13,7 @@ class ApphudServiceTest {
 //    private val userId = "987654321"
 //    private val deviceId = "123456789"
 
-    private val userId = "cleaner_303"
+    /*private val userId = "cleaner_303"
     private val deviceId = "cleaner_303"
     private val API_KEY = "app_4sY9cLggXpMDDQMmvc5wXUPGReMp8G"
     private lateinit var serviceV1: ApphudServiceV1
@@ -24,6 +22,7 @@ class ApphudServiceTest {
     @Before
     fun setup() {
         val executor = HttpUrlConnectionExecutor(
+            host = ApiClient.host,
             version = ApphudVersion.V1,
             parser = GsonParser(Gson())
         )
@@ -147,5 +146,5 @@ class ApphudServiceTest {
         )
         val response = serviceV1.sendUserProperties(body)
         Log.e("WOW", "send user properties result: ${response.data.results}")
-    }
+    }*/
 }

@@ -33,7 +33,12 @@ interface ApphudListener {
     fun apphudDidChangeUserID(userId: String)
 
     /**
-    Called when paywall loaded
+    Called when paywalls are loaded, however SkuDetails may still be nil at the moment
      */
-    fun paywallsDidLoadCallback(paywalls: List<ApphudPaywall>)
+    fun paywallsDidLoad(paywalls: List<ApphudPaywall>)
+
+    /**
+    Called when paywalls are fully loaded with their SkuDetails
+    */
+    fun paywallsDidFullyLoad(paywalls: List<ApphudPaywall>)
 }
