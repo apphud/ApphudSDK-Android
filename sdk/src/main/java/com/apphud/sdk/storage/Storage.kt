@@ -5,6 +5,7 @@ import com.apphud.sdk.ApphudUserProperty
 import com.apphud.sdk.domain.*
 
 interface Storage {
+    var lastRegistration: Long
     var userId: String?
     var deviceId: String?
     var customer: Customer?
@@ -13,9 +14,9 @@ interface Storage {
     var facebook: FacebookInfo?
     var firebase: String?
     var appsflyer: AppsflyerInfo?
-    var paywalls: List<ApphudPaywall>?
+    var adjust: AdjustInfo?
     var productGroups: List<ApphudGroup>?
-    var lastRegistration: Long
+    var paywalls: List<ApphudPaywall>?
     var skuDetails: List<String>?
     var properties: HashMap<String, ApphudUserProperty>?
 }

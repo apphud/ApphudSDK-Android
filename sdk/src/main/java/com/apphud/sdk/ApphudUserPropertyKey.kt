@@ -28,9 +28,9 @@ sealed class ApphudUserPropertyKey(val key: String){
     object Name:ApphudUserPropertyKey(ApphudUserPropertyKeyName)
     /** User phone number. Value must be String.*/
     object Phone:ApphudUserPropertyKey(ApphudUserPropertyKeyPhone)
-    /** User age. Value must be Int.*/
-    object Cohort:ApphudUserPropertyKey(ApphudUserPropertyKeyCohort)
     /** User install cohort. Value must be String.*/
+    object Cohort:ApphudUserPropertyKey(ApphudUserPropertyKeyCohort)
+    /** User age. Value must be Int.*/
     object Age:ApphudUserPropertyKey(ApphudUserPropertyKeyAge)
     /** User gender. Value must be one of: "male", "female", "other".*/
     object Gender:ApphudUserPropertyKey(ApphudUserPropertyKeyGender)

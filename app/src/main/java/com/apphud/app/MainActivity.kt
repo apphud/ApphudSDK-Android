@@ -1,9 +1,9 @@
 package com.apphud.app
 
 import android.os.Bundle
-import android.util.Log
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
+import androidx.appcompat.widget.Toolbar
 import com.google.android.material.navigation.NavigationView
 import androidx.navigation.findNavController
 import androidx.navigation.ui.AppBarConfiguration
@@ -11,13 +11,7 @@ import androidx.navigation.ui.navigateUp
 import androidx.navigation.ui.setupActionBarWithNavController
 import androidx.drawerlayout.widget.DrawerLayout
 import androidx.core.view.GravityCompat
-import com.android.billingclient.api.SkuDetails
 import com.apphud.app.databinding.ActivityMainBinding
-import com.apphud.sdk.Apphud
-import com.apphud.sdk.ApphudListener
-import com.apphud.sdk.domain.ApphudNonRenewingPurchase
-import com.apphud.sdk.domain.ApphudPaywall
-import com.apphud.sdk.domain.ApphudSubscription
 
 class MainActivity : AppCompatActivity() {
 
@@ -32,7 +26,10 @@ class MainActivity : AppCompatActivity() {
         binding = ActivityMainBinding.inflate(layoutInflater)
         setContentView(binding.root)
 
-        setSupportActionBar(binding.appBarMain.toolbar)
+        val toolbar = findViewById<Toolbar>(R.id.toolbar)
+        toolbar?.let{
+            setSupportActionBar(it)
+        }
 
         val drawerLayout: DrawerLayout = binding.drawerLayout
         val navView: NavigationView = binding.navView

@@ -1,6 +1,7 @@
 package com.apphud.sdk.storage
 
 import android.content.Context
+import com.android.billingclient.api.SkuDetails
 import com.apphud.sdk.ApphudListener
 import com.apphud.sdk.ApphudLog
 import com.apphud.sdk.ApphudUserProperty
@@ -28,6 +29,7 @@ class SharedPreferencesStorage(
         private const val FACEBOOK_KEY = "facebookKey"
         private const val FIREBASE_KEY = "firebaseKey"
         private const val APPSFLYER_KEY = "appsflyerKey"
+        private const val ADJUST_KEY = "adjustKey"
         private const val PAYWALLS_KEY = "payWallsKey"
         private const val PAYWALLS_TIMESTAMP_KEY = "payWallsTimestampKey"
         private const val GROUP_KEY = "apphudGroupKey"
@@ -42,7 +44,7 @@ class SharedPreferencesStorage(
         MODE
     )
 
-    val cacheTimeout = if (context.isDebuggable()) 60L else 3600L
+    val cacheTimeout = if (context.isDebuggable()) 120L else 3600L
 
     override var userId: String?
         get() = preferences.getString(USER_ID_KEY, null)
@@ -123,21 +125,16 @@ class SharedPreferencesStorage(
             editor.apply()
         }
 
-    override var paywalls: List<ApphudPaywall>?
+    override var adjust: AdjustInfo?
         get() {
-            val timestamp = preferences.getLong(PAYWALLS_TIMESTAMP_KEY, -1L) + (cacheTimeout * 1000)
-            val currentTime = System.currentTimeMillis()
-            return if (currentTime < timestamp) {
-                val source = preferences.getString(PAYWALLS_KEY, null)
-                val type = object : TypeToken<List<ApphudPaywall>>() {}.type
-                parser.fromJson<List<ApphudPaywall>>(source, type)
-            } else null
+            val source = preferences.getString(ADJUST_KEY, null)
+            val type = object : TypeToken<AdjustInfo>() {}.type
+            return parser.fromJson<AdjustInfo>(source, type)
         }
         set(value) {
             val source = parser.toJson(value)
             val editor = preferences.edit()
-            editor.putLong(PAYWALLS_TIMESTAMP_KEY, System.currentTimeMillis())
-            editor.putString(PAYWALLS_KEY, source)
+            editor.putString(ADJUST_KEY, source)
             editor.apply()
         }
 
@@ -159,22 +156,23 @@ class SharedPreferencesStorage(
             editor.apply()
         }
 
-    fun updateCustomer(customer: Customer, apphudListener: ApphudListener?){
-        var userIdChanged = false
-        this.customer?.let{
-            if(it.user.userId != customer.user.userId){
-                userIdChanged = true
-            }
+    override var paywalls: List<ApphudPaywall>?
+        get() {
+            val timestamp = preferences.getLong(PAYWALLS_TIMESTAMP_KEY, -1L) + (cacheTimeout * 1000)
+            val currentTime = System.currentTimeMillis()
+            return if (currentTime < timestamp) {
+                val source = preferences.getString(PAYWALLS_KEY, null)
+                val type = object : TypeToken<List<ApphudPaywall>>() {}.type
+                parser.fromJson<List<ApphudPaywall>>(source, type)
+            } else null
         }
-        this.customer = customer
-        this.userId = customer.user.userId
-
-        if(userIdChanged) {
-            apphudListener?.let{
-                apphudListener.apphudDidChangeUserID(customer.user.userId)
-            }
+        set(value) {
+            val source = parser.toJson(value)
+            val editor = preferences.edit()
+            editor.putLong(PAYWALLS_TIMESTAMP_KEY, System.currentTimeMillis())
+            editor.putString(PAYWALLS_KEY, source)
+            editor.apply()
         }
-    }
 
     override var skuDetails: List<String>?
         get() {
@@ -194,7 +192,6 @@ class SharedPreferencesStorage(
             editor.apply()
         }
 
-
     override var lastRegistration: Long
         get() = preferences.getLong(LAST_REGISTRATION_KEY, 0L)
         set(value) {
@@ -202,6 +199,40 @@ class SharedPreferencesStorage(
             editor.putLong(LAST_REGISTRATION_KEY, value)
             editor.apply()
         }
+
+    fun updateCustomer(customer: Customer, apphudListener: ApphudListener?){
+        var userIdChanged = false
+        this.customer?.let{
+            if(it.user.userId != customer.user.userId){
+                userIdChanged = true
+            }
+        }
+        this.customer = customer
+        this.userId = customer.user.userId
+
+        if(userIdChanged) {
+            apphudListener?.let{
+                apphudListener.apphudDidChangeUserID(customer.user.userId)
+            }
+        }
+    }
+
+    fun clean() {
+        lastRegistration = 0L
+        customer = null
+        userId = null
+        deviceId = null
+        advertisingId = null
+        isNeedSync = false
+        facebook = null
+        firebase = null
+        appsflyer = null
+        productGroups = null
+        paywalls = null
+        skuDetails = null
+        properties = null
+        adjust = null
+    }
 
     fun needRegistration() :Boolean {
         val timestamp = lastRegistration + (cacheTimeout * 1000)

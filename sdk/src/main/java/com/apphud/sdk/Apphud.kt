@@ -95,7 +95,22 @@ object Apphud {
      */
     @kotlin.jvm.JvmStatic
     fun nonRenewingPurchases(): List<ApphudNonRenewingPurchase> =
-        ApphudInternal.currentUser?.purchases ?: emptyList()
+        ApphudInternal.currentUser?.purchases?: emptyList()
+
+    /**
+     * Fetches  paywalls configured in Apphud dashboard. Paywalls are automatically cached on device.
+     */
+    fun paywalls() :List<ApphudPaywall>{
+        return ApphudInternal.getPaywalls()
+    }
+
+    /**
+     * Permission groups configured in Apphud dashboard. Groups are cached on device.
+     * Note that this method may be `null` at first launch of the app.
+     */
+    fun permissionGroups(): List<ApphudGroup> {
+        return ApphudInternal.permissionGroups()
+    }
 
     /**
      * Returns `true` if current user has purchased standard in-app purchase with given product identifier.
@@ -129,21 +144,6 @@ object Apphud {
      */
     @kotlin.jvm.JvmStatic
     fun syncPurchases() = ApphudInternal.syncPurchases()
-
-    /**
-     * Fetches  paywalls configured in Apphud dashboard. Paywalls are automatically cached on device.
-     */
-    fun paywalls() :List<ApphudPaywall>{
-        return ApphudInternal.paywalls
-    }
-
-    /**
-     * Permission groups configured in Apphud dashboard. Groups are cached on device.
-     * Note that this method may be `null` at first launch of the app.
-     */
-    fun permissionGroups(): List<ApphudGroup> {
-        return ApphudInternal.productGroups
-    }
 
     /**
      * Implements `Restore Purchases` mechanism. Basically it just sends current Play Market Purchase Tokens to Apphud and returns subscriptions info.
@@ -347,7 +347,7 @@ object Apphud {
     - parameter productId: Optional*. Recommended. Product Id of promotional subscription. See __Note__ message above for details.
     - parameter permissionGroup: Optional*. Permission Group of promotional subscription. Use this parameter in case you have multiple permission groups. See __Note__ message above for details.
     - parameter callback: Optional. Returns `true` if promotional subscription was granted.
-     */
+    */
     @kotlin.jvm.JvmStatic
     fun grantPromotional(daysCount: Int, productId: String?, permissionGroup: ApphudGroup? = null, callback: ((Boolean) -> Unit)? = null) {
         ApphudInternal.grantPromotional(daysCount, productId, permissionGroup, callback)

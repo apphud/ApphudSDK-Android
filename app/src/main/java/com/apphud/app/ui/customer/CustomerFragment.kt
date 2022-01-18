@@ -19,10 +19,10 @@ import com.apphud.sdk.Apphud
 import com.apphud.sdk.ApphudError
 import com.apphud.sdk.ApphudListener
 import com.apphud.sdk.ApphudPurchasesRestoreCallback
-import com.apphud.sdk.client.HttpUrlConnectionExecutor
 import com.apphud.sdk.domain.ApphudNonRenewingPurchase
 import com.apphud.sdk.domain.ApphudPaywall
 import com.apphud.sdk.domain.ApphudSubscription
+import com.apphud.sdk.managers.HeadersInterceptor
 
 class CustomerFragment : Fragment() {
 
@@ -43,7 +43,7 @@ class CustomerFragment : Fragment() {
         val customerId: TextView = binding.customerId
         customerId.text = Apphud.userId()
 
-        binding.sdk.text = "v." + HttpUrlConnectionExecutor.X_SDK_VERSION
+        binding.sdk.text = "v." + HeadersInterceptor.X_SDK_VERSION
         binding.appVersion.text = BuildConfig.VERSION_NAME + " (" + BuildConfig.VERSION_CODE + ")"
 
         binding.btnSync.setOnClickListener {
@@ -104,7 +104,12 @@ class CustomerFragment : Fragment() {
                 //TODO handle User ID changed event
             }
 
-            override fun paywallsDidLoadCallback(paywalls: List<ApphudPaywall>) {
+
+            override fun paywallsDidLoad(paywalls: List<ApphudPaywall>){
+
+            }
+
+            override fun paywallsDidFullyLoad(paywalls: List<ApphudPaywall>){
                 updateData()
             }
         }
