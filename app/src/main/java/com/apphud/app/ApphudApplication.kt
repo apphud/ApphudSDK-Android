@@ -25,6 +25,5 @@ class ApphudApplication : Application() {
 
         Apphud.enableDebugLogs()
         Apphud.start(this, API_KEY)
-        Apphud.setUserProperty()
     }
 }

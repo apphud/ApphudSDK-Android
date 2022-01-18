@@ -172,22 +172,22 @@ object AnalyticsManager {
 
         //Firebase
         if(isEnabled(Integration.FIREBASE)) {
-            Log.i("Apphud", "FIREBASE integration is enabled")
+            Log.i("ApphudQA", "FIREBASE integration is enabled")
 
             FirebaseAnalytics.getInstance(application).setUserId(Apphud.userId())
             FirebaseAnalytics.getInstance(application).appInstanceId
             .addOnSuccessListener { instanceId ->
-                Log.i("Apphud", "FirebaseAnalytics - $instanceId")
+                Log.i("ApphudQA", "FirebaseAnalytics - $instanceId")
                 Apphud.addAttribution(ApphudAttributionProvider.firebase, null, instanceId)
             }.addOnFailureListener {
-                Log.e("Apphud","FirebaseAnalytics - addOnFailureListener with error: ${it.localizedMessage}")
+                Log.e("ApphudQA","FirebaseAnalytics - addOnFailureListener with error: ${it.localizedMessage}")
             }.addOnCanceledListener {
-                Log.e("Apphud", "FirebaseAnalytics - addOnCanceledListener")
+                Log.e("ApphudQA", "FirebaseAnalytics - addOnCanceledListener")
             }
         }
 
         if(isEnabled(Integration.FACEBOOK)) {
-            Log.i("Apphud", "FACEBOOK integration is enabled")
+            Log.i("ApphudQA", "FACEBOOK integration is enabled")
 
             FacebookSdk.setAutoInitEnabled(true)
             FacebookSdk.fullyInitialize()
@@ -197,7 +197,7 @@ object AnalyticsManager {
 
         //AppsFlyer
         if(isEnabled(Integration.APPSFLYER)) {
-            Log.i("Apphud", "APPSFLYER integration is enabled")
+            Log.i("ApphudQA", "APPSFLYER integration is enabled")
             val listener = object : AppsFlyerConversionListener {
                 override fun onConversionDataSuccess(map: MutableMap<String, Any>?) {
                     val uid = AppsFlyerLib.getInstance().getAppsFlyerUID(application)
@@ -222,7 +222,7 @@ object AnalyticsManager {
 
         //Amplitude
         if(isEnabled(Integration.AMPLITUDE)) {
-            Log.i("Apphud", "AMPLITUDE integration is enabled")
+            Log.i("ApphudQA", "AMPLITUDE integration is enabled")
             Amplitude.getInstance()
                 .initialize(application, amplitudeKey, Apphud.userId())
                 .enableForegroundTracking(application)
@@ -230,7 +230,7 @@ object AnalyticsManager {
 
         //Appmetrica
         if(isEnabled(Integration.APPMETRICA)) {
-            Log.i("Apphud", "APPMETRICA integration is enabled")
+            Log.i("ApphudQA", "APPMETRICA integration is enabled")
             val config = YandexMetricaConfig.newConfigBuilder(appMetricaKey).build()
             YandexMetrica.activate(application, config)
             YandexMetrica.setUserProfileID(Apphud.userId())
@@ -239,14 +239,14 @@ object AnalyticsManager {
 
         //Mixpanel
         if(isEnabled(Integration.MIXPANEL)) {
-            Log.i("Apphud", "MIXPANEL integration is enabled")
+            Log.i("ApphudQA", "MIXPANEL integration is enabled")
             val mixpanel = MixpanelAPI.getInstance(application, mixpanelKey)
             mixpanel.identify(Apphud.userId())
         }
 
         //Branch
         if(isEnabled(Integration.BRANCH)) {
-            Log.i("Apphud", "BRANCH integration is enabled")
+            Log.i("ApphudQA", "BRANCH integration is enabled")
 
             Branch.enableLogging();
             Branch.getAutoInstance(application);
@@ -255,7 +255,7 @@ object AnalyticsManager {
 
         //Tenjin
         if(isEnabled(Integration.TENJIN)) {
-            Log.i("Apphud", "TENJIN integration is enabled")
+            Log.i("ApphudQA", "TENJIN integration is enabled")
 
             val instance: TenjinSDK = TenjinSDK.getInstance(application, tenjinAppKey)
             instance.connect()
@@ -264,7 +264,7 @@ object AnalyticsManager {
 
         //OneSignal
         if(isEnabled(Integration.ONESIGNAL)) {
-            Log.i("Apphud", "ONESIGNAL integration is enabled")
+            Log.i("ApphudQA", "ONESIGNAL integration is enabled")
 
             OneSignal.setLogLevel(OneSignal.LOG_LEVEL.VERBOSE, OneSignal.LOG_LEVEL.NONE)
             OneSignal.initWithContext(application)
@@ -276,7 +276,7 @@ object AnalyticsManager {
 
         //Pushwoosh
         if(isEnabled(Integration.PUSHWOOSH)) {
-            Log.i("Apphud", "PUSHWOOSH integration is enabled")
+            Log.i("ApphudQA", "PUSHWOOSH integration is enabled")
 
             Pushwoosh.getInstance().registerForPushNotifications()
             Apphud.userId()?.let {

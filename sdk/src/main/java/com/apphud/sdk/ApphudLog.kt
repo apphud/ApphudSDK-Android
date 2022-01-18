@@ -64,7 +64,7 @@ internal object ApphudLog {
             || path == "/v2/paywall_configs"
             || path == "/v1/subscriptions"){
 
-            logI("Benchmark: " + path + ": " + time)
+            logI("Benchmark: " + path + ": " + time + "ms")
             val seconds: Double = time / 1000.0
             synchronized(data){
                 val logItem: MutableMap<String, Any?> = mutableMapOf(
@@ -86,9 +86,7 @@ internal object ApphudLog {
 
     fun startTimer(){
         if(timer == null){
-            logI("Benchmark: timer is null")
             timer = fixedRateTimer(name = "benchmark_timer", initialDelay = 5000, period = 5000) {
-                logI("Benchmark: timer start")
                 if(data.isNotEmpty()){
                     var body : BenchmarkBody?
                     synchronized(data) {
@@ -106,7 +104,6 @@ internal object ApphudLog {
                         RequestManager.sendBenchmarkLogs(it)
                     }
                 }else{
-                    logI("Benchmark: timer stop")
                     timer?.cancel()
                     timer = null
                 }
