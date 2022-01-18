@@ -801,9 +801,7 @@ object RequestManager {
 
         makeRequest(request, false) { _, error ->
             error?.let {
-                ApphudLog.logE("Benchmark logs was not send")
-            }?:run{
-                ApphudLog.logI("Benchmark logs was send successfully")
+                ApphudLog.logE("Benchmark logs is not sent")
             }
         }
     }
