@@ -16,6 +16,4 @@
 .cxx
 /keys
 /keys/*
-/qa
-/qa/*
 /keystore.properties
