@@ -178,11 +178,6 @@ internal object ApphudInternal {
                             launch(Dispatchers.Main) {
                                 notifyLoadingCompleted(null, skuDetails)
                                 ApphudLog.log("Registration: permission groups updated with skuDetails and ready to use")
-
-                                //notify that skuDetails are loaded
-                                ApphudLog.log("Registration: notify that products skuDetails are loaded")
-                                apphudListener?.apphudFetchSkuDetailsProducts(getSkuDetailsList())
-                                customProductsFetchedBlock?.invoke(getSkuDetailsList())
                             }
                         }
                     }
@@ -252,6 +247,11 @@ internal object ApphudInternal {
             ApphudLog.log("Registration: update permissionGroups with skuDetails")
             productGroups = readGroupsFromCache()
             updateGroupsWithSkuDetails(productGroups)
+
+            //notify that skuDetails are loaded
+            ApphudLog.log("Registration: notify that products skuDetails are loaded")
+            apphudListener?.apphudFetchSkuDetailsProducts(getSkuDetailsList())
+            customProductsFetchedBlock?.invoke(getSkuDetailsList())
         }
 
         customerLoaded?.let{
