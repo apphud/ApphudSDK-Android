@@ -136,15 +136,13 @@ internal object ApphudInternal {
         allowIdentifyUser = false
         ApphudLog.log("Start initialize with saved userId=${this.userId}, saved deviceId=${this.deviceId}")
 
-        skuDetails = cachedSkuDetails()
-        readGroupsFromCache()
-        readPaywallsFromCache()
+        loadProducts()
 
         if(needRegistration) {
             registration(this.userId, this.deviceId, null)
         }else{
-            currentUser = storage.customer
-            RequestManager.currentUser = currentUser
+            ApphudLog.log("Registration: customer restored from cache")
+            notifyLoadingCompleted(storage.customer, null, true)
         }
     }
     //endregion
@@ -161,8 +159,142 @@ internal object ApphudInternal {
         if(storage.userId.isNullOrEmpty()
             || storage.deviceId.isNullOrEmpty()
             || storage.customer == null
+            || storage.paywalls == null
             || storage.needRegistration()) return true
         return false
+    }
+
+    private val mutexProducts = Mutex()
+    private fun loadProducts(){
+        coroutineScope.launch(errorHandler) {
+            mutexProducts.withLock {
+                async {
+                    if (productsLoaded.get() == 0) {
+                        ApphudLog.log("Registration: start loading groups")
+                        if (fetchProducts()) {
+                            //Let to know to another threads that details are loaded successfully
+                            productsLoaded.incrementAndGet()
+
+                            launch(Dispatchers.Main) {
+                                notifyLoadingCompleted(null, skuDetails)
+                                ApphudLog.log("Registration: permission groups updated with skuDetails and ready to use")
+
+                                //notify that skuDetails are loaded
+                                ApphudLog.log("Registration: notify that products skuDetails are loaded")
+                                apphudListener?.apphudFetchSkuDetailsProducts(getSkuDetailsList())
+                                customProductsFetchedBlock?.invoke(getSkuDetailsList())
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    private suspend fun fetchProducts(): Boolean {
+        val cachedGroups = storage.productGroups
+        if(cachedGroups == null){
+            val groupsList = RequestManager.allProducts()
+            groupsList?.let { groups ->
+                ApphudLog.log("Registration: groups loaded from server")
+                cacheGroups(groups)
+                return fetchDetails(groups)
+            }
+        }else{
+            ApphudLog.log("Registration: groups restored from cache")
+            return fetchDetails(cachedGroups)
+        }
+        return false
+    }
+
+    private suspend fun fetchDetails(groups :List<ApphudGroup>): Boolean {
+        val ids = groups.map { it -> it.products?.map { it.product_id }!! }.flatten()
+
+        var isInapLoaded = false
+        var isSubsLoaded = false
+        synchronized(skuDetails) {
+            skuDetails.clear()
+        }
+
+        coroutineScope {
+            val subs = async{billing.detailsEx(BillingClient.SkuType.SUBS, ids)}
+            val inap =  async{billing.detailsEx(BillingClient.SkuType.INAPP, ids)}
+
+            subs.await()?.let {
+                synchronized(skuDetails) {
+                    skuDetails.addAll(it)
+                }
+                isSubsLoaded = true
+            } ?: run {
+                ApphudLog.logE("Unable to load SUBS details", false)
+            }
+
+            inap.await()?.let {
+                synchronized(skuDetails) {
+                    skuDetails.addAll(it)
+                }
+                isInapLoaded = true
+            } ?: run {
+                ApphudLog.logE("Unable to load INAP details", false)
+            }
+        }
+        if(isSubsLoaded && isInapLoaded){
+            ApphudLog.log("Registration: skuDetails loaded")
+        }
+        return isSubsLoaded && isInapLoaded
+    }
+
+    @Synchronized
+    private fun notifyLoadingCompleted(customerLoaded: Customer? = null, skuDetailsLoaded: List<SkuDetails>? = null, fromCache: Boolean = false){
+        var restorePaywalls = true
+
+        skuDetailsLoaded?.let{
+            ApphudLog.log("Registration: update permissionGroups with skuDetails")
+            productGroups = readGroupsFromCache()
+            updateGroupsWithSkuDetails(productGroups)
+        }
+
+        customerLoaded?.let{
+            ApphudLog.log("Registration: processing loaded customer")
+            if(fromCache){
+                RequestManager.currentUser = it
+            }else{
+                if (it.paywalls.isNotEmpty()) {
+                    didRetrievePaywallsAtThisLaunch = true
+                    ApphudLog.log("Registration: write paywalls to cache")
+                    cachePaywalls(it.paywalls)
+                }else{
+                    /* Attention:
+                     * If customer loaded without paywalls, do not reload paywalls from cache!
+                     * If cache time is over, paywall from cach will be NULL
+                    */
+                    restorePaywalls = false
+                }
+                storage.updateCustomer(it, apphudListener)
+            }
+            currentUser = it
+            userId = it.user.userId
+
+            if (restorePaywalls) {
+                ApphudLog.log("Registration: reading paywall from cache")
+                paywalls = readPaywallsFromCache()
+
+                ApphudLog.log("Registration: notify paywallsDidLoad")
+                apphudListener?.paywallsDidLoad(paywalls)
+            }
+
+            ApphudLog.log("Registration: notify apphudNonRenewingPurchasesUpdated")
+            apphudListener?.apphudNonRenewingPurchasesUpdated(currentUser!!.purchases)
+            ApphudLog.log("Registration: notify apphudSubscriptionsUpdated")
+            apphudListener?.apphudSubscriptionsUpdated(currentUser!!.subscriptions)
+        }
+
+        updatePaywallsWithSkuDetails(paywalls)
+
+        if(restorePaywalls && currentUser != null && paywalls.isNotEmpty() && skuDetails.isNotEmpty()){
+            ApphudLog.log("Registration: notify paywallsDidFullyLoad")
+            apphudListener?.paywallsDidFullyLoad(paywalls)
+        }
     }
 
     private val mutex = Mutex()
@@ -181,101 +313,43 @@ internal object ApphudInternal {
                     ApphudLog.log("Registration: currentUser == null")
                     val threads = listOf(
                         async {
-                            ApphudLog.log("Registration: load products")
-                            if (productsLoaded.get() == 0) {
-                                if (fetchProducts()) {
-                                    launch(Dispatchers.Main) {
-                                        if (skuDetails.isNotEmpty()) {
-                                            ApphudLog.log("Registration: products loaded")
-                                            apphudListener?.apphudFetchSkuDetailsProducts(skuDetails)
-                                            customProductsFetchedBlock?.invoke(skuDetails)
-                                        }
-                                    }
-                                }
-                            }
-                        },
-                        async {
                             ApphudLog.log("Registration: load customer")
                             customer = RequestManager.registrationSync(
                                 !didRetrievePaywallsAtThisLaunch,
                                 is_new
                             )
-                            customer?.let {
-                                ApphudLog.log("Registration: customer loaded")
-                                storage.lastRegistration = System.currentTimeMillis()
-                                launch(Dispatchers.Main) {
-                                    ApphudLog.log("Registration: notify paywallsDidLoad")
-                                    apphudListener?.paywallsDidLoad(paywalls)
-                                }
-
-                            } ?: run {
-                                ApphudLog.log("Registration: restore from cache")
-                                storage.customer?.let {
-                                    currentUser = it
-                                    launch(Dispatchers.Main) {
-                                        completionHandler?.invoke(it, null)
-                                    }
-                                } ?: run {
-                                    ApphudLog.logE("Registration: error")
-                                    launch(Dispatchers.Main) {
-                                        completionHandler?.invoke(
-                                            null,
-                                            ApphudError("Registration: error")
-                                        )
-                                    }
-                                }
-                            }
                         },
                         async {
-                            ApphudLog.log("Registration: load advertisingId")
-                            val advertisingId = RequestManager.fetchAdvertisingId()
-                            advertisingId?.let{
-                                ApphudLog.log("Registration: loaded advertisingId=$advertisingId")
-                                if(RequestManager.advertisingId.isNullOrEmpty() || RequestManager.advertisingId != it){
-                                    ApphudLog.log("Registration: store new advertisingId. Need to repeat registration")
-                                    repeatRegistration = true
-                                    RequestManager.advertisingId = it
-                                }
-                            }
+                            repeatRegistration = fetchAdvertisingId()
                         }
                     )
                     threads.awaitAll()?.let {
                         ApphudLog.log("Registration: all requests processed")
                         customer?.let {
-                            ApphudLog.log("Registration: processCustomer")
-                            processCustomer(it)
-                            launch(Dispatchers.Main) {
-                                completionHandler?.invoke(it, null)
-                                apphudListener?.apphudNonRenewingPurchasesUpdated(it.purchases)
-                                apphudListener?.apphudSubscriptionsUpdated(it.subscriptions)
-                                apphudListener?.paywallsDidFullyLoad(paywalls)
-                                ApphudLog.log("Registration: notify paywallsDidFullyLoad")
+                            ApphudLog.log("Registration: customer loaded, storing time")
+                            storage.lastRegistration = System.currentTimeMillis()
 
-                                // try to resend purchases, if prev requests was fail
-                                if (storage.isNeedSync) {
-                                    ApphudLog.log("Registration: syncPurchases")
-                                    syncPurchases()
-                                }
+                            launch(Dispatchers.Main) {
+                                notifyLoadingCompleted(it)
+                                ApphudLog.logI("Registration: completed")
+                                completionHandler?.invoke(it, null)
 
                                 if (pendingUserProperties.isNotEmpty() && setNeedsToUpdateUserProperties) {
                                     ApphudLog.log("Registration: we should to update UserProperties")
                                     updateUserProperties()
                                 }
-                                ApphudLog.logI("Registration: completed")
                             }
 
                             if(repeatRegistration == true) {
-                                ApphudLog.logI("Registration: silently repeat registration")
-                                customer = RequestManager.registrationSync(
-                                    !didRetrievePaywallsAtThisLaunch,
-                                    is_new,
-                                    true
+                                repeatRegistrationSilent()
+                            }
+                        } ?: run {
+                            ApphudLog.logE("Registration: error")
+                            launch(Dispatchers.Main) {
+                                completionHandler?.invoke(
+                                    null,
+                                    ApphudError("Registration: error")
                                 )
-                                customer?.let{
-                                    ApphudLog.logI("Registration: repeat registration success")
-                                }?:run{
-                                    ApphudLog.logI("Registration: repeat registration failed")
-                                }
                             }
                         }
                     }
@@ -286,68 +360,33 @@ internal object ApphudInternal {
         }
     }
 
-    private suspend fun fetchProducts(): Boolean {
-        val groupsList = RequestManager.allProducts()
-        groupsList?.let { groups ->
-            val result = fetchDetails(groups)
-            if(result){
-                //Let to know to another threads that details are loaded successfully
-                productsLoaded.incrementAndGet()
+    private suspend fun repeatRegistrationSilent(){
+        ApphudLog.logI("Registration: silently repeat registration")
+        val customerNew = RequestManager.registrationSync(
+            !didRetrievePaywallsAtThisLaunch,
+            is_new,
+            true
+        )
+        customerNew?.let{
+            ApphudLog.logI("Registration: repeat registration success")
+        }?:run{
+            ApphudLog.logI("Registration: repeat registration failed")
+        }
+    }
 
-                //cache groups
-                cacheGroups(groups)
-
-                //reload products and paywall from cache to invalidate sku details inside
-                readGroupsFromCache()
-                readPaywallsFromCache()
+    private suspend fun fetchAdvertisingId(): Boolean{
+        ApphudLog.log("Registration: load advertisingId")
+        val advertisingId = RequestManager.fetchAdvertisingId()
+        advertisingId?.let{
+            ApphudLog.log("Registration: loaded advertisingId=$advertisingId")
+            if(RequestManager.advertisingId.isNullOrEmpty() || RequestManager.advertisingId != it){
+                ApphudLog.log("Registration: store new advertisingId. Need to repeat registration")
+                RequestManager.advertisingId = it
+                return true
             }
-            return result
+            return false
         }
         return false
-    }
-
-    private suspend fun fetchDetails(groups :List<ApphudGroup>): Boolean {
-        val ids = groups.map { it -> it.products?.map { it.product_id }!! }.flatten()
-
-        var isInapLoaded = false
-        var isSubsLoaded = false
-        skuDetails.clear()
-
-        coroutineScope {
-            val subs = async{billing.detailsEx(BillingClient.SkuType.SUBS, ids)}
-            val inap =  async{billing.detailsEx(BillingClient.SkuType.INAPP, ids)}
-
-            subs.await()?.let {
-                skuDetails.addAll(it)
-                isSubsLoaded = true
-            } ?: run {
-                ApphudLog.logE("Unable to load SUBS details", false)
-            }
-
-            inap.await()?.let {
-                skuDetails.addAll(it)
-                isInapLoaded = true
-            } ?: run {
-                ApphudLog.logE("Unable to load INAP details", false)
-            }
-
-            cacheSkuDetails(skuDetails)
-        }
-        return isSubsLoaded && isInapLoaded
-    }
-
-    private fun processCustomer(customer: Customer){
-        if (customer.paywalls.isNotEmpty()) {
-            didRetrievePaywallsAtThisLaunch = true
-            updatePaywallsWithSkuDetails(customer.paywalls)
-            cachePaywalls(customer.paywalls)
-            readPaywallsFromCache()
-        }
-
-
-        userId = customer.user.userId
-        storage.updateCustomer(customer, apphudListener)
-        currentUser = storage.customer
     }
 
     internal fun productsFetchCallback(callback: (List<SkuDetails>) -> Unit) {
@@ -624,9 +663,7 @@ internal object ApphudInternal {
                         val newPurchases =
                             customer.purchases.firstOrNull { it.productId == purchase.skus.first() }
 
-                        processCustomer(it)
-
-                        storage.isNeedSync = false
+                        notifyLoadingCompleted(it)
 
                         if (newSubscriptions == null && newPurchases == null) {
                             val productId = details?.let { details.sku } ?: purchase.skus.first()?:"unknown"
@@ -680,7 +717,6 @@ internal object ApphudInternal {
             error?.let{
                 callback?.invoke(null, null, error)
             }?: run{
-                //storage.isNeedSync = true
                 productsForRestore.clear()
                 tempPrevPurchases.clear()
                 purchasesForRestoreIsLoaded.set(0)
@@ -791,7 +827,6 @@ internal object ApphudInternal {
                                     }
 
                                     prevPurchases.addAll(tempPurchaseRecordDetails)
-                                    storage.isNeedSync = false
                                     userId = customer.user.userId
                                     storage.updateCustomer(it, apphudListener)
 
@@ -1071,14 +1106,18 @@ internal object ApphudInternal {
             error?.let{
                 ApphudLog.logE(it.message)
             }?: run{
+
                 val id = updateUser(id = userId)
                 this.userId = id
+                RequestManager.setParams(this.context, userId, this.deviceId, this.apiKey)
 
-                RequestManager.setParams(this.context, this.userId, this.deviceId, this.apiKey)
-                registration(this.userId, this.deviceId){ customer, error ->
+                coroutineScope.launch(errorHandler) {
+                    val customer = RequestManager.registrationSync(!didRetrievePaywallsAtThisLaunch, is_new)
                     customer?.let {
-                        processCustomer(it)
-                        ApphudLog.logI("End updateUserId customer=$customer")
+                        launch(Dispatchers.Main) {
+                            notifyLoadingCompleted(it)
+                            ApphudLog.log("Registration: End updateUserId customer=$customer")
+                        }
                     }
                     error?.let{
                         ApphudLog.logE(it.message)
@@ -1206,6 +1245,14 @@ internal object ApphudInternal {
             }
         }
     }
+
+    internal fun getSkuDetailsList(): List<SkuDetails> {
+        var out: MutableList<SkuDetails>
+        synchronized(this.skuDetails){
+            out = this.skuDetails.toCollection(mutableListOf())
+        }
+        return out
+    }
     //endregion
 
     //region === Secondary methods ===
@@ -1285,14 +1332,8 @@ internal object ApphudInternal {
         storage.productGroups = groups
     }
 
-    private fun readGroupsFromCache() {
-        val productGroups = storage.productGroups
-        productGroups?.let {
-            updateGroupsWithSkuDetails(it)
-        }
-        synchronized(this.productGroups){
-            this.productGroups =  productGroups?.toMutableList() ?: mutableListOf()
-        }
+    private fun readGroupsFromCache(): MutableList<ApphudGroup>{
+        return  storage.productGroups?.toMutableList()?: mutableListOf()
     }
 
     private fun updateGroupsWithSkuDetails(productGroups: List<ApphudGroup>) {
@@ -1308,54 +1349,28 @@ internal object ApphudInternal {
         storage.paywalls = paywalls
     }
 
-    private fun readPaywallsFromCache() {
-        val paywalls = storage.paywalls
-        paywalls?.let {
-            updatePaywallsWithSkuDetails(it)
-        }
-        synchronized(this.paywalls){
-            this.paywalls =  paywalls?.toMutableList() ?: mutableListOf()
-        }
+    private fun readPaywallsFromCache(): MutableList<ApphudPaywall> {
+        return storage.paywalls?.toMutableList()?: mutableListOf()
     }
 
     private fun updatePaywallsWithSkuDetails(paywalls: List<ApphudPaywall>) {
-        paywalls.forEach { paywall ->
-            paywall.products?.forEach { product ->
-                product.skuDetails = getSkuDetailsByProductId(product.product_id)
+        synchronized(paywalls) {
+            paywalls.forEach { paywall ->
+                paywall.products?.forEach { product ->
+                    product.skuDetails = getSkuDetailsByProductId(product.product_id)
+                }
             }
         }
     }
 
-    //SkuDetail cache ======================================
-    internal fun getSkuDetailsList(): MutableList<SkuDetails>? {
-        return skuDetails.takeIf { skuDetails.isNotEmpty() }
-    }
-
-    private fun cacheSkuDetails(details: List<SkuDetails>) {
-        val skuDetailsToCache :MutableList<String> = mutableListOf()
-        details.forEach{
-            skuDetailsToCache.add(it.originalJson)
-        }
-        storage.skuDetails = skuDetailsToCache
-    }
-
-    private fun cachedSkuDetails(): MutableList<SkuDetails> {
-        val result :MutableList<SkuDetails> = mutableListOf()
-        try{
-            val skuDetailsFromCache = storage.skuDetails?.toMutableList() ?: mutableListOf()
-            skuDetailsFromCache.forEach{
-                result.add(SkuDetails(it))
-            }
-        }catch (ex: Exception){
-            ex.message?.let{
-                ApphudLog.logE(it)
-            }
-        }
-        return result
-    }
-
+    //Find SkuDetail  ======================================
     internal fun getSkuDetailsByProductId(productIdentifier: String): SkuDetails? {
-        return getSkuDetailsList()?.let { skuList -> skuList.firstOrNull { it.sku == productIdentifier } }
+        var skuDetail : SkuDetails?
+        synchronized(skuDetails){
+            skuDetail = skuDetails.let { skuList -> skuList.firstOrNull { it.sku == productIdentifier } }
+        }
+        return skuDetail
     }
+
     //endregion
 }

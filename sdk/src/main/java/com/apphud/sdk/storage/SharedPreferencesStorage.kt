@@ -212,6 +212,7 @@ class SharedPreferencesStorage(
 
         if(userIdChanged) {
             apphudListener?.let{
+                ApphudLog.log("Registration: notify apphudDidChangeUserID")
                 apphudListener.apphudDidChangeUserID(customer.user.userId)
             }
         }
