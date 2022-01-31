@@ -224,7 +224,6 @@ object RequestManager {
                 completionHandler(null, ApphudError(message))
             }
         } catch (e: IOException) {
-            e.printStackTrace()
             val message = e.message ?: "Undefined error"
             completionHandler(null, ApphudError(message))
         }
