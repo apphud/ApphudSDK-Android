@@ -20,14 +20,10 @@ import com.apphud.sdk.managers.RequestManager
 import com.apphud.sdk.parser.GsonParser
 import com.apphud.sdk.parser.Parser
 import com.apphud.sdk.storage.SharedPreferencesStorage
-import com.google.android.gms.ads.identifier.AdvertisingIdClient
-import com.google.android.gms.common.GooglePlayServicesNotAvailableException
-import com.google.android.gms.common.GooglePlayServicesRepairableException
 import com.google.gson.GsonBuilder
 import kotlinx.coroutines.*
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
-import java.io.IOException
 import java.util.*
 import java.util.concurrent.atomic.AtomicInteger
 
@@ -239,6 +235,7 @@ internal object ApphudInternal {
         return isSubsLoaded && isInapLoaded
     }
 
+    private var notifyFullyLoaded = false
     @Synchronized
     private fun notifyLoadingCompleted(customerLoaded: Customer? = null, skuDetailsLoaded: List<SkuDetails>? = null, fromCache: Boolean = false){
         var restorePaywalls = true
@@ -260,6 +257,7 @@ internal object ApphudInternal {
                 RequestManager.currentUser = it
             }else{
                 if (it.paywalls.isNotEmpty()) {
+                    notifyFullyLoaded = true
                     didRetrievePaywallsAtThisLaunch = true
                     ApphudLog.log("Registration: write paywalls to cache")
                     cachePaywalls(it.paywalls)
@@ -291,8 +289,9 @@ internal object ApphudInternal {
 
         updatePaywallsWithSkuDetails(paywalls)
 
-        if(restorePaywalls && currentUser != null && paywalls.isNotEmpty() && skuDetails.isNotEmpty()){
+        if(restorePaywalls && currentUser != null && paywalls.isNotEmpty() && skuDetails.isNotEmpty() && notifyFullyLoaded){
             ApphudLog.log("Registration: notify paywallsDidFullyLoad")
+            notifyFullyLoaded = false
             apphudListener?.paywallsDidFullyLoad(paywalls)
         }
     }
