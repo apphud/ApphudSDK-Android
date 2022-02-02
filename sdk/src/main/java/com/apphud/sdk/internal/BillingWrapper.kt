@@ -2,21 +2,19 @@ package com.apphud.sdk.internal
 
 import android.app.Activity
 import android.content.Context
-import android.util.SparseArray
 import com.android.billingclient.api.*
-import com.apphud.sdk.ApphudLog
 import com.apphud.sdk.ProductId
+import kotlinx.coroutines.*
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import java.io.Closeable
+import kotlin.coroutines.resume
+import kotlin.coroutines.suspendCoroutine
 
 /**
  * Обертка над платежной системой Google
  */
-internal class BillingWrapper(context: Context) : BillingClientStateListener, Closeable {
-
-    companion object {
-        private const val SUBS_KEY = 0
-        private const val IN_APP_KEY = 1
-    }
+internal class BillingWrapper(context: Context) : Closeable {
 
     private val builder = BillingClient
         .newBuilder(context)
@@ -29,14 +27,38 @@ internal class BillingWrapper(context: Context) : BillingClientStateListener, Cl
     private val consume = ConsumeWrapper(billing)
     private val history = HistoryWrapper(billing)
     private val acknowledge = AcknowledgeWrapper(billing)
-    //Используется кеш на случай, если при попытке восстановить историю клиент еще не запущен
-    private val storage = SparseArray<SkuType>(2)
 
-    init {
-        billing.startConnection(this)
-        when (billing.isReady) {
-            true -> ApphudLog.log("INIT billing is Ready")
-            else -> ApphudLog.log("INIT billing is not Ready")
+    private val mutex = Mutex()
+    private suspend fun connectIfNeeded(): Boolean {
+        var result: Boolean
+        mutex.withLock {
+            if(billing.isReady) {
+                result = true
+            }else{
+                while (!billing.connect()) {
+                    Thread.sleep(300)
+                }
+                result = true
+            }
+        }
+        return result
+    }
+
+    suspend fun BillingClient.connect(): Boolean {
+        return suspendCoroutine { continuation ->
+            startConnection(object : BillingClientStateListener {
+                override fun onBillingSetupFinished(billingResult: BillingResult) {
+                    if (billingResult.responseCode == BillingClient.BillingResponseCode.OK) {
+                        continuation.resume(true)
+                    } else {
+                        continuation.resume(false)
+                    }
+                }
+
+                override fun onBillingServiceDisconnected() {
+
+                }
+            })
         }
     }
 
@@ -77,13 +99,12 @@ internal class BillingWrapper(context: Context) : BillingClientStateListener, Cl
         }
 
     fun queryPurchaseHistory(@BillingClient.SkuType type: SkuType) {
-        when (billing.isReady) {
-            true -> history.queryPurchaseHistory(type)
-            else -> when (type) {
-                BillingClient.SkuType.SUBS  -> storage.put(SUBS_KEY, type)
-                BillingClient.SkuType.INAPP -> storage.put(IN_APP_KEY, type)
-            }
+        GlobalScope.launch {
+            val connectIfNeeded = connectIfNeeded()
+            if (!connectIfNeeded) return@launch
+            return@launch  history.queryPurchaseHistory(type)
         }
+        history.queryPurchaseHistory(type)
     }
 
     fun details(@BillingClient.SkuType type: SkuType, products: List<ProductId>) =
@@ -91,42 +112,51 @@ internal class BillingWrapper(context: Context) : BillingClientStateListener, Cl
 
     fun details(@BillingClient.SkuType type: SkuType,
                 products: List<ProductId>,
-                manualCallback: ApphudSkuDetailsCallback? = null) =
-        sku.queryAsync(type = type, products = products, manualCallback = manualCallback)
-
-    suspend fun detailsEx(@BillingClient.SkuType type: SkuType, products: List<ProductId>) : List<SkuDetails>? =
-        sku.queryAsyncEx(type = type, products = products)
-
-
-    fun restore(@BillingClient.SkuType type: SkuType, products: List<PurchaseHistoryRecord>) =
-        sku.restoreAsync(type, products)
-
-    fun purchase(activity: Activity, details: SkuDetails) {
-        flow.purchases(activity, details)
-    }
-
-    fun acknowledge(purchase: Purchase) = acknowledge.purchase(purchase)
-
-    fun consume(purchase: Purchase) = consume.purchase(purchase)
-
-    //BillingClientStateListener
-    override fun onBillingServiceDisconnected() {
-        ApphudLog.log("onBillingServiceDisconnected")
-        when (billing.isReady) {
-            true -> ApphudLog.log("onBillingServiceDisconnected billing is Ready")
-            else -> ApphudLog.log("onBillingServiceDisconnected billing is not Ready")
+                manualCallback: ApphudSkuDetailsCallback? = null) {
+        GlobalScope.launch{
+            val connectIfNeeded = connectIfNeeded()
+            if (!connectIfNeeded) return@launch
+            return@launch sku.queryAsync(type = type, products = products, manualCallback = manualCallback)
         }
     }
 
-    override fun onBillingSetupFinished(result: BillingResult) {
-        ApphudLog.log("onBillingSetupFinished")
-        when (billing.isReady) {
-            true -> {
-                ApphudLog.log("onBillingSetupFinished billing is Ready")
-                storage.get(SUBS_KEY)?.let { history.queryPurchaseHistory(it) }
-                storage.get(IN_APP_KEY)?.let { history.queryPurchaseHistory(it) }
-            }
-            else -> ApphudLog.log("onBillingSetupFinished billing is not Ready")
+    suspend fun detailsEx(@BillingClient.SkuType type: SkuType, products: List<ProductId>) : List<SkuDetails>? {
+        val connectIfNeeded = connectIfNeeded()
+        if (!connectIfNeeded) return null
+
+        return sku.queryAsyncEx(type = type, products = products)
+    }
+
+
+    fun restore(@BillingClient.SkuType type: SkuType, products: List<PurchaseHistoryRecord>) {
+        GlobalScope.launch{
+            val connectIfNeeded = connectIfNeeded()
+            if (!connectIfNeeded) return@launch
+            return@launch sku.restoreAsync(type, products)
+        }
+    }
+
+    fun purchase(activity: Activity, details: SkuDetails) {
+        GlobalScope.launch {
+            val connectIfNeeded = connectIfNeeded()
+            if (!connectIfNeeded) return@launch
+            return@launch flow.purchases(activity, details)
+        }
+    }
+
+    fun acknowledge(purchase: Purchase) {
+        GlobalScope.launch {
+            val connectIfNeeded = connectIfNeeded()
+            if (!connectIfNeeded) return@launch
+            return@launch acknowledge.purchase(purchase)
+        }
+    }
+
+    fun consume(purchase: Purchase) {
+        GlobalScope.launch {
+            val connectIfNeeded = connectIfNeeded()
+            if (!connectIfNeeded) return@launch
+            return@launch consume.purchase(purchase)
         }
     }
 

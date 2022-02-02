@@ -12,7 +12,6 @@ import com.android.billingclient.api.SkuDetails
 import com.apphud.sdk.body.*
 import com.apphud.sdk.domain.*
 import com.apphud.sdk.internal.BillingWrapper
-import com.apphud.sdk.internal.BillingWrapper2
 import com.apphud.sdk.internal.callback_status.PurchaseCallbackStatus
 import com.apphud.sdk.internal.callback_status.PurchaseHistoryCallbackStatus
 import com.apphud.sdk.internal.callback_status.PurchaseRestoredCallbackStatus
@@ -40,7 +39,7 @@ internal object ApphudInternal {
         .create()
     private val parser: Parser = GsonParser(builder)
 
-    private lateinit var billing: BillingWrapper2
+    private lateinit var billing: BillingWrapper
     private val storage by lazy { SharedPreferencesStorage(context, parser) }
     private var generatedUUID = UUID.randomUUID().toString()
     private var prevPurchases = mutableSetOf<PurchaseRecordDetails>()
@@ -121,10 +120,9 @@ internal object ApphudInternal {
         this.context = context
         this.apiKey = apiKey
 
-        billing = BillingWrapper2(context)
+        billing = BillingWrapper(context)
         
         val needRegistration = needRegistration(userId)
-        ApphudLog.logI("Need registration: " + needRegistration)
 
         this.userId = updateUser(id = userId)
         this.deviceId = updateDevice(id = deviceId)
@@ -138,7 +136,6 @@ internal object ApphudInternal {
         if(needRegistration) {
             registration(this.userId, this.deviceId, null)
         }else{
-            ApphudLog.log("Registration: customer restored from cache")
             notifyLoadingCompleted(storage.customer, null, true)
         }
     }
@@ -167,14 +164,12 @@ internal object ApphudInternal {
             mutexProducts.withLock {
                 async {
                     if (productsLoaded.get() == 0) {
-                        ApphudLog.log("Registration: start loading groups")
                         if (fetchProducts()) {
                             //Let to know to another threads that details are loaded successfully
                             productsLoaded.incrementAndGet()
 
                             launch(Dispatchers.Main) {
                                 notifyLoadingCompleted(null, skuDetails)
-                                ApphudLog.log("Registration: permission groups updated with skuDetails and ready to use")
                             }
                         }
                     }
@@ -188,12 +183,10 @@ internal object ApphudInternal {
         if(cachedGroups == null){
             val groupsList = RequestManager.allProducts()
             groupsList?.let { groups ->
-                ApphudLog.log("Registration: groups loaded from server")
                 cacheGroups(groups)
                 return fetchDetails(groups)
             }
         }else{
-            ApphudLog.log("Registration: groups restored from cache")
             return fetchDetails(cachedGroups)
         }
         return false
@@ -230,9 +223,6 @@ internal object ApphudInternal {
                 ApphudLog.logE("Unable to load INAP details", false)
             }
         }
-        if(isSubsLoaded && isInapLoaded){
-            ApphudLog.log("Registration: skuDetails loaded")
-        }
         return isSubsLoaded && isInapLoaded
     }
 
@@ -242,25 +232,21 @@ internal object ApphudInternal {
         var restorePaywalls = true
 
         skuDetailsLoaded?.let{
-            ApphudLog.log("Registration: update permissionGroups with skuDetails")
             productGroups = readGroupsFromCache()
             updateGroupsWithSkuDetails(productGroups)
 
             //notify that skuDetails are loaded
-            ApphudLog.log("Registration: notify that products skuDetails are loaded")
             apphudListener?.apphudFetchSkuDetailsProducts(getSkuDetailsList())
             customProductsFetchedBlock?.invoke(getSkuDetailsList())
         }
 
         customerLoaded?.let{
-            ApphudLog.log("Registration: processing loaded customer")
             if(fromCache){
                 RequestManager.currentUser = it
             }else{
                 if (it.paywalls.isNotEmpty()) {
                     notifyFullyLoaded = true
                     didRetrievePaywallsAtThisLaunch = true
-                    ApphudLog.log("Registration: write paywalls to cache")
                     cachePaywalls(it.paywalls)
                 }else{
                     /* Attention:
@@ -275,23 +261,18 @@ internal object ApphudInternal {
             userId = it.user.userId
 
             if (restorePaywalls) {
-                ApphudLog.log("Registration: reading paywall from cache")
                 paywalls = readPaywallsFromCache()
 
-                ApphudLog.log("Registration: notify paywallsDidLoad")
                 apphudListener?.paywallsDidLoad(paywalls)
             }
 
-            ApphudLog.log("Registration: notify apphudNonRenewingPurchasesUpdated")
             apphudListener?.apphudNonRenewingPurchasesUpdated(currentUser!!.purchases)
-            ApphudLog.log("Registration: notify apphudSubscriptionsUpdated")
             apphudListener?.apphudSubscriptionsUpdated(currentUser!!.subscriptions)
         }
 
         updatePaywallsWithSkuDetails(paywalls)
 
         if(restorePaywalls && currentUser != null && paywalls.isNotEmpty() && skuDetails.isNotEmpty() && notifyFullyLoaded){
-            ApphudLog.log("Registration: notify paywallsDidFullyLoad")
             notifyFullyLoaded = false
             apphudListener?.paywallsDidFullyLoad(paywalls)
         }
@@ -310,10 +291,8 @@ internal object ApphudInternal {
             var repeatRegistration: Boolean? = false
             mutex.withLock {
                 if(currentUser == null) {
-                    ApphudLog.log("Registration: currentUser == null")
                     val threads = listOf(
                         async {
-                            ApphudLog.log("Registration: load customer")
                             customer = RequestManager.registrationSync(
                                 !didRetrievePaywallsAtThisLaunch,
                                 is_new
@@ -324,18 +303,14 @@ internal object ApphudInternal {
                         }
                     )
                     threads.awaitAll()?.let {
-                        ApphudLog.log("Registration: all requests processed")
                         customer?.let {
-                            ApphudLog.log("Registration: customer loaded, storing time")
                             storage.lastRegistration = System.currentTimeMillis()
 
                             launch(Dispatchers.Main) {
                                 notifyLoadingCompleted(it)
-                                ApphudLog.logI("Registration: completed")
                                 completionHandler?.invoke(it, null)
 
                                 if (pendingUserProperties.isNotEmpty() && setNeedsToUpdateUserProperties) {
-                                    ApphudLog.log("Registration: we should to update UserProperties")
                                     updateUserProperties()
                                 }
                             }
@@ -360,34 +335,23 @@ internal object ApphudInternal {
                             }
                         }
                     }
-                }else{
-                    ApphudLog.log("Registration: already registered, skipping")
                 }
             }
         }
     }
 
     private suspend fun repeatRegistrationSilent(){
-        ApphudLog.logI("Registration: silently repeat registration")
         val customerNew = RequestManager.registrationSync(
             !didRetrievePaywallsAtThisLaunch,
             is_new,
             true
         )
-        customerNew?.let{
-            ApphudLog.logI("Registration: repeat registration success")
-        }?:run{
-            ApphudLog.logI("Registration: repeat registration failed")
-        }
     }
 
     private suspend fun fetchAdvertisingId(): Boolean{
-        ApphudLog.log("Registration: load advertisingId")
         val advertisingId = RequestManager.fetchAdvertisingId()
         advertisingId?.let{
-            ApphudLog.log("Registration: loaded advertisingId=$advertisingId")
             if(RequestManager.advertisingId.isNullOrEmpty() || RequestManager.advertisingId != it){
-                ApphudLog.log("Registration: store new advertisingId. Need to repeat registration")
                 RequestManager.advertisingId = it
                 return true
             }
@@ -1136,7 +1100,6 @@ internal object ApphudInternal {
                     customer?.let {
                         launch(Dispatchers.Main) {
                             notifyLoadingCompleted(it)
-                            ApphudLog.log("Registration: End updateUserId customer=$customer")
                         }
                     }
                     error?.let{
