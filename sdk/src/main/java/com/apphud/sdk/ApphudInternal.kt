@@ -12,6 +12,7 @@ import com.android.billingclient.api.SkuDetails
 import com.apphud.sdk.body.*
 import com.apphud.sdk.domain.*
 import com.apphud.sdk.internal.BillingWrapper
+import com.apphud.sdk.internal.BillingWrapper2
 import com.apphud.sdk.internal.callback_status.PurchaseCallbackStatus
 import com.apphud.sdk.internal.callback_status.PurchaseHistoryCallbackStatus
 import com.apphud.sdk.internal.callback_status.PurchaseRestoredCallbackStatus
@@ -39,7 +40,7 @@ internal object ApphudInternal {
         .create()
     private val parser: Parser = GsonParser(builder)
 
-    private lateinit var billing: BillingWrapper
+    private lateinit var billing: BillingWrapper2
     private val storage by lazy { SharedPreferencesStorage(context, parser) }
     private var generatedUUID = UUID.randomUUID().toString()
     private var prevPurchases = mutableSetOf<PurchaseRecordDetails>()
@@ -120,7 +121,7 @@ internal object ApphudInternal {
         this.context = context
         this.apiKey = apiKey
 
-        billing = BillingWrapper(context)
+        billing = BillingWrapper2(context)
         
         val needRegistration = needRegistration(userId)
         ApphudLog.logI("Need registration: " + needRegistration)

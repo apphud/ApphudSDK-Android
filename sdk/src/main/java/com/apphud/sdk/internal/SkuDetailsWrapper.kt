@@ -119,12 +119,6 @@ internal class SkuDetailsWrapper(
             .build()
 
         thread(start = true, name = "queryAsync+$type") {
-            while (!billing.isReady) {
-                ApphudLog.log("queryAsync is on waiting for ${retryDelay}ms for $type")
-                Thread.sleep(retryDelay)
-                if(retryCount++>=retryCapacity)
-                    break
-            }
             billing.querySkuDetailsAsync(params) { result, details ->
                 when (result.isSuccess()) {
                     true -> {
