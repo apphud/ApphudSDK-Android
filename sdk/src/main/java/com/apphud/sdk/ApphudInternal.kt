@@ -343,6 +343,13 @@ internal object ApphudInternal {
                             if(repeatRegistration == true) {
                                 repeatRegistrationSilent()
                             }
+
+                            if(storage.isNeedSync) {
+                                coroutineScope.launch(errorHandler) {
+                                    syncPurchases()
+                                }
+                            }
+
                         } ?: run {
                             ApphudLog.logE("Registration: error")
                             launch(Dispatchers.Main) {
@@ -585,6 +592,8 @@ internal object ApphudInternal {
                     ApphudLog.log(message = error.toString())
 
                     callback?.invoke(ApphudPurchaseResult(null, null, null, error))
+
+                    processPurchaseError(purchasesResult)
                 }
                 is PurchaseUpdatedCallbackStatus.Success -> {
                     ApphudLog.log("purchases: $purchasesResult")
@@ -643,6 +652,15 @@ internal object ApphudInternal {
                     null,
                     null,
                     ApphudError(message)))
+            }
+        }
+    }
+
+    private fun processPurchaseError(status:  PurchaseUpdatedCallbackStatus.Error){
+        if(status.result.responseCode == BillingClient.BillingResponseCode.ITEM_ALREADY_OWNED) {
+            storage.isNeedSync = true
+            coroutineScope.launch(errorHandler) {
+                syncPurchases()
             }
         }
     }
@@ -825,6 +843,8 @@ internal object ApphudInternal {
                                     }else{
                                         ApphudLog.log("SyncPurchases: customer was successfully updated $customer")
                                     }
+
+                                    storage.isNeedSync = false
 
                                     prevPurchases.addAll(tempPurchaseRecordDetails)
                                     userId = customer.user.userId
