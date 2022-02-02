@@ -191,7 +191,7 @@ object RequestManager {
                     "Unable to perform API requests, because your account has been suspended."
                 ApphudLog.logE(message)
                 completionHandler(null, ApphudError(message))
-            } else if (isNetworkAvailable()) {
+            } else if (true) {
 
                 logRequestStart(request)
                 val response = client.newCall(request).execute()
@@ -235,7 +235,7 @@ object RequestManager {
             val message = "SDK networking is locked until application restart"
             ApphudLog.logE(message)
             throw Exception(message)
-        } else if (isNetworkAvailable()) {
+        } else if (true) {
             logRequestStart(request)
 
             val response = client.newCall(request).execute()
