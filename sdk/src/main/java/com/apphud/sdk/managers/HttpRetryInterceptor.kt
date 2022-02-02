@@ -11,30 +11,27 @@ import java.lang.Exception
 
 class HttpRetryInterceptor : Interceptor {
     companion object {
-        private const val STEP = 5_000L
-        private const val MAX_COUNT = 10
+        private const val STEP = 3_000L
+        private const val MAX_COUNT = 30
     }
 
     @Throws(IOException::class)
     override fun intercept(chain: Interceptor.Chain): Response {
-        ApphudLog.log("HttpRetryInterceptor: Making request for the first time.")
         val request: Request = chain.request()
         var response: Response? = null
         var isSuccess = false
         var tryCount: Byte = 0
         while (!isSuccess && tryCount < MAX_COUNT) {
             try {
-                Thread.sleep(STEP * tryCount)
+                Thread.sleep(STEP)
                 response = chain.proceed(request)
-                ApphudLog.log("HttpRetryInterceptor: Response is: " + response)
                 isSuccess = response.isSuccessful
 
                 if(!isSuccess){
-                    ApphudLog.log("HttpRetryInterceptor: Request was not successful: Retrying " + tryCount)
+                    ApphudLog.logE("Request (${request.url.encodedPath}) failed with code (${response.code}). Will retry in ${STEP/1000} seconds (${tryCount}).")
                 }
             } catch (e: Exception) {
-                e.printStackTrace()
-                ApphudLog.log("HttpRetryInterceptor: Request was not successful: {} . Retrying." + tryCount)
+                ApphudLog.logE("Request (${request.url.encodedPath}) failed with code (${response?.code ?: 0}). Will retry in ${STEP/1000} seconds (${tryCount}).")
             } finally {
                 if(!isSuccess) {
                     response?.close()
@@ -43,7 +40,7 @@ class HttpRetryInterceptor : Interceptor {
             }
         }
         if(!isSuccess && tryCount >= MAX_COUNT){
-            ApphudLog.log("HttpRetryInterceptor: Request was not successful. Stopped.")
+            ApphudLog.logE("Reached max number (${MAX_COUNT}) of (${request.url.encodedPath}) request retries. Exiting..")
         }
         return response ?: chain.proceed(request)
     }

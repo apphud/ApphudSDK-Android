@@ -98,15 +98,22 @@ object Apphud {
         ApphudInternal.currentUser?.purchases?: emptyList()
 
     /**
-     * Fetches  paywalls configured in Apphud dashboard. Paywalls are automatically cached on device.
+     * Returns paywalls structure, if configured in Apphud Products Hub. Data is cached on device.
+     * Note that this method may return empty array if no cache found. To get notified when `paywalls()`
+     * are ready to use, use ApphudListener's  `paywallsDidLoad` or `paywallsDidFullyLoad` methods
+     * depending on whether or not you need SkuDetails to be already filled in paywalls.
      */
     fun paywalls() :List<ApphudPaywall>{
         return ApphudInternal.getPaywalls()
     }
 
     /**
-     * Permission groups configured in Apphud dashboard. Groups are cached on device.
-     * Note that this method may be `null` at first launch of the app.
+     * Returns Permission groups structure configured in Apphud dashboard. Data is cached on device.
+     * Note that this method returns empty array if SkuDetails are not yet fetched from Google Play.
+     * To get notified when `permissionGroups` are ready to use, use ApphudListener's
+     * `apphudFetchSkuDetailsProducts` or `paywallsDidFullyLoad` methods or `productsFetchCallback`.
+     * When any of these methods is called, `SkuDetails` are loaded, which means that current
+     * `permissionGroups` method is ready to use.
      */
     fun permissionGroups(): List<ApphudGroup> {
         return ApphudInternal.permissionGroups()
