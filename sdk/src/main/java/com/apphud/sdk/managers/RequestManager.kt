@@ -695,20 +695,20 @@ object RequestManager {
         }
     }
 
-    fun paywallShown(paywall: ApphudPaywall?) {
+    fun paywallShown(paywall: ApphudPaywall) {
         trackPaywallEvent(
             makePaywallEventBody(
                 name = "paywall_shown",
-                paywall_id = paywall?.id
+                paywall_id = paywall.id
             )
         )
     }
 
-    fun paywallClosed(paywall: ApphudPaywall?) {
+    fun paywallClosed(paywall: ApphudPaywall) {
         trackPaywallEvent(
             makePaywallEventBody(
                 name = "paywall_closed",
-                paywall_id = paywall?.id
+                paywall_id = paywall.id
             )
         )
     }

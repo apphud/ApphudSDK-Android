@@ -315,12 +315,12 @@ object Apphud {
      * Will be displayed in AppHud Events dashboard
      */
     @kotlin.jvm.JvmStatic
-    fun paywallShown(paywall: ApphudPaywall?) {
+    fun paywallShown(paywall: ApphudPaywall) {
         ApphudInternal.paywallShown(paywall)
     }
 
     @kotlin.jvm.JvmStatic
-    fun paywallClosed(paywall: ApphudPaywall?) {
+    fun paywallClosed(paywall: ApphudPaywall) {
         ApphudInternal.paywallClosed(paywall)
     }
 

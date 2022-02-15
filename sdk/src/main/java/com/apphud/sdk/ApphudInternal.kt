@@ -1166,7 +1166,7 @@ internal object ApphudInternal {
         }
     }
 
-    fun paywallShown(paywall: ApphudPaywall?) {
+    fun paywallShown(paywall: ApphudPaywall) {
         checkRegistration{ error ->
             error?.let{
                ApphudLog.logI(error.message)
@@ -1178,7 +1178,7 @@ internal object ApphudInternal {
         }
     }
 
-    fun paywallClosed(paywall: ApphudPaywall?) {
+    fun paywallClosed(paywall: ApphudPaywall) {
         checkRegistration{ error ->
             error?.let{
                 ApphudLog.logI(error.message)
