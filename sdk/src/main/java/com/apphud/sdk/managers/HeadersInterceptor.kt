@@ -9,7 +9,7 @@ import java.io.IOException
 
 class HeadersInterceptor(private val apiKey: String?) : Interceptor {
     companion object Shared{
-        val X_SDK_VERSION: String = BuildConfig.VERSION_NAME
+        var X_SDK_VERSION: String = BuildConfig.VERSION_NAME
         var X_SDK: String = "Kotlin"
         var HOST: String = ApiClient.host
         var isBlocked: Boolean = false
