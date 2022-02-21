@@ -169,12 +169,14 @@ internal object ApphudInternal {
         coroutineScope.launch(errorHandler) {
             mutexProducts.withLock {
                 async {
-                    if (fetchProducts()) {
-                        //Let to know to another threads that details are loaded successfully
-                        productsLoaded.incrementAndGet()
+                    if (productsLoaded.get() == 0) {
+                        if (fetchProducts()) {
+                            //Let to know to another threads that details are loaded successfully
+                            productsLoaded.incrementAndGet()
 
-                        launch(Dispatchers.Main) {
-                            notifyLoadingCompleted(null, skuDetails)
+                            launch(Dispatchers.Main) {
+                                notifyLoadingCompleted(null, skuDetails)
+                            }
                         }
                     }
                 }
