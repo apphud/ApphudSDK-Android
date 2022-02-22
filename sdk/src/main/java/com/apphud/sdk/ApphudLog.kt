@@ -52,7 +52,7 @@ internal object ApphudLog {
      * Send Error Logs to Apphud Server
      * */
     private fun sendErrorLogs(message: String) {
-        RequestManager.sendErrorLogs(message)
+        ApphudInternal.sendErrorLogs(message)
     }
 
     /**

@@ -131,10 +131,16 @@ internal object ApphudInternal {
         allowIdentifyUser = false
         ApphudLog.log("Start initialize with saved userId=${this.userId}, saved deviceId=${this.deviceId}")
 
+
+        //Restore from cache
+        this.currentUser = storage.customer
+        this.productGroups = readGroupsFromCache()
+        this.paywalls = readPaywallsFromCache()
+
         loadProducts()
 
         if(needRegistration) {
-            registration(this.userId, this.deviceId, null)
+            registration(this.userId, this.deviceId, true, null)
         }else{
             notifyLoadingCompleted(storage.customer, null, true)
         }
@@ -180,7 +186,7 @@ internal object ApphudInternal {
 
     private suspend fun fetchProducts(): Boolean {
         val cachedGroups = storage.productGroups
-        if(cachedGroups == null){
+        if(cachedGroups == null || storage.needUpdateProductGroups()){
             val groupsList = RequestManager.allProducts()
             groupsList?.let { groups ->
                 cacheGroups(groups)
@@ -283,6 +289,7 @@ internal object ApphudInternal {
     private fun registration(
         userId: UserId,
         deviceId: DeviceId,
+        forceRegistration: Boolean = false,
         completionHandler: ((Customer?, ApphudError?) -> Unit)?
     ) {
         ApphudLog.log("Start registration userId=$userId, deviceId=$deviceId")
@@ -290,7 +297,7 @@ internal object ApphudInternal {
             var customer: Customer? = null
             var repeatRegistration: Boolean? = false
             mutex.withLock {
-                if(currentUser == null) {
+                if(currentUser == null || forceRegistration) {
                     val threads = listOf(
                         async {
                             customer = RequestManager.registrationSync(
@@ -1166,7 +1173,7 @@ internal object ApphudInternal {
         }
     }
 
-    fun paywallShown(paywall: ApphudPaywall?) {
+    fun paywallShown(paywall: ApphudPaywall) {
         checkRegistration{ error ->
             error?.let{
                ApphudLog.logI(error.message)
@@ -1178,7 +1185,7 @@ internal object ApphudInternal {
         }
     }
 
-    fun paywallClosed(paywall: ApphudPaywall?) {
+    fun paywallClosed(paywall: ApphudPaywall) {
         checkRegistration{ error ->
             error?.let{
                 ApphudLog.logI(error.message)
@@ -1235,6 +1242,18 @@ internal object ApphudInternal {
             out = this.skuDetails.toCollection(mutableListOf())
         }
         return out
+    }
+
+    fun sendErrorLogs(message: String) {
+        checkRegistration{ error ->
+            error?.let{
+                ApphudLog.logI(error.message)
+            }?: run{
+                coroutineScope.launch(errorHandler) {
+                    RequestManager.sendErrorLogs(message)
+                }
+            }
+        }
     }
     //endregion
 

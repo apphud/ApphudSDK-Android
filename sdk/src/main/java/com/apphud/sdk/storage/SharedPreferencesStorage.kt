@@ -44,7 +44,7 @@ class SharedPreferencesStorage(
         MODE
     )
 
-    val cacheTimeout = if (context.isDebuggable()) 120L else 3600L
+    val cacheTimeout = if (context.isDebuggable()) 120L else 86400L
 
     override var userId: String?
         get() = preferences.getString(USER_ID_KEY, null)
@@ -138,15 +138,17 @@ class SharedPreferencesStorage(
             editor.apply()
         }
 
+    fun needUpdateProductGroups() :Boolean {
+        val timestamp = preferences.getLong(GROUP_TIMESTAMP_KEY, -1L) + (cacheTimeout * 1000)
+        val currentTime = System.currentTimeMillis()
+        return currentTime >= timestamp
+    }
+
     override var productGroups: List<ApphudGroup>?
         get() {
-            val timestamp = preferences.getLong(GROUP_TIMESTAMP_KEY, -1L) + (cacheTimeout * 1000)
-            val currentTime = System.currentTimeMillis()
-            return if (currentTime < timestamp) {
-                val source = preferences.getString(GROUP_KEY, null)
-                val type = object : TypeToken<List<ApphudGroup>>() {}.type
-                return parser.fromJson<List<ApphudGroup>>(source, type)
-            } else null
+            val source = preferences.getString(GROUP_KEY, null)
+            val type = object : TypeToken<List<ApphudGroup>>() {}.type
+            return parser.fromJson<List<ApphudGroup>>(source, type)
         }
         set(value) {
             val source = parser.toJson(value)

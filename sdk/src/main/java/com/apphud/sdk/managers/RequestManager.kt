@@ -209,9 +209,7 @@ object RequestManager {
                         completionHandler(null, ApphudError("Request failed", null, response.code))
                     }
                 } else {
-                    if (response.code == 403) {
-                        HeadersInterceptor.isBlocked = true
-                    }
+                    checkLock403(request, response)
                     val message = "finish ${request.method} request ${request.url} " +
                             "failed with code: ${response.code} response: ${
                                 buildPrettyPrintedBy(response.body.toString())
@@ -249,9 +247,7 @@ object RequestManager {
             if (response.isSuccessful) {
                 return responseBody
             } else {
-                if (response.code == 403) {
-                    HeadersInterceptor.isBlocked = true
-                }
+                checkLock403(request, response)
                 val message = "finish ${request.method} request ${request.url} " +
                         "failed with code: ${response.code} response: ${
                             buildPrettyPrintedBy(responseBody)
@@ -262,6 +258,12 @@ object RequestManager {
             val message = "No Internet connection"
             ApphudLog.logE(message)
             throw Exception(message)
+        }
+    }
+
+    private fun checkLock403(request: Request, response: Response){
+        if (response.code == 403 && request.method == "POST" && request.url.encodedPath.endsWith("/customers")) {
+            HeadersInterceptor.isBlocked = true
         }
     }
 
@@ -695,20 +697,20 @@ object RequestManager {
         }
     }
 
-    fun paywallShown(paywall: ApphudPaywall?) {
+    fun paywallShown(paywall: ApphudPaywall) {
         trackPaywallEvent(
             makePaywallEventBody(
                 name = "paywall_shown",
-                paywall_id = paywall?.id
+                paywall_id = paywall.id
             )
         )
     }
 
-    fun paywallClosed(paywall: ApphudPaywall?) {
+    fun paywallClosed(paywall: ApphudPaywall) {
         trackPaywallEvent(
             makePaywallEventBody(
                 name = "paywall_closed",
-                paywall_id = paywall?.id
+                paywall_id = paywall.id
             )
         )
     }
