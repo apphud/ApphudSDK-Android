@@ -63,8 +63,9 @@ object Apphud {
     }
 
     /**
-     * Returns true if user has active subscription.
-     * Use this method to determine whether or not to unlock premium functionality to the user.
+     * Returns `true` if user has active subscription. Value is cached on device.
+     * Use this method to determine whether or not user has active premium subscription.
+     * Note that if you have lifetime purchases, you must use another `isNonRenewingPurchaseActive` method.
      */
     @kotlin.jvm.JvmStatic
     fun hasActiveSubscription(): Boolean = subscription()
@@ -82,49 +83,48 @@ object Apphud {
 
     /**
      * Returns an array of all subscriptions that this user has ever purchased. Subscriptions are cached on device.
-     * Use this method if you have more than one subsription group in your app.
      */
     @kotlin.jvm.JvmStatic
     fun subscriptions(): List<ApphudSubscription> =
         ApphudInternal.currentUser?.subscriptions ?: emptyList()
 
     /**
-     * Returns an array of all standard in-app purchases (consumables, nonconsumables or nonrenewing subscriptions)
-     * that this user has ever purchased. Purchases are cached on device. This array is sorted by purchase date.
-     * Apphud only tracks consumables if they were purchased after integrating Apphud SDK.
+     * Returns an array of all in-app product purchases that this user has ever purchased.
+     * Purchases are cached on device. This array is sorted by purchase date.
      */
     @kotlin.jvm.JvmStatic
     fun nonRenewingPurchases(): List<ApphudNonRenewingPurchase> =
         ApphudInternal.currentUser?.purchases?: emptyList()
 
     /**
-     * Returns paywalls structure, if configured in Apphud Products Hub. Data is cached on device.
-     * Note that this method may return empty array if no cache found. To get notified when `paywalls()`
-     * are ready to use, use ApphudListener's  `paywallsDidLoad` or `paywallsDidFullyLoad` methods
-     * depending on whether or not you need SkuDetails to be already filled in paywalls.
+     * Returns paywalls configured in Apphud Dashboard > Product Hub > Paywalls.
+     * Each paywall contains an array of `ApphudProduct` objects that you use for purchase.
+     * `ApphudProduct` is Apphud's wrapper around `SkuDetails`.
+     * Returns empty array if paywalls are not yet fetched.
+     * To get notified when paywalls are ready to use, use ApphudListener's  `paywallsDidLoad` or `paywallsDidFullyLoad` methods
+     * depending on whether or not you need `SkuDetails` to be already filled in paywalls.
+     * Best practice is to use this method together with `paywallsDidFullyLoad` listener.
      */
-    fun paywalls() :List<ApphudPaywall>{
+    fun paywalls() :List<ApphudPaywall> {
         return ApphudInternal.getPaywalls()
     }
 
     /**
-     * Returns Permission groups structure configured in Apphud dashboard. Data is cached on device.
-     * Note that this method returns empty array if SkuDetails are not yet fetched from Google Play.
+     * Returns permission groups configured in Apphud dashboard > Product Hub > Products. Groups are cached on device.
+     * Note that this method returns empty array if `SkuDetails` are not yet fetched from Google Play.
      * To get notified when `permissionGroups` are ready to use, use ApphudListener's
      * `apphudFetchSkuDetailsProducts` or `paywallsDidFullyLoad` methods or `productsFetchCallback`.
      * When any of these methods is called, `SkuDetails` are loaded, which means that current
      * `permissionGroups` method is ready to use.
+     * Best practice is not to use this method at all, but use `paywalls()` instead.
      */
     fun permissionGroups(): List<ApphudGroup> {
         return ApphudInternal.permissionGroups()
     }
 
     /**
-     * Returns `true` if current user has purchased standard in-app purchase with given product identifier.
+     * Returns `true` if current user has purchased in-app product with given product identifier.
      * Returns `false` if this product is refunded or never purchased.
-     * Includes consumables, nonconsumables or non-renewing subscriptions.
-     * Apphud only tracks consumables if they were purchased after integrating Apphud SDK.
-     *
      * Note: Purchases are sorted by purchase date, so it returns Bool value for the most recent purchase by given product identifier.
      */
     @kotlin.jvm.JvmStatic
@@ -135,8 +135,8 @@ object Apphud {
     /**
      * Submit attribution data to Apphud from your attribution network provider.
      * @data: Required. Attribution dictionary.
-     * @provider: Required. Attribution provider name. Available values: .appsFlyer. Will be added more soon.
-     * @identifier: Optional. Identifier that matches Apphud and Attrubution provider. Required for AppsFlyer.
+     * @provider: Required. Attribution provider name.
+     * @identifier: Optional. Identifier that matches Apphud and Attribution provider.
      */
     @kotlin.jvm.JvmStatic
     fun addAttribution(
@@ -146,18 +146,17 @@ object Apphud {
     ) = ApphudInternal.addAttribution(provider, data, identifier)
 
     /**
+     * You should use this method only in Observer mode.
      * This method will send all the purchases to the Apphud server.
-     * Call this when using your own implementation for subscriptions anytime a sync is needed, like after a successful purchase.
+     * If you use Apphud SDK as observer, you should call this method after every successful purchase or restoration.
      */
     @kotlin.jvm.JvmStatic
     fun syncPurchases() = ApphudInternal.syncPurchases()
 
     /**
      * Implements `Restore Purchases` mechanism. Basically it just sends current Play Market Purchase Tokens to Apphud and returns subscriptions info.
-     *
      * Even if callback returns some subscription, it doesn't mean that subscription is active. You should check `subscription.isActive()` value.
-     *
-     * @param callback: Required. Returns array of subscription (or subscriptions in case you have more than one subscription group), array of standard in-app purchases and an error. All of three parameters are optional.
+     * @param callback: Required. Returns array of subscriptions, in-app products or optional, error.
      */
     @kotlin.jvm.JvmStatic
     fun restorePurchases(callback: ApphudPurchasesRestoreCallback) {
@@ -165,8 +164,13 @@ object Apphud {
     }
 
     /**
-     * Returns an array of **SkuDetails** objects that you added in Apphud.
+     * Returns array of `SkuDetails` objects, identifiers of which you added in Apphud > Product Hub > Products.
      * Note that this method will return **null** if products are not yet fetched.
+     * To get notified when `products` are ready to use, use ApphudListener's
+     * `apphudFetchSkuDetailsProducts` or `paywallsDidFullyLoad` methods or `productsFetchCallback`.
+     * When any of these methods is called, `SkuDetails` are loaded, which means that current
+     * `products` method is ready to use.
+     * Best practice is not to use this method at all, but use `paywalls()` instead.
      */
     @Deprecated("Use \"getPaywalls\" method instead.",
         ReplaceWith("getPaywalls(callback: (paywalls: List<ApphudPaywall>?, error: ApphudError?) -> Unit)"))
@@ -176,8 +180,8 @@ object Apphud {
     }
 
     /**
-     * This callback is called when SKProducts are fetched from Google Play Billing.
-     * Note that you have to add all product identifiers in Apphud.
+     * This callback is called when `SkuDetails` are fetched from Google Play Billing.
+     * Note that you have to add all product identifiers in Apphud > Product Hub > Products.
      * You can use `productsDidFetchCallback` callback
      * or implement `apphudFetchSkuDetailsProducts` listener method. Use whatever you like most.
      */
@@ -189,9 +193,9 @@ object Apphud {
     }
 
     /**
-     * Returns **SkuDetails** object by product identifier.
-     * Note that you have to add this product identifier in Apphud.
-     * Will return **null** if product is not yet fetched from Google Play Billing.
+     * Returns `SkuDetails` object by product identifier.
+     * Note that you have to add this product identifier in Apphud > Product Hub > Products.
+     * Will return `null` if product is not yet fetched from Google Play.
      */
     @Deprecated("Use \"getPaywalls\" method instead.",
         ReplaceWith("getPaywalls(callback: (paywalls: List<ApphudPaywall>?, error: ApphudError?) -> Unit)"))
@@ -199,6 +203,17 @@ object Apphud {
     fun product(productIdentifier: String): SkuDetails? {
         return ApphudInternal.getSkuDetailsByProductId(productIdentifier)
     }
+
+    /**
+     * Purchase product and automatically submit Google Play purchase token to Apphud
+     *
+     * @param activity current Activity for use
+     * @param details The SkuDetails of the product you wish to purchase
+     * @param block Optional. Returns `ApphudPurchaseResult` object.
+     */
+    @kotlin.jvm.JvmStatic
+    fun purchase(activity: Activity, product: ApphudProduct, block: ((ApphudPurchaseResult) -> Unit)?) =
+            ApphudInternal.purchase(activity, null, null, product, true, block)
 
     /**
      * Purchase product by id and automatically submit Google Play purchase token to Apphud
@@ -214,7 +229,7 @@ object Apphud {
         ApphudInternal.purchase(activity, productId, null, null, true, block)
 
     /**
-     * Purchase sku product and automatically submit Google Play purchase token to Apphud
+     * Purchase product and automatically submit Google Play purchase token to Apphud.
      *
      * @param activity current Activity for use
      * @param details The SkuDetails of the product you wish to purchase
@@ -227,18 +242,7 @@ object Apphud {
         ApphudInternal.purchase(activity, null, details, null, true, block)
 
     /**
-     * Purchase sku product and automatically submit Google Play purchase token to Apphud
-     *
-     * @param activity current Activity for use
-     * @param details The SkuDetails of the product you wish to purchase
-     * @param block Optional. Returns `ApphudPurchaseResult` object.
-     */
-    @kotlin.jvm.JvmStatic
-    fun purchase(activity: Activity, product: ApphudProduct, block: ((ApphudPurchaseResult) -> Unit)?) =
-        ApphudInternal.purchase(activity, null, null, product, true, block)
-
-    /**
-     * Purchase product by id and automatically submit Google Play purchase token to Apphud
+     * Purchase product by id and automatically submit Google Play purchase token to Apphud.
      *
      * This method doesn't wait until Apphud validates purchase from Google Play and immediately returns result object.
      * This method may be useful if you don't care about purchases validation in callback.
@@ -254,7 +258,7 @@ object Apphud {
         ApphudInternal.purchase(activity, productId, null,null,false, block)
 
     /**
-     * Purchase sku product and automatically submit Google Play purchase token to Apphud
+     * Purchase sku product and automatically submit Google Play purchase token to Apphud.
      *
      * This method doesn't wait until Apphud validates purchase from Google Play and immediately returns result object.
      * This method may be useful if you don't care about purchases validation in callback.
@@ -312,20 +316,27 @@ object Apphud {
     }
 
     /**
-     * Will be displayed in AppHud Events dashboard
+     * Optional. Use this method when your paywall screen is displayed to the user.
+     * Might be useful for integrations.
+     * Only implement this if you know why you need it.
      */
     @kotlin.jvm.JvmStatic
     fun paywallShown(paywall: ApphudPaywall) {
         ApphudInternal.paywallShown(paywall)
     }
 
+    /**
+     * Optional. Use this method when your paywall screen is dismissed without purchase.
+     * Might be useful for integrations.
+     * Only implement this if you know why you need it.
+     */
     @kotlin.jvm.JvmStatic
     fun paywallClosed(paywall: ApphudPaywall) {
         ApphudInternal.paywallClosed(paywall)
     }
 
     /**
-     * Enables debug logs. Better to call this method before SDK initialization.
+     * Enable debug logs. Better to call this method before SDK initialization.
      */
     @kotlin.jvm.JvmStatic
     fun enableDebugLogs() = ApphudUtils.enableDebugLogs()
@@ -333,6 +344,9 @@ object Apphud {
     @kotlin.jvm.JvmStatic
     fun disableAdTracking() = ApphudUtils.disableAdTracking()
 
+    /**
+     * Use this method if you have your custom login system with own backend logic.
+     */
     @kotlin.jvm.JvmStatic
     fun logout() = ApphudInternal.logout()
 
