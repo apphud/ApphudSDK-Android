@@ -9,6 +9,7 @@ import com.apphud.sdk.ApphudLog
 import com.apphud.sdk.domain.PurchaseRecordDetails
 import com.apphud.sdk.internal.callback_status.PurchaseRestoredCallbackStatus
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlin.concurrent.thread
 import kotlin.coroutines.resume
 import kotlin.coroutines.suspendCoroutine
@@ -100,7 +101,7 @@ internal class SkuDetailsWrapper(
         @BillingClient.SkuType type: SkuType,
         products: List<ProductId>
     ): List<SkuDetails>? =
-    suspendCoroutine { continuation ->
+    suspendCancellableCoroutine { continuation ->
         val params = SkuDetailsParams.newBuilder()
             .setSkusList(products)
             .setType(type)
@@ -111,11 +112,15 @@ internal class SkuDetailsWrapper(
                 when (result.isSuccess()) {
                     true -> {
                         ApphudLog.logI("Query SkuDetails success")
-                        continuation.resume(details.orEmpty())
+                        if(continuation.isActive) {
+                            continuation.resume(details.orEmpty())
+                        }
                     }
                     else -> {
                         result.logMessage("Query SkuDetails Async type: $type products: $products")
-                        continuation.resume(null)
+                        if(continuation.isActive) {
+                            continuation.resume(null)
+                        }
                     }
                 }
             }
