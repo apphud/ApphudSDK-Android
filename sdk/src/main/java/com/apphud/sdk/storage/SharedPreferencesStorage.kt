@@ -44,7 +44,7 @@ class SharedPreferencesStorage(
         MODE
     )
 
-    val cacheTimeout = if (context.isDebuggable()) 120L else 86400L
+    val cacheTimeout = if (context.isDebuggable()) 120L else 90000L //25 hours
 
     override var userId: String?
         get() = preferences.getString(USER_ID_KEY, null)
