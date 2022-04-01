@@ -35,10 +35,9 @@ import org.json.JSONException
 
 import org.json.JSONObject
 import kotlin.coroutines.resume
-import kotlin.coroutines.suspendCoroutine
 import com.google.gson.GsonBuilder
+import kotlinx.coroutines.suspendCancellableCoroutine
 import okhttp3.Response
-import okhttp3.ResponseBody
 import okio.Buffer
 import java.nio.charset.Charset
 
@@ -316,7 +315,7 @@ object RequestManager {
     }
 
     suspend fun fetchAdvertisingId(): String? =
-    suspendCoroutine { continuation ->
+        suspendCancellableCoroutine { continuation ->
         //Load advertising id
         var advId :String? = null
         if (ApphudUtils.adTracking) {
@@ -334,14 +333,18 @@ object RequestManager {
                 ApphudLog.logE("finish load advertisingId $e")
             }
         }
-        continuation.resume(advId)
+        if(continuation.isActive) {
+            continuation.resume(advId)
+        }
     }
 
     suspend fun registrationSync(needPaywalls: Boolean, isNew: Boolean, forceRegistration: Boolean = false) :Customer? =
-    suspendCoroutine { continuation ->
+        suspendCancellableCoroutine { continuation ->
         if(!canPerformRequest()) {
             ApphudLog.logE("registrationSync $MUST_REGISTER_ERROR")
-            continuation.resume(null)
+            if(continuation.isActive) {
+                continuation.resume(null)
+            }
         }
         if(currentUser == null || forceRegistration) {
             val apphudUrl = ApphudUrl.Builder()
@@ -364,17 +367,25 @@ object RequestManager {
                     currentUser = cDto.data.results?.let { customerObj ->
                         customerMapper.map(customerObj)
                     }
-                    continuation.resume(currentUser)
+                    if(continuation.isActive) {
+                        continuation.resume(currentUser)
+                    }
                 } ?: run {
-                    continuation.resume(null)
+                    if(continuation.isActive) {
+                        continuation.resume(null)
+                    }
                 }
             } catch (ex: Exception) {
                 val message = ex.message?:"Undefined error"
                 ApphudLog.logE(message)
-                continuation.resume(null)
+                if(continuation.isActive) {
+                    continuation.resume(null)
+                }
             }
         }else{
-            continuation.resume(currentUser)
+            if(continuation.isActive) {
+                continuation.resume(currentUser)
+            }
         }
     }
 
@@ -450,7 +461,7 @@ object RequestManager {
     }*/
 
     suspend fun allProducts() : List<ApphudGroup>? =
-    suspendCoroutine { continuation ->
+    suspendCancellableCoroutine { continuation ->
         val apphudUrl = ApphudUrl.Builder()
             .host(HeadersInterceptor.HOST)
             .version(ApphudVersion.V2)
@@ -465,16 +476,22 @@ object RequestManager {
                     parser.fromJson<ResponseDto<List<ApphudGroupDto>>>(serverResponse, object: TypeToken<ResponseDto<List<ApphudGroupDto>>>(){}.type)
                 responseDto?.let{ response ->
                     val productsList = response.data.results?.let { it1 -> productMapper.map(it1) }
-                    continuation.resume(productsList)
+                    if(continuation.isActive) {
+                        continuation.resume(productsList)
+                    }
                 }?: run{
                     ApphudLog.logE("Failed to load products")
-                    continuation.resume(null)
+                    if(continuation.isActive) {
+                        continuation.resume(null)
+                    }
                 }
             } ?: run {
                 if (error != null) {
                     ApphudLog.logE(error.message)
                 }
-                continuation.resume(null)
+                if(continuation.isActive) {
+                    continuation.resume(null)
+                }
             }
         }
     }
