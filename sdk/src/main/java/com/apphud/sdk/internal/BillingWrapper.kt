@@ -9,7 +9,6 @@ import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import java.io.Closeable
 import kotlin.coroutines.resume
-import kotlin.coroutines.suspendCoroutine
 
 /**
  * Обертка над платежной системой Google
@@ -45,13 +44,17 @@ internal class BillingWrapper(context: Context) : Closeable {
     }
 
     suspend fun BillingClient.connect(): Boolean {
-        return suspendCoroutine { continuation ->
+        return suspendCancellableCoroutine { continuation ->
             startConnection(object : BillingClientStateListener {
                 override fun onBillingSetupFinished(billingResult: BillingResult) {
                     if (billingResult.responseCode == BillingClient.BillingResponseCode.OK) {
-                        continuation.resume(true)
+                        if(continuation.isActive) {
+                            continuation.resume(true)
+                        }
                     } else {
-                        continuation.resume(false)
+                        if(continuation.isActive) {
+                            continuation.resume(false)
+                        }
                     }
                 }
 
