@@ -8,11 +8,9 @@ import com.apphud.sdk.*
 import com.apphud.sdk.ApphudLog
 import com.apphud.sdk.domain.PurchaseRecordDetails
 import com.apphud.sdk.internal.callback_status.PurchaseRestoredCallbackStatus
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlin.concurrent.thread
 import kotlin.coroutines.resume
-import kotlin.coroutines.suspendCoroutine
 
 typealias SkuType = String
 typealias ApphudSkuDetailsCallback = (List<SkuDetails>) -> Unit
