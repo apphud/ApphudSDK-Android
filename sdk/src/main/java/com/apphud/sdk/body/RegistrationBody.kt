@@ -16,5 +16,6 @@ data class RegistrationBody(
     val time_zone: String,
     val is_sandbox: Boolean,
     val is_new: Boolean,
-    val need_paywalls: Boolean
+    val need_paywalls: Boolean,
+    val first_seen: Long
 )

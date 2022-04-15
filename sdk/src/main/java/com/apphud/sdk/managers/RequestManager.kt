@@ -893,7 +893,8 @@ object RequestManager {
             time_zone = TimeZone.getDefault().id,
             is_sandbox = this.applicationContext.isDebuggable(),
             is_new = isNew,
-            need_paywalls = needPaywalls
+            need_paywalls = needPaywalls,
+            first_seen = this.applicationContext.packageManager.getPackageInfo(this.applicationContext.packageName, 0).firstInstallTime/1000L
         )
 
     private fun makePurchaseBody(
