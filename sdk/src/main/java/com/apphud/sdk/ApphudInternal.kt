@@ -543,17 +543,16 @@ internal object ApphudInternal {
         billing.purchasesCallback = { purchasesResult ->
             when (purchasesResult) {
                 is PurchaseUpdatedCallbackStatus.Error -> {
-                    var message = if (details != null) {
-                        "Unable to buy product with given product id: ${details.sku} "
-                    } else {
-                        if (purchasesResult.result.responseCode == BillingClient.BillingResponseCode.USER_CANCELED) {
-                            paywallPaymentCancelled(apphudProduct?.paywall_id, apphudProduct?.product_id)
+                    var message =
+                        if (details != null) {
+                            "Unable to buy product with given product id: ${details.sku} "
+                        } else {
+                            paywallPaymentCancelled(apphudProduct?.paywall_id, apphudProduct?.product_id, purchasesResult.result.responseCode)
+                            "Unable to buy product with given product id: ${apphudProduct?.skuDetails?.sku} "
                         }
-                        "Unable to buy product with given product id: ${apphudProduct?.skuDetails?.sku} "
-                    }
-                    apphudProduct?.let{
-                        message += " [Apphud product ID: " + it.id + "]"
-                    }
+                        apphudProduct?.let{
+                            message += " [Apphud product ID: " + it.id + "]"
+                        }
 
                     val error =
                         ApphudError(message = message,
@@ -1209,13 +1208,17 @@ internal object ApphudInternal {
         }
     }
 
-    private fun paywallPaymentCancelled(paywall_id: String?, product_id: String?) {
+    private fun paywallPaymentCancelled(paywall_id: String?, product_id: String?, error_Code: Int) {
         checkRegistration{ error ->
             error?.let{
                 ApphudLog.logI(error.message)
             }?: run{
                 coroutineScope.launch(errorHandler) {
-                    RequestManager.paywallPaymentCancelled(paywall_id, product_id)
+                    if (error_Code == BillingClient.BillingResponseCode.USER_CANCELED) {
+                        RequestManager.paywallPaymentCancelled(paywall_id, product_id)
+                    }else{
+                        RequestManager.paywallPaymentError(paywall_id, product_id, error_Code.toString())
+                    }
                 }
             }
         }

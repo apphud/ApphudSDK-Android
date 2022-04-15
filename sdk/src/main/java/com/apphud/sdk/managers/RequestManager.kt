@@ -752,6 +752,17 @@ object RequestManager {
         )
     }
 
+    fun paywallPaymentError(paywall_id: String?, product_id: String?, error_code: String?) {
+        trackPaywallEvent(
+            makePaywallEventBody(
+                name = "paywall_payment_error",
+                paywall_id = paywall_id,
+                product_id = product_id,
+                error_code = error_code
+            )
+        )
+    }
+
     private fun trackPaywallEvent(body: PaywallEventBody) {
         if(!canPerformRequest()) {
             ApphudLog.logE(::trackPaywallEvent.name + MUST_REGISTER_ERROR)
@@ -850,10 +861,11 @@ object RequestManager {
         return false
     }
 
-    private fun makePaywallEventBody(name: String, paywall_id: String? = null, product_id: String? = null): PaywallEventBody {
+    private fun makePaywallEventBody(name: String, paywall_id: String? = null, product_id: String? = null, error_code: String? = null): PaywallEventBody {
         val properties = mutableMapOf<String, Any>()
         paywall_id?.let { properties.put("paywall_id", it) }
         product_id?.let { properties.put("product_id", it) }
+        error_code?.let { properties.put("error_code", it) }
         return PaywallEventBody(
             name = name,
             user_id = userId,
