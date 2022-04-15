@@ -574,7 +574,7 @@ object RequestManager {
         }
     }
 
-    fun restorePurchases(purchaseRecordDetailsSet: Set<PurchaseRecordDetails>, skipObserverModeParam: Boolean,
+    fun restorePurchases(paywallId: String? = null, purchaseRecordDetailsSet: Set<PurchaseRecordDetails>, skipObserverModeParam: Boolean,
                   completionHandler: (Customer?, ApphudError?) -> Unit) {
         if(!canPerformRequest()) {
             ApphudLog.logE(::restorePurchases.name + MUST_REGISTER_ERROR)
@@ -587,7 +587,7 @@ object RequestManager {
             .path("subscriptions")
             .build()
 
-        val purchaseBody = makeRestorePurchasesBody(purchaseRecordDetailsSet.toList(), skipObserverModeParam)
+        val purchaseBody = makeRestorePurchasesBody(paywallId, purchaseRecordDetailsSet.toList(), skipObserverModeParam)
 
         val request = buildPostRequest(URL(apphudUrl.url), purchaseBody)
 
@@ -919,7 +919,7 @@ object RequestManager {
             )
         )
 
-    private fun makeRestorePurchasesBody(purchases: List<PurchaseRecordDetails>, skipObserverModeParam: Boolean) =
+    private fun makeRestorePurchasesBody(paywallId: String? = null, purchases: List<PurchaseRecordDetails>, skipObserverModeParam: Boolean) =
         if(skipObserverModeParam){
             PurchaseBody(
                 device_id = deviceId,
@@ -931,7 +931,7 @@ object RequestManager {
                         price_currency_code = purchase.details.priceCurrencyCode,
                         price_amount_micros = purchase.details.priceAmountMicros,
                         subscription_period = purchase.details.subscriptionPeriod,
-                        paywall_id = null,
+                        paywall_id = paywallId,
                         product_bundle_id = null
                     )
                 }
@@ -947,7 +947,7 @@ object RequestManager {
                         price_currency_code = purchase.details.priceCurrencyCode,
                         price_amount_micros = purchase.details.priceAmountMicros,
                         subscription_period = purchase.details.subscriptionPeriod,
-                        paywall_id = null,
+                        paywall_id = paywallId,
                         product_bundle_id = null,
                         observer_mode = true
                     )

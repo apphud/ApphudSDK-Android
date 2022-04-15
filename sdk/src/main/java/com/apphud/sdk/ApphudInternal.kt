@@ -698,6 +698,7 @@ internal object ApphudInternal {
     }
 
     internal fun syncPurchases(
+        paywallIdentifier: String? = null,
         allowsReceiptRefresh: Boolean = false,
         callback: ApphudPurchasesRestoreCallback? = null
     ) {
@@ -723,7 +724,7 @@ internal object ApphudInternal {
                                     ApphudLog.log(message = error.toString(), sendLogToServer = true)
                                     callback?.invoke(null, null, error)
                                 } else {
-                                    syncPurchasesWithApphud(tempPrevPurchases, callback, allowsReceiptRefresh)
+                                    syncPurchasesWithApphud(paywallIdentifier, tempPrevPurchases, callback, allowsReceiptRefresh)
                                 }
                             }
                         }
@@ -735,7 +736,7 @@ internal object ApphudInternal {
                                 if (!allowsReceiptRefresh && prevPurchases.containsAll(tempPrevPurchases)) {
                                     ApphudLog.log("SyncPurchases: Don't send equal purchases from prev state")
                                 } else {
-                                    syncPurchasesWithApphud(tempPrevPurchases, callback, allowsReceiptRefresh)
+                                    syncPurchasesWithApphud(paywallIdentifier, tempPrevPurchases, callback, allowsReceiptRefresh)
                                 }
                             }
                         }
@@ -790,6 +791,7 @@ internal object ApphudInternal {
     }
 
     private fun syncPurchasesWithApphud(
+        paywallIdentifier: String? = null,
         tempPurchaseRecordDetails: Set<PurchaseRecordDetails>,
         callback: ApphudPurchasesRestoreCallback? = null,
         skipObserverModeParam: Boolean
@@ -801,7 +803,7 @@ internal object ApphudInternal {
                 callback?.invoke(null, null, error)
             }?: run{
                 coroutineScope.launch(errorHandler) {
-                    RequestManager.restorePurchases(tempPurchaseRecordDetails, skipObserverModeParam) { customer, error ->
+                    RequestManager.restorePurchases(getPaywalls().firstOrNull{it.identifier == paywallIdentifier}?.id, tempPurchaseRecordDetails, skipObserverModeParam) { customer, error ->
                         launch(Dispatchers.Main) {
                             customer?.let{
                                 customer?.let{

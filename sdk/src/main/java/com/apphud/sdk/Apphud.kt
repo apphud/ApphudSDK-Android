@@ -151,7 +151,7 @@ object Apphud {
      * If you use Apphud SDK as observer, you should call this method after every successful purchase or restoration.
      */
     @kotlin.jvm.JvmStatic
-    fun syncPurchases() = ApphudInternal.syncPurchases()
+    fun syncPurchases(paywallIdentifier: String? = null) = ApphudInternal.syncPurchases(paywallIdentifier)
 
     /**
      * Implements `Restore Purchases` mechanism. Basically it just sends current Play Market Purchase Tokens to Apphud and returns subscriptions info.
