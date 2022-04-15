@@ -894,8 +894,22 @@ object RequestManager {
             is_sandbox = this.applicationContext.isDebuggable(),
             is_new = isNew,
             need_paywalls = needPaywalls,
-            first_seen = this.applicationContext.packageManager.getPackageInfo(this.applicationContext.packageName, 0).firstInstallTime/1000L
+            first_seen = getInstallationDate()
         )
+
+    private fun getInstallationDate() :Long?{
+        var dateInSecond :Long? = null
+        try{
+            this.applicationContext.packageManager?.let{ manager ->
+                dateInSecond = manager.getPackageInfo(this.applicationContext.packageName, 0).firstInstallTime/1000L
+            }
+        }catch(ex: Exception){
+            ex.message?.let{
+                ApphudLog.logE(it)
+            }
+        }
+        return dateInSecond
+    }
 
     private fun makePurchaseBody(
         purchase: Purchase,
