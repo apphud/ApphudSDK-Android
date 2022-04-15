@@ -373,4 +373,16 @@ object Apphud {
     fun grantPromotional(daysCount: Int, productId: String?, permissionGroup: ApphudGroup? = null, callback: ((Boolean) -> Unit)? = null) {
         ApphudInternal.grantPromotional(daysCount, productId, permissionGroup, callback)
     }
+
+    /**
+    Returns `true` if user has active subscription or non renewing purchase (lifetime).
+
+    __Note: You should not use this method if you have consumable in-app purchases, like coin packs.__
+
+    Use this method to determine whether or not user has active premium access. If you have consumable purchases, this method won't operate correctly, because Apphud SDK doesn't differ consumables from non-consumables.
+     */
+    @kotlin.jvm.JvmStatic
+    fun hasPremiumAccess() : Boolean {
+        return hasActiveSubscription() || nonRenewingPurchases().firstOrNull{ it.isActive() } != null
+    }
 }
