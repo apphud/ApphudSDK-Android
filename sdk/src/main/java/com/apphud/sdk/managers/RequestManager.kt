@@ -574,7 +574,7 @@ object RequestManager {
         }
     }
 
-    fun restorePurchases(apphudProduct: ApphudProduct? = null, purchaseRecordDetailsSet: Set<PurchaseRecordDetails>, skipObserverModeParam: Boolean,
+    fun restorePurchases(apphudProduct: ApphudProduct? = null, purchaseRecordDetailsSet: Set<PurchaseRecordDetails>, observerMode: Boolean,
                   completionHandler: (Customer?, ApphudError?) -> Unit) {
         if(!canPerformRequest()) {
             ApphudLog.logE(::restorePurchases.name + MUST_REGISTER_ERROR)
@@ -587,7 +587,7 @@ object RequestManager {
             .path("subscriptions")
             .build()
 
-        val purchaseBody = makeRestorePurchasesBody(apphudProduct, purchaseRecordDetailsSet.toList(), skipObserverModeParam)
+        val purchaseBody = makeRestorePurchasesBody(apphudProduct, purchaseRecordDetailsSet.toList(), observerMode)
 
         val request = buildPostRequest(URL(apphudUrl.url), purchaseBody)
 
@@ -934,8 +934,8 @@ object RequestManager {
             )
         )
 
-    private fun makeRestorePurchasesBody(apphudProduct: ApphudProduct? = null, purchases: List<PurchaseRecordDetails>, skipObserverModeParam: Boolean) =
-        if(skipObserverModeParam){
+    private fun makeRestorePurchasesBody(apphudProduct: ApphudProduct? = null, purchases: List<PurchaseRecordDetails>, observerMode: Boolean) =
+        if(!observerMode){
             PurchaseBody(
                 device_id = deviceId,
                 purchases = purchases.map { purchase ->

@@ -692,14 +692,14 @@ internal object ApphudInternal {
             error?.let{
                 callback.invoke(null, null, error)
             }?: run{
-                syncPurchases(allowsReceiptRefresh = true, callback = callback)
+                syncPurchases(observerMode = false, callback = callback)
             }
         }
     }
 
     internal fun syncPurchases(
         paywallIdentifier: String? = null,
-        allowsReceiptRefresh: Boolean = false,
+        observerMode: Boolean = true,
         callback: ApphudPurchasesRestoreCallback? = null
     ) {
         checkRegistration{ error ->
@@ -724,7 +724,7 @@ internal object ApphudInternal {
                                     ApphudLog.log(message = error.toString(), sendLogToServer = true)
                                     callback?.invoke(null, null, error)
                                 } else {
-                                    syncPurchasesWithApphud(paywallIdentifier, tempPrevPurchases, callback, allowsReceiptRefresh)
+                                    syncPurchasesWithApphud(paywallIdentifier, tempPrevPurchases, callback, observerMode)
                                 }
                             }
                         }
@@ -733,10 +733,10 @@ internal object ApphudInternal {
                             tempPrevPurchases.addAll(restoreStatus.purchases)
 
                             if (skuDetailsForRestoreIsLoaded.isBothLoaded()) {
-                                if (!allowsReceiptRefresh && prevPurchases.containsAll(tempPrevPurchases)) {
+                                if (observerMode && prevPurchases.containsAll(tempPrevPurchases)) {
                                     ApphudLog.log("SyncPurchases: Don't send equal purchases from prev state")
                                 } else {
-                                    syncPurchasesWithApphud(paywallIdentifier, tempPrevPurchases, callback, allowsReceiptRefresh)
+                                    syncPurchasesWithApphud(paywallIdentifier, tempPrevPurchases, callback, observerMode)
                                 }
                             }
                         }
@@ -817,7 +817,7 @@ internal object ApphudInternal {
         paywallIdentifier: String? = null,
         tempPurchaseRecordDetails: Set<PurchaseRecordDetails>,
         callback: ApphudPurchasesRestoreCallback? = null,
-        skipObserverModeParam: Boolean
+        observerMode: Boolean
     ) {
         checkRegistration{ error ->
             error?.let{
@@ -828,7 +828,7 @@ internal object ApphudInternal {
                 coroutineScope.launch(errorHandler) {
 
                     val apphudProduct: ApphudProduct? = findJustPurchasedProduct(paywallIdentifier, tempPurchaseRecordDetails)
-                    RequestManager.restorePurchases(apphudProduct, tempPurchaseRecordDetails, skipObserverModeParam) { customer, error ->
+                    RequestManager.restorePurchases(apphudProduct, tempPurchaseRecordDetails, observerMode) { customer, error ->
                         launch(Dispatchers.Main) {
                             customer?.let{
                                 customer?.let{
