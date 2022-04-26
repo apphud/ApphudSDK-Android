@@ -574,7 +574,7 @@ object RequestManager {
         }
     }
 
-    fun restorePurchases(paywallId: String? = null, purchaseRecordDetailsSet: Set<PurchaseRecordDetails>, skipObserverModeParam: Boolean,
+    fun restorePurchases(apphudProduct: ApphudProduct? = null, purchaseRecordDetailsSet: Set<PurchaseRecordDetails>, skipObserverModeParam: Boolean,
                   completionHandler: (Customer?, ApphudError?) -> Unit) {
         if(!canPerformRequest()) {
             ApphudLog.logE(::restorePurchases.name + MUST_REGISTER_ERROR)
@@ -587,7 +587,7 @@ object RequestManager {
             .path("subscriptions")
             .build()
 
-        val purchaseBody = makeRestorePurchasesBody(paywallId, purchaseRecordDetailsSet.toList(), skipObserverModeParam)
+        val purchaseBody = makeRestorePurchasesBody(apphudProduct, purchaseRecordDetailsSet.toList(), skipObserverModeParam)
 
         val request = buildPostRequest(URL(apphudUrl.url), purchaseBody)
 
@@ -934,7 +934,7 @@ object RequestManager {
             )
         )
 
-    private fun makeRestorePurchasesBody(paywallId: String? = null, purchases: List<PurchaseRecordDetails>, skipObserverModeParam: Boolean) =
+    private fun makeRestorePurchasesBody(apphudProduct: ApphudProduct? = null, purchases: List<PurchaseRecordDetails>, skipObserverModeParam: Boolean) =
         if(skipObserverModeParam){
             PurchaseBody(
                 device_id = deviceId,
@@ -946,8 +946,8 @@ object RequestManager {
                         price_currency_code = purchase.details.priceCurrencyCode,
                         price_amount_micros = purchase.details.priceAmountMicros,
                         subscription_period = purchase.details.subscriptionPeriod,
-                        paywall_id = paywallId,
-                        product_bundle_id = null
+                        paywall_id = if(apphudProduct?.skuDetails?.sku == purchase.details.sku) apphudProduct.paywall_id else null,
+                        product_bundle_id = if(apphudProduct?.skuDetails?.sku == purchase.details.sku) apphudProduct.id else null,
                     )
                 }
             )
@@ -962,8 +962,8 @@ object RequestManager {
                         price_currency_code = purchase.details.priceCurrencyCode,
                         price_amount_micros = purchase.details.priceAmountMicros,
                         subscription_period = purchase.details.subscriptionPeriod,
-                        paywall_id = paywallId,
-                        product_bundle_id = null,
+                        paywall_id = if(apphudProduct?.skuDetails?.sku == purchase.details.sku) apphudProduct.paywall_id else null,
+                        product_bundle_id = if(apphudProduct?.skuDetails?.sku == purchase.details.sku) apphudProduct.id else null,
                         observer_mode = true
                     )
                 }

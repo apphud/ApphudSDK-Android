@@ -790,6 +790,29 @@ internal object ApphudInternal {
         }
     }
 
+    private fun findJustPurchasedProduct(paywallIdentifier: String?, tempPurchaseRecordDetails: Set<PurchaseRecordDetails>): ApphudProduct?{
+        try {
+            paywallIdentifier?.let {
+                getPaywalls().firstOrNull { it.identifier == paywallIdentifier }
+                    ?.let { currentPaywall ->
+                        val record = tempPurchaseRecordDetails.toList()
+                            .maxByOrNull { it.record.purchaseTime }
+                        record?.let { rec ->
+                            val offset = System.currentTimeMillis() - rec.record.purchaseTime
+                            if (offset < 300000L) { // 5 min
+                                return currentPaywall.products?.find { it.skuDetails?.sku == rec.details.sku }
+                            }
+                        }
+                    }
+            }
+        }catch (ex: Exception){
+            ex.message?.let{
+                ApphudLog.logE(message = it)
+            }
+        }
+        return null
+    }
+
     private fun syncPurchasesWithApphud(
         paywallIdentifier: String? = null,
         tempPurchaseRecordDetails: Set<PurchaseRecordDetails>,
@@ -803,7 +826,9 @@ internal object ApphudInternal {
                 callback?.invoke(null, null, error)
             }?: run{
                 coroutineScope.launch(errorHandler) {
-                    RequestManager.restorePurchases(getPaywalls().firstOrNull{it.identifier == paywallIdentifier}?.id, tempPurchaseRecordDetails, skipObserverModeParam) { customer, error ->
+
+                    val apphudProduct: ApphudProduct? = findJustPurchasedProduct(paywallIdentifier, tempPurchaseRecordDetails)
+                    RequestManager.restorePurchases(apphudProduct, tempPurchaseRecordDetails, skipObserverModeParam) { customer, error ->
                         launch(Dispatchers.Main) {
                             customer?.let{
                                 customer?.let{
