@@ -920,7 +920,7 @@ object RequestManager {
         PurchaseBody(
             device_id = deviceId,
             purchases = listOf(
-                PurchaseItemObserverBody(
+                PurchaseItemBody(
                     order_id = purchase.orderId,
                     product_id = details?.let { details.sku } ?: purchase.skus.first(),
                     purchase_token = purchase.purchaseToken,
@@ -935,40 +935,22 @@ object RequestManager {
         )
 
     private fun makeRestorePurchasesBody(apphudProduct: ApphudProduct? = null, purchases: List<PurchaseRecordDetails>, observerMode: Boolean) =
-        if(!observerMode){
-            PurchaseBody(
-                device_id = deviceId,
-                purchases = purchases.map { purchase ->
-                    PurchaseItemBody(
-                        order_id = null,
-                        product_id = purchase.details.sku,
-                        purchase_token = purchase.record.purchaseToken,
-                        price_currency_code = purchase.details.priceCurrencyCode,
-                        price_amount_micros = purchase.details.priceAmountMicros,
-                        subscription_period = purchase.details.subscriptionPeriod,
-                        paywall_id = if(apphudProduct?.skuDetails?.sku == purchase.details.sku) apphudProduct.paywall_id else null,
-                        product_bundle_id = if(apphudProduct?.skuDetails?.sku == purchase.details.sku) apphudProduct.id else null,
-                    )
-                }
-            )
-        }else{
-            PurchaseBody(
-                device_id = deviceId,
-                purchases = purchases.map { purchase ->
-                    PurchaseItemObserverBody(
-                        order_id = null,
-                        product_id = purchase.details.sku,
-                        purchase_token = purchase.record.purchaseToken,
-                        price_currency_code = purchase.details.priceCurrencyCode,
-                        price_amount_micros = purchase.details.priceAmountMicros,
-                        subscription_period = purchase.details.subscriptionPeriod,
-                        paywall_id = if(apphudProduct?.skuDetails?.sku == purchase.details.sku) apphudProduct.paywall_id else null,
-                        product_bundle_id = if(apphudProduct?.skuDetails?.sku == purchase.details.sku) apphudProduct.id else null,
-                        observer_mode = true
-                    )
-                }
-            )
-        }
+        PurchaseBody(
+            device_id = deviceId,
+            purchases = purchases.map { purchase ->
+                PurchaseItemBody(
+                    order_id = null,
+                    product_id = purchase.details.sku,
+                    purchase_token = purchase.record.purchaseToken,
+                    price_currency_code = purchase.details.priceCurrencyCode,
+                    price_amount_micros = purchase.details.priceAmountMicros,
+                    subscription_period = purchase.details.subscriptionPeriod,
+                    paywall_id = if(apphudProduct?.skuDetails?.sku == purchase.details.sku) apphudProduct.paywall_id else null,
+                    product_bundle_id = if(apphudProduct?.skuDetails?.sku == purchase.details.sku) apphudProduct.id else null,
+                    observer_mode = observerMode
+                )
+            }
+        )
 
     internal fun makeErrorLogsBody(message: String, apphud_product_id: String? = null) =
         ErrorLogsBody(
