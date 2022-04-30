@@ -107,7 +107,6 @@ internal class BillingWrapper(context: Context) : Closeable {
             if (!connectIfNeeded) return@launch
             return@launch  history.queryPurchaseHistory(type)
         }
-        history.queryPurchaseHistory(type)
     }
 
     fun details(@BillingClient.SkuType type: SkuType, products: List<ProductId>) =
