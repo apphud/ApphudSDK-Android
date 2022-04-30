@@ -5,6 +5,7 @@ import android.app.Activity
 import android.content.Context
 import android.os.Handler
 import android.os.Looper
+import android.util.Log
 import com.android.billingclient.api.BillingClient
 import com.android.billingclient.api.Purchase
 import com.android.billingclient.api.PurchaseHistoryRecord
@@ -25,6 +26,7 @@ import kotlinx.coroutines.*
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import java.util.*
+import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicInteger
 
 @SuppressLint("StaticFieldLeak")
@@ -87,14 +89,11 @@ internal object ApphudInternal {
         error.message?.let { ApphudLog.logE(it) }
     }
 
-    /**
-     * 0 - we at start point without any skuDetails
-     * 1 - we have only one loaded SkuType SUBS or INAPP
-     * 2 - we have both loaded SkuType SUBS and INAPP
-     * */
-    private var skuDetailsForRestoreIsLoaded: AtomicInteger = AtomicInteger(0)
-    private var purchasesForRestoreIsLoaded: AtomicInteger = AtomicInteger(0)
     private var customProductsFetchedBlock: ((List<SkuDetails>) -> Unit)? = null
+    private var skuDetailsForRestoreIsLoaded_SUBS: AtomicBoolean = AtomicBoolean(false)
+    private var skuDetailsForRestoreIsLoaded_INAPP: AtomicBoolean = AtomicBoolean(false)
+    private var purchasesForRestoreIsLoaded_SUBS: AtomicBoolean = AtomicBoolean(false)
+    private var purchasesForRestoreIsLoaded_INAPP: AtomicBoolean = AtomicBoolean(false)
     //endregion
 
     //region === Start ===
@@ -708,14 +707,28 @@ internal object ApphudInternal {
             }?: run{
                 productsForRestore.clear()
                 tempPrevPurchases.clear()
-                purchasesForRestoreIsLoaded.set(0)
-                skuDetailsForRestoreIsLoaded.set(0)
+
+                Log.d("TEST:", "START")
+
+                purchasesForRestoreIsLoaded_SUBS.set(false)
+                purchasesForRestoreIsLoaded_INAPP.set(false)
+                skuDetailsForRestoreIsLoaded_SUBS.set(false)
+                skuDetailsForRestoreIsLoaded_INAPP.set(false)
+
                 billing.restoreCallback = { restoreStatus ->
-                    skuDetailsForRestoreIsLoaded.incrementAndGet()
+                    Log.d("TEST:", "restoreCallback")
+                    if(restoreStatus.type() == BillingClient.SkuType.SUBS){
+                        Log.d("TEST:", "restoreCallback SUBS")
+                        skuDetailsForRestoreIsLoaded_SUBS.set(true)
+                    } else if(restoreStatus.type() == BillingClient.SkuType.INAPP){
+                        Log.d("TEST:", "restoreCallback INAPP")
+                        skuDetailsForRestoreIsLoaded_INAPP.set(true)
+                    }
+
                     when (restoreStatus) {
                         is PurchaseRestoredCallbackStatus.Error -> {
                             ApphudLog.log("SyncPurchases: restore purchases is failed coz ${restoreStatus.message}")
-                            if (skuDetailsForRestoreIsLoaded.isBothLoaded()) {
+                            if (skuDetailsForRestoreIsLoaded_SUBS.get() && skuDetailsForRestoreIsLoaded_INAPP.get()) {
                                 if (tempPrevPurchases.isEmpty()) {
                                     val error =
                                         ApphudError(message = "Restore Purchases is failed for SkuType.SUBS and SkuType.INAPP",
@@ -732,7 +745,9 @@ internal object ApphudInternal {
                             ApphudLog.log("SyncPurchases: purchases was restored: ${restoreStatus.purchases}")
                             tempPrevPurchases.addAll(restoreStatus.purchases)
 
-                            if (skuDetailsForRestoreIsLoaded.isBothLoaded()) {
+                            if (skuDetailsForRestoreIsLoaded_SUBS.get() && skuDetailsForRestoreIsLoaded_INAPP.get()) {
+                                billing.restoreCallback = null
+                                Log.d("TEST:", "restoreCallback BOTH")
                                 if (observerMode && prevPurchases.containsAll(tempPrevPurchases)) {
                                     ApphudLog.log("SyncPurchases: Don't send equal purchases from prev state")
                                 } else {
@@ -743,10 +758,18 @@ internal object ApphudInternal {
                     }
                 }
                 billing.historyCallback = { purchasesHistoryStatus ->
-                    purchasesForRestoreIsLoaded.incrementAndGet()
+                    Log.d("TEST:", "historyCallback")
+                    if(purchasesHistoryStatus.type() == BillingClient.SkuType.SUBS){
+                        Log.d("TEST:", "historyCallback SUBS")
+                        purchasesForRestoreIsLoaded_SUBS.set(true)
+                    } else if(purchasesHistoryStatus.type() == BillingClient.SkuType.INAPP){
+                        Log.d("TEST:", "historyCallback INAPP")
+                        purchasesForRestoreIsLoaded_INAPP.set(true)
+                    }
+
                     when (purchasesHistoryStatus) {
                         is PurchaseHistoryCallbackStatus.Error -> {
-                            if (purchasesForRestoreIsLoaded.isBothLoaded()) {
+                            if (purchasesForRestoreIsLoaded_SUBS.get() && purchasesForRestoreIsLoaded_INAPP.get()) {
                                 val message =
                                     "Restore Purchase History is failed for SkuType.SUBS and SkuType.INAPP " +
                                             "with message = ${purchasesHistoryStatus.result?.debugMessage}" +
@@ -758,7 +781,9 @@ internal object ApphudInternal {
                             if (!purchasesHistoryStatus.purchases.isNullOrEmpty())
                                 productsForRestore.addAll(purchasesHistoryStatus.purchases)
 
-                            if (purchasesForRestoreIsLoaded.isBothLoaded()) {
+                            if (purchasesForRestoreIsLoaded_SUBS.get() && purchasesForRestoreIsLoaded_INAPP.get()) {
+                                billing.historyCallback = null
+                                Log.d("TEST:", "historyCallback BOTH SUCCESS")
                                 processPurchasesHistoryResults(null, callback)
                             }
                         }
@@ -1318,7 +1343,8 @@ internal object ApphudInternal {
         RequestManager.cleanRegistration()
         currentUser = null
         generatedUUID = UUID.randomUUID().toString()
-        skuDetailsForRestoreIsLoaded.set(0)
+        skuDetailsForRestoreIsLoaded_SUBS.set(false)
+        skuDetailsForRestoreIsLoaded_INAPP.set(false)
         productsLoaded.set(0)
         customProductsFetchedBlock = null
         storage.clean()

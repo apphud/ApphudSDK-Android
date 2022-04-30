@@ -17,8 +17,8 @@ internal class HistoryWrapper(
         billing.queryPurchaseHistoryAsync(type) { result, purchases ->
             result.response(
                 message = "Failed restore purchases",
-                error = { callback?.invoke(PurchaseHistoryCallbackStatus.Error(result)) },
-                success = { callback?.invoke(PurchaseHistoryCallbackStatus.Success(purchases ?: emptyList()) ) }
+                error = { callback?.invoke(PurchaseHistoryCallbackStatus.Error(type, result)) },
+                success = { callback?.invoke(PurchaseHistoryCallbackStatus.Success(type, purchases ?: emptyList()) ) }
             )
         }
     }
