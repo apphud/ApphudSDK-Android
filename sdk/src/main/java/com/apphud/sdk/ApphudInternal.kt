@@ -5,6 +5,7 @@ import android.app.Activity
 import android.content.Context
 import android.os.Handler
 import android.os.Looper
+import android.util.Log
 import com.android.billingclient.api.BillingClient
 import com.android.billingclient.api.Purchase
 import com.android.billingclient.api.PurchaseHistoryRecord
@@ -25,6 +26,7 @@ import kotlinx.coroutines.*
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import java.util.*
+import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicInteger
 
 @SuppressLint("StaticFieldLeak")
@@ -87,14 +89,11 @@ internal object ApphudInternal {
         error.message?.let { ApphudLog.logE(it) }
     }
 
-    /**
-     * 0 - we at start point without any skuDetails
-     * 1 - we have only one loaded SkuType SUBS or INAPP
-     * 2 - we have both loaded SkuType SUBS and INAPP
-     * */
-    private var skuDetailsForRestoreIsLoaded: AtomicInteger = AtomicInteger(0)
-    private var purchasesForRestoreIsLoaded: AtomicInteger = AtomicInteger(0)
     private var customProductsFetchedBlock: ((List<SkuDetails>) -> Unit)? = null
+    private var skuDetailsForRestoreIsLoaded_SUBS: AtomicBoolean = AtomicBoolean(false)
+    private var skuDetailsForRestoreIsLoaded_INAPP: AtomicBoolean = AtomicBoolean(false)
+    private var purchasesForRestoreIsLoaded_SUBS: AtomicBoolean = AtomicBoolean(false)
+    private var purchasesForRestoreIsLoaded_INAPP: AtomicBoolean = AtomicBoolean(false)
     //endregion
 
     //region === Start ===
@@ -543,17 +542,16 @@ internal object ApphudInternal {
         billing.purchasesCallback = { purchasesResult ->
             when (purchasesResult) {
                 is PurchaseUpdatedCallbackStatus.Error -> {
-                    var message = if (details != null) {
-                        "Unable to buy product with given product id: ${details.sku} "
-                    } else {
-                        if (purchasesResult.result.responseCode == BillingClient.BillingResponseCode.USER_CANCELED) {
-                            paywallPaymentCancelled(apphudProduct?.paywall_id, apphudProduct?.product_id)
+                    var message =
+                        if (details != null) {
+                            "Unable to buy product with given product id: ${details.sku} "
+                        } else {
+                            paywallPaymentCancelled(apphudProduct?.paywall_id, apphudProduct?.product_id, purchasesResult.result.responseCode)
+                            "Unable to buy product with given product id: ${apphudProduct?.skuDetails?.sku} "
                         }
-                        "Unable to buy product with given product id: ${apphudProduct?.skuDetails?.sku} "
-                    }
-                    apphudProduct?.let{
-                        message += " [Apphud product ID: " + it.id + "]"
-                    }
+                        apphudProduct?.let{
+                            message += " [Apphud product ID: " + it.id + "]"
+                        }
 
                     val error =
                         ApphudError(message = message,
@@ -693,13 +691,14 @@ internal object ApphudInternal {
             error?.let{
                 callback.invoke(null, null, error)
             }?: run{
-                syncPurchases(allowsReceiptRefresh = true, callback = callback)
+                syncPurchases(observerMode = false, callback = callback)
             }
         }
     }
 
     internal fun syncPurchases(
-        allowsReceiptRefresh: Boolean = false,
+        paywallIdentifier: String? = null,
+        observerMode: Boolean = true,
         callback: ApphudPurchasesRestoreCallback? = null
     ) {
         checkRegistration{ error ->
@@ -708,14 +707,27 @@ internal object ApphudInternal {
             }?: run{
                 productsForRestore.clear()
                 tempPrevPurchases.clear()
-                purchasesForRestoreIsLoaded.set(0)
-                skuDetailsForRestoreIsLoaded.set(0)
+
+                purchasesForRestoreIsLoaded_SUBS.set(false)
+                purchasesForRestoreIsLoaded_INAPP.set(false)
+                skuDetailsForRestoreIsLoaded_SUBS.set(false)
+                skuDetailsForRestoreIsLoaded_INAPP.set(false)
+
                 billing.restoreCallback = { restoreStatus ->
-                    skuDetailsForRestoreIsLoaded.incrementAndGet()
+                    if(restoreStatus.type() == BillingClient.SkuType.SUBS){
+                        skuDetailsForRestoreIsLoaded_SUBS.set(true)
+                    } else if(restoreStatus.type() == BillingClient.SkuType.INAPP){
+                        skuDetailsForRestoreIsLoaded_INAPP.set(true)
+                    }
+
                     when (restoreStatus) {
                         is PurchaseRestoredCallbackStatus.Error -> {
-                            ApphudLog.log("SyncPurchases: restore purchases is failed coz ${restoreStatus.message}")
-                            if (skuDetailsForRestoreIsLoaded.isBothLoaded()) {
+                            val type = if(restoreStatus.type() == BillingClient.SkuType.SUBS) "subscriptions" else "in-app products"
+                            ApphudLog.log("Failed to restore purchases for $type with error: ("
+                                    + "${restoreStatus.result?.responseCode})"
+                                    + "${restoreStatus.message})")
+
+                            if (skuDetailsForRestoreIsLoaded_SUBS.get() && skuDetailsForRestoreIsLoaded_INAPP.get()) {
                                 if (tempPrevPurchases.isEmpty()) {
                                     val error =
                                         ApphudError(message = "Restore Purchases is failed for SkuType.SUBS and SkuType.INAPP",
@@ -724,7 +736,7 @@ internal object ApphudInternal {
                                     ApphudLog.log(message = error.toString(), sendLogToServer = true)
                                     callback?.invoke(null, null, error)
                                 } else {
-                                    syncPurchasesWithApphud(tempPrevPurchases, callback, allowsReceiptRefresh)
+                                    syncPurchasesWithApphud(paywallIdentifier, tempPrevPurchases, callback, observerMode)
                                 }
                             }
                         }
@@ -732,21 +744,33 @@ internal object ApphudInternal {
                             ApphudLog.log("SyncPurchases: purchases was restored: ${restoreStatus.purchases}")
                             tempPrevPurchases.addAll(restoreStatus.purchases)
 
-                            if (skuDetailsForRestoreIsLoaded.isBothLoaded()) {
-                                if (!allowsReceiptRefresh && prevPurchases.containsAll(tempPrevPurchases)) {
+                            if (skuDetailsForRestoreIsLoaded_SUBS.get() && skuDetailsForRestoreIsLoaded_INAPP.get()) {
+                                billing.restoreCallback = null
+                                if (observerMode && prevPurchases.containsAll(tempPrevPurchases)) {
                                     ApphudLog.log("SyncPurchases: Don't send equal purchases from prev state")
                                 } else {
-                                    syncPurchasesWithApphud(tempPrevPurchases, callback, allowsReceiptRefresh)
+                                    syncPurchasesWithApphud(paywallIdentifier, tempPrevPurchases, callback, observerMode)
                                 }
                             }
                         }
                     }
                 }
                 billing.historyCallback = { purchasesHistoryStatus ->
-                    purchasesForRestoreIsLoaded.incrementAndGet()
+                    if(purchasesHistoryStatus.type() == BillingClient.SkuType.SUBS){
+                        purchasesForRestoreIsLoaded_SUBS.set(true)
+                    } else if(purchasesHistoryStatus.type() == BillingClient.SkuType.INAPP){
+                        purchasesForRestoreIsLoaded_INAPP.set(true)
+                    }
+
                     when (purchasesHistoryStatus) {
                         is PurchaseHistoryCallbackStatus.Error -> {
-                            if (purchasesForRestoreIsLoaded.isBothLoaded()) {
+
+                            val type = if(purchasesHistoryStatus.type() == BillingClient.SkuType.SUBS) "subscriptions" else "in-app products"
+                            ApphudLog.log("Failed to load history for $type with error: ("
+                                    + "${purchasesHistoryStatus.result?.responseCode})"
+                                    + "${purchasesHistoryStatus.result?.debugMessage})")
+
+                            if (purchasesForRestoreIsLoaded_SUBS.get() && purchasesForRestoreIsLoaded_INAPP.get()) {
                                 val message =
                                     "Restore Purchase History is failed for SkuType.SUBS and SkuType.INAPP " +
                                             "with message = ${purchasesHistoryStatus.result?.debugMessage}" +
@@ -758,7 +782,8 @@ internal object ApphudInternal {
                             if (!purchasesHistoryStatus.purchases.isNullOrEmpty())
                                 productsForRestore.addAll(purchasesHistoryStatus.purchases)
 
-                            if (purchasesForRestoreIsLoaded.isBothLoaded()) {
+                            if (purchasesForRestoreIsLoaded_SUBS.get() && purchasesForRestoreIsLoaded_INAPP.get()) {
+                                billing.historyCallback = null
                                 processPurchasesHistoryResults(null, callback)
                             }
                         }
@@ -790,10 +815,34 @@ internal object ApphudInternal {
         }
     }
 
+    private fun findJustPurchasedProduct(paywallIdentifier: String?, tempPurchaseRecordDetails: Set<PurchaseRecordDetails>): ApphudProduct?{
+        try {
+            paywallIdentifier?.let {
+                getPaywalls().firstOrNull { it.identifier == paywallIdentifier }
+                    ?.let { currentPaywall ->
+                        val record = tempPurchaseRecordDetails.toList()
+                            .maxByOrNull { it.record.purchaseTime }
+                        record?.let { rec ->
+                            val offset = System.currentTimeMillis() - rec.record.purchaseTime
+                            if (offset < 300000L) { // 5 min
+                                return currentPaywall.products?.find { it.skuDetails?.sku == rec.details.sku }
+                            }
+                        }
+                    }
+            }
+        }catch (ex: Exception){
+            ex.message?.let{
+                ApphudLog.logE(message = it)
+            }
+        }
+        return null
+    }
+
     private fun syncPurchasesWithApphud(
+        paywallIdentifier: String? = null,
         tempPurchaseRecordDetails: Set<PurchaseRecordDetails>,
         callback: ApphudPurchasesRestoreCallback? = null,
-        skipObserverModeParam: Boolean
+        observerMode: Boolean
     ) {
         checkRegistration{ error ->
             error?.let{
@@ -802,7 +851,9 @@ internal object ApphudInternal {
                 callback?.invoke(null, null, error)
             }?: run{
                 coroutineScope.launch(errorHandler) {
-                    RequestManager.restorePurchases(tempPurchaseRecordDetails, skipObserverModeParam) { customer, error ->
+
+                    val apphudProduct: ApphudProduct? = findJustPurchasedProduct(paywallIdentifier, tempPurchaseRecordDetails)
+                    RequestManager.restorePurchases(apphudProduct, tempPurchaseRecordDetails, observerMode) { customer, error ->
                         launch(Dispatchers.Main) {
                             customer?.let{
                                 customer?.let{
@@ -1209,13 +1260,17 @@ internal object ApphudInternal {
         }
     }
 
-    private fun paywallPaymentCancelled(paywall_id: String?, product_id: String?) {
+    private fun paywallPaymentCancelled(paywall_id: String?, product_id: String?, error_Code: Int) {
         checkRegistration{ error ->
             error?.let{
                 ApphudLog.logI(error.message)
             }?: run{
                 coroutineScope.launch(errorHandler) {
-                    RequestManager.paywallPaymentCancelled(paywall_id, product_id)
+                    if (error_Code == BillingClient.BillingResponseCode.USER_CANCELED) {
+                        RequestManager.paywallPaymentCancelled(paywall_id, product_id)
+                    }else{
+                        RequestManager.paywallPaymentError(paywall_id, product_id, error_Code.toString())
+                    }
                 }
             }
         }
@@ -1288,7 +1343,8 @@ internal object ApphudInternal {
         RequestManager.cleanRegistration()
         currentUser = null
         generatedUUID = UUID.randomUUID().toString()
-        skuDetailsForRestoreIsLoaded.set(0)
+        skuDetailsForRestoreIsLoaded_SUBS.set(false)
+        skuDetailsForRestoreIsLoaded_INAPP.set(false)
         productsLoaded.set(0)
         customProductsFetchedBlock = null
         storage.clean()

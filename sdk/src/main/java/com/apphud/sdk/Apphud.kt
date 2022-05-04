@@ -151,7 +151,7 @@ object Apphud {
      * If you use Apphud SDK as observer, you should call this method after every successful purchase or restoration.
      */
     @kotlin.jvm.JvmStatic
-    fun syncPurchases() = ApphudInternal.syncPurchases()
+    fun syncPurchases(paywallIdentifier: String? = null) = ApphudInternal.syncPurchases(paywallIdentifier)
 
     /**
      * Implements `Restore Purchases` mechanism. Basically it just sends current Play Market Purchase Tokens to Apphud and returns subscriptions info.
@@ -372,5 +372,17 @@ object Apphud {
     @kotlin.jvm.JvmStatic
     fun grantPromotional(daysCount: Int, productId: String?, permissionGroup: ApphudGroup? = null, callback: ((Boolean) -> Unit)? = null) {
         ApphudInternal.grantPromotional(daysCount, productId, permissionGroup, callback)
+    }
+
+    /**
+    Returns `true` if user has active subscription or non renewing purchase (lifetime).
+
+    __Note: You should not use this method if you have consumable in-app purchases, like coin packs.__
+
+    Use this method to determine whether or not user has active premium access. If you have consumable purchases, this method won't operate correctly, because Apphud SDK doesn't differ consumables from non-consumables.
+     */
+    @kotlin.jvm.JvmStatic
+    fun hasPremiumAccess() : Boolean {
+        return hasActiveSubscription() || nonRenewingPurchases().firstOrNull{ it.isActive() } != null
     }
 }

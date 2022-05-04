@@ -574,7 +574,7 @@ object RequestManager {
         }
     }
 
-    fun restorePurchases(purchaseRecordDetailsSet: Set<PurchaseRecordDetails>, skipObserverModeParam: Boolean,
+    fun restorePurchases(apphudProduct: ApphudProduct? = null, purchaseRecordDetailsSet: Set<PurchaseRecordDetails>, observerMode: Boolean,
                   completionHandler: (Customer?, ApphudError?) -> Unit) {
         if(!canPerformRequest()) {
             ApphudLog.logE(::restorePurchases.name + MUST_REGISTER_ERROR)
@@ -587,7 +587,7 @@ object RequestManager {
             .path("subscriptions")
             .build()
 
-        val purchaseBody = makeRestorePurchasesBody(purchaseRecordDetailsSet.toList(), skipObserverModeParam)
+        val purchaseBody = makeRestorePurchasesBody(apphudProduct, purchaseRecordDetailsSet.toList(), observerMode)
 
         val request = buildPostRequest(URL(apphudUrl.url), purchaseBody)
 
@@ -752,6 +752,17 @@ object RequestManager {
         )
     }
 
+    fun paywallPaymentError(paywall_id: String?, product_id: String?, error_code: String?) {
+        trackPaywallEvent(
+            makePaywallEventBody(
+                name = "paywall_payment_error",
+                paywall_id = paywall_id,
+                product_id = product_id,
+                error_code = error_code
+            )
+        )
+    }
+
     private fun trackPaywallEvent(body: PaywallEventBody) {
         if(!canPerformRequest()) {
             ApphudLog.logE(::trackPaywallEvent.name + MUST_REGISTER_ERROR)
@@ -850,10 +861,11 @@ object RequestManager {
         return false
     }
 
-    private fun makePaywallEventBody(name: String, paywall_id: String? = null, product_id: String? = null): PaywallEventBody {
+    private fun makePaywallEventBody(name: String, paywall_id: String? = null, product_id: String? = null, error_code: String? = null): PaywallEventBody {
         val properties = mutableMapOf<String, Any>()
         paywall_id?.let { properties.put("paywall_id", it) }
         product_id?.let { properties.put("product_id", it) }
+        error_code?.let { properties.put("error_code", it) }
         return PaywallEventBody(
             name = name,
             user_id = userId,
@@ -881,8 +893,23 @@ object RequestManager {
             time_zone = TimeZone.getDefault().id,
             is_sandbox = this.applicationContext.isDebuggable(),
             is_new = isNew,
-            need_paywalls = needPaywalls
+            need_paywalls = needPaywalls,
+            first_seen = getInstallationDate()
         )
+
+    private fun getInstallationDate() :Long?{
+        var dateInSecond :Long? = null
+        try{
+            this.applicationContext.packageManager?.let{ manager ->
+                dateInSecond = manager.getPackageInfo(this.applicationContext.packageName, 0).firstInstallTime/1000L
+            }
+        }catch(ex: Exception){
+            ex.message?.let{
+                ApphudLog.logE(it)
+            }
+        }
+        return dateInSecond
+    }
 
     private fun makePurchaseBody(
         purchase: Purchase,
@@ -893,7 +920,7 @@ object RequestManager {
         PurchaseBody(
             device_id = deviceId,
             purchases = listOf(
-                PurchaseItemObserverBody(
+                PurchaseItemBody(
                     order_id = purchase.orderId,
                     product_id = details?.let { details.sku } ?: purchase.skus.first(),
                     purchase_token = purchase.purchaseToken,
@@ -907,41 +934,23 @@ object RequestManager {
             )
         )
 
-    private fun makeRestorePurchasesBody(purchases: List<PurchaseRecordDetails>, skipObserverModeParam: Boolean) =
-        if(skipObserverModeParam){
-            PurchaseBody(
-                device_id = deviceId,
-                purchases = purchases.map { purchase ->
-                    PurchaseItemBody(
-                        order_id = null,
-                        product_id = purchase.details.sku,
-                        purchase_token = purchase.record.purchaseToken,
-                        price_currency_code = purchase.details.priceCurrencyCode,
-                        price_amount_micros = purchase.details.priceAmountMicros,
-                        subscription_period = purchase.details.subscriptionPeriod,
-                        paywall_id = null,
-                        product_bundle_id = null
-                    )
-                }
-            )
-        }else{
-            PurchaseBody(
-                device_id = deviceId,
-                purchases = purchases.map { purchase ->
-                    PurchaseItemObserverBody(
-                        order_id = null,
-                        product_id = purchase.details.sku,
-                        purchase_token = purchase.record.purchaseToken,
-                        price_currency_code = purchase.details.priceCurrencyCode,
-                        price_amount_micros = purchase.details.priceAmountMicros,
-                        subscription_period = purchase.details.subscriptionPeriod,
-                        paywall_id = null,
-                        product_bundle_id = null,
-                        observer_mode = true
-                    )
-                }
-            )
-        }
+    private fun makeRestorePurchasesBody(apphudProduct: ApphudProduct? = null, purchases: List<PurchaseRecordDetails>, observerMode: Boolean) =
+        PurchaseBody(
+            device_id = deviceId,
+            purchases = purchases.map { purchase ->
+                PurchaseItemBody(
+                    order_id = null,
+                    product_id = purchase.details.sku,
+                    purchase_token = purchase.record.purchaseToken,
+                    price_currency_code = purchase.details.priceCurrencyCode,
+                    price_amount_micros = purchase.details.priceAmountMicros,
+                    subscription_period = purchase.details.subscriptionPeriod,
+                    paywall_id = if(apphudProduct?.skuDetails?.sku == purchase.details.sku) apphudProduct.paywall_id else null,
+                    product_bundle_id = if(apphudProduct?.skuDetails?.sku == purchase.details.sku) apphudProduct.id else null,
+                    observer_mode = observerMode
+                )
+            }
+        )
 
     internal fun makeErrorLogsBody(message: String, apphud_product_id: String? = null) =
         ErrorLogsBody(

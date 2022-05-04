@@ -52,16 +52,16 @@ internal class SkuDetailsWrapper(
                             true -> {
                                 val message = "SkuDetails return empty list for $type and records: $records"
                                 ApphudLog.log(message)
-                                restoreCallback?.invoke(PurchaseRestoredCallbackStatus.Error(result = null, message = message))
+                                restoreCallback?.invoke(PurchaseRestoredCallbackStatus.Error(type = type, result = null, message = message))
                             }
                             else -> {
-                                restoreCallback?.invoke(PurchaseRestoredCallbackStatus.Success(purchases))
+                                restoreCallback?.invoke(PurchaseRestoredCallbackStatus.Success(type = type, purchases))
                             }
                         }
                     }
                     else -> {
                         result.logMessage("RestoreAsync failed for type: $type products: $products")
-                        restoreCallback?.invoke(PurchaseRestoredCallbackStatus.Error(result = result, message = type))
+                        restoreCallback?.invoke(PurchaseRestoredCallbackStatus.Error(type = type, result = result, message = type))
                     }
                 }
             }
