@@ -722,7 +722,11 @@ internal object ApphudInternal {
 
                     when (restoreStatus) {
                         is PurchaseRestoredCallbackStatus.Error -> {
-                            ApphudLog.log("SyncPurchases: restore purchases is failed coz ${restoreStatus.message}")
+                            val type = if(restoreStatus.type() == BillingClient.SkuType.SUBS) "subscriptions" else "in-app"
+                            ApphudLog.log("Failed to restore purchases for $type products with error: ("
+                                    + "${restoreStatus.result?.responseCode})"
+                                    + "${restoreStatus.message})")
+
                             if (skuDetailsForRestoreIsLoaded_SUBS.get() && skuDetailsForRestoreIsLoaded_INAPP.get()) {
                                 if (tempPrevPurchases.isEmpty()) {
                                     val error =
@@ -760,6 +764,12 @@ internal object ApphudInternal {
 
                     when (purchasesHistoryStatus) {
                         is PurchaseHistoryCallbackStatus.Error -> {
+
+                            val type = if(purchasesHistoryStatus.type() == BillingClient.SkuType.SUBS) "subscriptions" else "in-app"
+                            ApphudLog.log("Failed to load history for $type products with error: ("
+                                    + "${purchasesHistoryStatus.result?.responseCode})"
+                                    + "${purchasesHistoryStatus.result?.debugMessage})")
+
                             if (purchasesForRestoreIsLoaded_SUBS.get() && purchasesForRestoreIsLoaded_INAPP.get()) {
                                 val message =
                                     "Restore Purchase History is failed for SkuType.SUBS and SkuType.INAPP " +
