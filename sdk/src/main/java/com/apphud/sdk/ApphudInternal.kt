@@ -722,8 +722,8 @@ internal object ApphudInternal {
 
                     when (restoreStatus) {
                         is PurchaseRestoredCallbackStatus.Error -> {
-                            val type = if(restoreStatus.type() == BillingClient.SkuType.SUBS) "subscriptions" else "in-app"
-                            ApphudLog.log("Failed to restore purchases for $type products with error: ("
+                            val type = if(restoreStatus.type() == BillingClient.SkuType.SUBS) "subscriptions" else "in-app products"
+                            ApphudLog.log("Failed to restore purchases for $type with error: ("
                                     + "${restoreStatus.result?.responseCode})"
                                     + "${restoreStatus.message})")
 
@@ -765,8 +765,8 @@ internal object ApphudInternal {
                     when (purchasesHistoryStatus) {
                         is PurchaseHistoryCallbackStatus.Error -> {
 
-                            val type = if(purchasesHistoryStatus.type() == BillingClient.SkuType.SUBS) "subscriptions" else "in-app"
-                            ApphudLog.log("Failed to load history for $type products with error: ("
+                            val type = if(purchasesHistoryStatus.type() == BillingClient.SkuType.SUBS) "subscriptions" else "in-app products"
+                            ApphudLog.log("Failed to load history for $type with error: ("
                                     + "${purchasesHistoryStatus.result?.responseCode})"
                                     + "${purchasesHistoryStatus.result?.debugMessage})")
 
