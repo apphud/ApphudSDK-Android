@@ -708,20 +708,15 @@ internal object ApphudInternal {
                 productsForRestore.clear()
                 tempPrevPurchases.clear()
 
-                Log.d("TEST:", "START")
-
                 purchasesForRestoreIsLoaded_SUBS.set(false)
                 purchasesForRestoreIsLoaded_INAPP.set(false)
                 skuDetailsForRestoreIsLoaded_SUBS.set(false)
                 skuDetailsForRestoreIsLoaded_INAPP.set(false)
 
                 billing.restoreCallback = { restoreStatus ->
-                    Log.d("TEST:", "restoreCallback")
                     if(restoreStatus.type() == BillingClient.SkuType.SUBS){
-                        Log.d("TEST:", "restoreCallback SUBS")
                         skuDetailsForRestoreIsLoaded_SUBS.set(true)
                     } else if(restoreStatus.type() == BillingClient.SkuType.INAPP){
-                        Log.d("TEST:", "restoreCallback INAPP")
                         skuDetailsForRestoreIsLoaded_INAPP.set(true)
                     }
 
@@ -747,7 +742,6 @@ internal object ApphudInternal {
 
                             if (skuDetailsForRestoreIsLoaded_SUBS.get() && skuDetailsForRestoreIsLoaded_INAPP.get()) {
                                 billing.restoreCallback = null
-                                Log.d("TEST:", "restoreCallback BOTH")
                                 if (observerMode && prevPurchases.containsAll(tempPrevPurchases)) {
                                     ApphudLog.log("SyncPurchases: Don't send equal purchases from prev state")
                                 } else {
@@ -758,12 +752,9 @@ internal object ApphudInternal {
                     }
                 }
                 billing.historyCallback = { purchasesHistoryStatus ->
-                    Log.d("TEST:", "historyCallback")
                     if(purchasesHistoryStatus.type() == BillingClient.SkuType.SUBS){
-                        Log.d("TEST:", "historyCallback SUBS")
                         purchasesForRestoreIsLoaded_SUBS.set(true)
                     } else if(purchasesHistoryStatus.type() == BillingClient.SkuType.INAPP){
-                        Log.d("TEST:", "historyCallback INAPP")
                         purchasesForRestoreIsLoaded_INAPP.set(true)
                     }
 
@@ -783,7 +774,6 @@ internal object ApphudInternal {
 
                             if (purchasesForRestoreIsLoaded_SUBS.get() && purchasesForRestoreIsLoaded_INAPP.get()) {
                                 billing.historyCallback = null
-                                Log.d("TEST:", "historyCallback BOTH SUCCESS")
                                 processPurchasesHistoryResults(null, callback)
                             }
                         }
