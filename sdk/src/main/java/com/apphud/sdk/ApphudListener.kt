@@ -33,12 +33,13 @@ interface ApphudListener {
     fun apphudDidChangeUserID(userId: String)
 
     /**
-    Called when paywalls are loaded, however SkuDetails may still be nil at the moment
+    Called when paywalls are loaded, however SkuDetails may still be nil at the moment. Use for A/B testing only.
+    You should only use this method for A/B testing purposes, i.e. fetching `experimentName` and `variationName` from your test paywalls, since price information may be unavailable yet.
      */
     fun paywallsDidLoad(paywalls: List<ApphudPaywall>)
 
     /**
-    Called when paywalls are fully loaded with their SkuDetails
+    Called when paywalls are fully loaded with their SkuDetails.
     */
     fun paywallsDidFullyLoad(paywalls: List<ApphudPaywall>)
 }
