@@ -608,11 +608,11 @@ internal object ApphudInternal {
         }
         when {
             details != null -> {
-                billing.purchase(activity, details)
+                billing.purchase(activity, details, deviceId)
             }
             apphudProduct?.skuDetails != null -> {
                 paywallCheckoutInitiated(apphudProduct.paywall_id, apphudProduct.product_id)
-                billing.purchase(activity, apphudProduct.skuDetails!!)
+                billing.purchase(activity, apphudProduct.skuDetails!!, deviceId)
             }
             else -> {
                 val message = "Unable to buy product with because SkuDetails is null" + apphudProduct?.let{ " [Apphud product ID: " + it.id + "]"}
