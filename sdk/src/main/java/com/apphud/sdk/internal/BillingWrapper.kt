@@ -138,11 +138,11 @@ internal class BillingWrapper(context: Context) : Closeable {
         }
     }
 
-    fun purchase(activity: Activity, details: SkuDetails) {
+    fun purchase(activity: Activity, details: SkuDetails, deviceId: String? = null) {
         GlobalScope.launch {
             val connectIfNeeded = connectIfNeeded()
             if (!connectIfNeeded) return@launch
-            return@launch flow.purchases(activity, details)
+            return@launch flow.purchases(activity, details, deviceId)
         }
     }
 

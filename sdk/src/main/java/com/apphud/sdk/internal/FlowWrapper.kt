@@ -10,10 +10,18 @@ import com.apphud.sdk.logMessage
 
 internal class FlowWrapper(private val billing: BillingClient) {
 
-    fun purchases(activity: Activity, details: SkuDetails) {
-        val params = BillingFlowParams.newBuilder()
+    fun purchases(activity: Activity, details: SkuDetails, deviceId: String? = null) {
+        val builder = BillingFlowParams.newBuilder()
             .setSkuDetails(details)
-            .build()
+
+        deviceId?.let{
+            val regex = Regex("[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}")
+            if(regex.matches(input = it)){
+                builder.setObfuscatedAccountId(it)
+            }
+        }
+
+        val params = builder.build()
 
         billing.launchBillingFlow(activity, params)
             .also {

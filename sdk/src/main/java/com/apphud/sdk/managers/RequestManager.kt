@@ -346,40 +346,11 @@ object RequestManager {
                 continuation.resume(null)
             }
         }
+
         if(currentUser == null || forceRegistration) {
-            val apphudUrl = ApphudUrl.Builder()
-                .host(HeadersInterceptor.HOST)
-                .version(ApphudVersion.V1)
-                .path("customers")
-                .build()
-
-            val request = buildPostRequest(URL(apphudUrl.url), mkRegistrationBody(needPaywalls, isNew))
-            val httpClient = getOkHttpClient()
-            try {
-                val serverResponse = performRequestSync(httpClient, request)
-                val responseDto: ResponseDto<CustomerDto>? =
-                    parser.fromJson<ResponseDto<CustomerDto>>(
-                        serverResponse,
-                        object : TypeToken<ResponseDto<CustomerDto>>() {}.type
-                    )
-
-                responseDto?.let { cDto ->
-                    currentUser = cDto.data.results?.let { customerObj ->
-                        customerMapper.map(customerObj)
-                    }
-                    if(continuation.isActive) {
-                        continuation.resume(currentUser)
-                    }
-                } ?: run {
-                    if(continuation.isActive) {
-                        continuation.resume(null)
-                    }
-                }
-            } catch (ex: Exception) {
-                val message = ex.message?:"Undefined error"
-                ApphudLog.logE(message)
+            registration(needPaywalls, isNew, forceRegistration) { customer, error ->
                 if(continuation.isActive) {
-                    continuation.resume(null)
+                    continuation.resume(customer)
                 }
             }
         }else{
@@ -390,13 +361,13 @@ object RequestManager {
     }
 
     @Synchronized
-    fun registration(needPaywalls: Boolean, isNew: Boolean, completionHandler: (Customer?, ApphudError?) -> Unit) {
+    fun registration(needPaywalls: Boolean, isNew: Boolean,  forceRegistration: Boolean = false, completionHandler: (Customer?, ApphudError?) -> Unit) {
         if(!canPerformRequest()) {
             ApphudLog.logE(::registration.name + MUST_REGISTER_ERROR)
             return
         }
 
-        if(currentUser == null) {
+        if(currentUser == null || forceRegistration) {
             val apphudUrl = ApphudUrl.Builder()
                 .host(HeadersInterceptor.HOST)
                 .version(ApphudVersion.V1)
@@ -426,39 +397,9 @@ object RequestManager {
                 completionHandler(null,  ApphudError(message))
             }
         }else{
-            completionHandler(null, null)
+            completionHandler(currentUser, null)
         }
     }
-
-    /*fun getPaywalls(completionHandler: (List<ApphudPaywall>?, ApphudError?) -> Unit) {
-        if(!canPerformRequest()) {
-            ApphudLog.logE(::getPaywalls.name + MUST_REGISTER_ERROR)
-            return
-        }
-
-        val apphudUrl = ApphudUrl.Builder()
-            .host(HeadersInterceptor.HOST)
-            .version(ApphudVersion.V2)
-            .path("paywall_configs")
-            .build()
-
-        val request = buildGetRequest(URL(apphudUrl.url))
-
-        makeUserRegisteredRequest(request) { serverResponse, error ->
-            serverResponse?.let {
-                val responseDto: ResponseDto<List<ApphudPaywallDto>>? =
-                    parser.fromJson<ResponseDto<List<ApphudPaywallDto>>>(serverResponse, object: TypeToken<ResponseDto<List<ApphudPaywallDto>>>(){}.type)
-                responseDto?.let{ response ->
-                    val paywallsList = response.data.results?.let { it1 -> paywallsMapper.map(it1) }
-                    completionHandler(paywallsList, null)
-                }?: run{
-                    completionHandler(null, ApphudError("Request paywalls failed"))
-                }
-            } ?: run {
-                completionHandler(null, error)
-            }
-        }
-    }*/
 
     suspend fun allProducts() : List<ApphudGroup>? =
     suspendCancellableCoroutine { continuation ->
@@ -495,37 +436,6 @@ object RequestManager {
             }
         }
     }
-
-    /*fun allProducts(completionHandler: (List<ApphudGroup>?, ApphudError?) -> Unit) {
-        if(!canPerformRequest()) {
-            ApphudLog.logE(::allProducts.name + MUST_REGISTER_ERROR)
-            return
-        }
-
-        val apphudUrl = ApphudUrl.Builder()
-            .host(HeadersInterceptor.HOST)
-            .version(ApphudVersion.V2)
-            .path("products")
-            .params(mapOf(API_KEY to apiKey))
-            .build()
-
-        val request = buildGetRequest(URL(apphudUrl.url))
-
-        makeUserRegisteredRequest(request) { serverResponse, error ->
-            serverResponse?.let {
-                val responseDto: ResponseDto<List<ApphudGroupDto>>? =
-                    parser.fromJson<ResponseDto<List<ApphudGroupDto>>>(serverResponse, object: TypeToken<ResponseDto<List<ApphudGroupDto>>>(){}.type)
-                responseDto?.let{ response ->
-                    val productsList = response.data.results?.let { it1 -> productMapper.map(it1) }
-                    completionHandler(productsList, null)
-                }?: run{
-                    completionHandler(null, ApphudError("Loading products failed"))
-                }
-            } ?: run {
-                completionHandler(null, error)
-            }
-        }
-    }*/
 
     fun purchased(purchase: Purchase,
                   details: SkuDetails?,
