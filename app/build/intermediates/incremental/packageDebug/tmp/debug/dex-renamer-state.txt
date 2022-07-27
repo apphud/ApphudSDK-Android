@@ -1,0 +1,4 @@
+#Fri Jul 01 13:58:59 MSK 2022
+base.0=/Users/ren6/Projects/ApphudSDK-Android/app/build/intermediates/dex/debug/mergeDexDebug/classes.dex
+path.0=classes.dex
+renamed.0=classes.dex

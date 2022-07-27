@@ -1,0 +1,20 @@
+{
+  "version": 1,
+  "artifactType": {
+    "type": "APK",
+    "kind": "Directory"
+  },
+  "applicationId": "com.apphud.demo",
+  "variantName": "debug",
+  "elements": [
+    {
+      "type": "SINGLE",
+      "filters": [],
+      "properties": [],
+      "versionCode": 18,
+      "versionName": "1.0.16",
+      "enabled": true,
+      "outputFile": "app-debug.apk"
+    }
+  ]
+}

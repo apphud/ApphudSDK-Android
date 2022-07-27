@@ -1,0 +1,28 @@
+{
+  "version": 1,
+  "applicationId": "com.apphud.demo",
+  "variantType": "BASE_APK",
+  "elements": [
+    {
+      "outputType": {
+        "type": "PROCESSED_RES"
+      },
+      "apkData": {
+        "type": "MAIN",
+        "splits": [],
+        "versionCode": 18,
+        "versionName": "1.0.16",
+        "outputFile": "app-debug.apk",
+        "fullName": "debug",
+        "baseName": "debug",
+        "dirName": ""
+      },
+      "path": "resources-debug.ap_",
+      "properties": {
+        "packageId": "com.apphud.demo",
+        "split": "",
+        "minSdkVersion": "16"
+      }
+    }
+  ]
+}

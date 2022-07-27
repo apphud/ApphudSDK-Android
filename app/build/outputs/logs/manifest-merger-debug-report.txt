@@ -1,0 +1,269 @@
+-- Merging decision tree log ---
+manifest
+ADDED from /Users/ren6/Projects/ApphudSDK-Android/app/src/main/AndroidManifest.xml:2:1-29:12
+INJECTED from /Users/ren6/Projects/ApphudSDK-Android/app/src/main/AndroidManifest.xml:2:1-29:12
+INJECTED from /Users/ren6/Projects/ApphudSDK-Android/app/src/main/AndroidManifest.xml:2:1-29:12
+INJECTED from /Users/ren6/Projects/ApphudSDK-Android/app/src/main/AndroidManifest.xml:2:1-29:12
+MERGED from [:sdk] /Users/ren6/Projects/ApphudSDK-Android/sdk/build/intermediates/library_manifest/debug/AndroidManifest.xml:2:1-11:12
+MERGED from [androidx.constraintlayout:constraintlayout:2.0.1] /Users/ren6/.gradle/caches/transforms-2/files-2.1/b43280e814ee4f03f7072dd03bc03676/constraintlayout-2.0.1/AndroidManifest.xml:2:1-11:12
+MERGED from [androidx.appcompat:appcompat:1.2.0] /Users/ren6/.gradle/caches/transforms-2/files-2.1/f3805e768452d4be392ca56b5c1d45c4/appcompat-1.2.0/AndroidManifest.xml:17:1-24:12
+MERGED from [com.android.billingclient:billing:4.0.0] /Users/ren6/.gradle/caches/transforms-2/files-2.1/659864b846a3112b70aef0ab9613882d/jetified-billing-4.0.0/AndroidManifest.xml:2:1-24:12
+MERGED from [androidx.recyclerview:recyclerview:1.1.0] /Users/ren6/.gradle/caches/transforms-2/files-2.1/af8d58b03507909dd15adbf0753c1374/recyclerview-1.1.0/AndroidManifest.xml:17:1-24:12
+MERGED from [com.google.android.gms:play-services-ads:15.0.0] /Users/ren6/.gradle/caches/transforms-2/files-2.1/c2de2a0d04254c4fba6bed597056b73b/jetified-play-services-ads-15.0.0/AndroidManifest.xml:17:1-25:12
+MERGED from [androidx.browser:browser:1.0.0] /Users/ren6/.gradle/caches/transforms-2/files-2.1/48f000753515b4098957dcda97af4977/browser-1.0.0/AndroidManifest.xml:17:1-22:12
+MERGED from [com.google.android.gms:play-services-ads-identifier:15.0.1] /Users/ren6/.gradle/caches/transforms-2/files-2.1/916f23ce3f461a5be8d98fe5b3cf4e95/jetified-play-services-ads-identifier-15.0.1/AndroidManifest.xml:17:1-24:12
+MERGED from [com.google.android.gms:play-services-ads-lite:15.0.0] /Users/ren6/.gradle/caches/transforms-2/files-2.1/8e3dc274670da734fe9942d2d434d539/jetified-play-services-ads-lite-15.0.0/AndroidManifest.xml:17:1-36:12
+MERGED from [com.google.android.gms:play-services-gass:15.0.0] /Users/ren6/.gradle/caches/transforms-2/files-2.1/5ac83d7194d8e2fdfd97e3be55b1badc/jetified-play-services-gass-15.0.0/AndroidManifest.xml:2:1-9:12
+MERGED from [com.google.android.gms:play-services-basement:15.0.1] /Users/ren6/.gradle/caches/transforms-2/files-2.1/3e2d43209cbf30bc9b35d860dc94282a/jetified-play-services-basement-15.0.1/AndroidManifest.xml:17:1-28:12
+MERGED from [androidx.legacy:legacy-support-v4:1.0.0] /Users/ren6/.gradle/caches/transforms-2/files-2.1/97a2426244803ab7fedca8fc3daf665c/legacy-support-v4-1.0.0/AndroidManifest.xml:17:1-22:12
+MERGED from [androidx.legacy:legacy-support-core-ui:1.0.0] /Users/ren6/.gradle/caches/transforms-2/files-2.1/1c69ce629074df0d42d687749d65bb75/legacy-support-core-ui-1.0.0/AndroidManifest.xml:17:1-22:12
+MERGED from [androidx.cursoradapter:cursoradapter:1.0.0] /Users/ren6/.gradle/caches/transforms-2/files-2.1/20e862367dc2c75ee6e596df1e45e689/cursoradapter-1.0.0/AndroidManifest.xml:17:1-22:12
+MERGED from [androidx.fragment:fragment:1.1.0] /Users/ren6/.gradle/caches/transforms-2/files-2.1/31d3ccf13320a4c8315329a92e57a644/fragment-1.1.0/AndroidManifest.xml:17:1-24:12
+MERGED from [androidx.appcompat:appcompat-resources:1.2.0] /Users/ren6/.gradle/caches/transforms-2/files-2.1/0c61f5cae4d6306269a92f3caa625d9a/jetified-appcompat-resources-1.2.0/AndroidManifest.xml:17:1-24:12
+MERGED from [androidx.drawerlayout:drawerlayout:1.0.0] /Users/ren6/.gradle/caches/transforms-2/files-2.1/72216ad999cddc8421516c80f32072cb/drawerlayout-1.0.0/AndroidManifest.xml:17:1-22:12
+MERGED from [androidx.viewpager:viewpager:1.0.0] /Users/ren6/.gradle/caches/transforms-2/files-2.1/21bde13a91c5ad8f18f0724c6f65e742/viewpager-1.0.0/AndroidManifest.xml:17:1-22:12
+MERGED from [androidx.coordinatorlayout:coordinatorlayout:1.0.0] /Users/ren6/.gradle/caches/transforms-2/files-2.1/aec0494439e8e4782f5e75711ea1575c/coordinatorlayout-1.0.0/AndroidManifest.xml:17:1-22:12
+MERGED from [androidx.slidingpanelayout:slidingpanelayout:1.0.0] /Users/ren6/.gradle/caches/transforms-2/files-2.1/7dcb5fd064b686226f73a2abadd33436/slidingpanelayout-1.0.0/AndroidManifest.xml:17:1-22:12
+MERGED from [androidx.customview:customview:1.0.0] /Users/ren6/.gradle/caches/transforms-2/files-2.1/356859f08830e446422d770f3db77f83/customview-1.0.0/AndroidManifest.xml:17:1-22:12
+MERGED from [androidx.legacy:legacy-support-core-utils:1.0.0] /Users/ren6/.gradle/caches/transforms-2/files-2.1/14a41bd1a60d2a58b8b3a1f9a585e6aa/legacy-support-core-utils-1.0.0/AndroidManifest.xml:17:1-22:12
+MERGED from [androidx.loader:loader:1.0.0] /Users/ren6/.gradle/caches/transforms-2/files-2.1/2e2520f4be063c0406e4378f940408c9/loader-1.0.0/AndroidManifest.xml:17:1-22:12
+MERGED from [androidx.activity:activity:1.0.0] /Users/ren6/.gradle/caches/transforms-2/files-2.1/2f1bad790a436b4ef72e70cf59156e92/jetified-activity-1.0.0/AndroidManifest.xml:17:1-24:12
+MERGED from [androidx.vectordrawable:vectordrawable-animated:1.1.0] /Users/ren6/.gradle/caches/transforms-2/files-2.1/f2ec5dc4d285aff1dcbff84013f70a62/vectordrawable-animated-1.1.0/AndroidManifest.xml:17:1-24:12
+MERGED from [androidx.vectordrawable:vectordrawable:1.1.0] /Users/ren6/.gradle/caches/transforms-2/files-2.1/0bd9863999375971805646935b90e6e5/vectordrawable-1.1.0/AndroidManifest.xml:17:1-24:12
+MERGED from [androidx.media:media:1.0.0] /Users/ren6/.gradle/caches/transforms-2/files-2.1/e6f376b30a2cd6018b3bf53a94179b72/media-1.0.0/AndroidManifest.xml:17:1-22:12
+MERGED from [androidx.swiperefreshlayout:swiperefreshlayout:1.0.0] /Users/ren6/.gradle/caches/transforms-2/files-2.1/626e974decaeed1d7193a8bcad4dc77a/swiperefreshlayout-1.0.0/AndroidManifest.xml:17:1-22:12
+MERGED from [androidx.asynclayoutinflater:asynclayoutinflater:1.0.0] /Users/ren6/.gradle/caches/transforms-2/files-2.1/5ae336bb09d1ff45edd6363e6b48db3b/asynclayoutinflater-1.0.0/AndroidManifest.xml:17:1-22:12
+MERGED from [androidx.core:core:1.3.1] /Users/ren6/.gradle/caches/transforms-2/files-2.1/2d89e0231566530f36d1cc5ee4a7073a/core-1.3.1/AndroidManifest.xml:17:1-26:12
+MERGED from [androidx.versionedparcelable:versionedparcelable:1.1.0] /Users/ren6/.gradle/caches/transforms-2/files-2.1/bc6d877f4a5f6feefb2a158e2ce5ef07/versionedparcelable-1.1.0/AndroidManifest.xml:17:1-27:12
+MERGED from [androidx.lifecycle:lifecycle-runtime:2.1.0] /Users/ren6/.gradle/caches/transforms-2/files-2.1/04933dafa94221c06300e4a4e86e6beb/lifecycle-runtime-2.1.0/AndroidManifest.xml:17:1-22:12
+MERGED from [androidx.lifecycle:lifecycle-viewmodel:2.1.0] /Users/ren6/.gradle/caches/transforms-2/files-2.1/fba2a3691c6cb25c8d67ebf0614b4360/lifecycle-viewmodel-2.1.0/AndroidManifest.xml:17:1-22:12
+MERGED from [androidx.savedstate:savedstate:1.0.0] /Users/ren6/.gradle/caches/transforms-2/files-2.1/889c93519c445217aa0913dd93bf7164/jetified-savedstate-1.0.0/AndroidManifest.xml:17:1-24:12
+MERGED from [androidx.interpolator:interpolator:1.0.0] /Users/ren6/.gradle/caches/transforms-2/files-2.1/9d935344eb9d8a59f3e90edbf4f9d8b7/interpolator-1.0.0/AndroidManifest.xml:17:1-22:12
+MERGED from [androidx.lifecycle:lifecycle-livedata:2.0.0] /Users/ren6/.gradle/caches/transforms-2/files-2.1/47b48f4c2f0e786325fb6dc0edfb00fb/lifecycle-livedata-2.0.0/AndroidManifest.xml:17:1-22:12
+MERGED from [androidx.lifecycle:lifecycle-livedata-core:2.0.0] /Users/ren6/.gradle/caches/transforms-2/files-2.1/1e23cf1115b3cccb2e911ef6d6dcd8ae/lifecycle-livedata-core-2.0.0/AndroidManifest.xml:17:1-22:12
+MERGED from [androidx.arch.core:core-runtime:2.0.0] /Users/ren6/.gradle/caches/transforms-2/files-2.1/e0d41fed808f37f11ea73aad4d26ecff/core-runtime-2.0.0/AndroidManifest.xml:17:1-22:12
+MERGED from [androidx.documentfile:documentfile:1.0.0] /Users/ren6/.gradle/caches/transforms-2/files-2.1/d4f17c01a03c2fb5c96db1a6eecff459/documentfile-1.0.0/AndroidManifest.xml:17:1-22:12
+MERGED from [androidx.localbroadcastmanager:localbroadcastmanager:1.0.0] /Users/ren6/.gradle/caches/transforms-2/files-2.1/6466b41b1d1428eec5e9927276a88eb6/localbroadcastmanager-1.0.0/AndroidManifest.xml:17:1-22:12
+MERGED from [androidx.print:print:1.0.0] /Users/ren6/.gradle/caches/transforms-2/files-2.1/a6d86c8954ab5cfd4c2c3876f90057cc/print-1.0.0/AndroidManifest.xml:17:1-22:12
+MERGED from [com.google.android.gms:play-services-ads-base:15.0.0] /Users/ren6/.gradle/caches/transforms-2/files-2.1/1595c7f6504887704cd3d8faab959935/jetified-play-services-ads-base-15.0.0/AndroidManifest.xml:17:1-24:12
+INJECTED from /Users/ren6/Projects/ApphudSDK-Android/app/src/main/AndroidManifest.xml:2:1-29:12
+INJECTED from /Users/ren6/Projects/ApphudSDK-Android/app/src/main/AndroidManifest.xml:2:1-29:12
+INJECTED from /Users/ren6/Projects/ApphudSDK-Android/app/src/main/AndroidManifest.xml:2:1-29:12
+	package
+		ADDED from /Users/ren6/Projects/ApphudSDK-Android/app/src/main/AndroidManifest.xml:3:5-30
+		INJECTED from /Users/ren6/Projects/ApphudSDK-Android/app/src/main/AndroidManifest.xml
+		INJECTED from /Users/ren6/Projects/ApphudSDK-Android/app/src/main/AndroidManifest.xml
+	android:versionName
+		INJECTED from /Users/ren6/Projects/ApphudSDK-Android/app/src/main/AndroidManifest.xml
+		ADDED from /Users/ren6/Projects/ApphudSDK-Android/app/src/main/AndroidManifest.xml:2:1-29:12
+		INJECTED from /Users/ren6/Projects/ApphudSDK-Android/app/src/main/AndroidManifest.xml
+	android:versionCode
+		INJECTED from /Users/ren6/Projects/ApphudSDK-Android/app/src/main/AndroidManifest.xml
+		ADDED from /Users/ren6/Projects/ApphudSDK-Android/app/src/main/AndroidManifest.xml:2:1-29:12
+		INJECTED from /Users/ren6/Projects/ApphudSDK-Android/app/src/main/AndroidManifest.xml
+	xmlns:android
+		ADDED from /Users/ren6/Projects/ApphudSDK-Android/app/src/main/AndroidManifest.xml:2:11-69
+uses-permission#android.permission.INTERNET
+ADDED from /Users/ren6/Projects/ApphudSDK-Android/app/src/main/AndroidManifest.xml:5:5-67
+MERGED from [com.google.android.gms:play-services-ads-lite:15.0.0] /Users/ren6/.gradle/caches/transforms-2/files-2.1/8e3dc274670da734fe9942d2d434d539/jetified-play-services-ads-lite-15.0.0/AndroidManifest.xml:23:5-67
+MERGED from [com.google.android.gms:play-services-ads-lite:15.0.0] /Users/ren6/.gradle/caches/transforms-2/files-2.1/8e3dc274670da734fe9942d2d434d539/jetified-play-services-ads-lite-15.0.0/AndroidManifest.xml:23:5-67
+	android:name
+		ADDED from /Users/ren6/Projects/ApphudSDK-Android/app/src/main/AndroidManifest.xml:5:22-64
+uses-permission#com.android.vending.BILLING
+ADDED from /Users/ren6/Projects/ApphudSDK-Android/app/src/main/AndroidManifest.xml:6:5-67
+MERGED from [com.android.billingclient:billing:4.0.0] /Users/ren6/.gradle/caches/transforms-2/files-2.1/659864b846a3112b70aef0ab9613882d/jetified-billing-4.0.0/AndroidManifest.xml:10:5-67
+MERGED from [com.android.billingclient:billing:4.0.0] /Users/ren6/.gradle/caches/transforms-2/files-2.1/659864b846a3112b70aef0ab9613882d/jetified-billing-4.0.0/AndroidManifest.xml:10:5-67
+	android:name
+		ADDED from /Users/ren6/Projects/ApphudSDK-Android/app/src/main/AndroidManifest.xml:6:22-64
+application
+ADDED from /Users/ren6/Projects/ApphudSDK-Android/app/src/main/AndroidManifest.xml:8:5-27:19
+MERGED from [androidx.constraintlayout:constraintlayout:2.0.1] /Users/ren6/.gradle/caches/transforms-2/files-2.1/b43280e814ee4f03f7072dd03bc03676/constraintlayout-2.0.1/AndroidManifest.xml:9:5-20
+MERGED from [androidx.constraintlayout:constraintlayout:2.0.1] /Users/ren6/.gradle/caches/transforms-2/files-2.1/b43280e814ee4f03f7072dd03bc03676/constraintlayout-2.0.1/AndroidManifest.xml:9:5-20
+MERGED from [com.android.billingclient:billing:4.0.0] /Users/ren6/.gradle/caches/transforms-2/files-2.1/659864b846a3112b70aef0ab9613882d/jetified-billing-4.0.0/AndroidManifest.xml:12:5-22:19
+MERGED from [com.android.billingclient:billing:4.0.0] /Users/ren6/.gradle/caches/transforms-2/files-2.1/659864b846a3112b70aef0ab9613882d/jetified-billing-4.0.0/AndroidManifest.xml:12:5-22:19
+MERGED from [com.google.android.gms:play-services-ads-identifier:15.0.1] /Users/ren6/.gradle/caches/transforms-2/files-2.1/916f23ce3f461a5be8d98fe5b3cf4e95/jetified-play-services-ads-identifier-15.0.1/AndroidManifest.xml:22:5-20
+MERGED from [com.google.android.gms:play-services-ads-identifier:15.0.1] /Users/ren6/.gradle/caches/transforms-2/files-2.1/916f23ce3f461a5be8d98fe5b3cf4e95/jetified-play-services-ads-identifier-15.0.1/AndroidManifest.xml:22:5-20
+MERGED from [com.google.android.gms:play-services-ads-lite:15.0.0] /Users/ren6/.gradle/caches/transforms-2/files-2.1/8e3dc274670da734fe9942d2d434d539/jetified-play-services-ads-lite-15.0.0/AndroidManifest.xml:26:5-34:19
+MERGED from [com.google.android.gms:play-services-ads-lite:15.0.0] /Users/ren6/.gradle/caches/transforms-2/files-2.1/8e3dc274670da734fe9942d2d434d539/jetified-play-services-ads-lite-15.0.0/AndroidManifest.xml:26:5-34:19
+MERGED from [com.google.android.gms:play-services-gass:15.0.0] /Users/ren6/.gradle/caches/transforms-2/files-2.1/5ac83d7194d8e2fdfd97e3be55b1badc/jetified-play-services-gass-15.0.0/AndroidManifest.xml:7:5-20
+MERGED from [com.google.android.gms:play-services-gass:15.0.0] /Users/ren6/.gradle/caches/transforms-2/files-2.1/5ac83d7194d8e2fdfd97e3be55b1badc/jetified-play-services-gass-15.0.0/AndroidManifest.xml:7:5-20
+MERGED from [com.google.android.gms:play-services-basement:15.0.1] /Users/ren6/.gradle/caches/transforms-2/files-2.1/3e2d43209cbf30bc9b35d860dc94282a/jetified-play-services-basement-15.0.1/AndroidManifest.xml:22:5-26:19
+MERGED from [com.google.android.gms:play-services-basement:15.0.1] /Users/ren6/.gradle/caches/transforms-2/files-2.1/3e2d43209cbf30bc9b35d860dc94282a/jetified-play-services-basement-15.0.1/AndroidManifest.xml:22:5-26:19
+MERGED from [androidx.core:core:1.3.1] /Users/ren6/.gradle/caches/transforms-2/files-2.1/2d89e0231566530f36d1cc5ee4a7073a/core-1.3.1/AndroidManifest.xml:24:5-89
+MERGED from [androidx.core:core:1.3.1] /Users/ren6/.gradle/caches/transforms-2/files-2.1/2d89e0231566530f36d1cc5ee4a7073a/core-1.3.1/AndroidManifest.xml:24:5-89
+MERGED from [androidx.versionedparcelable:versionedparcelable:1.1.0] /Users/ren6/.gradle/caches/transforms-2/files-2.1/bc6d877f4a5f6feefb2a158e2ce5ef07/versionedparcelable-1.1.0/AndroidManifest.xml:24:5-25:19
+MERGED from [androidx.versionedparcelable:versionedparcelable:1.1.0] /Users/ren6/.gradle/caches/transforms-2/files-2.1/bc6d877f4a5f6feefb2a158e2ce5ef07/versionedparcelable-1.1.0/AndroidManifest.xml:24:5-25:19
+MERGED from [com.google.android.gms:play-services-ads-base:15.0.0] /Users/ren6/.gradle/caches/transforms-2/files-2.1/1595c7f6504887704cd3d8faab959935/jetified-play-services-ads-base-15.0.0/AndroidManifest.xml:22:5-20
+MERGED from [com.google.android.gms:play-services-ads-base:15.0.0] /Users/ren6/.gradle/caches/transforms-2/files-2.1/1595c7f6504887704cd3d8faab959935/jetified-play-services-ads-base-15.0.0/AndroidManifest.xml:22:5-20
+	android:appComponentFactory
+		ADDED from [androidx.core:core:1.3.1] /Users/ren6/.gradle/caches/transforms-2/files-2.1/2d89e0231566530f36d1cc5ee4a7073a/core-1.3.1/AndroidManifest.xml:24:18-86
+	android:supportsRtl
+		ADDED from /Users/ren6/Projects/ApphudSDK-Android/app/src/main/AndroidManifest.xml:14:9-35
+	android:label
+		ADDED from /Users/ren6/Projects/ApphudSDK-Android/app/src/main/AndroidManifest.xml:12:9-41
+	android:roundIcon
+		ADDED from /Users/ren6/Projects/ApphudSDK-Android/app/src/main/AndroidManifest.xml:13:9-54
+	android:icon
+		ADDED from /Users/ren6/Projects/ApphudSDK-Android/app/src/main/AndroidManifest.xml:11:9-43
+	android:allowBackup
+		ADDED from /Users/ren6/Projects/ApphudSDK-Android/app/src/main/AndroidManifest.xml:10:9-35
+	android:theme
+		ADDED from /Users/ren6/Projects/ApphudSDK-Android/app/src/main/AndroidManifest.xml:15:9-40
+	android:name
+		ADDED from /Users/ren6/Projects/ApphudSDK-Android/app/src/main/AndroidManifest.xml:9:9-43
+activity#com.apphud.demo.MainActivity
+ADDED from /Users/ren6/Projects/ApphudSDK-Android/app/src/main/AndroidManifest.xml:17:9-22:20
+	android:name
+		ADDED from /Users/ren6/Projects/ApphudSDK-Android/app/src/main/AndroidManifest.xml:17:19-62
+intent-filter#action:name:android.intent.action.MAIN+category:name:android.intent.category.LAUNCHER
+ADDED from /Users/ren6/Projects/ApphudSDK-Android/app/src/main/AndroidManifest.xml:18:13-21:29
+action#android.intent.action.MAIN
+ADDED from /Users/ren6/Projects/ApphudSDK-Android/app/src/main/AndroidManifest.xml:19:17-69
+	android:name
+		ADDED from /Users/ren6/Projects/ApphudSDK-Android/app/src/main/AndroidManifest.xml:19:25-66
+category#android.intent.category.LAUNCHER
+ADDED from /Users/ren6/Projects/ApphudSDK-Android/app/src/main/AndroidManifest.xml:20:17-77
+	android:name
+		ADDED from /Users/ren6/Projects/ApphudSDK-Android/app/src/main/AndroidManifest.xml:20:27-74
+service#com.apphud.demo.MyService
+ADDED from /Users/ren6/Projects/ApphudSDK-Android/app/src/main/AndroidManifest.xml:24:9-26:52
+	android:process
+		ADDED from /Users/ren6/Projects/ApphudSDK-Android/app/src/main/AndroidManifest.xml:26:13-49
+	android:name
+		ADDED from /Users/ren6/Projects/ApphudSDK-Android/app/src/main/AndroidManifest.xml:25:13-53
+uses-sdk
+INJECTED from /Users/ren6/Projects/ApphudSDK-Android/app/src/main/AndroidManifest.xml reason: use-sdk injection requested
+INJECTED from /Users/ren6/Projects/ApphudSDK-Android/app/src/main/AndroidManifest.xml
+INJECTED from /Users/ren6/Projects/ApphudSDK-Android/app/src/main/AndroidManifest.xml
+MERGED from [:sdk] /Users/ren6/Projects/ApphudSDK-Android/sdk/build/intermediates/library_manifest/debug/AndroidManifest.xml:7:5-9:41
+MERGED from [:sdk] /Users/ren6/Projects/ApphudSDK-Android/sdk/build/intermediates/library_manifest/debug/AndroidManifest.xml:7:5-9:41
+MERGED from [androidx.constraintlayout:constraintlayout:2.0.1] /Users/ren6/.gradle/caches/transforms-2/files-2.1/b43280e814ee4f03f7072dd03bc03676/constraintlayout-2.0.1/AndroidManifest.xml:5:5-7:41
+MERGED from [androidx.constraintlayout:constraintlayout:2.0.1] /Users/ren6/.gradle/caches/transforms-2/files-2.1/b43280e814ee4f03f7072dd03bc03676/constraintlayout-2.0.1/AndroidManifest.xml:5:5-7:41
+MERGED from [androidx.appcompat:appcompat:1.2.0] /Users/ren6/.gradle/caches/transforms-2/files-2.1/f3805e768452d4be392ca56b5c1d45c4/appcompat-1.2.0/AndroidManifest.xml:20:5-22:41
+MERGED from [androidx.appcompat:appcompat:1.2.0] /Users/ren6/.gradle/caches/transforms-2/files-2.1/f3805e768452d4be392ca56b5c1d45c4/appcompat-1.2.0/AndroidManifest.xml:20:5-22:41
+MERGED from [com.android.billingclient:billing:4.0.0] /Users/ren6/.gradle/caches/transforms-2/files-2.1/659864b846a3112b70aef0ab9613882d/jetified-billing-4.0.0/AndroidManifest.xml:6:5-8:41
+MERGED from [com.android.billingclient:billing:4.0.0] /Users/ren6/.gradle/caches/transforms-2/files-2.1/659864b846a3112b70aef0ab9613882d/jetified-billing-4.0.0/AndroidManifest.xml:6:5-8:41
+MERGED from [androidx.recyclerview:recyclerview:1.1.0] /Users/ren6/.gradle/caches/transforms-2/files-2.1/af8d58b03507909dd15adbf0753c1374/recyclerview-1.1.0/AndroidManifest.xml:20:5-22:41
+MERGED from [androidx.recyclerview:recyclerview:1.1.0] /Users/ren6/.gradle/caches/transforms-2/files-2.1/af8d58b03507909dd15adbf0753c1374/recyclerview-1.1.0/AndroidManifest.xml:20:5-22:41
+MERGED from [com.google.android.gms:play-services-ads:15.0.0] /Users/ren6/.gradle/caches/transforms-2/files-2.1/c2de2a0d04254c4fba6bed597056b73b/jetified-play-services-ads-15.0.0/AndroidManifest.xml:21:5-23:52
+MERGED from [com.google.android.gms:play-services-ads:15.0.0] /Users/ren6/.gradle/caches/transforms-2/files-2.1/c2de2a0d04254c4fba6bed597056b73b/jetified-play-services-ads-15.0.0/AndroidManifest.xml:21:5-23:52
+MERGED from [androidx.browser:browser:1.0.0] /Users/ren6/.gradle/caches/transforms-2/files-2.1/48f000753515b4098957dcda97af4977/browser-1.0.0/AndroidManifest.xml:20:5-44
+MERGED from [androidx.browser:browser:1.0.0] /Users/ren6/.gradle/caches/transforms-2/files-2.1/48f000753515b4098957dcda97af4977/browser-1.0.0/AndroidManifest.xml:20:5-44
+MERGED from [com.google.android.gms:play-services-ads-identifier:15.0.1] /Users/ren6/.gradle/caches/transforms-2/files-2.1/916f23ce3f461a5be8d98fe5b3cf4e95/jetified-play-services-ads-identifier-15.0.1/AndroidManifest.xml:20:5-44
+MERGED from [com.google.android.gms:play-services-ads-identifier:15.0.1] /Users/ren6/.gradle/caches/transforms-2/files-2.1/916f23ce3f461a5be8d98fe5b3cf4e95/jetified-play-services-ads-identifier-15.0.1/AndroidManifest.xml:20:5-44
+MERGED from [com.google.android.gms:play-services-ads-lite:15.0.0] /Users/ren6/.gradle/caches/transforms-2/files-2.1/8e3dc274670da734fe9942d2d434d539/jetified-play-services-ads-lite-15.0.0/AndroidManifest.xml:20:5-44
+MERGED from [com.google.android.gms:play-services-ads-lite:15.0.0] /Users/ren6/.gradle/caches/transforms-2/files-2.1/8e3dc274670da734fe9942d2d434d539/jetified-play-services-ads-lite-15.0.0/AndroidManifest.xml:20:5-44
+MERGED from [com.google.android.gms:play-services-gass:15.0.0] /Users/ren6/.gradle/caches/transforms-2/files-2.1/5ac83d7194d8e2fdfd97e3be55b1badc/jetified-play-services-gass-15.0.0/AndroidManifest.xml:5:5-44
+MERGED from [com.google.android.gms:play-services-gass:15.0.0] /Users/ren6/.gradle/caches/transforms-2/files-2.1/5ac83d7194d8e2fdfd97e3be55b1badc/jetified-play-services-gass-15.0.0/AndroidManifest.xml:5:5-44
+MERGED from [com.google.android.gms:play-services-basement:15.0.1] /Users/ren6/.gradle/caches/transforms-2/files-2.1/3e2d43209cbf30bc9b35d860dc94282a/jetified-play-services-basement-15.0.1/AndroidManifest.xml:20:5-44
+MERGED from [com.google.android.gms:play-services-basement:15.0.1] /Users/ren6/.gradle/caches/transforms-2/files-2.1/3e2d43209cbf30bc9b35d860dc94282a/jetified-play-services-basement-15.0.1/AndroidManifest.xml:20:5-44
+MERGED from [androidx.legacy:legacy-support-v4:1.0.0] /Users/ren6/.gradle/caches/transforms-2/files-2.1/97a2426244803ab7fedca8fc3daf665c/legacy-support-v4-1.0.0/AndroidManifest.xml:20:5-44
+MERGED from [androidx.legacy:legacy-support-v4:1.0.0] /Users/ren6/.gradle/caches/transforms-2/files-2.1/97a2426244803ab7fedca8fc3daf665c/legacy-support-v4-1.0.0/AndroidManifest.xml:20:5-44
+MERGED from [androidx.legacy:legacy-support-core-ui:1.0.0] /Users/ren6/.gradle/caches/transforms-2/files-2.1/1c69ce629074df0d42d687749d65bb75/legacy-support-core-ui-1.0.0/AndroidManifest.xml:20:5-44
+MERGED from [androidx.legacy:legacy-support-core-ui:1.0.0] /Users/ren6/.gradle/caches/transforms-2/files-2.1/1c69ce629074df0d42d687749d65bb75/legacy-support-core-ui-1.0.0/AndroidManifest.xml:20:5-44
+MERGED from [androidx.cursoradapter:cursoradapter:1.0.0] /Users/ren6/.gradle/caches/transforms-2/files-2.1/20e862367dc2c75ee6e596df1e45e689/cursoradapter-1.0.0/AndroidManifest.xml:20:5-44
+MERGED from [androidx.cursoradapter:cursoradapter:1.0.0] /Users/ren6/.gradle/caches/transforms-2/files-2.1/20e862367dc2c75ee6e596df1e45e689/cursoradapter-1.0.0/AndroidManifest.xml:20:5-44
+MERGED from [androidx.fragment:fragment:1.1.0] /Users/ren6/.gradle/caches/transforms-2/files-2.1/31d3ccf13320a4c8315329a92e57a644/fragment-1.1.0/AndroidManifest.xml:20:5-22:41
+MERGED from [androidx.fragment:fragment:1.1.0] /Users/ren6/.gradle/caches/transforms-2/files-2.1/31d3ccf13320a4c8315329a92e57a644/fragment-1.1.0/AndroidManifest.xml:20:5-22:41
+MERGED from [androidx.appcompat:appcompat-resources:1.2.0] /Users/ren6/.gradle/caches/transforms-2/files-2.1/0c61f5cae4d6306269a92f3caa625d9a/jetified-appcompat-resources-1.2.0/AndroidManifest.xml:20:5-22:41
+MERGED from [androidx.appcompat:appcompat-resources:1.2.0] /Users/ren6/.gradle/caches/transforms-2/files-2.1/0c61f5cae4d6306269a92f3caa625d9a/jetified-appcompat-resources-1.2.0/AndroidManifest.xml:20:5-22:41
+MERGED from [androidx.drawerlayout:drawerlayout:1.0.0] /Users/ren6/.gradle/caches/transforms-2/files-2.1/72216ad999cddc8421516c80f32072cb/drawerlayout-1.0.0/AndroidManifest.xml:20:5-44
+MERGED from [androidx.drawerlayout:drawerlayout:1.0.0] /Users/ren6/.gradle/caches/transforms-2/files-2.1/72216ad999cddc8421516c80f32072cb/drawerlayout-1.0.0/AndroidManifest.xml:20:5-44
+MERGED from [androidx.viewpager:viewpager:1.0.0] /Users/ren6/.gradle/caches/transforms-2/files-2.1/21bde13a91c5ad8f18f0724c6f65e742/viewpager-1.0.0/AndroidManifest.xml:20:5-44
+MERGED from [androidx.viewpager:viewpager:1.0.0] /Users/ren6/.gradle/caches/transforms-2/files-2.1/21bde13a91c5ad8f18f0724c6f65e742/viewpager-1.0.0/AndroidManifest.xml:20:5-44
+MERGED from [androidx.coordinatorlayout:coordinatorlayout:1.0.0] /Users/ren6/.gradle/caches/transforms-2/files-2.1/aec0494439e8e4782f5e75711ea1575c/coordinatorlayout-1.0.0/AndroidManifest.xml:20:5-44
+MERGED from [androidx.coordinatorlayout:coordinatorlayout:1.0.0] /Users/ren6/.gradle/caches/transforms-2/files-2.1/aec0494439e8e4782f5e75711ea1575c/coordinatorlayout-1.0.0/AndroidManifest.xml:20:5-44
+MERGED from [androidx.slidingpanelayout:slidingpanelayout:1.0.0] /Users/ren6/.gradle/caches/transforms-2/files-2.1/7dcb5fd064b686226f73a2abadd33436/slidingpanelayout-1.0.0/AndroidManifest.xml:20:5-44
+MERGED from [androidx.slidingpanelayout:slidingpanelayout:1.0.0] /Users/ren6/.gradle/caches/transforms-2/files-2.1/7dcb5fd064b686226f73a2abadd33436/slidingpanelayout-1.0.0/AndroidManifest.xml:20:5-44
+MERGED from [androidx.customview:customview:1.0.0] /Users/ren6/.gradle/caches/transforms-2/files-2.1/356859f08830e446422d770f3db77f83/customview-1.0.0/AndroidManifest.xml:20:5-44
+MERGED from [androidx.customview:customview:1.0.0] /Users/ren6/.gradle/caches/transforms-2/files-2.1/356859f08830e446422d770f3db77f83/customview-1.0.0/AndroidManifest.xml:20:5-44
+MERGED from [androidx.legacy:legacy-support-core-utils:1.0.0] /Users/ren6/.gradle/caches/transforms-2/files-2.1/14a41bd1a60d2a58b8b3a1f9a585e6aa/legacy-support-core-utils-1.0.0/AndroidManifest.xml:20:5-44
+MERGED from [androidx.legacy:legacy-support-core-utils:1.0.0] /Users/ren6/.gradle/caches/transforms-2/files-2.1/14a41bd1a60d2a58b8b3a1f9a585e6aa/legacy-support-core-utils-1.0.0/AndroidManifest.xml:20:5-44
+MERGED from [androidx.loader:loader:1.0.0] /Users/ren6/.gradle/caches/transforms-2/files-2.1/2e2520f4be063c0406e4378f940408c9/loader-1.0.0/AndroidManifest.xml:20:5-44
+MERGED from [androidx.loader:loader:1.0.0] /Users/ren6/.gradle/caches/transforms-2/files-2.1/2e2520f4be063c0406e4378f940408c9/loader-1.0.0/AndroidManifest.xml:20:5-44
+MERGED from [androidx.activity:activity:1.0.0] /Users/ren6/.gradle/caches/transforms-2/files-2.1/2f1bad790a436b4ef72e70cf59156e92/jetified-activity-1.0.0/AndroidManifest.xml:20:5-22:41
+MERGED from [androidx.activity:activity:1.0.0] /Users/ren6/.gradle/caches/transforms-2/files-2.1/2f1bad790a436b4ef72e70cf59156e92/jetified-activity-1.0.0/AndroidManifest.xml:20:5-22:41
+MERGED from [androidx.vectordrawable:vectordrawable-animated:1.1.0] /Users/ren6/.gradle/caches/transforms-2/files-2.1/f2ec5dc4d285aff1dcbff84013f70a62/vectordrawable-animated-1.1.0/AndroidManifest.xml:20:5-22:41
+MERGED from [androidx.vectordrawable:vectordrawable-animated:1.1.0] /Users/ren6/.gradle/caches/transforms-2/files-2.1/f2ec5dc4d285aff1dcbff84013f70a62/vectordrawable-animated-1.1.0/AndroidManifest.xml:20:5-22:41
+MERGED from [androidx.vectordrawable:vectordrawable:1.1.0] /Users/ren6/.gradle/caches/transforms-2/files-2.1/0bd9863999375971805646935b90e6e5/vectordrawable-1.1.0/AndroidManifest.xml:20:5-22:41
+MERGED from [androidx.vectordrawable:vectordrawable:1.1.0] /Users/ren6/.gradle/caches/transforms-2/files-2.1/0bd9863999375971805646935b90e6e5/vectordrawable-1.1.0/AndroidManifest.xml:20:5-22:41
+MERGED from [androidx.media:media:1.0.0] /Users/ren6/.gradle/caches/transforms-2/files-2.1/e6f376b30a2cd6018b3bf53a94179b72/media-1.0.0/AndroidManifest.xml:20:5-44
+MERGED from [androidx.media:media:1.0.0] /Users/ren6/.gradle/caches/transforms-2/files-2.1/e6f376b30a2cd6018b3bf53a94179b72/media-1.0.0/AndroidManifest.xml:20:5-44
+MERGED from [androidx.swiperefreshlayout:swiperefreshlayout:1.0.0] /Users/ren6/.gradle/caches/transforms-2/files-2.1/626e974decaeed1d7193a8bcad4dc77a/swiperefreshlayout-1.0.0/AndroidManifest.xml:20:5-44
+MERGED from [androidx.swiperefreshlayout:swiperefreshlayout:1.0.0] /Users/ren6/.gradle/caches/transforms-2/files-2.1/626e974decaeed1d7193a8bcad4dc77a/swiperefreshlayout-1.0.0/AndroidManifest.xml:20:5-44
+MERGED from [androidx.asynclayoutinflater:asynclayoutinflater:1.0.0] /Users/ren6/.gradle/caches/transforms-2/files-2.1/5ae336bb09d1ff45edd6363e6b48db3b/asynclayoutinflater-1.0.0/AndroidManifest.xml:20:5-44
+MERGED from [androidx.asynclayoutinflater:asynclayoutinflater:1.0.0] /Users/ren6/.gradle/caches/transforms-2/files-2.1/5ae336bb09d1ff45edd6363e6b48db3b/asynclayoutinflater-1.0.0/AndroidManifest.xml:20:5-44
+MERGED from [androidx.core:core:1.3.1] /Users/ren6/.gradle/caches/transforms-2/files-2.1/2d89e0231566530f36d1cc5ee4a7073a/core-1.3.1/AndroidManifest.xml:20:5-22:41
+MERGED from [androidx.core:core:1.3.1] /Users/ren6/.gradle/caches/transforms-2/files-2.1/2d89e0231566530f36d1cc5ee4a7073a/core-1.3.1/AndroidManifest.xml:20:5-22:41
+MERGED from [androidx.versionedparcelable:versionedparcelable:1.1.0] /Users/ren6/.gradle/caches/transforms-2/files-2.1/bc6d877f4a5f6feefb2a158e2ce5ef07/versionedparcelable-1.1.0/AndroidManifest.xml:20:5-22:41
+MERGED from [androidx.versionedparcelable:versionedparcelable:1.1.0] /Users/ren6/.gradle/caches/transforms-2/files-2.1/bc6d877f4a5f6feefb2a158e2ce5ef07/versionedparcelable-1.1.0/AndroidManifest.xml:20:5-22:41
+MERGED from [androidx.lifecycle:lifecycle-runtime:2.1.0] /Users/ren6/.gradle/caches/transforms-2/files-2.1/04933dafa94221c06300e4a4e86e6beb/lifecycle-runtime-2.1.0/AndroidManifest.xml:20:5-44
+MERGED from [androidx.lifecycle:lifecycle-runtime:2.1.0] /Users/ren6/.gradle/caches/transforms-2/files-2.1/04933dafa94221c06300e4a4e86e6beb/lifecycle-runtime-2.1.0/AndroidManifest.xml:20:5-44
+MERGED from [androidx.lifecycle:lifecycle-viewmodel:2.1.0] /Users/ren6/.gradle/caches/transforms-2/files-2.1/fba2a3691c6cb25c8d67ebf0614b4360/lifecycle-viewmodel-2.1.0/AndroidManifest.xml:20:5-44
+MERGED from [androidx.lifecycle:lifecycle-viewmodel:2.1.0] /Users/ren6/.gradle/caches/transforms-2/files-2.1/fba2a3691c6cb25c8d67ebf0614b4360/lifecycle-viewmodel-2.1.0/AndroidManifest.xml:20:5-44
+MERGED from [androidx.savedstate:savedstate:1.0.0] /Users/ren6/.gradle/caches/transforms-2/files-2.1/889c93519c445217aa0913dd93bf7164/jetified-savedstate-1.0.0/AndroidManifest.xml:20:5-22:41
+MERGED from [androidx.savedstate:savedstate:1.0.0] /Users/ren6/.gradle/caches/transforms-2/files-2.1/889c93519c445217aa0913dd93bf7164/jetified-savedstate-1.0.0/AndroidManifest.xml:20:5-22:41
+MERGED from [androidx.interpolator:interpolator:1.0.0] /Users/ren6/.gradle/caches/transforms-2/files-2.1/9d935344eb9d8a59f3e90edbf4f9d8b7/interpolator-1.0.0/AndroidManifest.xml:20:5-44
+MERGED from [androidx.interpolator:interpolator:1.0.0] /Users/ren6/.gradle/caches/transforms-2/files-2.1/9d935344eb9d8a59f3e90edbf4f9d8b7/interpolator-1.0.0/AndroidManifest.xml:20:5-44
+MERGED from [androidx.lifecycle:lifecycle-livedata:2.0.0] /Users/ren6/.gradle/caches/transforms-2/files-2.1/47b48f4c2f0e786325fb6dc0edfb00fb/lifecycle-livedata-2.0.0/AndroidManifest.xml:20:5-44
+MERGED from [androidx.lifecycle:lifecycle-livedata:2.0.0] /Users/ren6/.gradle/caches/transforms-2/files-2.1/47b48f4c2f0e786325fb6dc0edfb00fb/lifecycle-livedata-2.0.0/AndroidManifest.xml:20:5-44
+MERGED from [androidx.lifecycle:lifecycle-livedata-core:2.0.0] /Users/ren6/.gradle/caches/transforms-2/files-2.1/1e23cf1115b3cccb2e911ef6d6dcd8ae/lifecycle-livedata-core-2.0.0/AndroidManifest.xml:20:5-44
+MERGED from [androidx.lifecycle:lifecycle-livedata-core:2.0.0] /Users/ren6/.gradle/caches/transforms-2/files-2.1/1e23cf1115b3cccb2e911ef6d6dcd8ae/lifecycle-livedata-core-2.0.0/AndroidManifest.xml:20:5-44
+MERGED from [androidx.arch.core:core-runtime:2.0.0] /Users/ren6/.gradle/caches/transforms-2/files-2.1/e0d41fed808f37f11ea73aad4d26ecff/core-runtime-2.0.0/AndroidManifest.xml:20:5-44
+MERGED from [androidx.arch.core:core-runtime:2.0.0] /Users/ren6/.gradle/caches/transforms-2/files-2.1/e0d41fed808f37f11ea73aad4d26ecff/core-runtime-2.0.0/AndroidManifest.xml:20:5-44
+MERGED from [androidx.documentfile:documentfile:1.0.0] /Users/ren6/.gradle/caches/transforms-2/files-2.1/d4f17c01a03c2fb5c96db1a6eecff459/documentfile-1.0.0/AndroidManifest.xml:20:5-44
+MERGED from [androidx.documentfile:documentfile:1.0.0] /Users/ren6/.gradle/caches/transforms-2/files-2.1/d4f17c01a03c2fb5c96db1a6eecff459/documentfile-1.0.0/AndroidManifest.xml:20:5-44
+MERGED from [androidx.localbroadcastmanager:localbroadcastmanager:1.0.0] /Users/ren6/.gradle/caches/transforms-2/files-2.1/6466b41b1d1428eec5e9927276a88eb6/localbroadcastmanager-1.0.0/AndroidManifest.xml:20:5-44
+MERGED from [androidx.localbroadcastmanager:localbroadcastmanager:1.0.0] /Users/ren6/.gradle/caches/transforms-2/files-2.1/6466b41b1d1428eec5e9927276a88eb6/localbroadcastmanager-1.0.0/AndroidManifest.xml:20:5-44
+MERGED from [androidx.print:print:1.0.0] /Users/ren6/.gradle/caches/transforms-2/files-2.1/a6d86c8954ab5cfd4c2c3876f90057cc/print-1.0.0/AndroidManifest.xml:20:5-44
+MERGED from [androidx.print:print:1.0.0] /Users/ren6/.gradle/caches/transforms-2/files-2.1/a6d86c8954ab5cfd4c2c3876f90057cc/print-1.0.0/AndroidManifest.xml:20:5-44
+MERGED from [com.google.android.gms:play-services-ads-base:15.0.0] /Users/ren6/.gradle/caches/transforms-2/files-2.1/1595c7f6504887704cd3d8faab959935/jetified-play-services-ads-base-15.0.0/AndroidManifest.xml:20:5-44
+MERGED from [com.google.android.gms:play-services-ads-base:15.0.0] /Users/ren6/.gradle/caches/transforms-2/files-2.1/1595c7f6504887704cd3d8faab959935/jetified-play-services-ads-base-15.0.0/AndroidManifest.xml:20:5-44
+INJECTED from /Users/ren6/Projects/ApphudSDK-Android/app/src/main/AndroidManifest.xml
+INJECTED from /Users/ren6/Projects/ApphudSDK-Android/app/src/main/AndroidManifest.xml
+	tools:overrideLibrary
+		ADDED from [com.google.android.gms:play-services-ads:15.0.0] /Users/ren6/.gradle/caches/transforms-2/files-2.1/c2de2a0d04254c4fba6bed597056b73b/jetified-play-services-ads-15.0.0/AndroidManifest.xml:23:9-49
+	android:targetSdkVersion
+		INJECTED from /Users/ren6/Projects/ApphudSDK-Android/app/src/main/AndroidManifest.xml
+		ADDED from /Users/ren6/Projects/ApphudSDK-Android/app/src/main/AndroidManifest.xml
+		INJECTED from /Users/ren6/Projects/ApphudSDK-Android/app/src/main/AndroidManifest.xml
+	android:minSdkVersion
+		INJECTED from /Users/ren6/Projects/ApphudSDK-Android/app/src/main/AndroidManifest.xml
+		ADDED from /Users/ren6/Projects/ApphudSDK-Android/app/src/main/AndroidManifest.xml
+		INJECTED from /Users/ren6/Projects/ApphudSDK-Android/app/src/main/AndroidManifest.xml
+meta-data#com.google.android.play.billingclient.version
+ADDED from [com.android.billingclient:billing:4.0.0] /Users/ren6/.gradle/caches/transforms-2/files-2.1/659864b846a3112b70aef0ab9613882d/jetified-billing-4.0.0/AndroidManifest.xml:13:9-15:37
+	android:value
+		ADDED from [com.android.billingclient:billing:4.0.0] /Users/ren6/.gradle/caches/transforms-2/files-2.1/659864b846a3112b70aef0ab9613882d/jetified-billing-4.0.0/AndroidManifest.xml:15:13-34
+	android:name
+		ADDED from [com.android.billingclient:billing:4.0.0] /Users/ren6/.gradle/caches/transforms-2/files-2.1/659864b846a3112b70aef0ab9613882d/jetified-billing-4.0.0/AndroidManifest.xml:14:13-73
+activity#com.android.billingclient.api.ProxyBillingActivity
+ADDED from [com.android.billingclient:billing:4.0.0] /Users/ren6/.gradle/caches/transforms-2/files-2.1/659864b846a3112b70aef0ab9613882d/jetified-billing-4.0.0/AndroidManifest.xml:17:9-21:75
+	android:exported
+		ADDED from [com.android.billingclient:billing:4.0.0] /Users/ren6/.gradle/caches/transforms-2/files-2.1/659864b846a3112b70aef0ab9613882d/jetified-billing-4.0.0/AndroidManifest.xml:20:13-37
+	android:configChanges
+		ADDED from [com.android.billingclient:billing:4.0.0] /Users/ren6/.gradle/caches/transforms-2/files-2.1/659864b846a3112b70aef0ab9613882d/jetified-billing-4.0.0/AndroidManifest.xml:19:13-96
+	android:theme
+		ADDED from [com.android.billingclient:billing:4.0.0] /Users/ren6/.gradle/caches/transforms-2/files-2.1/659864b846a3112b70aef0ab9613882d/jetified-billing-4.0.0/AndroidManifest.xml:21:13-72
+	android:name
+		ADDED from [com.android.billingclient:billing:4.0.0] /Users/ren6/.gradle/caches/transforms-2/files-2.1/659864b846a3112b70aef0ab9613882d/jetified-billing-4.0.0/AndroidManifest.xml:18:13-78
+uses-permission#android.permission.ACCESS_NETWORK_STATE
+ADDED from [com.google.android.gms:play-services-ads-lite:15.0.0] /Users/ren6/.gradle/caches/transforms-2/files-2.1/8e3dc274670da734fe9942d2d434d539/jetified-play-services-ads-lite-15.0.0/AndroidManifest.xml:24:5-79
+	android:name
+		ADDED from [com.google.android.gms:play-services-ads-lite:15.0.0] /Users/ren6/.gradle/caches/transforms-2/files-2.1/8e3dc274670da734fe9942d2d434d539/jetified-play-services-ads-lite-15.0.0/AndroidManifest.xml:24:22-76
+activity#com.google.android.gms.ads.AdActivity
+ADDED from [com.google.android.gms:play-services-ads-lite:15.0.0] /Users/ren6/.gradle/caches/transforms-2/files-2.1/8e3dc274670da734fe9942d2d434d539/jetified-play-services-ads-lite-15.0.0/AndroidManifest.xml:29:9-33:64
+	android:exported
+		ADDED from [com.google.android.gms:play-services-ads-lite:15.0.0] /Users/ren6/.gradle/caches/transforms-2/files-2.1/8e3dc274670da734fe9942d2d434d539/jetified-play-services-ads-lite-15.0.0/AndroidManifest.xml:32:13-37
+	android:configChanges
+		ADDED from [com.google.android.gms:play-services-ads-lite:15.0.0] /Users/ren6/.gradle/caches/transforms-2/files-2.1/8e3dc274670da734fe9942d2d434d539/jetified-play-services-ads-lite-15.0.0/AndroidManifest.xml:31:13-122
+	android:theme
+		ADDED from [com.google.android.gms:play-services-ads-lite:15.0.0] /Users/ren6/.gradle/caches/transforms-2/files-2.1/8e3dc274670da734fe9942d2d434d539/jetified-play-services-ads-lite-15.0.0/AndroidManifest.xml:33:13-61
+	android:name
+		ADDED from [com.google.android.gms:play-services-ads-lite:15.0.0] /Users/ren6/.gradle/caches/transforms-2/files-2.1/8e3dc274670da734fe9942d2d434d539/jetified-play-services-ads-lite-15.0.0/AndroidManifest.xml:30:13-65
+meta-data#com.google.android.gms.version
+ADDED from [com.google.android.gms:play-services-basement:15.0.1] /Users/ren6/.gradle/caches/transforms-2/files-2.1/3e2d43209cbf30bc9b35d860dc94282a/jetified-play-services-basement-15.0.1/AndroidManifest.xml:23:9-25:69
+	android:value
+		ADDED from [com.google.android.gms:play-services-basement:15.0.1] /Users/ren6/.gradle/caches/transforms-2/files-2.1/3e2d43209cbf30bc9b35d860dc94282a/jetified-play-services-basement-15.0.1/AndroidManifest.xml:25:13-66
+	android:name
+		ADDED from [com.google.android.gms:play-services-basement:15.0.1] /Users/ren6/.gradle/caches/transforms-2/files-2.1/3e2d43209cbf30bc9b35d860dc94282a/jetified-play-services-basement-15.0.1/AndroidManifest.xml:24:13-58

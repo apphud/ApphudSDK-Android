@@ -1,0 +1,101 @@
+1<?xml version="1.0" encoding="utf-8"?>
+2<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+3    package="com.apphud.demo"
+4    android:versionCode="18"
+5    android:versionName="1.0.16" >
+6
+7    <uses-sdk
+8        android:minSdkVersion="16"
+8-->/Users/ren6/Projects/ApphudSDK-Android/app/src/main/AndroidManifest.xml
+9        android:targetSdkVersion="29" />
+9-->/Users/ren6/Projects/ApphudSDK-Android/app/src/main/AndroidManifest.xml
+10
+11    <uses-permission android:name="android.permission.INTERNET" />
+11-->/Users/ren6/Projects/ApphudSDK-Android/app/src/main/AndroidManifest.xml:5:5-67
+11-->/Users/ren6/Projects/ApphudSDK-Android/app/src/main/AndroidManifest.xml:5:22-64
+12    <uses-permission android:name="com.android.vending.BILLING" />
+12-->/Users/ren6/Projects/ApphudSDK-Android/app/src/main/AndroidManifest.xml:6:5-67
+12-->/Users/ren6/Projects/ApphudSDK-Android/app/src/main/AndroidManifest.xml:6:22-64
+13    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+13-->[com.google.android.gms:play-services-ads-lite:15.0.0] /Users/ren6/.gradle/caches/transforms-2/files-2.1/8e3dc274670da734fe9942d2d434d539/jetified-play-services-ads-lite-15.0.0/AndroidManifest.xml:24:5-79
+13-->[com.google.android.gms:play-services-ads-lite:15.0.0] /Users/ren6/.gradle/caches/transforms-2/files-2.1/8e3dc274670da734fe9942d2d434d539/jetified-play-services-ads-lite-15.0.0/AndroidManifest.xml:24:22-76
+14
+15    <application
+15-->/Users/ren6/Projects/ApphudSDK-Android/app/src/main/AndroidManifest.xml:8:5-27:19
+16        android:name="com.apphud.demo.App"
+16-->/Users/ren6/Projects/ApphudSDK-Android/app/src/main/AndroidManifest.xml:9:9-43
+17        android:allowBackup="true"
+17-->/Users/ren6/Projects/ApphudSDK-Android/app/src/main/AndroidManifest.xml:10:9-35
+18        android:appComponentFactory="androidx.core.app.CoreComponentFactory"
+18-->[androidx.core:core:1.3.1] /Users/ren6/.gradle/caches/transforms-2/files-2.1/2d89e0231566530f36d1cc5ee4a7073a/core-1.3.1/AndroidManifest.xml:24:18-86
+19        android:debuggable="true"
+20        android:icon="@mipmap/ic_launcher"
+20-->/Users/ren6/Projects/ApphudSDK-Android/app/src/main/AndroidManifest.xml:11:9-43
+21        android:label="@string/app_name"
+21-->/Users/ren6/Projects/ApphudSDK-Android/app/src/main/AndroidManifest.xml:12:9-41
+22        android:roundIcon="@mipmap/ic_launcher_round"
+22-->/Users/ren6/Projects/ApphudSDK-Android/app/src/main/AndroidManifest.xml:13:9-54
+23        android:supportsRtl="true"
+23-->/Users/ren6/Projects/ApphudSDK-Android/app/src/main/AndroidManifest.xml:14:9-35
+24        android:testOnly="true"
+25        android:theme="@style/AppTheme" >
+25-->/Users/ren6/Projects/ApphudSDK-Android/app/src/main/AndroidManifest.xml:15:9-40
+26        <activity android:name="com.apphud.demo.MainActivity" >
+26-->/Users/ren6/Projects/ApphudSDK-Android/app/src/main/AndroidManifest.xml:17:9-22:20
+26-->/Users/ren6/Projects/ApphudSDK-Android/app/src/main/AndroidManifest.xml:17:19-62
+27            <intent-filter>
+27-->/Users/ren6/Projects/ApphudSDK-Android/app/src/main/AndroidManifest.xml:18:13-21:29
+28                <action android:name="android.intent.action.MAIN" />
+28-->/Users/ren6/Projects/ApphudSDK-Android/app/src/main/AndroidManifest.xml:19:17-69
+28-->/Users/ren6/Projects/ApphudSDK-Android/app/src/main/AndroidManifest.xml:19:25-66
+29
+30                <category android:name="android.intent.category.LAUNCHER" />
+30-->/Users/ren6/Projects/ApphudSDK-Android/app/src/main/AndroidManifest.xml:20:17-77
+30-->/Users/ren6/Projects/ApphudSDK-Android/app/src/main/AndroidManifest.xml:20:27-74
+31            </intent-filter>
+32        </activity>
+33
+34        <service
+34-->/Users/ren6/Projects/ApphudSDK-Android/app/src/main/AndroidManifest.xml:24:9-26:52
+35            android:name="com.apphud.demo.MyService"
+35-->/Users/ren6/Projects/ApphudSDK-Android/app/src/main/AndroidManifest.xml:25:13-53
+36            android:process=":my_custom_process" />
+36-->/Users/ren6/Projects/ApphudSDK-Android/app/src/main/AndroidManifest.xml:26:13-49
+37
+38        <meta-data
+38-->[com.android.billingclient:billing:4.0.0] /Users/ren6/.gradle/caches/transforms-2/files-2.1/659864b846a3112b70aef0ab9613882d/jetified-billing-4.0.0/AndroidManifest.xml:13:9-15:37
+39            android:name="com.google.android.play.billingclient.version"
+39-->[com.android.billingclient:billing:4.0.0] /Users/ren6/.gradle/caches/transforms-2/files-2.1/659864b846a3112b70aef0ab9613882d/jetified-billing-4.0.0/AndroidManifest.xml:14:13-73
+40            android:value="4.0.0" />
+40-->[com.android.billingclient:billing:4.0.0] /Users/ren6/.gradle/caches/transforms-2/files-2.1/659864b846a3112b70aef0ab9613882d/jetified-billing-4.0.0/AndroidManifest.xml:15:13-34
+41
+42        <activity
+42-->[com.android.billingclient:billing:4.0.0] /Users/ren6/.gradle/caches/transforms-2/files-2.1/659864b846a3112b70aef0ab9613882d/jetified-billing-4.0.0/AndroidManifest.xml:17:9-21:75
+43            android:name="com.android.billingclient.api.ProxyBillingActivity"
+43-->[com.android.billingclient:billing:4.0.0] /Users/ren6/.gradle/caches/transforms-2/files-2.1/659864b846a3112b70aef0ab9613882d/jetified-billing-4.0.0/AndroidManifest.xml:18:13-78
+44            android:configChanges="keyboard|keyboardHidden|screenLayout|screenSize|orientation"
+44-->[com.android.billingclient:billing:4.0.0] /Users/ren6/.gradle/caches/transforms-2/files-2.1/659864b846a3112b70aef0ab9613882d/jetified-billing-4.0.0/AndroidManifest.xml:19:13-96
+45            android:exported="false"
+45-->[com.android.billingclient:billing:4.0.0] /Users/ren6/.gradle/caches/transforms-2/files-2.1/659864b846a3112b70aef0ab9613882d/jetified-billing-4.0.0/AndroidManifest.xml:20:13-37
+46            android:theme="@android:style/Theme.Translucent.NoTitleBar" /> <!-- Include the AdActivity and InAppPurchaseActivity configChanges and themes. -->
+46-->[com.android.billingclient:billing:4.0.0] /Users/ren6/.gradle/caches/transforms-2/files-2.1/659864b846a3112b70aef0ab9613882d/jetified-billing-4.0.0/AndroidManifest.xml:21:13-72
+47        <activity
+47-->[com.google.android.gms:play-services-ads-lite:15.0.0] /Users/ren6/.gradle/caches/transforms-2/files-2.1/8e3dc274670da734fe9942d2d434d539/jetified-play-services-ads-lite-15.0.0/AndroidManifest.xml:29:9-33:64
+48            android:name="com.google.android.gms.ads.AdActivity"
+48-->[com.google.android.gms:play-services-ads-lite:15.0.0] /Users/ren6/.gradle/caches/transforms-2/files-2.1/8e3dc274670da734fe9942d2d434d539/jetified-play-services-ads-lite-15.0.0/AndroidManifest.xml:30:13-65
+49            android:configChanges="keyboard|keyboardHidden|orientation|screenLayout|uiMode|screenSize|smallestScreenSize"
+49-->[com.google.android.gms:play-services-ads-lite:15.0.0] /Users/ren6/.gradle/caches/transforms-2/files-2.1/8e3dc274670da734fe9942d2d434d539/jetified-play-services-ads-lite-15.0.0/AndroidManifest.xml:31:13-122
+50            android:exported="false"
+50-->[com.google.android.gms:play-services-ads-lite:15.0.0] /Users/ren6/.gradle/caches/transforms-2/files-2.1/8e3dc274670da734fe9942d2d434d539/jetified-play-services-ads-lite-15.0.0/AndroidManifest.xml:32:13-37
+51            android:theme="@android:style/Theme.Translucent" />
+51-->[com.google.android.gms:play-services-ads-lite:15.0.0] /Users/ren6/.gradle/caches/transforms-2/files-2.1/8e3dc274670da734fe9942d2d434d539/jetified-play-services-ads-lite-15.0.0/AndroidManifest.xml:33:13-61
+52
+53        <meta-data
+53-->[com.google.android.gms:play-services-basement:15.0.1] /Users/ren6/.gradle/caches/transforms-2/files-2.1/3e2d43209cbf30bc9b35d860dc94282a/jetified-play-services-basement-15.0.1/AndroidManifest.xml:23:9-25:69
+54            android:name="com.google.android.gms.version"
+54-->[com.google.android.gms:play-services-basement:15.0.1] /Users/ren6/.gradle/caches/transforms-2/files-2.1/3e2d43209cbf30bc9b35d860dc94282a/jetified-play-services-basement-15.0.1/AndroidManifest.xml:24:13-58
+55            android:value="@integer/google_play_services_version" />
+55-->[com.google.android.gms:play-services-basement:15.0.1] /Users/ren6/.gradle/caches/transforms-2/files-2.1/3e2d43209cbf30bc9b35d860dc94282a/jetified-play-services-basement-15.0.1/AndroidManifest.xml:25:13-66
+56    </application>
+57
+58</manifest>

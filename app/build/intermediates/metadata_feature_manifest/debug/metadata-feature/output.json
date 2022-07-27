@@ -1,0 +1,24 @@
+{
+  "version": 1,
+  "applicationId": "com.apphud.demo",
+  "variantType": "BASE_APK",
+  "elements": [
+    {
+      "outputType": {
+        "type": "METADATA_FEATURE_MANIFEST"
+      },
+      "apkData": {
+        "type": "MAIN",
+        "splits": [],
+        "versionCode": 18,
+        "versionName": "1.0.16",
+        "outputFile": "app-debug.apk",
+        "fullName": "debug",
+        "baseName": "debug",
+        "dirName": ""
+      },
+      "path": "AndroidManifest.xml",
+      "properties": {}
+    }
+  ]
+}
