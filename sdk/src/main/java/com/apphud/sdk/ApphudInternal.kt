@@ -248,6 +248,8 @@ internal object ApphudInternal {
         customerLoaded?.let{
             if(fromCache){
                 RequestManager.currentUser = it
+                notifyFullyLoaded = true
+                didRetrievePaywallsAtThisLaunch = true
             }else{
                 if (it.paywalls.isNotEmpty()) {
                     notifyFullyLoaded = true
