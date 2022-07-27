@@ -144,6 +144,12 @@ internal object ApphudInternal {
             notifyLoadingCompleted(storage.customer, null, true)
         }
     }
+
+    internal fun refreshCustomer(){
+        if(needRegistration(this.userId)){
+            registration(this.userId, this.deviceId, true, null)
+        }
+    }
     //endregion
 
     //region === Registration ===
@@ -303,7 +309,8 @@ internal object ApphudInternal {
                         async {
                             customer = RequestManager.registrationSync(
                                 !didRetrievePaywallsAtThisLaunch,
-                                is_new
+                                is_new,
+                                forceRegistration
                             )
                         },
                         async {

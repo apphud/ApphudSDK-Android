@@ -164,6 +164,15 @@ object Apphud {
     }
 
     /**
+     * ------ Add description
+     */
+    @kotlin.jvm.JvmStatic
+    fun refreshPurchases() {
+        ApphudInternal.refreshCustomer()
+    }
+
+
+    /**
      * Returns array of `SkuDetails` objects, identifiers of which you added in Apphud > Product Hub > Products.
      * Note that this method will return **null** if products are not yet fetched.
      * To get notified when `products` are ready to use, use ApphudListener's
