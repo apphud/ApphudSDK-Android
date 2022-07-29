@@ -164,6 +164,20 @@ object Apphud {
     }
 
     /**
+     * Refreshes current purchases: subscriptions and non-renewing purchases.
+     * To get notified about updates, you should listen for ApphudListener's
+     * apphudSubscriptionsUpdated(subscriptions: List<ApphudSubscription>) and
+     * apphudNonRenewingPurchasesUpdated(purchases: List<ApphudNonRenewingPurchase>) methods.
+     * You should not call this method on app launch, because Apphud SDK does it automatically.
+     * Best practice is to use this method when your app reactivates from a background.
+     * i.e. second app open during lifecycle.
+     */
+    @kotlin.jvm.JvmStatic
+    fun refreshEntitlements() {
+        ApphudInternal.refreshEntitlements()
+    }
+
+    /**
      * Returns array of `SkuDetails` objects, identifiers of which you added in Apphud > Product Hub > Products.
      * Note that this method will return **null** if products are not yet fetched.
      * To get notified when `products` are ready to use, use ApphudListener's

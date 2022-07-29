@@ -73,7 +73,7 @@ internal object ApphudInternal {
         }
 
     private var allowIdentifyUser = true
-    private var didRetrievePaywallsAtThisLaunch = false
+    private var didRegisterCustomerAtThisLaunch = false
     private var is_new = true
 
     internal lateinit var userId: UserId
@@ -142,6 +142,17 @@ internal object ApphudInternal {
             registration(this.userId, this.deviceId, true, null)
         }else{
             notifyLoadingCompleted(storage.customer, null, true)
+        }
+    }
+
+    internal fun refreshEntitlements(){
+
+        val hasPurchases = currentUser?.let{
+            !(it.purchases.isEmpty() && it.subscriptions.isEmpty())
+        }?: false
+
+        if(hasPurchases && didRegisterCustomerAtThisLaunch){
+            registration(this.userId, this.deviceId, true, null)
         }
     }
     //endregion
@@ -248,10 +259,10 @@ internal object ApphudInternal {
         customerLoaded?.let{
             if(fromCache){
                 RequestManager.currentUser = it
+                notifyFullyLoaded = true
             }else{
                 if (it.paywalls.isNotEmpty()) {
                     notifyFullyLoaded = true
-                    didRetrievePaywallsAtThisLaunch = true
                     cachePaywalls(it.paywalls)
                 }else{
                     /* Attention:
@@ -262,6 +273,7 @@ internal object ApphudInternal {
                 }
                 storage.updateCustomer(it, apphudListener)
             }
+            didRegisterCustomerAtThisLaunch = true
             currentUser = it
             userId = it.user.userId
 
@@ -300,8 +312,9 @@ internal object ApphudInternal {
                     val threads = listOf(
                         async {
                             customer = RequestManager.registrationSync(
-                                !didRetrievePaywallsAtThisLaunch,
-                                is_new
+                                !didRegisterCustomerAtThisLaunch,
+                                is_new,
+                                forceRegistration
                             )
                         },
                         async {
@@ -348,7 +361,7 @@ internal object ApphudInternal {
 
     private suspend fun repeatRegistrationSilent(){
         val customerNew = RequestManager.registrationSync(
-            !didRetrievePaywallsAtThisLaunch,
+            !didRegisterCustomerAtThisLaunch,
             is_new,
             true
         )
@@ -1154,7 +1167,7 @@ internal object ApphudInternal {
                 RequestManager.setParams(this.context, userId, this.deviceId, this.apiKey)
 
                 coroutineScope.launch(errorHandler) {
-                    val customer = RequestManager.registrationSync(!didRetrievePaywallsAtThisLaunch, is_new)
+                    val customer = RequestManager.registrationSync(!didRegisterCustomerAtThisLaunch, is_new)
                     customer?.let {
                         launch(Dispatchers.Main) {
                             notifyLoadingCompleted(it)
@@ -1353,7 +1366,7 @@ internal object ApphudInternal {
         skuDetails.clear()
         pendingUserProperties.clear()
         allowIdentifyUser = true
-        didRetrievePaywallsAtThisLaunch = false
+        didRegisterCustomerAtThisLaunch = false
         setNeedsToUpdateUserProperties = false
     }
 
