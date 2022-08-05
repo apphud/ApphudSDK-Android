@@ -880,30 +880,28 @@ internal object ApphudInternal {
                     RequestManager.restorePurchases(apphudProduct, tempPurchaseRecordDetails, observerMode) { customer, error ->
                         launch(Dispatchers.Main) {
                             customer?.let{
-                                customer?.let{
-                                    if(tempPurchaseRecordDetails.size > 0 && (it.subscriptions.size + it.purchases.size) == 0) {
-                                        val message = "Unable to completely validate all purchases. " +
-                                                "Ensure Google Service Credentials are correct and have necessary permissions. " +
-                                                "Check https://docs.apphud.com/getting-started/creating-app#google-play-service-credentials or contact support."
-                                        ApphudLog.logE(message = message)
-                                    }else{
-                                        ApphudLog.log("SyncPurchases: customer was successfully updated $customer")
-                                    }
-
-                                    storage.isNeedSync = false
-
-                                    prevPurchases.addAll(tempPurchaseRecordDetails)
-                                    userId = customer.user.userId
-                                    storage.updateCustomer(it, apphudListener)
-
-                                    currentUser = storage.customer
-                                    RequestManager.currentUser = currentUser
-
-                                    ApphudLog.log("SyncPurchases: customer was updated $customer")
-                                    apphudListener?.apphudSubscriptionsUpdated(it.subscriptions)
-                                    apphudListener?.apphudNonRenewingPurchasesUpdated(it.purchases)
-                                    callback?.invoke(it.subscriptions, it.purchases, null)
+                                if(tempPurchaseRecordDetails.size > 0 && (it.subscriptions.size + it.purchases.size) == 0) {
+                                    val message = "Unable to completely validate all purchases. " +
+                                            "Ensure Google Service Credentials are correct and have necessary permissions. " +
+                                            "Check https://docs.apphud.com/getting-started/creating-app#google-play-service-credentials or contact support."
+                                    ApphudLog.logE(message = message)
+                                }else{
+                                    ApphudLog.log("SyncPurchases: customer was successfully updated $customer")
                                 }
+
+                                storage.isNeedSync = false
+
+                                prevPurchases.addAll(tempPurchaseRecordDetails)
+                                userId = customer.user.userId
+                                storage.updateCustomer(it, apphudListener)
+
+                                currentUser = storage.customer
+                                RequestManager.currentUser = currentUser
+
+                                ApphudLog.log("SyncPurchases: customer was updated $customer")
+                                apphudListener?.apphudSubscriptionsUpdated(it.subscriptions)
+                                apphudListener?.apphudNonRenewingPurchasesUpdated(it.purchases)
+                                callback?.invoke(it.subscriptions, it.purchases, null)
                             }
                             error?.let {
                                 val message = "Sync Purchases with Apphud is failed with message = ${error.message} and code = ${error.errorCode}"
