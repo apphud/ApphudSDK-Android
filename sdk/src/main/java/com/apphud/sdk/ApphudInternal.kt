@@ -718,14 +718,12 @@ internal object ApphudInternal {
         callback: ApphudPurchasesRestoreCallback? = null
     ) {
         if(!isSyncing.get()){
-            ApphudLog.log(message = "SYNC: syncPurchases started")
             isSyncing.set(true)
 
             checkRegistration{ error ->
                 error?.let{
                     callback?.invoke(null, null, error)
                     isSyncing.set(false)
-                    ApphudLog.log(message = "SYNC: false 726")
                 }?: run{
                     productsForRestore.clear()
                     tempPrevPurchases.clear()
@@ -758,7 +756,6 @@ internal object ApphudInternal {
                                         ApphudLog.log(message = error.toString(), sendLogToServer = true)
                                         callback?.invoke(null, null, error)
                                         isSyncing.set(false)
-                                        ApphudLog.log(message = "SYNC: false 759")
                                     } else {
                                         syncPurchasesWithApphud(paywallIdentifier, tempPrevPurchases, callback, observerMode)
                                     }
@@ -773,7 +770,6 @@ internal object ApphudInternal {
                                     if (observerMode && prevPurchases.containsAll(tempPrevPurchases)) {
                                         ApphudLog.log("SyncPurchases: Don't send equal purchases from prev state")
                                         isSyncing.set(false)
-                                        ApphudLog.log(message = "SYNC: false Don't send equal")
                                     } else {
                                         syncPurchasesWithApphud(paywallIdentifier, tempPrevPurchases, callback, observerMode)
                                     }
@@ -819,8 +815,6 @@ internal object ApphudInternal {
                     billing.queryPurchaseHistory(BillingClient.SkuType.INAPP)
                 }
             }
-        }else{
-            ApphudLog.log(message = "SYNC: skip sync")
         }
     }
 
@@ -830,7 +824,6 @@ internal object ApphudInternal {
     ) {
         if (productsForRestore.isNullOrEmpty()) {
             isSyncing.set(false)
-            ApphudLog.log(message = "SYNC: false 831")
             message?.let{
                 ApphudLog.log(message = it, sendLogToServer = true)
                 callback?.invoke(null, null, ApphudError(message = it))
@@ -881,7 +874,6 @@ internal object ApphudInternal {
                 ApphudLog.logE(message = message)
                 callback?.invoke(null, null, error)
                 isSyncing.set(false)
-                ApphudLog.log(message = "SYNC: false 882")
             }?: run{
                 coroutineScope.launch(errorHandler) {
                     val apphudProduct: ApphudProduct? = findJustPurchasedProduct(paywallIdentifier, tempPurchaseRecordDetails)
@@ -919,7 +911,6 @@ internal object ApphudInternal {
                                 callback?.invoke(null, null, error)
                             }
                             isSyncing.set(false)
-                            ApphudLog.log(message = "SYNC: END 920")
                         }
                         ApphudLog.log("SyncPurchases: success send history purchases ${tempPurchaseRecordDetails.toList()}")
                     }
