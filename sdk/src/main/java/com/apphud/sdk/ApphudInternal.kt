@@ -94,6 +94,8 @@ internal object ApphudInternal {
     private var skuDetailsForRestoreIsLoaded_INAPP: AtomicBoolean = AtomicBoolean(false)
     private var purchasesForRestoreIsLoaded_SUBS: AtomicBoolean = AtomicBoolean(false)
     private var purchasesForRestoreIsLoaded_INAPP: AtomicBoolean = AtomicBoolean(false)
+    private var isSyncing: AtomicBoolean = AtomicBoolean(false)
+
     //endregion
 
     //region === Start ===
@@ -709,102 +711,116 @@ internal object ApphudInternal {
         }
     }
 
+
     internal fun syncPurchases(
         paywallIdentifier: String? = null,
         observerMode: Boolean = true,
         callback: ApphudPurchasesRestoreCallback? = null
     ) {
-        checkRegistration{ error ->
-            error?.let{
-                callback?.invoke(null, null, error)
-            }?: run{
-                productsForRestore.clear()
-                tempPrevPurchases.clear()
+        if(!isSyncing.get()){
+            ApphudLog.log(message = "SYNC: syncPurchases started")
+            isSyncing.set(true)
 
-                purchasesForRestoreIsLoaded_SUBS.set(false)
-                purchasesForRestoreIsLoaded_INAPP.set(false)
-                skuDetailsForRestoreIsLoaded_SUBS.set(false)
-                skuDetailsForRestoreIsLoaded_INAPP.set(false)
+            checkRegistration{ error ->
+                error?.let{
+                    callback?.invoke(null, null, error)
+                    isSyncing.set(false)
+                    ApphudLog.log(message = "SYNC: false 726")
+                }?: run{
+                    productsForRestore.clear()
+                    tempPrevPurchases.clear()
 
-                billing.restoreCallback = { restoreStatus ->
-                    if(restoreStatus.type() == BillingClient.SkuType.SUBS){
-                        skuDetailsForRestoreIsLoaded_SUBS.set(true)
-                    } else if(restoreStatus.type() == BillingClient.SkuType.INAPP){
-                        skuDetailsForRestoreIsLoaded_INAPP.set(true)
-                    }
+                    purchasesForRestoreIsLoaded_SUBS.set(false)
+                    purchasesForRestoreIsLoaded_INAPP.set(false)
+                    skuDetailsForRestoreIsLoaded_SUBS.set(false)
+                    skuDetailsForRestoreIsLoaded_INAPP.set(false)
 
-                    when (restoreStatus) {
-                        is PurchaseRestoredCallbackStatus.Error -> {
-                            val type = if(restoreStatus.type() == BillingClient.SkuType.SUBS) "subscriptions" else "in-app products"
-                            ApphudLog.log("Failed to restore purchases for $type with error: ("
-                                    + "${restoreStatus.result?.responseCode})"
-                                    + "${restoreStatus.message})")
+                    billing.restoreCallback = { restoreStatus ->
+                        if(restoreStatus.type() == BillingClient.SkuType.SUBS){
+                            skuDetailsForRestoreIsLoaded_SUBS.set(true)
+                        } else if(restoreStatus.type() == BillingClient.SkuType.INAPP){
+                            skuDetailsForRestoreIsLoaded_INAPP.set(true)
+                        }
 
-                            if (skuDetailsForRestoreIsLoaded_SUBS.get() && skuDetailsForRestoreIsLoaded_INAPP.get()) {
-                                if (tempPrevPurchases.isEmpty()) {
-                                    val error =
-                                        ApphudError(message = "Restore Purchases is failed for SkuType.SUBS and SkuType.INAPP",
-                                            secondErrorMessage = restoreStatus.message,
-                                            errorCode = restoreStatus.result?.responseCode)
-                                    ApphudLog.log(message = error.toString(), sendLogToServer = true)
-                                    callback?.invoke(null, null, error)
-                                } else {
-                                    syncPurchasesWithApphud(paywallIdentifier, tempPrevPurchases, callback, observerMode)
+                        when (restoreStatus) {
+                            is PurchaseRestoredCallbackStatus.Error -> {
+                                val type = if(restoreStatus.type() == BillingClient.SkuType.SUBS) "subscriptions" else "in-app products"
+                                ApphudLog.log("Failed to restore purchases for $type with error: ("
+                                        + "${restoreStatus.result?.responseCode})"
+                                        + "${restoreStatus.message})")
+
+                                if (skuDetailsForRestoreIsLoaded_SUBS.get() && skuDetailsForRestoreIsLoaded_INAPP.get()) {
+                                    if (tempPrevPurchases.isEmpty()) {
+                                        val error =
+                                            ApphudError(message = "Restore Purchases is failed for SkuType.SUBS and SkuType.INAPP",
+                                                secondErrorMessage = restoreStatus.message,
+                                                errorCode = restoreStatus.result?.responseCode)
+                                        ApphudLog.log(message = error.toString(), sendLogToServer = true)
+                                        callback?.invoke(null, null, error)
+                                        isSyncing.set(false)
+                                        ApphudLog.log(message = "SYNC: false 759")
+                                    } else {
+                                        syncPurchasesWithApphud(paywallIdentifier, tempPrevPurchases, callback, observerMode)
+                                    }
+                                }
+                            }
+                            is PurchaseRestoredCallbackStatus.Success -> {
+                                ApphudLog.log("SyncPurchases: purchases was restored: ${restoreStatus.purchases}")
+                                tempPrevPurchases.addAll(restoreStatus.purchases)
+
+                                if (skuDetailsForRestoreIsLoaded_SUBS.get() && skuDetailsForRestoreIsLoaded_INAPP.get()) {
+                                    billing.restoreCallback = null
+                                    if (observerMode && prevPurchases.containsAll(tempPrevPurchases)) {
+                                        ApphudLog.log("SyncPurchases: Don't send equal purchases from prev state")
+                                        isSyncing.set(false)
+                                        ApphudLog.log(message = "SYNC: false Don't send equal")
+                                    } else {
+                                        syncPurchasesWithApphud(paywallIdentifier, tempPrevPurchases, callback, observerMode)
+                                    }
                                 }
                             }
                         }
-                        is PurchaseRestoredCallbackStatus.Success -> {
-                            ApphudLog.log("SyncPurchases: purchases was restored: ${restoreStatus.purchases}")
-                            tempPrevPurchases.addAll(restoreStatus.purchases)
+                    }
+                    billing.historyCallback = { purchasesHistoryStatus ->
+                        if(purchasesHistoryStatus.type() == BillingClient.SkuType.SUBS){
+                            purchasesForRestoreIsLoaded_SUBS.set(true)
+                        } else if(purchasesHistoryStatus.type() == BillingClient.SkuType.INAPP){
+                            purchasesForRestoreIsLoaded_INAPP.set(true)
+                        }
 
-                            if (skuDetailsForRestoreIsLoaded_SUBS.get() && skuDetailsForRestoreIsLoaded_INAPP.get()) {
-                                billing.restoreCallback = null
-                                if (observerMode && prevPurchases.containsAll(tempPrevPurchases)) {
-                                    ApphudLog.log("SyncPurchases: Don't send equal purchases from prev state")
-                                } else {
-                                    syncPurchasesWithApphud(paywallIdentifier, tempPrevPurchases, callback, observerMode)
+                        when (purchasesHistoryStatus) {
+                            is PurchaseHistoryCallbackStatus.Error -> {
+
+                                val type = if(purchasesHistoryStatus.type() == BillingClient.SkuType.SUBS) "subscriptions" else "in-app products"
+                                ApphudLog.log("Failed to load history for $type with error: ("
+                                        + "${purchasesHistoryStatus.result?.responseCode})"
+                                        + "${purchasesHistoryStatus.result?.debugMessage})")
+
+                                if (purchasesForRestoreIsLoaded_SUBS.get() && purchasesForRestoreIsLoaded_INAPP.get()) {
+                                    val message =
+                                        "Restore Purchase History is failed for SkuType.SUBS and SkuType.INAPP " +
+                                                "with message = ${purchasesHistoryStatus.result?.debugMessage}" +
+                                                " and code = ${purchasesHistoryStatus.result?.responseCode}"
+                                    processPurchasesHistoryResults(message, callback)
+                                }
+                            }
+                            is PurchaseHistoryCallbackStatus.Success -> {
+                                if (!purchasesHistoryStatus.purchases.isNullOrEmpty())
+                                    productsForRestore.addAll(purchasesHistoryStatus.purchases)
+
+                                if (purchasesForRestoreIsLoaded_SUBS.get() && purchasesForRestoreIsLoaded_INAPP.get()) {
+                                    billing.historyCallback = null
+                                    processPurchasesHistoryResults(null, callback)
                                 }
                             }
                         }
                     }
+                    billing.queryPurchaseHistory(BillingClient.SkuType.SUBS)
+                    billing.queryPurchaseHistory(BillingClient.SkuType.INAPP)
                 }
-                billing.historyCallback = { purchasesHistoryStatus ->
-                    if(purchasesHistoryStatus.type() == BillingClient.SkuType.SUBS){
-                        purchasesForRestoreIsLoaded_SUBS.set(true)
-                    } else if(purchasesHistoryStatus.type() == BillingClient.SkuType.INAPP){
-                        purchasesForRestoreIsLoaded_INAPP.set(true)
-                    }
-
-                    when (purchasesHistoryStatus) {
-                        is PurchaseHistoryCallbackStatus.Error -> {
-
-                            val type = if(purchasesHistoryStatus.type() == BillingClient.SkuType.SUBS) "subscriptions" else "in-app products"
-                            ApphudLog.log("Failed to load history for $type with error: ("
-                                    + "${purchasesHistoryStatus.result?.responseCode})"
-                                    + "${purchasesHistoryStatus.result?.debugMessage})")
-
-                            if (purchasesForRestoreIsLoaded_SUBS.get() && purchasesForRestoreIsLoaded_INAPP.get()) {
-                                val message =
-                                    "Restore Purchase History is failed for SkuType.SUBS and SkuType.INAPP " +
-                                            "with message = ${purchasesHistoryStatus.result?.debugMessage}" +
-                                            " and code = ${purchasesHistoryStatus.result?.responseCode}"
-                                processPurchasesHistoryResults(message, callback)
-                            }
-                        }
-                        is PurchaseHistoryCallbackStatus.Success -> {
-                            if (!purchasesHistoryStatus.purchases.isNullOrEmpty())
-                                productsForRestore.addAll(purchasesHistoryStatus.purchases)
-
-                            if (purchasesForRestoreIsLoaded_SUBS.get() && purchasesForRestoreIsLoaded_INAPP.get()) {
-                                billing.historyCallback = null
-                                processPurchasesHistoryResults(null, callback)
-                            }
-                        }
-                    }
-                }
-                billing.queryPurchaseHistory(BillingClient.SkuType.SUBS)
-                billing.queryPurchaseHistory(BillingClient.SkuType.INAPP)
             }
+        }else{
+            ApphudLog.log(message = "SYNC: skip sync")
         }
     }
 
@@ -813,6 +829,8 @@ internal object ApphudInternal {
         callback: ApphudPurchasesRestoreCallback? = null
     ) {
         if (productsForRestore.isNullOrEmpty()) {
+            isSyncing.set(false)
+            ApphudLog.log(message = "SYNC: false 831")
             message?.let{
                 ApphudLog.log(message = it, sendLogToServer = true)
                 callback?.invoke(null, null, ApphudError(message = it))
@@ -862,9 +880,10 @@ internal object ApphudInternal {
                 val message = "Sync Purchases with Apphud is failed with message = ${error.message} and code = ${error.errorCode}"
                 ApphudLog.logE(message = message)
                 callback?.invoke(null, null, error)
+                isSyncing.set(false)
+                ApphudLog.log(message = "SYNC: false 882")
             }?: run{
                 coroutineScope.launch(errorHandler) {
-
                     val apphudProduct: ApphudProduct? = findJustPurchasedProduct(paywallIdentifier, tempPurchaseRecordDetails)
                     RequestManager.restorePurchases(apphudProduct, tempPurchaseRecordDetails, observerMode) { customer, error ->
                         launch(Dispatchers.Main) {
@@ -899,6 +918,8 @@ internal object ApphudInternal {
                                 ApphudLog.logE(message = message)
                                 callback?.invoke(null, null, error)
                             }
+                            isSyncing.set(false)
+                            ApphudLog.log(message = "SYNC: END 920")
                         }
                         ApphudLog.log("SyncPurchases: success send history purchases ${tempPurchaseRecordDetails.toList()}")
                     }
