@@ -1177,7 +1177,7 @@ internal object ApphudInternal {
                 RequestManager.setParams(this.context, userId, this.deviceId, this.apiKey)
 
                 coroutineScope.launch(errorHandler) {
-                    val customer = RequestManager.registrationSync(!didRegisterCustomerAtThisLaunch, is_new)
+                    val customer = RequestManager.registrationSync(!didRegisterCustomerAtThisLaunch, is_new, true)
                     customer?.let {
                         launch(Dispatchers.Main) {
                             notifyLoadingCompleted(it)
