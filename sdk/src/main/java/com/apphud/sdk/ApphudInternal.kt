@@ -323,9 +323,13 @@ internal object ApphudInternal {
                             repeatRegistration = fetchAdvertisingId()
                         }
                     )
-                    threads.awaitAll()?.let {
+                    threads.awaitAll().let {
                         customer?.let {
                             storage.lastRegistration = System.currentTimeMillis()
+
+                            if(repeatRegistration == true) {
+                                repeatRegistrationSilent()
+                            }
 
                             launch(Dispatchers.Main) {
                                 notifyLoadingCompleted(it)
@@ -334,10 +338,6 @@ internal object ApphudInternal {
                                 if (pendingUserProperties.isNotEmpty() && setNeedsToUpdateUserProperties) {
                                     updateUserProperties()
                                 }
-                            }
-
-                            if(repeatRegistration == true) {
-                                repeatRegistrationSilent()
                             }
 
                             if(storage.isNeedSync) {
