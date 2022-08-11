@@ -4,6 +4,7 @@ import com.android.billingclient.api.SkuDetails
 import com.apphud.sdk.domain.ApphudNonRenewingPurchase
 import com.apphud.sdk.domain.ApphudPaywall
 import com.apphud.sdk.domain.ApphudSubscription
+import com.apphud.sdk.domain.ApphudUser
 
 interface ApphudListener {
 
@@ -36,7 +37,7 @@ interface ApphudListener {
     Called when paywalls are loaded, however SkuDetails may still be nil at the moment. Use for A/B testing only.
     You should only use this method for A/B testing purposes, i.e. fetching `experimentName` and `variationName` from your test paywalls, since price information may be unavailable yet.
      */
-    fun paywallsDidLoad(paywalls: List<ApphudPaywall>)
+    fun userDidRegister(apphudUser: ApphudUser)
 
     /**
     Called when paywalls are fully loaded with their SkuDetails.

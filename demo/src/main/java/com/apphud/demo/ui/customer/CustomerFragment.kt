@@ -22,6 +22,7 @@ import com.apphud.sdk.ApphudPurchasesRestoreCallback
 import com.apphud.sdk.domain.ApphudNonRenewingPurchase
 import com.apphud.sdk.domain.ApphudPaywall
 import com.apphud.sdk.domain.ApphudSubscription
+import com.apphud.sdk.domain.ApphudUser
 import com.apphud.sdk.managers.HeadersInterceptor
 
 class CustomerFragment : Fragment() {
@@ -105,8 +106,8 @@ class CustomerFragment : Fragment() {
             }
 
 
-            override fun paywallsDidLoad(paywalls: List<ApphudPaywall>){
-
+            override fun userDidRegister(apphudUser: ApphudUser) {
+                //TODO handle user registered event
             }
 
             override fun paywallsDidFullyLoad(paywalls: List<ApphudPaywall>){

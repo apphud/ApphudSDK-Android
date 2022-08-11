@@ -5,7 +5,6 @@ import android.app.Activity
 import android.content.Context
 import android.os.Handler
 import android.os.Looper
-import android.util.Log
 import com.android.billingclient.api.BillingClient
 import com.android.billingclient.api.Purchase
 import com.android.billingclient.api.PurchaseHistoryRecord
@@ -275,14 +274,18 @@ internal object ApphudInternal {
                 }
                 storage.updateCustomer(it, apphudListener)
             }
-            didRegisterCustomerAtThisLaunch = true
+
             currentUser = it
             userId = it.user.userId
+            if (!didRegisterCustomerAtThisLaunch) {
+                currentUser?.let{ c ->
+                    apphudListener?.userDidRegister(c.user)
+                }
+            }
+            didRegisterCustomerAtThisLaunch = true
 
             if (restorePaywalls) {
                 paywalls = readPaywallsFromCache()
-
-                apphudListener?.paywallsDidLoad(paywalls)
             }
 
             apphudListener?.apphudNonRenewingPurchasesUpdated(currentUser!!.purchases)
