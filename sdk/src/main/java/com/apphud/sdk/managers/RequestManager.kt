@@ -193,12 +193,16 @@ object RequestManager {
             } else if (true) {
 
                 logRequestStart(request)
-                val response = client.newCall(request).execute()
 
+                val start = Date()
+                val response = client.newCall(request).execute()
+                val finish = Date()
+                val diff = (finish.time - start.time)
                 ApphudLog.logBenchmark(
-                        request.url.encodedPath,
-                        response.receivedResponseAtMillis - response.sentRequestAtMillis
+                    request.url.encodedPath,
+                    diff
                 )
+
                 logRequestFinish(request, response)
 
                 if (response.isSuccessful) {
@@ -235,11 +239,15 @@ object RequestManager {
         } else if (true) {
             logRequestStart(request)
 
+            val start = Date()
             val response = client.newCall(request).execute()
+            val finish = Date()
+            val diff = (finish.time - start.time)
             ApphudLog.logBenchmark(
                 request.url.encodedPath,
-                response.receivedResponseAtMillis - response.sentRequestAtMillis
+                diff
             )
+
             logRequestFinish(request, response)
 
             val responseBody = response.body!!.string()
