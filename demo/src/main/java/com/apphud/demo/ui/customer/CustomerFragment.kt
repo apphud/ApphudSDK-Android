@@ -105,11 +105,10 @@ class CustomerFragment : Fragment() {
                 //TODO handle User ID changed event
             }
 
-
-            override fun userDidRegister(apphudUser: ApphudUser) {
+            override fun userDidLoad() {
                 //TODO handle user registered event
             }
-
+            
             override fun paywallsDidFullyLoad(paywalls: List<ApphudPaywall>){
                 updateData()
             }
