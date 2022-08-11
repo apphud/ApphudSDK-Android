@@ -275,21 +275,20 @@ internal object ApphudInternal {
                 storage.updateCustomer(it, apphudListener)
             }
 
-            currentUser = it
-            userId = it.user.userId
-            if (!didRegisterCustomerAtThisLaunch) {
-                currentUser?.let{ c ->
-                    apphudListener?.userDidRegister(c.user)
-                }
-            }
-            didRegisterCustomerAtThisLaunch = true
-
             if (restorePaywalls) {
                 paywalls = readPaywallsFromCache()
             }
 
+            currentUser = it
+            userId = it.user.userId
+
             apphudListener?.apphudNonRenewingPurchasesUpdated(currentUser!!.purchases)
             apphudListener?.apphudSubscriptionsUpdated(currentUser!!.subscriptions)
+
+            if (!didRegisterCustomerAtThisLaunch) {
+                apphudListener?.userDidLoad()
+            }
+            didRegisterCustomerAtThisLaunch = true
         }
 
         updatePaywallsWithSkuDetails(paywalls)
