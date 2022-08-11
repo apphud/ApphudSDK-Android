@@ -23,14 +23,15 @@ class HttpRetryInterceptor : Interceptor {
         var tryCount: Byte = 0
         while (!isSuccess && tryCount < MAX_COUNT) {
             try {
-                Thread.sleep(STEP)
                 response = chain.proceed(request)
                 isSuccess = response.isSuccessful
 
                 if(!isSuccess){
+                    Thread.sleep(STEP)
                     ApphudLog.logE("Request (${request.url.encodedPath}) failed with code (${response.code}). Will retry in ${STEP/1000} seconds (${tryCount}).")
                 }
             } catch (e: Exception) {
+                Thread.sleep(STEP)
                 ApphudLog.logE("Request (${request.url.encodedPath}) failed with code (${response?.code ?: 0}). Will retry in ${STEP/1000} seconds (${tryCount}).")
             } finally {
                 if(!isSuccess) {
