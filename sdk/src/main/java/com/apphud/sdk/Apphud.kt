@@ -42,8 +42,8 @@ object Apphud {
     }
 
     /**
-     * Updates user ID value
-     *
+     * Updates user ID value. Note that it should be called only after user is registered, i.e.
+     * inside ApphudListener's userDidRegister method.
      * - parameter userId: Required. New user ID value.
      */
     @kotlin.jvm.JvmStatic
@@ -53,7 +53,7 @@ object Apphud {
      * Returns current userID that identifies user across his multiple devices.
      */
     @kotlin.jvm.JvmStatic
-    fun userId(): UserId? = ApphudInternal.userId
+    fun userId(): UserId = ApphudInternal.userId
 
     /**
      * Returns current device ID. You should use it only if you want to implement custom logout/login flow by saving User ID & Device ID pair for each app user.
@@ -63,13 +63,24 @@ object Apphud {
     }
 
     /**
+    Returns `true` if user has active subscription or non renewing purchase (lifetime).
+    Note: You should not use this method if you have consumable in-app purchases, like coin packs.
+    Use this method to determine whether or not user has active premium access.
+    If you have consumable purchases, this method won't operate correctly,
+    because Apphud SDK doesn't differ consumables from non-consumables.
+     */
+    @kotlin.jvm.JvmStatic
+    fun hasPremiumAccess() : Boolean {
+        return hasActiveSubscription() || nonRenewingPurchases().firstOrNull{ it.isActive() } != null
+    }
+
+    /**
      * Returns `true` if user has active subscription. Value is cached on device.
      * Use this method to determine whether or not user has active premium subscription.
      * Note that if you have lifetime purchases, you must use another `isNonRenewingPurchaseActive` method.
      */
     @kotlin.jvm.JvmStatic
-    fun hasActiveSubscription(): Boolean = subscription()
-        ?.isActive() ?: false
+    fun hasActiveSubscription(): Boolean = subscriptions().firstOrNull { it.isActive() } != null
 
     /**
      * Returns subscription object that current user has ever purchased. Subscriptions are cached on device.
@@ -101,7 +112,7 @@ object Apphud {
      * Each paywall contains an array of `ApphudProduct` objects that you use for purchase.
      * `ApphudProduct` is Apphud's wrapper around `SkuDetails`.
      * Returns empty array if paywalls are not yet fetched.
-     * To get notified when paywalls are ready to use, use ApphudListener's  `paywallsDidLoad` or `paywallsDidFullyLoad` methods
+     * To get notified when paywalls are ready to use, use ApphudListener's  `userDidLoad` or `paywallsDidFullyLoad` methods,
      * depending on whether or not you need `SkuDetails` to be already filled in paywalls.
      * Best practice is to use this method together with `paywallsDidFullyLoad` listener.
      */
@@ -386,17 +397,5 @@ object Apphud {
     @kotlin.jvm.JvmStatic
     fun grantPromotional(daysCount: Int, productId: String?, permissionGroup: ApphudGroup? = null, callback: ((Boolean) -> Unit)? = null) {
         ApphudInternal.grantPromotional(daysCount, productId, permissionGroup, callback)
-    }
-
-    /**
-    Returns `true` if user has active subscription or non renewing purchase (lifetime).
-
-    __Note: You should not use this method if you have consumable in-app purchases, like coin packs.__
-
-    Use this method to determine whether or not user has active premium access. If you have consumable purchases, this method won't operate correctly, because Apphud SDK doesn't differ consumables from non-consumables.
-     */
-    @kotlin.jvm.JvmStatic
-    fun hasPremiumAccess() : Boolean {
-        return hasActiveSubscription() || nonRenewingPurchases().firstOrNull{ it.isActive() } != null
     }
 }
