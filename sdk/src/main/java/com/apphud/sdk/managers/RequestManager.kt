@@ -105,7 +105,7 @@ object RequestManager {
     private fun getOkHttpClient(retry: Boolean = true): OkHttpClient {
         val retryInterceptor = HttpRetryInterceptor()
         val headersInterceptor = HeadersInterceptor(apiKey)
-        val logging = HttpLoggingInterceptor {
+        /*val logging = HttpLoggingInterceptor {
             if (parser.isJson(it)) {
                 buildPrettyPrintedBy(it)?.let { formattedJsonString ->
                     ApphudLog.logI(formattedJsonString)
@@ -121,12 +121,12 @@ object RequestManager {
             logging.level = HttpLoggingInterceptor.Level.NONE //BODY
         } else {
             logging.level = HttpLoggingInterceptor.Level.NONE
-        }
+        }*/
 
         var builder = OkHttpClient.Builder()
         if (retry) builder.addInterceptor(retryInterceptor)
         builder.addNetworkInterceptor(headersInterceptor)
-        builder.addNetworkInterceptor(logging)
+        //builder.addNetworkInterceptor(logging)
 
         return builder.build()
     }
@@ -193,12 +193,16 @@ object RequestManager {
             } else if (true) {
 
                 logRequestStart(request)
-                val response = client.newCall(request).execute()
 
+                val start = Date()
+                val response = client.newCall(request).execute()
+                val finish = Date()
+                val diff = (finish.time - start.time)
                 ApphudLog.logBenchmark(
-                        request.url.encodedPath,
-                        response.receivedResponseAtMillis - response.sentRequestAtMillis
+                    request.url.encodedPath,
+                    diff
                 )
+
                 logRequestFinish(request, response)
 
                 if (response.isSuccessful) {
@@ -235,11 +239,15 @@ object RequestManager {
         } else if (true) {
             logRequestStart(request)
 
+            val start = Date()
             val response = client.newCall(request).execute()
+            val finish = Date()
+            val diff = (finish.time - start.time)
             ApphudLog.logBenchmark(
                 request.url.encodedPath,
-                response.receivedResponseAtMillis - response.sentRequestAtMillis
+                diff
             )
+
             logRequestFinish(request, response)
 
             val responseBody = response.body!!.string()
