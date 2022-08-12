@@ -105,7 +105,7 @@ object RequestManager {
     private fun getOkHttpClient(retry: Boolean = true): OkHttpClient {
         val retryInterceptor = HttpRetryInterceptor()
         val headersInterceptor = HeadersInterceptor(apiKey)
-        val logging = HttpLoggingInterceptor {
+        /*val logging = HttpLoggingInterceptor {
             if (parser.isJson(it)) {
                 buildPrettyPrintedBy(it)?.let { formattedJsonString ->
                     ApphudLog.logI(formattedJsonString)
@@ -121,12 +121,12 @@ object RequestManager {
             logging.level = HttpLoggingInterceptor.Level.NONE //BODY
         } else {
             logging.level = HttpLoggingInterceptor.Level.NONE
-        }
+        }*/
 
         var builder = OkHttpClient.Builder()
         if (retry) builder.addInterceptor(retryInterceptor)
         builder.addNetworkInterceptor(headersInterceptor)
-        builder.addNetworkInterceptor(logging)
+        //builder.addNetworkInterceptor(logging)
 
         return builder.build()
     }
