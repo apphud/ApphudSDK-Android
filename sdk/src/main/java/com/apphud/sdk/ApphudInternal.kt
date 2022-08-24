@@ -147,12 +147,7 @@ internal object ApphudInternal {
     }
 
     internal fun refreshEntitlements(forceRefresh: Boolean = false){
-
-        val hasPurchases = currentUser?.let{
-            !(it.purchases.isEmpty() && it.subscriptions.isEmpty())
-        }?: false
-
-        if((hasPurchases && didRegisterCustomerAtThisLaunch) || forceRefresh){
+        if(didRegisterCustomerAtThisLaunch || forceRefresh){
             registration(this.userId, this.deviceId, true, null)
         }
     }
