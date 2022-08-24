@@ -146,13 +146,8 @@ internal object ApphudInternal {
         }
     }
 
-    internal fun refreshEntitlements(){
-
-        val hasPurchases = currentUser?.let{
-            !(it.purchases.isEmpty() && it.subscriptions.isEmpty())
-        }?: false
-
-        if(hasPurchases && didRegisterCustomerAtThisLaunch){
+    internal fun refreshEntitlements(forceRefresh: Boolean = false){
+        if(didRegisterCustomerAtThisLaunch || forceRefresh){
             registration(this.userId, this.deviceId, true, null)
         }
     }
@@ -772,6 +767,7 @@ internal object ApphudInternal {
                                     if (observerMode && prevPurchases.containsAll(tempPrevPurchases)) {
                                         ApphudLog.log("SyncPurchases: Don't send equal purchases from prev state")
                                         isSyncing.set(false)
+                                        refreshEntitlements(true)
                                     } else {
                                         syncPurchasesWithApphud(paywallIdentifier, tempPrevPurchases, callback, observerMode)
                                     }
@@ -830,6 +826,7 @@ internal object ApphudInternal {
                 ApphudLog.log(message = it, sendLogToServer = true)
                 callback?.invoke(null, null, ApphudError(message = it))
             }?:run{
+                refreshEntitlements(true)
                 currentUser?.let{
                     callback?.invoke(it.subscriptions, it.purchases, null)
                 }

@@ -175,13 +175,13 @@ object Apphud {
     }
 
     /**
-     * Refreshes current purchases: subscriptions and non-renewing purchases.
+     * Refreshes current purchases: subscriptions, promotionals or non-renewing purchases.
      * To get notified about updates, you should listen for ApphudListener's
      * apphudSubscriptionsUpdated(subscriptions: List<ApphudSubscription>) and
      * apphudNonRenewingPurchasesUpdated(purchases: List<ApphudNonRenewingPurchase>) methods.
      * You should not call this method on app launch, because Apphud SDK does it automatically.
-     * Best practice is to use this method when your app reactivates from a background.
-     * i.e. second app open during lifecycle.
+     * Best practice is to refresh the user when a promotional has been granted on the web
+     * or when your app reactivates from a background, if needed.
      */
     @kotlin.jvm.JvmStatic
     fun refreshEntitlements() {
