@@ -1435,6 +1435,9 @@ internal object ApphudInternal {
 
     private fun updatePaywallsWithSkuDetails(paywalls: List<ApphudPaywall>) {
         synchronized(paywalls) {
+
+            ApphudLog.log("Updating paywalls: ${paywalls.map { it.name }} with SKUDetails: ${skuDetails.map { it.sku }}")
+            
             paywalls.forEach { paywall ->
                 paywall.products?.forEach { product ->
                     product.skuDetails = getSkuDetailsByProductId(product.product_id)
