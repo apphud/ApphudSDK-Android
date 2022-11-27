@@ -55,9 +55,7 @@ dependencies {
     implementation fileTree(dir: "libs", include: ["*.jar"])
     implementation "org.jetbrains.kotlin:kotlin-stdlib:$kotlin_version"
     implementation 'com.android.billingclient:billing:4.0.0'
-    implementation "com.google.code.gson:gson:2.8.8"
-    //TODO работает только версия 15.0.0
-    implementation 'com.google.android.gms:play-services-ads:15.0.0'
+    implementation "com.google.code.gson:gson:2.9.0"
 
     //refactoring
     implementation 'com.squareup.okhttp3:okhttp:4.10.0'
