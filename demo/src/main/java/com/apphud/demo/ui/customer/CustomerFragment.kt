@@ -48,7 +48,8 @@ class CustomerFragment : Fragment() {
         binding.appVersion.text = BuildConfig.VERSION_NAME + " (" + BuildConfig.VERSION_CODE + ")"
 
         binding.btnSync.setOnClickListener {
-            Apphud.restorePurchases(object: ApphudPurchasesRestoreCallback {
+            Apphud.syncPurchases()
+            /*Apphud.restorePurchases(object: ApphudPurchasesRestoreCallback {
                 override fun invoke(
                     subscriptions: List<ApphudSubscription>?,
                     purchases: List<ApphudNonRenewingPurchase>?,
@@ -68,7 +69,7 @@ class CustomerFragment : Fragment() {
                         Toast.makeText(activity, out, Toast.LENGTH_LONG).show()
                     }
                 }
-            })
+            })*/
         }
 
         paywallsViewModel = ViewModelProvider(this)[PaywallsViewModel::class.java]

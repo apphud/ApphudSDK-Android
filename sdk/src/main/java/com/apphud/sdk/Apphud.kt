@@ -162,7 +162,10 @@ object Apphud {
      * If you use Apphud SDK as observer, you should call this method after every successful purchase or restoration.
      */
     @kotlin.jvm.JvmStatic
-    fun syncPurchases(paywallIdentifier: String? = null) = ApphudInternal.syncPurchases(paywallIdentifier)
+    fun syncPurchases(paywallIdentifier: String? = null) {
+        ApphudLog.log("Apphud:SyncPurchases()")
+        ApphudInternal.syncPurchases(paywallIdentifier)
+    }
 
     /**
      * Implements `Restore Purchases` mechanism. Basically it just sends current Play Market Purchase Tokens to Apphud and returns subscriptions info.
@@ -238,7 +241,7 @@ object Apphud {
      */
     @kotlin.jvm.JvmStatic
     fun purchase(activity: Activity, product: ApphudProduct, block: ((ApphudPurchaseResult) -> Unit)?) =
-            ApphudInternal.purchase(activity, null, null, product, true, block)
+        ApphudInternal.purchase(activity, null, null, product, true, block)
 
     /**
      * Purchase product by id and automatically submit Google Play purchase token to Apphud
@@ -393,7 +396,7 @@ object Apphud {
     - parameter productId: Optional*. Recommended. Product Id of promotional subscription. See __Note__ message above for details.
     - parameter permissionGroup: Optional*. Permission Group of promotional subscription. Use this parameter in case you have multiple permission groups. See __Note__ message above for details.
     - parameter callback: Optional. Returns `true` if promotional subscription was granted.
-    */
+     */
     @kotlin.jvm.JvmStatic
     fun grantPromotional(daysCount: Int, productId: String?, permissionGroup: ApphudGroup? = null, callback: ((Boolean) -> Unit)? = null) {
         ApphudInternal.grantPromotional(daysCount, productId, permissionGroup, callback)
