@@ -1,23 +1,32 @@
 package com.apphud.demo
 
 import android.os.Bundle
+import android.util.Log
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import androidx.appcompat.widget.Toolbar
-import com.google.android.material.navigation.NavigationView
+import androidx.core.view.GravityCompat
+import androidx.drawerlayout.widget.DrawerLayout
 import androidx.navigation.findNavController
 import androidx.navigation.ui.AppBarConfiguration
 import androidx.navigation.ui.navigateUp
 import androidx.navigation.ui.setupActionBarWithNavController
-import androidx.drawerlayout.widget.DrawerLayout
-import androidx.core.view.GravityCompat
+import com.android.billingclient.api.BillingClient
+import com.android.billingclient.api.BillingClient.BillingResponseCode
+import com.android.billingclient.api.BillingClientStateListener
+import com.android.billingclient.api.BillingResult
 import com.apphud.demo.databinding.ActivityMainBinding
+import com.apphud.sdk.Apphud
+import com.google.android.material.navigation.NavigationView
+
 
 class MainActivity : AppCompatActivity() {
 
     private lateinit var appBarConfiguration: AppBarConfiguration
     private lateinit var binding: ActivityMainBinding
     private lateinit var me: MainActivity
+
+    var billingClient: BillingClient? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -48,6 +57,23 @@ class MainActivity : AppCompatActivity() {
             drawerLayout.closeDrawer(GravityCompat.START)
             true
         }
+        billingClient = BillingClient.newBuilder(this)
+            .setListener { billingResult, list ->
+                if(billingResult.responseCode == BillingResponseCode.OK){
+                    list?.let{
+                        Log.d("Apphud", "Just purchasesd: $list")
+                        Apphud.trackPurchase(it.toList())
+                    }
+                }
+            }.enablePendingPurchases().build()
+
+        billingClient?.startConnection(object: BillingClientStateListener{
+            override fun onBillingServiceDisconnected() {
+            }
+
+            override fun onBillingSetupFinished(p0: BillingResult) {
+            }
+        })
     }
 
     override fun onSupportNavigateUp(): Boolean {

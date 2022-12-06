@@ -48,28 +48,21 @@ class CustomerFragment : Fragment() {
         binding.appVersion.text = BuildConfig.VERSION_NAME + " (" + BuildConfig.VERSION_CODE + ")"
 
         binding.btnSync.setOnClickListener {
+            /*(1..10).forEach{ _ ->
+                Apphud.syncPurchases()
+            }*/
+
             Apphud.syncPurchases()
-            /*Apphud.restorePurchases(object: ApphudPurchasesRestoreCallback {
-                override fun invoke(
-                    subscriptions: List<ApphudSubscription>?,
-                    purchases: List<ApphudNonRenewingPurchase>?,
-                    error: ApphudError?
-                ) {
-                    error?.let{
-                        Toast.makeText(activity, "Error: " + it.message, Toast.LENGTH_LONG).show()
-                    }?: run{
-                        var count = 0
-                        subscriptions?.let{
-                            count += it.size
-                        }
-                        purchases?.let{
-                            count += it.size
-                        }
-                        val out = getString(R.string.restore_success, count.toString())
-                        Toast.makeText(activity, out, Toast.LENGTH_LONG).show()
-                    }
+
+            /*Apphud.restorePurchases{ subscriptions: List<ApphudSubscription>?, purchases: List<ApphudNonRenewingPurchase>?, error: ApphudError? ->
+                if(subscriptions != null || purchases != null){
+                    Toast.makeText(activity, "SUCCESS", Toast.LENGTH_SHORT).show()
                 }
-            })*/
+
+                error?.let{
+                    Toast.makeText(activity, "ERROR", Toast.LENGTH_SHORT).show()
+                }
+            }*/
         }
 
         paywallsViewModel = ViewModelProvider(this)[PaywallsViewModel::class.java]
