@@ -353,6 +353,8 @@ internal object ApphudInternal {
                             }
                         }
                     }
+                }else{
+                    completionHandler?.invoke(currentUser, null)
                 }
             }
         }
