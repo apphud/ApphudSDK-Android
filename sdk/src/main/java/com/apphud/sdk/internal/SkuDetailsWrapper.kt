@@ -68,6 +68,60 @@ internal class SkuDetailsWrapper(
         }
     }
 
+
+    suspend fun restoreSync(@BillingClient.SkuType type: SkuType, records: List<PurchaseHistoryRecord>) :PurchaseRestoredCallbackStatus =
+        suspendCancellableCoroutine { continuation ->
+            val products = records.map { it.skus }.flatten().distinct()
+            val params = SkuDetailsParams.newBuilder()
+                .setSkusList(products)
+                .setType(type)
+                .build()
+
+            thread(start = true, name = "restoreAsync+$type") {
+                billing.querySkuDetailsAsync(params) { result, details ->
+                    when (result.isSuccess()) {
+                        true -> {
+                            val values = details ?: emptyList()
+
+                            val purchases = mutableListOf<PurchaseRecordDetails>()
+                            for (skuDetail in values){
+                                val record = records.firstOrNull() { it.skus.contains(skuDetail.sku) }
+                                record?.let{
+                                    purchases.add(
+                                        PurchaseRecordDetails(
+                                            record = it,
+                                            details = skuDetail
+                                        )
+                                    )
+                                }
+                            }
+
+                            when (purchases.isEmpty()) {
+                                true -> {
+                                    val message = "SkuDetails return empty list for $type and records: $records"
+                                    ApphudLog.log(message)
+                                    if(continuation.isActive) {
+                                        continuation.resume(PurchaseRestoredCallbackStatus.Error(type = type, result = null, message = message))
+                                    }
+                                }
+                                else -> {
+                                    if(continuation.isActive) {
+                                        continuation.resume(PurchaseRestoredCallbackStatus.Success(type = type, purchases))
+                                    }
+                                }
+                            }
+                        }
+                        else -> {
+                            result.logMessage("RestoreAsync failed for type: $type products: $products")
+                            if(continuation.isActive) {
+                                continuation.resume(PurchaseRestoredCallbackStatus.Error(type = type, result = result, message = type))
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
     /**
      * This function will return SkuDetails according to the requested product list.
      * If manualCallback was defined then the result will be moved to this callback, otherwise detailsCallback will be used
@@ -95,7 +149,7 @@ internal class SkuDetailsWrapper(
         }
     }
 
-    suspend fun queryAsyncEx(
+    suspend fun querySync(
         @BillingClient.SkuType type: SkuType,
         products: List<ProductId>
     ): List<SkuDetails>? =
@@ -109,7 +163,7 @@ internal class SkuDetailsWrapper(
             billing.querySkuDetailsAsync(params) { result, details ->
                 when (result.isSuccess()) {
                     true -> {
-                        ApphudLog.logI("Query SkuDetails success")
+                        ApphudLog.logI("Query SkuDetails success $type")
                         if(continuation.isActive) {
                             continuation.resume(details.orEmpty())
                         }

@@ -2,6 +2,7 @@ package com.apphud.sdk
 
 import android.app.Activity
 import android.content.Context
+import com.android.billingclient.api.Purchase
 import com.android.billingclient.api.SkuDetails
 import com.apphud.sdk.domain.*
 
@@ -162,10 +163,7 @@ object Apphud {
      * If you use Apphud SDK as observer, you should call this method after every successful purchase or restoration.
      */
     @kotlin.jvm.JvmStatic
-    fun syncPurchases(paywallIdentifier: String? = null) {
-        ApphudLog.log("Apphud:SyncPurchases()")
-        ApphudInternal.syncPurchases(paywallIdentifier)
-    }
+    fun syncPurchases(paywallIdentifier: String? = null) = ApphudInternal.syncPurchases(paywallIdentifier)
 
     /**
      * Implements `Restore Purchases` mechanism. Basically it just sends current Play Market Purchase Tokens to Apphud and returns subscriptions info.
@@ -190,6 +188,9 @@ object Apphud {
     fun refreshEntitlements() {
         ApphudInternal.refreshEntitlements()
     }
+
+    @kotlin.jvm.JvmStatic
+    fun trackPurchase(purchases: List<Purchase>, paywallIdentifier: String? = null) = ApphudInternal.trackPurchase(purchases, paywallIdentifier)
 
     /**
      * Returns array of `SkuDetails` objects, identifiers of which you added in Apphud > Product Hub > Products.
