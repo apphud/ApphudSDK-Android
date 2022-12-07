@@ -562,7 +562,8 @@ object RequestManager {
     suspend fun restorePurchasesSync(
         apphudProduct: ApphudProduct? = null,
         purchaseRecordDetailsSet: List<PurchaseRecordDetails>?,
-        purchasesList: List<Purchase>?,
+        purchase: Purchase?,
+        skuProduct: SkuDetails?,
         observerMode: Boolean
     ): Customer? =
         suspendCancellableCoroutine { continuation ->
@@ -579,22 +580,20 @@ object RequestManager {
                 .path("subscriptions")
                 .build()
 
-            val purchaseBody =
-                purchaseRecordDetailsSet?.let{
-                    makeRestorePurchasesBody(
-                        apphudProduct,
-                        it,
-                        observerMode
-                    )
-                }?: run {
-                    purchasesList?.let{
-                        makeTrackPurchasesBody(
-                            apphudProduct,
-                            it,
-                            observerMode
-                        )
-                    }
-                }
+            val purchaseBody = if(purchaseRecordDetailsSet != null){
+                makeRestorePurchasesBody(
+                    apphudProduct,
+                    purchaseRecordDetailsSet,
+                    observerMode
+                )
+            }else if(purchase != null && skuProduct != null){
+                makeTrackPurchasesBody(
+                    apphudProduct,
+                    purchase,
+                    skuProduct,
+                    observerMode
+                )
+            } else null
 
             purchaseBody?.let{
                 val request = buildPostRequest(URL(apphudUrl.url), it)
@@ -970,22 +969,22 @@ object RequestManager {
             }
         )
 
-    private fun makeTrackPurchasesBody(apphudProduct: ApphudProduct? = null, purchases: List<Purchase>, observerMode: Boolean) =
+    private fun makeTrackPurchasesBody(apphudProduct: ApphudProduct? = null, purchase: Purchase, skuProduct: SkuDetails?, observerMode: Boolean) =
         PurchaseBody(
             device_id = deviceId,
-            purchases = purchases.map { purchase ->
+            purchases = listOf(
                 PurchaseItemBody(
                     order_id = purchase.orderId,
                     product_id = purchase.skus.first(),
                     purchase_token = purchase.purchaseToken,
-                    price_currency_code = null,
-                    price_amount_micros = null,
-                    subscription_period = null,
+                    price_currency_code = skuProduct?.priceCurrencyCode,
+                    price_amount_micros = skuProduct?.priceAmountMicros,
+                    subscription_period = skuProduct?.let{ if(it.subscriptionPeriod.isNotEmpty()) it.subscriptionPeriod else null},
                     paywall_id = if(apphudProduct?.skuDetails?.sku == purchase.skus.first()) apphudProduct?.paywall_id else null,
                     product_bundle_id = if(apphudProduct?.skuDetails?.sku == purchase.skus.first()) apphudProduct?.id else null,
                     observer_mode = observerMode
                 )
-            }
+            )
         )
 
     internal fun makeErrorLogsBody(message: String, apphud_product_id: String? = null) =

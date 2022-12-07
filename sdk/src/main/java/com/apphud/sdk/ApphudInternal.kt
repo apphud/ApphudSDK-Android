@@ -442,19 +442,23 @@ internal object ApphudInternal {
         val productName: String = productId ?: apphudProduct?.product_id!!
         if(loadDetails(productName, apphudProduct)){
             getSkuDetailsByProductId(productName)?.let { sku ->
-                //if we have not empty ApphudProduct
-                apphudProduct?.let {
-                    it.skuDetails = sku
-                    purchaseInternal(activity, null, it, withValidation, callback)
-                } ?: run {
-                    purchaseInternal(activity, sku, null, withValidation, callback)
+                mainScope.launch(errorHandler) {
+                    //if we have not empty ApphudProduct
+                    apphudProduct?.let {
+                        it.skuDetails = sku
+                        purchaseInternal(activity, null, it, withValidation, callback)
+                    } ?: run {
+                        purchaseInternal(activity, sku, null, withValidation, callback)
+                    }
                 }
             }
         }else{
             val message =
                 "Unable to fetch product with given product id: $productName" + apphudProduct?.let { " [Apphud product ID: " + it.id + "]" }
             ApphudLog.log(message = message,sendLogToServer = true)
-            callback?.invoke(ApphudPurchaseResult(null,null,null,ApphudError(message)))
+            mainScope.launch(errorHandler) {
+                callback?.invoke(ApphudPurchaseResult(null, null, null, ApphudError(message)))
+            }
         }
     }
 
@@ -502,112 +506,97 @@ internal object ApphudInternal {
         callback: ((ApphudPurchaseResult) -> Unit)?
     ) {
         billing.acknowledgeCallback = { status, purchase ->
-            when (status) {
-                is PurchaseCallbackStatus.Error -> {
-                    val message = "Failed to acknowledge purchase with code: ${status.error}" + apphudProduct?.let{ " [Apphud product ID: " + it.id + "]"}
-                    ApphudLog.log(message = message,
-                        sendLogToServer = true)
-                    callback?.invoke(ApphudPurchaseResult(null,
-                        null,
-                        purchase,
-                        ApphudError(message)))
-                }
-                is PurchaseCallbackStatus.Success -> {
-                    ApphudLog.log("Purchase successfully acknowledged")
-                    when {
-                        withValidation -> ackPurchase(purchase, details, apphudProduct, callback)
-                        else -> {
-                            callback?.invoke(ApphudPurchaseResult(null, null, purchase, null))
-                            ackPurchase(purchase, details, apphudProduct, null)
+            mainScope.launch {
+                when (status) {
+                    is PurchaseCallbackStatus.Error -> {
+                        val message = "Failed to acknowledge purchase with code: ${status.error}" + apphudProduct?.let{ " [Apphud product ID: " + it.id + "]"}
+                        ApphudLog.log(message = message,sendLogToServer = true)
+                        callback?.invoke(ApphudPurchaseResult(null,null,purchase,ApphudError(message)))
+                    }
+                    is PurchaseCallbackStatus.Success -> {
+                        ApphudLog.log("Purchase successfully acknowledged")
+                        when {
+                            withValidation -> ackPurchase(purchase, details, apphudProduct, callback)
+                            else -> {
+                                callback?.invoke(ApphudPurchaseResult(null, null, purchase, null))
+                                ackPurchase(purchase, details, apphudProduct, null)
+                            }
                         }
                     }
                 }
             }
         }
         billing.consumeCallback = { status, purchase ->
-            when (status) {
-                is PurchaseCallbackStatus.Error -> {
-                    val message = "Failed to consume purchase with error: ${status.error}" + apphudProduct?.let{ " [Apphud product ID: " + it.id + "]"}
-                    ApphudLog.log(message = message,
-                        sendLogToServer = true)
-                    callback?.invoke(ApphudPurchaseResult(null,
-                        null,
-                        purchase,
-                        ApphudError(message)))
-                }
-                is PurchaseCallbackStatus.Success -> {
-                    ApphudLog.log("Purchase successfully consumed: ${status.message}")
-                    when {
-                        withValidation -> ackPurchase(purchase, details, apphudProduct, callback)
-                        else -> {
-                            callback?.invoke(ApphudPurchaseResult(null, null, purchase, null))
-                            ackPurchase(purchase, details, apphudProduct, null)
+            mainScope.launch {
+                when (status) {
+                    is PurchaseCallbackStatus.Error -> {
+                        val message = "Failed to consume purchase with error: ${status.error}" + apphudProduct?.let{ " [Apphud product ID: " + it.id + "]"}
+                        ApphudLog.log(message = message,sendLogToServer = true)
+                        callback?.invoke(ApphudPurchaseResult(null,null, purchase,ApphudError(message)))
+                    }
+                    is PurchaseCallbackStatus.Success -> {
+                        ApphudLog.log("Purchase successfully consumed: ${status.message}")
+                        when {
+                            withValidation -> ackPurchase(purchase, details, apphudProduct, callback)
+                            else -> {
+                                callback?.invoke(ApphudPurchaseResult(null, null, purchase, null))
+                                ackPurchase(purchase, details, apphudProduct, null)
+                            }
                         }
                     }
                 }
             }
         }
         billing.purchasesCallback = { purchasesResult ->
-            when (purchasesResult) {
-                is PurchaseUpdatedCallbackStatus.Error -> {
-                    var message =
-                        if (details != null) {
-                            "Unable to buy product with given product id: ${details.sku} "
-                        } else {
-                            paywallPaymentCancelled(apphudProduct?.paywall_id, apphudProduct?.product_id, purchasesResult.result.responseCode)
-                            "Unable to buy product with given product id: ${apphudProduct?.skuDetails?.sku} "
-                        }
-                        apphudProduct?.let{
+            mainScope.launch {
+                when (purchasesResult) {
+                    is PurchaseUpdatedCallbackStatus.Error -> {
+                        var message =
+                            if (details != null) {
+                                "Unable to buy product with given product id: ${details.sku} "
+                            } else {
+                                paywallPaymentCancelled(apphudProduct?.paywall_id,apphudProduct?.product_id,purchasesResult.result.responseCode)
+                                "Unable to buy product with given product id: ${apphudProduct?.skuDetails?.sku} "
+                            }
+                        apphudProduct?.let {
                             message += " [Apphud product ID: " + it.id + "]"
                         }
 
-                    val error =
-                        ApphudError(message = message,
-                            secondErrorMessage = purchasesResult.result.debugMessage,
-                            errorCode = purchasesResult.result.responseCode
-                        )
-                    ApphudLog.log(message = error.toString())
-
-                    callback?.invoke(ApphudPurchaseResult(null, null, null, error))
-
-                    processPurchaseError(purchasesResult)
-                }
-                is PurchaseUpdatedCallbackStatus.Success -> {
-                    ApphudLog.log("purchases: $purchasesResult")
-                    val detailsType = if (details != null) {
-                        details.type
-                    } else {
-                        apphudProduct?.skuDetails?.type
+                        val error = ApphudError( message = message, secondErrorMessage = purchasesResult.result.debugMessage, errorCode = purchasesResult.result.responseCode)
+                        ApphudLog.log(message = error.toString())
+                        callback?.invoke(ApphudPurchaseResult(null, null, null, error))
+                        processPurchaseError(purchasesResult)
                     }
-                    purchasesResult.purchases.forEach {
-                        when (it.purchaseState) {
-                            Purchase.PurchaseState.PURCHASED ->
-                                when (detailsType) {
-                                    BillingClient.SkuType.SUBS -> {
-                                        if (!it.isAcknowledged) {
-                                            billing.acknowledge(it)
+                    is PurchaseUpdatedCallbackStatus.Success -> {
+                        ApphudLog.log("purchases: $purchasesResult")
+                        val detailsType = if (details != null) {
+                            details.type
+                        } else {
+                            apphudProduct?.skuDetails?.type
+                        }
+                        purchasesResult.purchases.forEach {
+                            when (it.purchaseState) {
+                                Purchase.PurchaseState.PURCHASED ->
+                                    when (detailsType) {
+                                        BillingClient.SkuType.SUBS -> {
+                                            if (!it.isAcknowledged) {
+                                                billing.acknowledge(it)
+                                            }
+                                        }
+                                        BillingClient.SkuType.INAPP -> {
+                                            billing.consume(it)
+                                        }
+                                        else -> {
+                                            val message = "After purchase type is null"
+                                            ApphudLog.log(message)
+                                            callback?.invoke(ApphudPurchaseResult(null,null,it,ApphudError(message)))
                                         }
                                     }
-                                    BillingClient.SkuType.INAPP -> {
-                                        billing.consume(it)
-                                    }
-                                    else -> {
-                                        val message = "After purchase type is null"
-                                        ApphudLog.log(message)
-                                        callback?.invoke(ApphudPurchaseResult(null,
-                                            null,
-                                            it,
-                                            ApphudError(message)))
-                                    }
+                                else -> {
+                                    val message = "After purchase state: ${it.purchaseState}" + apphudProduct?.let { " [Apphud product ID: " + it.id + "]" }
+                                    ApphudLog.log(message = message)
+                                    callback?.invoke(ApphudPurchaseResult(null,null,it,ApphudError(message)))
                                 }
-                            else -> {
-                                val message = "After purchase state: ${it.purchaseState}" + apphudProduct?.let{ " [Apphud product ID: " + it.id + "]"}
-                                ApphudLog.log(message = message)
-
-                                callback?.invoke(ApphudPurchaseResult(null,
-                                    null,
-                                    it,
-                                    ApphudError(message)))
                             }
                         }
                     }
@@ -625,10 +614,9 @@ internal object ApphudInternal {
             else -> {
                 val message = "Unable to buy product with because SkuDetails is null" + apphudProduct?.let{ " [Apphud product ID: " + it.id + "]"}
                 ApphudLog.log(message = message)
-                callback?.invoke(ApphudPurchaseResult(null,
-                    null,
-                    null,
-                    ApphudError(message)))
+                mainScope.launch {
+                    callback?.invoke(ApphudPurchaseResult(null,null,null,ApphudError(message)))
+                }
             }
         }
     }
@@ -667,38 +655,30 @@ internal object ApphudInternal {
                                     "Check https://docs.apphud.com/getting-started/creating-app#google-play-service-credentials or contact support."
 
                             ApphudLog.logE(message)
-                            callback?.invoke(ApphudPurchaseResult(null,
-                                null,
-                                null,
-                                ApphudError(message)))
+                            callback?.invoke(ApphudPurchaseResult(null,null,null,ApphudError(message)))
                         } else {
                             apphudListener?.apphudSubscriptionsUpdated(customer.subscriptions)
-                            callback?.invoke(ApphudPurchaseResult(newSubscriptions,
-                                newPurchases,
-                                purchase,
-                                null))
+                            callback?.invoke(ApphudPurchaseResult(newSubscriptions,newPurchases,purchase,null))
                         }
                     }
                     error?.let {
                         val message = "Unable to validate purchase with error = ${it.message}" + apphudProduct?.let{ " [Apphud product ID: " + it.id + "]"}
                         ApphudLog.logI(message = message)
-                        callback?.invoke(ApphudPurchaseResult(null, null,
-                            purchase,
-                            ApphudError(message))
-                        )
+                        callback?.invoke(ApphudPurchaseResult(null, null,purchase,ApphudError(message)))
                     }
                 }
             }
         }
     }
 
-    internal fun trackPurchase(purchases: List<Purchase>, paywallIdentifier: String? = null) {
+    internal fun trackPurchase(purchase: Purchase, skuProduct: SkuDetails, paywallIdentifier: String? = null) {
         ApphudLog.log("TrackPurchase()")
         coroutineScope.launch(errorHandler) {
             sendPurchasesToApphud(
                 paywallIdentifier,
                 null,
-                purchases,
+                purchase,
+                skuProduct,
                 null,
                 true
             )
@@ -727,10 +707,8 @@ internal object ApphudInternal {
                 coroutineScope.launch(errorHandler) {
                     mutexSync.withLock {
                         ApphudLog.log("SyncPurchases: mutex Lock")
-                        val subsResult =
-                            billing.queryPurchaseHistorySync(BillingClient.SkuType.SUBS)
-                        val inapsResult =
-                            billing.queryPurchaseHistorySync(BillingClient.SkuType.INAPP)
+                        val subsResult = billing.queryPurchaseHistorySync(BillingClient.SkuType.SUBS)
+                        val inapsResult = billing.queryPurchaseHistorySync(BillingClient.SkuType.INAPP)
 
                         var purchases = mutableListOf<PurchaseHistoryRecord>()
                         purchases.addAll(processHistoryCallbackStatus(subsResult))
@@ -750,7 +728,7 @@ internal object ApphudInternal {
                         } else {
                             ApphudLog.log("Products to restore: $purchases")
                             //TODO remove
-                            //purchases = purchases.filter { !it.skus.contains("com.apphud.demo.subscriptions.s1") }.toMutableList()
+                            purchases = purchases.filter { !it.skus.contains("com.apphud.demo.subscriptions.s1") }.toMutableList()
 
                             val restoredPurchases = mutableListOf<PurchaseRecordDetails>()
                             val subsRestored =
@@ -774,6 +752,7 @@ internal object ApphudInternal {
                                     paywallIdentifier,
                                     restoredPurchases,
                                     null,
+                                    null,
                                     callback,
                                     observerMode
                                 )
@@ -789,14 +768,17 @@ internal object ApphudInternal {
     private suspend fun sendPurchasesToApphud(
         paywallIdentifier: String? = null,
         tempPurchaseRecordDetails: List<PurchaseRecordDetails>?,
-        purchases: List<Purchase>?,
+        purchase: Purchase?,
+        skuProduct: SkuDetails?,
         callback: ApphudPurchasesRestoreCallback? = null,
         observerMode: Boolean
     ){
         val apphudProduct: ApphudProduct? = tempPurchaseRecordDetails?.let {
             findJustPurchasedProduct(paywallIdentifier, it)
+        }?: run{
+            findJustPurchasedProduct(paywallIdentifier, skuProduct)
         }
-        val customer = RequestManager.restorePurchasesSync(apphudProduct, tempPurchaseRecordDetails, purchases, observerMode)
+        val customer = RequestManager.restorePurchasesSync(apphudProduct, tempPurchaseRecordDetails, purchase, skuProduct, observerMode)
         customer?.let{
             tempPurchaseRecordDetails?.let{ records ->
                 if(records.isNotEmpty() && (it.subscriptions.size + it.purchases.size) == 0) {
@@ -876,6 +858,24 @@ internal object ApphudInternal {
                             if (offset < 300000L) { // 5 min
                                 return currentPaywall.products?.find { it.skuDetails?.sku == rec.details.sku }
                             }
+                        }
+                    }
+            }
+        }catch (ex: Exception){
+            ex.message?.let{
+                ApphudLog.logE(message = it)
+            }
+        }
+        return null
+    }
+
+    private fun findJustPurchasedProduct(paywallIdentifier: String?, skuProduct: SkuDetails?): ApphudProduct?{
+        try {
+            paywallIdentifier?.let {
+                getPaywalls().firstOrNull { it.identifier == paywallIdentifier }
+                    ?.let { currentPaywall ->
+                        skuProduct?.let { details ->
+                            return currentPaywall.products?.find { it.skuDetails?.sku == details.sku }
                         }
                     }
             }

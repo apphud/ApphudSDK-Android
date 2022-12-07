@@ -190,7 +190,7 @@ object Apphud {
     }
 
     @kotlin.jvm.JvmStatic
-    fun trackPurchase(purchases: List<Purchase>, paywallIdentifier: String? = null) = ApphudInternal.trackPurchase(purchases, paywallIdentifier)
+    fun trackPurchase(purchase: Purchase, skuProduct: SkuDetails, paywallIdentifier: String? = null) = ApphudInternal.trackPurchase(purchase, skuProduct, paywallIdentifier)
 
     /**
      * Returns array of `SkuDetails` objects, identifiers of which you added in Apphud > Product Hub > Products.
