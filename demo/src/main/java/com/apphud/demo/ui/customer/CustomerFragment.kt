@@ -4,6 +4,7 @@ import android.os.Bundle
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
+import android.widget.CompoundButton
 import android.widget.TextView
 import android.widget.Toast
 import androidx.fragment.app.Fragment
@@ -13,8 +14,10 @@ import androidx.recyclerview.widget.DividerItemDecoration
 import androidx.recyclerview.widget.RecyclerView
 import com.android.billingclient.api.SkuDetails
 import com.apphud.demo.BuildConfig
+import com.apphud.demo.MainActivity
 import com.apphud.demo.R
 import com.apphud.demo.databinding.FragmentCustomerBinding
+import com.apphud.demo.ui.utils.SettingsManager
 import com.apphud.sdk.Apphud
 import com.apphud.sdk.ApphudError
 import com.apphud.sdk.ApphudListener
@@ -47,6 +50,11 @@ class CustomerFragment : Fragment() {
         binding.sdk.text = "v." + HeadersInterceptor.X_SDK_VERSION
         binding.appVersion.text = BuildConfig.VERSION_NAME + " (" + BuildConfig.VERSION_CODE + ")"
 
+        binding.switchPurchases.isChecked = SettingsManager.useApphudPurchases
+        binding.switchPurchases.setOnCheckedChangeListener{ _, isChecked ->
+            SettingsManager.useApphudPurchases = isChecked
+        }
+
         binding.btnSync.setOnClickListener {
             /*(1..10).forEach{ _ ->
                 Apphud.syncPurchases()
@@ -68,6 +76,7 @@ class CustomerFragment : Fragment() {
         paywallsViewModel = ViewModelProvider(this)[PaywallsViewModel::class.java]
         viewAdapter = PaywallsAdapter(paywallsViewModel, context)
         viewAdapter.selectPaywall = { paywall ->
+            (activity as MainActivity).paywallIdentifier = paywall.identifier
             findNavController().navigate(CustomerFragmentDirections.actionNavCustomerToProductsFragment(paywall.id))
         }
 

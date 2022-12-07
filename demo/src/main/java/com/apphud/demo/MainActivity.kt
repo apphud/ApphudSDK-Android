@@ -11,10 +11,8 @@ import androidx.navigation.findNavController
 import androidx.navigation.ui.AppBarConfiguration
 import androidx.navigation.ui.navigateUp
 import androidx.navigation.ui.setupActionBarWithNavController
-import com.android.billingclient.api.BillingClient
+import com.android.billingclient.api.*
 import com.android.billingclient.api.BillingClient.BillingResponseCode
-import com.android.billingclient.api.BillingClientStateListener
-import com.android.billingclient.api.BillingResult
 import com.apphud.demo.databinding.ActivityMainBinding
 import com.apphud.sdk.Apphud
 import com.google.android.material.navigation.NavigationView
@@ -27,6 +25,8 @@ class MainActivity : AppCompatActivity() {
     private lateinit var me: MainActivity
 
     var billingClient: BillingClient? = null
+    var skuDetails: SkuDetails? = null
+    var paywallIdentifier: String? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -60,9 +60,29 @@ class MainActivity : AppCompatActivity() {
         billingClient = BillingClient.newBuilder(this)
             .setListener { billingResult, list ->
                 if(billingResult.responseCode == BillingResponseCode.OK){
-                    list?.let{
+                    /*list?.let{ l ->
                         Log.d("Apphud", "Just purchasesd: $list")
-                        Apphud.trackPurchase(it.toList())
+                        for (purchase in l){
+                            purchase?.let{ p ->
+                                skuDetails?.let{ details ->
+                                    Apphud.trackPurchase(p, details, paywallIdentifier)
+                                }
+                            }
+                        }
+                    }*/
+                    list?.let { l ->
+                        for (purchase in l) {
+                            purchase?.let{ p ->
+                                val acknowledgePurchaseParams = AcknowledgePurchaseParams.newBuilder()
+                                    .setPurchaseToken(p.purchaseToken)
+                                    .build()
+                                billingClient?.acknowledgePurchase(acknowledgePurchaseParams) {
+                                    skuDetails?.let{ details ->
+                                        Apphud.trackPurchase(p, details, paywallIdentifier)
+                                    }
+                                }
+                            }
+                        }
                     }
                 }
             }.enablePendingPurchases().build()
