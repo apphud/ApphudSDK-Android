@@ -109,7 +109,7 @@ internal class SkuDetailsWrapper(
             billing.querySkuDetailsAsync(params) { result, details ->
                 when (result.isSuccess()) {
                     true -> {
-                        ApphudLog.logI("Query SkuDetails success")
+                        ApphudLog.logI("Query SkuDetails success: ${details?.map { it.sku }}")
                         if(continuation.isActive) {
                             continuation.resume(details.orEmpty())
                         }
