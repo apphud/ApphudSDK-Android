@@ -353,6 +353,10 @@ internal object ApphudInternal {
                             }
                         }
                     }
+                }else{
+                    launch(Dispatchers.Main) {
+                        completionHandler?.invoke(currentUser, null)
+                    }
                 }
             }
         }
@@ -716,6 +720,13 @@ internal object ApphudInternal {
     ) {
         if(!isSyncing.get()){
             isSyncing.set(true)
+
+            Timer().schedule(object : TimerTask() {
+                override fun run() {
+                    isSyncing.set(false)
+                    cancel()
+                }
+            }, 5000)
 
             checkRegistration{ error ->
                 error?.let{
