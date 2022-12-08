@@ -348,7 +348,9 @@ internal object ApphudInternal {
                         }
                     }
                 }else{
-                    completionHandler?.invoke(currentUser, null)
+                    mainScope.launch {
+                        completionHandler?.invoke(currentUser, null)
+                    }
                 }
             }
         }
