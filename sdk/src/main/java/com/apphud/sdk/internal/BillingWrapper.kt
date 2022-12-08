@@ -3,7 +3,6 @@ package com.apphud.sdk.internal
 import android.app.Activity
 import android.content.Context
 import com.android.billingclient.api.*
-import com.apphud.sdk.ApphudLog
 import com.apphud.sdk.ProductId
 import com.apphud.sdk.internal.callback_status.PurchaseHistoryCallbackStatus
 import com.apphud.sdk.internal.callback_status.PurchaseRestoredCallbackStatus
@@ -29,12 +28,6 @@ internal class BillingWrapper(context: Context) : Closeable {
     private val consume = ConsumeWrapper(billing)
     private val history = HistoryWrapper(billing)
     private val acknowledge = AcknowledgeWrapper(billing)
-
-    private val mainScope = CoroutineScope(Dispatchers.Main)
-    private val coroutineScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
-    private val errorHandler = CoroutineExceptionHandler { _, error ->
-        error.message?.let { ApphudLog.logE(it) }
-    }
 
 
     private val mutex = Mutex()
@@ -113,7 +106,7 @@ internal class BillingWrapper(context: Context) : Closeable {
     }
 
     fun purchase(activity: Activity, details: SkuDetails, deviceId: String? = null) {
-        mainScope.launch(errorHandler) {
+        GlobalScope.launch {
             val connectIfNeeded = connectIfNeeded()
             if (!connectIfNeeded) return@launch
             return@launch flow.purchases(activity, details, deviceId)
@@ -121,7 +114,7 @@ internal class BillingWrapper(context: Context) : Closeable {
     }
 
     fun acknowledge(purchase: Purchase) {
-        mainScope.launch(errorHandler) {
+        GlobalScope.launch {
             val connectIfNeeded = connectIfNeeded()
             if (!connectIfNeeded) return@launch
             return@launch acknowledge.purchase(purchase)
@@ -129,7 +122,7 @@ internal class BillingWrapper(context: Context) : Closeable {
     }
 
     fun consume(purchase: Purchase) {
-        mainScope.launch(errorHandler) {
+        GlobalScope.launch {
             val connectIfNeeded = connectIfNeeded()
             if (!connectIfNeeded) return@launch
             return@launch consume.purchase(purchase)
