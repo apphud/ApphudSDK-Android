@@ -3,6 +3,8 @@ package com.apphud.sdk.internal
 import android.app.Activity
 import android.content.Context
 import com.android.billingclient.api.*
+import com.apphud.sdk.ApphudInternal
+import com.apphud.sdk.ApphudLog
 import com.apphud.sdk.ProductId
 import kotlinx.coroutines.*
 import kotlinx.coroutines.sync.Mutex
@@ -34,10 +36,15 @@ internal class BillingWrapper(context: Context) : Closeable {
             if(billing.isReady) {
                 result = true
             }else{
-                while (!billing.connect()) {
-                    Thread.sleep(300)
+                try {
+                    while (!billing.connect()) {
+                        Thread.sleep(300)
+                    }
+                    result = true
+                }catch (ex: java.lang.Exception){
+                    ApphudLog.log("Connect to Billing failed: ${ex.message?:"error"}")
+                    result = false
                 }
-                result = true
             }
         }
         return result
