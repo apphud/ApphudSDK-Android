@@ -743,6 +743,7 @@ internal object ApphudInternal {
 
                             if (observerMode && prevPurchases.containsAll(restoredPurchases)) {
                                 ApphudLog.log("SyncPurchases: Don't send equal purchases from prev state")
+                                storage.isNeedSync = false
                                 mainScope.launch {
                                     refreshEntitlements(true)
                                 }
