@@ -1,45 +1,37 @@
 package com.apphud.sdk.managers
 
 import android.content.Context
-import android.content.res.Resources
 import android.net.ConnectivityManager
 import android.net.NetworkCapabilities
 import android.os.Build
-import androidx.core.os.ConfigurationCompat
 import com.android.billingclient.api.Purchase
 import com.android.billingclient.api.SkuDetails
 import com.apphud.sdk.*
-import com.apphud.sdk.ApphudUtils
-import com.apphud.sdk.ApphudVersion
 import com.apphud.sdk.body.*
 import com.apphud.sdk.client.*
 import com.apphud.sdk.client.dto.*
 import com.apphud.sdk.domain.*
+import com.apphud.sdk.managers.AdvertisingIdManager.AdInfo
 import com.apphud.sdk.mappers.*
 import com.apphud.sdk.parser.GsonParser
 import com.apphud.sdk.parser.Parser
 import com.apphud.sdk.storage.SharedPreferencesStorage
-import com.google.android.gms.ads.identifier.AdvertisingIdClient
-import com.google.android.gms.common.GooglePlayServicesNotAvailableException
-import com.google.android.gms.common.GooglePlayServicesRepairableException
+import com.google.gson.GsonBuilder
 import com.google.gson.reflect.TypeToken
+import kotlinx.coroutines.suspendCancellableCoroutine
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import okhttp3.RequestBody.Companion.toRequestBody
-import okhttp3.logging.HttpLoggingInterceptor
-import java.io.IOException
-import java.net.URL
-import java.util.*
-import org.json.JSONException
-
-import org.json.JSONObject
-import kotlin.coroutines.resume
-import com.google.gson.GsonBuilder
-import kotlinx.coroutines.suspendCancellableCoroutine
 import okhttp3.Response
 import okio.Buffer
+import org.json.JSONException
+import org.json.JSONObject
+import java.io.IOException
+import java.net.URL
 import java.nio.charset.Charset
+import java.util.*
+import kotlin.coroutines.resume
 
 
 object RequestManager {
@@ -131,7 +123,7 @@ object RequestManager {
         return builder.build()
     }
 
-    private fun logRequestStart(request: Request){
+    private fun logRequestStart(request: Request) {
         try {
             var body: String? = ""
             request.body?.let {
@@ -154,28 +146,28 @@ object RequestManager {
                 }
             }
             ApphudLog.logI("Start " + request.method + " request " + request.url + " with params:" + body)
-        }catch (ex: Exception){
-            ApphudLog.logE(ex.message?:"")
+        } catch (ex: Exception) {
+            ApphudLog.logE(ex.message ?: "")
         }
     }
 
-    private fun logRequestFinish(request: Request, response: Response){
-        try{
+    private fun logRequestFinish(request: Request, response: Response) {
+        try {
             val responseBody = response.body
             val source = responseBody?.source()
             source?.request(Long.MAX_VALUE)
 
             val buffer = source?.buffer?.clone()?.readString(Charset.forName("UTF-8"))
             var outputBody = ""
-            buffer?.let{
+            buffer?.let {
                 if (parser.isJson(buffer)) {
-                    outputBody = buildPrettyPrintedBy(it)?:""
+                    outputBody = buildPrettyPrintedBy(it) ?: ""
                 }
             }
 
             ApphudLog.logI("Finished " + request.method + " request " + request.url + " with response: " + response.code + "\n" + outputBody)
-        }catch (ex: Exception){
-            ApphudLog.logE(ex.message?:"")
+        } catch (ex: Exception) {
+            ApphudLog.logE(ex.message ?: "")
         }
     }
 
@@ -268,7 +260,7 @@ object RequestManager {
         }
     }
 
-    private fun checkLock403(request: Request, response: Response){
+    private fun checkLock403(request: Request, response: Response) {
         if (response.code == 403 && request.method == "POST" && request.url.encodedPath.endsWith("/customers")) {
             HeadersInterceptor.isBlocked = true
         }
@@ -324,65 +316,67 @@ object RequestManager {
 
     suspend fun fetchAdvertisingId(): String? =
         suspendCancellableCoroutine { continuation ->
-        //Load advertising id
-        var advId :String? = null
-        if (ApphudUtils.adTracking) {
-            try {
-                ApphudLog.logI("start load advertisingId")
-                advId = AdvertisingIdClient.getAdvertisingIdInfo(applicationContext).id
-                ApphudLog.logI("success load advertisingId: $advId")
-            } catch (e: IOException) {
-                ApphudLog.logE("finish load advertisingId $e")
-            } catch (e: IllegalStateException) {
-                ApphudLog.logE("finish load advertisingId $e")
-            } catch (e: GooglePlayServicesNotAvailableException) {
-                ApphudLog.logE("finish load advertisingId $e")
-            } catch (e: GooglePlayServicesRepairableException) {
-                ApphudLog.logE("finish load advertisingId $e")
-            }
-        }
-        if(continuation.isActive) {
-            continuation.resume(advId)
-        }
-    }
-
-    suspend fun registrationSync(needPaywalls: Boolean, isNew: Boolean, forceRegistration: Boolean = false) :Customer? =
-        suspendCancellableCoroutine { continuation ->
-        if(!canPerformRequest()) {
-            ApphudLog.logE("registrationSync $MUST_REGISTER_ERROR")
-            if(continuation.isActive) {
-                continuation.resume(null)
-            }
-        }
-
-        if(currentUser == null || forceRegistration) {
-            registration(needPaywalls, isNew, forceRegistration) { customer, error ->
-                if(continuation.isActive) {
-                    continuation.resume(customer)
+            var advId :String? = null
+            if (ApphudUtils.adTracking) {
+                try {
+                    val adInfo: AdInfo = AdvertisingIdManager.getAdvertisingIdInfo(applicationContext)
+                    advId = adInfo.id
+                } catch (e: java.lang.Exception) {
+                    ApphudLog.logE("finish load advertisingId $e")
                 }
             }
-        }else{
             if(continuation.isActive) {
-                continuation.resume(currentUser)
+                continuation.resume(advId)
             }
         }
-    }
+
+    suspend fun registrationSync(
+        needPaywalls: Boolean,
+        isNew: Boolean,
+        forceRegistration: Boolean = false
+    ): Customer? =
+        suspendCancellableCoroutine { continuation ->
+            if (!canPerformRequest()) {
+                ApphudLog.logE("registrationSync $MUST_REGISTER_ERROR")
+                if (continuation.isActive) {
+                    continuation.resume(null)
+                }
+            }
+
+            if (currentUser == null || forceRegistration) {
+                registration(needPaywalls, isNew, forceRegistration) { customer, error ->
+                    if (continuation.isActive) {
+                        continuation.resume(customer)
+                    }
+                }
+            } else {
+                if (continuation.isActive) {
+                    continuation.resume(currentUser)
+                }
+            }
+        }
 
     @Synchronized
-    fun registration(needPaywalls: Boolean, isNew: Boolean,  forceRegistration: Boolean = false, completionHandler: (Customer?, ApphudError?) -> Unit) {
-        if(!canPerformRequest()) {
+    fun registration(
+        needPaywalls: Boolean,
+        isNew: Boolean,
+        forceRegistration: Boolean = false,
+        completionHandler: (Customer?, ApphudError?) -> Unit
+    ) {
+        if (!canPerformRequest()) {
             ApphudLog.logE(::registration.name + MUST_REGISTER_ERROR)
             return
         }
 
-        if(currentUser == null || forceRegistration) {
+        if (currentUser == null || forceRegistration) {
             val apphudUrl = ApphudUrl.Builder()
                 .host(HeadersInterceptor.HOST)
                 .version(ApphudVersion.V1)
                 .path("customers")
                 .build()
 
-            val request = buildPostRequest(URL(apphudUrl.url), mkRegistrationBody(needPaywalls, isNew))
+            val request =
+                buildPostRequest(URL(apphudUrl.url), mkRegistrationBody(needPaywalls, isNew))
             val httpClient = getOkHttpClient()
             try {
                 val serverResponse = performRequestSync(httpClient, request)
@@ -401,55 +395,61 @@ object RequestManager {
                     completionHandler(null, ApphudError("Registration failed"))
                 }
             } catch (ex: Exception) {
-                val message = ex.message?:"Undefined error"
-                completionHandler(null,  ApphudError(message))
+                val message = ex.message ?: "Undefined error"
+                completionHandler(null, ApphudError(message))
             }
-        }else{
+        } else {
             completionHandler(currentUser, null)
         }
     }
 
-    suspend fun allProducts() : List<ApphudGroup>? =
-    suspendCancellableCoroutine { continuation ->
-        val apphudUrl = ApphudUrl.Builder()
-            .host(HeadersInterceptor.HOST)
-            .version(ApphudVersion.V2)
-            .path("products")
-            .build()
+    suspend fun allProducts(): List<ApphudGroup>? =
+        suspendCancellableCoroutine { continuation ->
+            val apphudUrl = ApphudUrl.Builder()
+                .host(HeadersInterceptor.HOST)
+                .version(ApphudVersion.V2)
+                .path("products")
+                .build()
 
-        val request = buildGetRequest(URL(apphudUrl.url))
+            val request = buildGetRequest(URL(apphudUrl.url))
 
-        makeRequest(request) { serverResponse, error ->
-            serverResponse?.let {
-                val responseDto: ResponseDto<List<ApphudGroupDto>>? =
-                    parser.fromJson<ResponseDto<List<ApphudGroupDto>>>(serverResponse, object: TypeToken<ResponseDto<List<ApphudGroupDto>>>(){}.type)
-                responseDto?.let{ response ->
-                    val productsList = response.data.results?.let { it1 -> productMapper.map(it1) }
-                    if(continuation.isActive) {
-                        continuation.resume(productsList)
+            makeRequest(request) { serverResponse, error ->
+                serverResponse?.let {
+                    val responseDto: ResponseDto<List<ApphudGroupDto>>? =
+                        parser.fromJson<ResponseDto<List<ApphudGroupDto>>>(
+                            serverResponse,
+                            object : TypeToken<ResponseDto<List<ApphudGroupDto>>>() {}.type
+                        )
+                    responseDto?.let { response ->
+                        val productsList =
+                            response.data.results?.let { it1 -> productMapper.map(it1) }
+                        if (continuation.isActive) {
+                            continuation.resume(productsList)
+                        }
+                    } ?: run {
+                        ApphudLog.logE("Failed to load products")
+                        if (continuation.isActive) {
+                            continuation.resume(null)
+                        }
                     }
-                }?: run{
-                    ApphudLog.logE("Failed to load products")
-                    if(continuation.isActive) {
+                } ?: run {
+                    if (error != null) {
+                        ApphudLog.logE(error.message)
+                    }
+                    if (continuation.isActive) {
                         continuation.resume(null)
                     }
                 }
-            } ?: run {
-                if (error != null) {
-                    ApphudLog.logE(error.message)
-                }
-                if(continuation.isActive) {
-                    continuation.resume(null)
-                }
             }
         }
-    }
 
-    fun purchased(purchase: Purchase,
-                  details: SkuDetails?,
-                  apphudProduct: ApphudProduct?,
-                  completionHandler: (Customer?, ApphudError?) -> Unit) {
-        if(!canPerformRequest()) {
+    fun purchased(
+        purchase: Purchase,
+        details: SkuDetails?,
+        apphudProduct: ApphudProduct?,
+        completionHandler: (Customer?, ApphudError?) -> Unit
+    ) {
+        if (!canPerformRequest()) {
             ApphudLog.logE(::purchased.name + MUST_REGISTER_ERROR)
             return
         }
@@ -461,9 +461,17 @@ object RequestManager {
             .build()
 
         val purchaseBody = details?.let { makePurchaseBody(purchase, it, null, null) }
-            ?: apphudProduct?.let { makePurchaseBody(purchase, it.skuDetails, it.paywall_id, it.id) }
+            ?: apphudProduct?.let {
+                makePurchaseBody(
+                    purchase,
+                    it.skuDetails,
+                    it.paywall_id,
+                    it.id
+                )
+            }
         if (purchaseBody == null) {
-            val message = "SkuDetails and ApphudProduct can not be null at the same time" + apphudProduct?.let{ " [Apphud product ID: " + it.id + "]"}
+            val message =
+                "SkuDetails and ApphudProduct can not be null at the same time" + apphudProduct?.let { " [Apphud product ID: " + it.id + "]" }
             ApphudLog.logE(message = message)
             completionHandler.invoke(null, ApphudError(message))
             return
@@ -492,9 +500,13 @@ object RequestManager {
         }
     }
 
-    fun restorePurchases(apphudProduct: ApphudProduct? = null, purchaseRecordDetailsSet: Set<PurchaseRecordDetails>, observerMode: Boolean,
-                  completionHandler: (Customer?, ApphudError?) -> Unit) {
-        if(!canPerformRequest()) {
+    fun restorePurchases(
+        apphudProduct: ApphudProduct? = null,
+        purchaseRecordDetailsSet: Set<PurchaseRecordDetails>,
+        observerMode: Boolean,
+        completionHandler: (Customer?, ApphudError?) -> Unit
+    ) {
+        if (!canPerformRequest()) {
             ApphudLog.logE(::restorePurchases.name + MUST_REGISTER_ERROR)
             return
         }
@@ -505,7 +517,8 @@ object RequestManager {
             .path("subscriptions")
             .build()
 
-        val purchaseBody = makeRestorePurchasesBody(apphudProduct, purchaseRecordDetailsSet.toList(), observerMode)
+        val purchaseBody =
+            makeRestorePurchasesBody(apphudProduct, purchaseRecordDetailsSet.toList(), observerMode)
 
         val request = buildPostRequest(URL(apphudUrl.url), purchaseBody)
 
@@ -529,6 +542,76 @@ object RequestManager {
             }
         }
     }
+
+    suspend fun restorePurchasesSync(
+        apphudProduct: ApphudProduct? = null,
+        purchaseRecordDetailsSet: List<PurchaseRecordDetails>?,
+        purchase: Purchase?,
+        skuProduct: SkuDetails?,
+        observerMode: Boolean
+    ): Customer? =
+        suspendCancellableCoroutine { continuation ->
+            if (!canPerformRequest()) {
+                ApphudLog.logE("restorePurchasesSync $MUST_REGISTER_ERROR")
+                if (continuation.isActive) {
+                    continuation.resume(null)
+                }
+            }
+
+            val apphudUrl = ApphudUrl.Builder()
+                .host(HeadersInterceptor.HOST)
+                .version(ApphudVersion.V1)
+                .path("subscriptions")
+                .build()
+
+            val purchaseBody = if(purchaseRecordDetailsSet != null){
+                makeRestorePurchasesBody(
+                    apphudProduct,
+                    purchaseRecordDetailsSet,
+                    observerMode
+                )
+            }else if(purchase != null && skuProduct != null){
+                makeTrackPurchasesBody(
+                    apphudProduct,
+                    purchase,
+                    skuProduct,
+                    observerMode
+                )
+            } else null
+
+            purchaseBody?.let{
+                val request = buildPostRequest(URL(apphudUrl.url), it)
+                makeUserRegisteredRequest(request) { serverResponse, error ->
+                    serverResponse?.let {
+                        val responseDto: ResponseDto<CustomerDto>? =
+                            parser.fromJson<ResponseDto<CustomerDto>>(
+                                serverResponse,
+                                object : TypeToken<ResponseDto<CustomerDto>>() {}.type
+                            )
+                        responseDto?.let { cDto ->
+                            currentUser = cDto.data.results?.let { customerObj ->
+                                customerMapper.map(customerObj)
+                            }
+                            if (continuation.isActive) {
+                                continuation.resume(currentUser)
+                            }
+                        } ?: run {
+                            if (continuation.isActive) {
+                                continuation.resume(null)
+                            }
+                        }
+                    } ?: run {
+                        if (continuation.isActive) {
+                            continuation.resume(null)
+                        }
+                    }
+                }
+            }?: run{
+                if (continuation.isActive) {
+                    continuation.resume(null)
+                }
+            }
+        }
 
     fun send(attributionBody: AttributionBody,  completionHandler: (Attribution?, ApphudError?) -> Unit){
         if(!canPerformRequest()) {
@@ -796,7 +879,7 @@ object RequestManager {
 
     private fun mkRegistrationBody(needPaywalls: Boolean, isNew: Boolean) =
         RegistrationBody(
-            locale = ConfigurationCompat.getLocales(Resources.getSystem().configuration).get(0).toString(),
+            locale = Locale.getDefault().toString(),
             sdk_version = BuildConfig.VERSION_NAME,
             app_version =  this.applicationContext.buildAppVersion(),
             device_family = Build.MANUFACTURER,
@@ -868,6 +951,24 @@ object RequestManager {
                     observer_mode = observerMode
                 )
             }
+        )
+
+    private fun makeTrackPurchasesBody(apphudProduct: ApphudProduct? = null, purchase: Purchase, skuProduct: SkuDetails?, observerMode: Boolean) =
+        PurchaseBody(
+            device_id = deviceId,
+            purchases = listOf(
+                PurchaseItemBody(
+                    order_id = purchase.orderId,
+                    product_id = purchase.skus.first(),
+                    purchase_token = purchase.purchaseToken,
+                    price_currency_code = skuProduct?.priceCurrencyCode,
+                    price_amount_micros = skuProduct?.priceAmountMicros,
+                    subscription_period = skuProduct?.let{ if(it.subscriptionPeriod.isNotEmpty()) it.subscriptionPeriod else null},
+                    paywall_id = if(apphudProduct?.skuDetails?.sku == purchase.skus.first()) apphudProduct?.paywall_id else null,
+                    product_bundle_id = if(apphudProduct?.skuDetails?.sku == purchase.skus.first()) apphudProduct?.id else null,
+                    observer_mode = observerMode
+                )
+            )
         )
 
     internal fun makeErrorLogsBody(message: String, apphud_product_id: String? = null) =

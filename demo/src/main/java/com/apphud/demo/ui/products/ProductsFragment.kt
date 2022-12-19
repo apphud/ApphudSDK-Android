@@ -1,17 +1,20 @@
 package com.apphud.demo.ui.products
 
 import android.os.Bundle
-import androidx.fragment.app.Fragment
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import android.widget.Toast
+import androidx.fragment.app.Fragment
 import androidx.lifecycle.ViewModelProvider
 import androidx.navigation.fragment.navArgs
 import androidx.recyclerview.widget.GridLayoutManager
 import androidx.recyclerview.widget.RecyclerView
+import com.android.billingclient.api.BillingFlowParams
+import com.apphud.demo.MainActivity
 import com.apphud.demo.R
 import com.apphud.demo.databinding.FragmentProductsBinding
+import com.apphud.demo.ui.utils.SettingsManager
 import com.apphud.sdk.Apphud
 
 
@@ -34,12 +37,25 @@ class ProductsFragment : Fragment() {
 
         viewAdapter = ProductsAdapter(productsViewModel, context)
         viewAdapter.selectProduct = { product ->
-            activity?.let{
-                Apphud.purchase(it, product){ result ->
-                    result.error?.let{ err->
-                        Toast.makeText(activity, err.message, Toast.LENGTH_SHORT).show()
-                    }?: run{
-                        Toast.makeText(activity, R.string.success, Toast.LENGTH_SHORT).show()
+            activity?.let{ activity ->
+                if(SettingsManager.useApphudPurchases){
+                    //Use Apphud purchase flow
+                    Apphud.purchase(activity, product){ result ->
+                        result.error?.let{ err->
+                            Toast.makeText(activity, err.message, Toast.LENGTH_SHORT).show()
+                        }?: run{
+                            Toast.makeText(activity, R.string.success, Toast.LENGTH_SHORT).show()
+                        }
+                    }
+                }else{
+                    //Use own Google Billing flow
+                    product.skuDetails?.let{
+                        val billingFlowParams = BillingFlowParams.newBuilder()
+                            .setSkuDetails(it)
+                            .build()
+
+                        (activity as MainActivity).skuDetails = it
+                        (activity as MainActivity).billingClient?.launchBillingFlow(activity, billingFlowParams)
                     }
                 }
             }

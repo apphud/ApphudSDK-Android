@@ -2,6 +2,7 @@ package com.apphud.sdk
 
 import android.app.Activity
 import android.content.Context
+import com.android.billingclient.api.Purchase
 import com.android.billingclient.api.SkuDetails
 import com.apphud.sdk.domain.*
 
@@ -158,9 +159,21 @@ object Apphud {
 
     /**
      * You should use this method only in Observer mode.
+     * This method will send the purchase to Apphud server.
+     * If you use Apphud SDK as observer, you should call this method after every successful purchase.
+     * Pass `Paywall Identifier` to be able to use A/B tests in Observer Mode. See docs.apphud.com for details.
+     */
+    @kotlin.jvm.JvmStatic
+    fun trackPurchase(purchase: Purchase, skuProduct: SkuDetails, paywallIdentifier: String? = null) = ApphudInternal.trackPurchase(purchase, skuProduct, paywallIdentifier)
+
+    /**
+     * You should use this method only in Observer mode.
      * This method will send all the purchases to the Apphud server.
      * If you use Apphud SDK as observer, you should call this method after every successful purchase or restoration.
+     * Pass `Paywall Identifier` to be able to use A/B tests in Observer Mode. See docs.apphud.com for details.
      */
+    @Deprecated("Use \"trackPurchase\" method instead.",
+        ReplaceWith("trackPurchase(purchase: Purchase, skuProduct: SkuDetails, paywallIdentifier: String? = null)"))
     @kotlin.jvm.JvmStatic
     fun syncPurchases(paywallIdentifier: String? = null) = ApphudInternal.syncPurchases(paywallIdentifier)
 
@@ -238,7 +251,7 @@ object Apphud {
      */
     @kotlin.jvm.JvmStatic
     fun purchase(activity: Activity, product: ApphudProduct, block: ((ApphudPurchaseResult) -> Unit)?) =
-            ApphudInternal.purchase(activity, null, null, product, true, block)
+        ApphudInternal.purchase(activity, null, null, product, true, block)
 
     /**
      * Purchase product by id and automatically submit Google Play purchase token to Apphud
@@ -393,7 +406,7 @@ object Apphud {
     - parameter productId: Optional*. Recommended. Product Id of promotional subscription. See __Note__ message above for details.
     - parameter permissionGroup: Optional*. Permission Group of promotional subscription. Use this parameter in case you have multiple permission groups. See __Note__ message above for details.
     - parameter callback: Optional. Returns `true` if promotional subscription was granted.
-    */
+     */
     @kotlin.jvm.JvmStatic
     fun grantPromotional(daysCount: Int, productId: String?, permissionGroup: ApphudGroup? = null, callback: ((Boolean) -> Unit)? = null) {
         ApphudInternal.grantPromotional(daysCount, productId, permissionGroup, callback)

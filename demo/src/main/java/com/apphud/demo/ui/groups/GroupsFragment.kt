@@ -36,13 +36,13 @@ class GroupsFragment : Fragment() {
         }
         viewAdapter.selectProduct = { product ->
             activity?.let{
-                Apphud.purchase(it, product){ result ->
+                /*Apphud.purchase(it, product){ result ->
                     result.error?.let{ err->
                         Toast.makeText(activity, err.message, Toast.LENGTH_SHORT).show()
                     }?: run{
                         Toast.makeText(activity, R.string.success, Toast.LENGTH_SHORT).show()
                     }
-                }
+                }*/
             }
         }
 
