@@ -1,45 +1,37 @@
 package com.apphud.sdk.managers
 
 import android.content.Context
-import android.content.res.Resources
 import android.net.ConnectivityManager
 import android.net.NetworkCapabilities
 import android.os.Build
-import androidx.core.os.ConfigurationCompat
 import com.android.billingclient.api.Purchase
 import com.android.billingclient.api.SkuDetails
 import com.apphud.sdk.*
-import com.apphud.sdk.ApphudUtils
-import com.apphud.sdk.ApphudVersion
 import com.apphud.sdk.body.*
 import com.apphud.sdk.client.*
 import com.apphud.sdk.client.dto.*
 import com.apphud.sdk.domain.*
+import com.apphud.sdk.managers.AdvertisingIdManager.AdInfo
 import com.apphud.sdk.mappers.*
 import com.apphud.sdk.parser.GsonParser
 import com.apphud.sdk.parser.Parser
 import com.apphud.sdk.storage.SharedPreferencesStorage
-import com.google.android.gms.ads.identifier.AdvertisingIdClient
-import com.google.android.gms.common.GooglePlayServicesNotAvailableException
-import com.google.android.gms.common.GooglePlayServicesRepairableException
+import com.google.gson.GsonBuilder
 import com.google.gson.reflect.TypeToken
+import kotlinx.coroutines.suspendCancellableCoroutine
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import okhttp3.RequestBody.Companion.toRequestBody
-import okhttp3.logging.HttpLoggingInterceptor
-import java.io.IOException
-import java.net.URL
-import java.util.*
-import org.json.JSONException
-
-import org.json.JSONObject
-import kotlin.coroutines.resume
-import com.google.gson.GsonBuilder
-import kotlinx.coroutines.suspendCancellableCoroutine
 import okhttp3.Response
 import okio.Buffer
+import org.json.JSONException
+import org.json.JSONObject
+import java.io.IOException
+import java.net.URL
 import java.nio.charset.Charset
+import java.util.*
+import kotlin.coroutines.resume
 
 
 object RequestManager {
@@ -324,24 +316,16 @@ object RequestManager {
 
     suspend fun fetchAdvertisingId(): String? =
         suspendCancellableCoroutine { continuation ->
-            //Load advertising id
-            var advId: String? = null
+            var advId :String? = null
             if (ApphudUtils.adTracking) {
                 try {
-                    ApphudLog.logI("start load advertisingId")
-                    advId = AdvertisingIdClient.getAdvertisingIdInfo(applicationContext).id
-                    ApphudLog.logI("success load advertisingId: $advId")
-                } catch (e: IOException) {
-                    ApphudLog.logE("finish load advertisingId $e")
-                } catch (e: IllegalStateException) {
-                    ApphudLog.logE("finish load advertisingId $e")
-                } catch (e: GooglePlayServicesNotAvailableException) {
-                    ApphudLog.logE("finish load advertisingId $e")
-                } catch (e: GooglePlayServicesRepairableException) {
+                    val adInfo: AdInfo = AdvertisingIdManager.getAdvertisingIdInfo(applicationContext)
+                    advId = adInfo.id
+                } catch (e: java.lang.Exception) {
                     ApphudLog.logE("finish load advertisingId $e")
                 }
             }
-            if (continuation.isActive) {
+            if(continuation.isActive) {
                 continuation.resume(advId)
             }
         }
@@ -895,7 +879,7 @@ object RequestManager {
 
     private fun mkRegistrationBody(needPaywalls: Boolean, isNew: Boolean) =
         RegistrationBody(
-            locale = ConfigurationCompat.getLocales(Resources.getSystem().configuration).get(0).toString(),
+            locale = Locale.getDefault().toString(),
             sdk_version = BuildConfig.VERSION_NAME,
             app_version =  this.applicationContext.buildAppVersion(),
             device_family = Build.MANUFACTURER,
