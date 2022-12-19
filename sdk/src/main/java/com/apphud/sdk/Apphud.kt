@@ -159,9 +159,21 @@ object Apphud {
 
     /**
      * You should use this method only in Observer mode.
+     * This method will send the purchase to Apphud server.
+     * If you use Apphud SDK as observer, you should call this method after every successful purchase.
+     * Pass `Paywall Identifier` to be able to use A/B tests in Observer Mode. See docs.apphud.com for details.
+     */
+    @kotlin.jvm.JvmStatic
+    fun trackPurchase(purchase: Purchase, skuProduct: SkuDetails, paywallIdentifier: String? = null) = ApphudInternal.trackPurchase(purchase, skuProduct, paywallIdentifier)
+
+    /**
+     * You should use this method only in Observer mode.
      * This method will send all the purchases to the Apphud server.
      * If you use Apphud SDK as observer, you should call this method after every successful purchase or restoration.
+     * Pass `Paywall Identifier` to be able to use A/B tests in Observer Mode. See docs.apphud.com for details.
      */
+    @Deprecated("Use \"trackPurchase\" method instead.",
+        ReplaceWith("trackPurchase(purchase: Purchase, skuProduct: SkuDetails, paywallIdentifier: String? = null)"))
     @kotlin.jvm.JvmStatic
     fun syncPurchases(paywallIdentifier: String? = null) = ApphudInternal.syncPurchases(paywallIdentifier)
 
@@ -188,9 +200,6 @@ object Apphud {
     fun refreshEntitlements() {
         ApphudInternal.refreshEntitlements()
     }
-
-    @kotlin.jvm.JvmStatic
-    fun trackPurchase(purchase: Purchase, skuProduct: SkuDetails, paywallIdentifier: String? = null) = ApphudInternal.trackPurchase(purchase, skuProduct, paywallIdentifier)
 
     /**
      * Returns array of `SkuDetails` objects, identifiers of which you added in Apphud > Product Hub > Products.
