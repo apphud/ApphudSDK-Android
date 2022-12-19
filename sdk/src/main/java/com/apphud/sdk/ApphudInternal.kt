@@ -729,8 +729,6 @@ internal object ApphudInternal {
                             }
                         } else {
                             ApphudLog.log("Products to restore: $purchases")
-                            //TODO remove
-                            purchases = purchases.filter { !it.skus.contains("com.apphud.demo.subscriptions.s1") }.toMutableList()
 
                             val restoredPurchases = mutableListOf<PurchaseRecordDetails>()
                             val subsRestored =
