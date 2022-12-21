@@ -508,6 +508,7 @@ internal object ApphudInternal {
         callback: ((ApphudPurchaseResult) -> Unit)?
     ) {
         billing.acknowledgeCallback = { status, purchase ->
+            billing.acknowledgeCallback = null
             mainScope.launch {
                 when (status) {
                     is PurchaseCallbackStatus.Error -> {
@@ -530,6 +531,7 @@ internal object ApphudInternal {
         }
         billing.consumeCallback = { status, purchase ->
             mainScope.launch {
+                billing.consumeCallback = null
                 when (status) {
                     is PurchaseCallbackStatus.Error -> {
                         val message = "Failed to consume purchase with error: ${status.error}" + apphudProduct?.let{ " [Apphud product ID: " + it.id + "]"}
@@ -550,6 +552,7 @@ internal object ApphudInternal {
             }
         }
         billing.purchasesCallback = { purchasesResult ->
+            billing.purchasesCallback = null
             mainScope.launch {
                 when (purchasesResult) {
                     is PurchaseUpdatedCallbackStatus.Error -> {

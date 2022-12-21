@@ -56,10 +56,6 @@ class CustomerFragment : Fragment() {
         }
 
         binding.btnSync.setOnClickListener {
-            /*(1..10).forEach{ _ ->
-                Apphud.syncPurchases()
-            }*/
-
             Apphud.syncPurchases()
 
             /*Apphud.restorePurchases{ subscriptions: List<ApphudSubscription>?, purchases: List<ApphudNonRenewingPurchase>?, error: ApphudError? ->

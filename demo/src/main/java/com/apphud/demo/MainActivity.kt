@@ -1,7 +1,6 @@
 package com.apphud.demo
 
 import android.os.Bundle
-import android.util.Log
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import androidx.appcompat.widget.Toolbar
@@ -14,6 +13,7 @@ import androidx.navigation.ui.setupActionBarWithNavController
 import com.android.billingclient.api.*
 import com.android.billingclient.api.BillingClient.BillingResponseCode
 import com.apphud.demo.databinding.ActivityMainBinding
+import com.apphud.demo.ui.utils.SettingsManager
 import com.apphud.sdk.Apphud
 import com.google.android.material.navigation.NavigationView
 
@@ -59,26 +59,36 @@ class MainActivity : AppCompatActivity() {
         }
         billingClient = BillingClient.newBuilder(this)
             .setListener { billingResult, list ->
-                if(billingResult.responseCode == BillingResponseCode.OK){
-                    /*list?.let{ l ->
-                        Log.d("Apphud", "Just purchasesd: $list")
-                        for (purchase in l){
-                            purchase?.let{ p ->
-                                skuDetails?.let{ details ->
-                                    Apphud.trackPurchase(p, details, paywallIdentifier)
-                                }
-                            }
-                        }
-                    }*/
-                    list?.let { l ->
-                        for (purchase in l) {
-                            purchase?.let{ p ->
-                                val acknowledgePurchaseParams = AcknowledgePurchaseParams.newBuilder()
-                                    .setPurchaseToken(p.purchaseToken)
-                                    .build()
-                                billingClient?.acknowledgePurchase(acknowledgePurchaseParams) {
-                                    skuDetails?.let{ details ->
-                                        Apphud.trackPurchase(p, details, paywallIdentifier)
+                if(!SettingsManager.useApphudPurchases) {
+                    if (billingResult.responseCode == BillingResponseCode.OK) {
+                        list?.let { l ->
+                            for (purchase in l) {
+                                purchase?.let { p ->
+                                    val isCunsumable =
+                                        p.skus.filter { it.contains("com.apphud.demo.consumable") }
+                                            .isNotEmpty()
+
+                                    if (isCunsumable) {
+                                        val consumeParams: ConsumeParams =
+                                            ConsumeParams.newBuilder()
+                                                .setPurchaseToken(p.purchaseToken)
+                                                .build()
+
+                                        billingClient?.consumeAsync(consumeParams) { result, value ->
+                                            skuDetails?.let { details ->
+                                                Apphud.trackPurchase(p, details, paywallIdentifier)
+                                            }
+                                        }
+                                    } else {
+                                        val acknowledgePurchaseParams =
+                                            AcknowledgePurchaseParams.newBuilder()
+                                                .setPurchaseToken(p.purchaseToken)
+                                                .build()
+                                        billingClient?.acknowledgePurchase(acknowledgePurchaseParams) {
+                                            skuDetails?.let { details ->
+                                                Apphud.trackPurchase(p, details, paywallIdentifier)
+                                            }
+                                        }
                                     }
                                 }
                             }
