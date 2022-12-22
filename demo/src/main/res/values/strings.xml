@@ -26,6 +26,5 @@
     <string name="variation">Variation: </string>
     <string name="json">Json</string>
     <string name="restore_success">Success: restored purchases count %s</string>
-    <!-- TODO: Remove or change this placeholder text -->
-    <string name="hello_blank_fragment">Hello blank fragment</string>
+    <string name="use_apphud_purchases">Use Apphud purchases</string>
 </resources>

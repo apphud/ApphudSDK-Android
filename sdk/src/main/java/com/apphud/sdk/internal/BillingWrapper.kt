@@ -3,7 +3,10 @@ package com.apphud.sdk.internal
 import android.app.Activity
 import android.content.Context
 import com.android.billingclient.api.*
+import com.apphud.sdk.ApphudLog
 import com.apphud.sdk.ProductId
+import com.apphud.sdk.internal.callback_status.PurchaseHistoryCallbackStatus
+import com.apphud.sdk.internal.callback_status.PurchaseRestoredCallbackStatus
 import kotlinx.coroutines.*
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
@@ -27,6 +30,7 @@ internal class BillingWrapper(context: Context) : Closeable {
     private val history = HistoryWrapper(billing)
     private val acknowledge = AcknowledgeWrapper(billing)
 
+
     private val mutex = Mutex()
     private suspend fun connectIfNeeded(): Boolean {
         var result: Boolean
@@ -34,10 +38,15 @@ internal class BillingWrapper(context: Context) : Closeable {
             if(billing.isReady) {
                 result = true
             }else{
-                while (!billing.connect()) {
-                    Thread.sleep(300)
+                try {
+                    while (!billing.connect()) {
+                        Thread.sleep(300)
+                    }
+                    result = true
+                }catch (ex: java.lang.Exception){
+                    ApphudLog.log("Connect to Billing failed: ${ex.message?:"error"}")
+                    result = false
                 }
-                result = true
             }
         }
         return result
@@ -65,18 +74,6 @@ internal class BillingWrapper(context: Context) : Closeable {
         }
     }
 
-    var skuCallback: ApphudSkuDetailsCallback? = null
-        set(value) {
-            field = value
-            sku.detailsCallback = value
-        }
-
-    var restoreCallback: ApphudSkuDetailsRestoreCallback? = null
-        set(value) {
-            field = value
-            sku.restoreCallback = value
-        }
-
     var purchasesCallback: PurchasesUpdatedCallback? = null
         set(value) {
             field = value
@@ -95,47 +92,23 @@ internal class BillingWrapper(context: Context) : Closeable {
             consume.callBack = value
         }
 
-    var historyCallback: PurchaseHistoryListener? = null
-        set(value) {
-            field = value
-            history.callback = value
-        }
-
-    fun queryPurchaseHistory(@BillingClient.SkuType type: SkuType) {
-        GlobalScope.launch {
-            val connectIfNeeded = connectIfNeeded()
-            if (!connectIfNeeded) return@launch
-            return@launch  history.queryPurchaseHistory(type)
-        }
-    }
-
-    fun details(@BillingClient.SkuType type: SkuType, products: List<ProductId>) =
-        details(type = type, products = products, manualCallback = null)
-
-    fun details(@BillingClient.SkuType type: SkuType,
-                products: List<ProductId>,
-                manualCallback: ApphudSkuDetailsCallback? = null) {
-        GlobalScope.launch{
-            val connectIfNeeded = connectIfNeeded()
-            if (!connectIfNeeded) return@launch
-            return@launch sku.queryAsync(type = type, products = products, manualCallback = manualCallback)
-        }
+    suspend fun queryPurchaseHistorySync(@BillingClient.SkuType type: SkuType) : PurchaseHistoryCallbackStatus {
+        val connectIfNeeded = connectIfNeeded()
+        if (!connectIfNeeded) return PurchaseHistoryCallbackStatus.Error(type, null)
+        return history.queryPurchaseHistorySync(type)
     }
 
     suspend fun detailsEx(@BillingClient.SkuType type: SkuType, products: List<ProductId>) : List<SkuDetails>? {
         val connectIfNeeded = connectIfNeeded()
         if (!connectIfNeeded) return null
 
-        return sku.queryAsyncEx(type = type, products = products)
+        return sku.querySync(type = type, products = products)
     }
 
-
-    fun restore(@BillingClient.SkuType type: SkuType, products: List<PurchaseHistoryRecord>) {
-        GlobalScope.launch{
-            val connectIfNeeded = connectIfNeeded()
-            if (!connectIfNeeded) return@launch
-            return@launch sku.restoreAsync(type, products)
-        }
+    suspend fun restoreSync(@BillingClient.SkuType type: SkuType, products: List<PurchaseHistoryRecord>): PurchaseRestoredCallbackStatus {
+        val connectIfNeeded = connectIfNeeded()
+        if (!connectIfNeeded) return PurchaseRestoredCallbackStatus.Error(type)
+        return sku.restoreSync(type, products)
     }
 
     fun purchase(activity: Activity, details: SkuDetails, deviceId: String? = null) {
