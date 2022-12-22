@@ -31,6 +31,7 @@ import java.io.IOException
 import java.net.URL
 import java.nio.charset.Charset
 import java.util.*
+import java.util.concurrent.TimeUnit
 import kotlin.coroutines.resume
 
 
@@ -94,7 +95,7 @@ object RequestManager {
                 && apiKey != null
     }
 
-    private fun getOkHttpClient(retry: Boolean = true): OkHttpClient {
+    private fun getOkHttpClient( request: Request, retry: Boolean = true): OkHttpClient {
         val retryInterceptor = HttpRetryInterceptor()
         val headersInterceptor = HeadersInterceptor(apiKey)
         /*val logging = HttpLoggingInterceptor {
@@ -115,11 +116,19 @@ object RequestManager {
             logging.level = HttpLoggingInterceptor.Level.NONE
         }*/
 
+        var readTimeout: Long = 10L
+        if (request.method == "POST" && request.url.toString().contains("subscriptions")) {
+            readTimeout = 30L
+        }
+
         var builder = OkHttpClient.Builder()
+            .readTimeout(readTimeout, TimeUnit.SECONDS)
+            .writeTimeout(10, TimeUnit.SECONDS)
+            .connectTimeout(10, TimeUnit.SECONDS)
         if (retry) builder.addInterceptor(retryInterceptor)
         builder.addNetworkInterceptor(headersInterceptor)
         //builder.addNetworkInterceptor(logging)
-
+        
         return builder.build()
     }
 
@@ -271,7 +280,7 @@ object RequestManager {
         retry: Boolean = true,
         completionHandler: (String?, ApphudError?) -> Unit
     ) {
-        val httpClient = getOkHttpClient(retry)
+        val httpClient = getOkHttpClient(request, retry)
         performRequest(httpClient, request, completionHandler)
     }
 
@@ -279,7 +288,7 @@ object RequestManager {
         request: Request,
         completionHandler: (String?, ApphudError?) -> Unit
     ) {
-        val httpClient = getOkHttpClient()
+        val httpClient = getOkHttpClient(request)
         if (currentUser == null) {
             registration(true, true) { customer, error ->
                 customer?.let {
@@ -377,7 +386,7 @@ object RequestManager {
 
             val request =
                 buildPostRequest(URL(apphudUrl.url), mkRegistrationBody(needPaywalls, isNew))
-            val httpClient = getOkHttpClient()
+            val httpClient = getOkHttpClient(request)
             try {
                 val serverResponse = performRequestSync(httpClient, request)
                 val responseDto: ResponseDto<CustomerDto>? =
@@ -692,7 +701,7 @@ object RequestManager {
             .build()
 
         val request = buildPostRequest(URL(apphudUrl.url), grantPromotionalBody(daysCount, productId, permissionGroup))
-        val httpClient = getOkHttpClient()
+        val httpClient = getOkHttpClient(request)
         try {
             val serverResponse = performRequestSync(httpClient, request)
             val responseDto: ResponseDto<CustomerDto>? =
