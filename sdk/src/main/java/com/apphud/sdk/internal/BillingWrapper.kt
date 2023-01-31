@@ -54,14 +54,17 @@ internal class BillingWrapper(context: Context) : Closeable {
 
     suspend fun BillingClient.connect(): Boolean {
         return suspendCancellableCoroutine { continuation ->
+            var resumed = false
             startConnection(object : BillingClientStateListener {
                 override fun onBillingSetupFinished(billingResult: BillingResult) {
                     if (billingResult.responseCode == BillingClient.BillingResponseCode.OK) {
-                        if(continuation.isActive) {
+                        if(continuation.isActive && !resumed) {
+                            resumed = true
                             continuation.resume(true)
                         }
                     } else {
-                        if(continuation.isActive) {
+                        if(continuation.isActive && !resumed) {
+                            resumed = true
                             continuation.resume(false)
                         }
                     }
