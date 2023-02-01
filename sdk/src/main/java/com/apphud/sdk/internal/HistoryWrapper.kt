@@ -33,19 +33,22 @@ internal class HistoryWrapper(
 
     suspend fun queryPurchaseHistorySync(@BillingClient.SkuType type: SkuType): PurchaseHistoryCallbackStatus =
         suspendCancellableCoroutine { continuation ->
+            var resumed = false
             thread(start = true, name = "queryAsync+$type") {
                 billing.queryPurchaseHistoryAsync(type) { result, purchases ->
                     result.response(
                         message = "Failed restore purchases",
                         error = {
                             ApphudLog.logI("Query History error $type")
-                            if (continuation.isActive) {
+                            if (continuation.isActive && !resumed) {
+                                resumed = true
                                 continuation.resume(PurchaseHistoryCallbackStatus.Error(type, result))
                             }
                         },
                         success = {
                             ApphudLog.logI("Query History success $type")
-                            if (continuation.isActive) {
+                            if (continuation.isActive && !resumed) {
+                                resumed = true
                                 continuation.resume(PurchaseHistoryCallbackStatus.Success(type, purchases ?: emptyList()))
                             }
                         }
