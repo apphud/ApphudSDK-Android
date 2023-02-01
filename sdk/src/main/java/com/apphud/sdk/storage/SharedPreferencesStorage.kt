@@ -57,7 +57,7 @@ class SharedPreferencesStorage(
     override var customer: Customer?
         get() {
             val source = preferences.getString(CUSTOMER_KEY, null)
-            val type = object : TypeToken<Customer>() {}.type
+            val type = TypeToken.getParameterized(Customer::class.java).type
             return parser.fromJson<Customer>(source, type)
         }
         set(value) {
