@@ -71,6 +71,7 @@ internal class SkuDetailsWrapper(
 
     suspend fun restoreSync(@BillingClient.SkuType type: SkuType, records: List<PurchaseHistoryRecord>) :PurchaseRestoredCallbackStatus =
         suspendCancellableCoroutine { continuation ->
+            var resumed = false
             val products = records.map { it.skus }.flatten().distinct()
             val params = SkuDetailsParams.newBuilder()
                 .setSkusList(products)
@@ -100,12 +101,14 @@ internal class SkuDetailsWrapper(
                                 true -> {
                                     val message = "SkuDetails return empty list for $type and records: $records"
                                     ApphudLog.log(message)
-                                    if(continuation.isActive) {
+                                    if(continuation.isActive && !resumed) {
+                                        resumed = true
                                         continuation.resume(PurchaseRestoredCallbackStatus.Error(type = type, result = null, message = message))
                                     }
                                 }
                                 else -> {
-                                    if(continuation.isActive) {
+                                    if(continuation.isActive && !resumed) {
+                                        resumed = true
                                         continuation.resume(PurchaseRestoredCallbackStatus.Success(type = type, purchases))
                                     }
                                 }
@@ -113,7 +116,8 @@ internal class SkuDetailsWrapper(
                         }
                         else -> {
                             result.logMessage("RestoreAsync failed for type: $type products: $products")
-                            if(continuation.isActive) {
+                            if(continuation.isActive && !resumed) {
+                                resumed = true
                                 continuation.resume(PurchaseRestoredCallbackStatus.Error(type = type, result = result, message = type))
                             }
                         }
@@ -154,6 +158,7 @@ internal class SkuDetailsWrapper(
         products: List<ProductId>
     ): List<SkuDetails>? =
     suspendCancellableCoroutine { continuation ->
+        var resumed = false
         val params = SkuDetailsParams.newBuilder()
             .setSkusList(products)
             .setType(type)
@@ -164,13 +169,15 @@ internal class SkuDetailsWrapper(
                 when (result.isSuccess()) {
                     true -> {
                         ApphudLog.logI("Query SkuDetails success $type")
-                        if(continuation.isActive) {
+                        if(continuation.isActive && !resumed) {
+                            resumed = true
                             continuation.resume(details.orEmpty())
                         }
                     }
                     else -> {
                         result.logMessage("Query SkuDetails Async type: $type products: $products")
-                        if(continuation.isActive) {
+                        if(continuation.isActive && !resumed) {
+                            resumed = true
                             continuation.resume(null)
                         }
                     }
