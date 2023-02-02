@@ -1,7 +1,6 @@
 package com.apphud.sdk.storage
 
 import android.content.Context
-import com.android.billingclient.api.SkuDetails
 import com.apphud.sdk.ApphudListener
 import com.apphud.sdk.ApphudLog
 import com.apphud.sdk.ApphudUserProperty
@@ -57,8 +56,7 @@ class SharedPreferencesStorage(
     override var customer: Customer?
         get() {
             val source = preferences.getString(CUSTOMER_KEY, null)
-            val type = object : TypeToken<Customer>() {}.type
-            return parser.fromJson<Customer>(source, type)
+            return parser.fromJson<Customer>(source, Customer::class.java)
         }
         set(value) {
             val source = parser.toJson(value)
@@ -94,8 +92,7 @@ class SharedPreferencesStorage(
     override var facebook: FacebookInfo?
         get() {
             val source = preferences.getString(FACEBOOK_KEY, null)
-            val type = object : TypeToken<FacebookInfo>() {}.type
-            return parser.fromJson<FacebookInfo>(source, type)
+            return parser.fromJson<FacebookInfo>(source, FacebookInfo::class.java)
         }
         set(value) {
             val source = parser.toJson(value)
@@ -115,8 +112,7 @@ class SharedPreferencesStorage(
     override var appsflyer: AppsflyerInfo?
         get() {
             val source = preferences.getString(APPSFLYER_KEY, null)
-            val type = object : TypeToken<AppsflyerInfo>() {}.type
-            return parser.fromJson<AppsflyerInfo>(source, type)
+            return parser.fromJson<AppsflyerInfo>(source, AppsflyerInfo::class.java)
         }
         set(value) {
             val source = parser.toJson(value)
@@ -128,8 +124,7 @@ class SharedPreferencesStorage(
     override var adjust: AdjustInfo?
         get() {
             val source = preferences.getString(ADJUST_KEY, null)
-            val type = object : TypeToken<AdjustInfo>() {}.type
-            return parser.fromJson<AdjustInfo>(source, type)
+            return parser.fromJson<AdjustInfo>(source, AdjustInfo::class.java)
         }
         set(value) {
             val source = parser.toJson(value)
@@ -147,7 +142,7 @@ class SharedPreferencesStorage(
     override var productGroups: List<ApphudGroup>?
         get() {
             val source = preferences.getString(GROUP_KEY, null)
-            val type = object : TypeToken<List<ApphudGroup>>() {}.type
+            val type = TypeToken.getParameterized(List::class.java, ApphudGroup::class.java).type
             return parser.fromJson<List<ApphudGroup>>(source, type)
         }
         set(value) {
@@ -164,7 +159,7 @@ class SharedPreferencesStorage(
             val currentTime = System.currentTimeMillis()
             return if (currentTime < timestamp) {
                 val source = preferences.getString(PAYWALLS_KEY, null)
-                val type = object : TypeToken<List<ApphudPaywall>>() {}.type
+                val type = TypeToken.getParameterized(List::class.java, ApphudPaywall::class.java).type
                 parser.fromJson<List<ApphudPaywall>>(source, type)
             } else null
         }
@@ -182,7 +177,7 @@ class SharedPreferencesStorage(
             val currentTime = System.currentTimeMillis()
             return if (currentTime < timestamp) {
                 val source = preferences.getString(SKU_KEY, null)
-                val type = object : TypeToken<List<String>>() {}.type
+                val type = TypeToken.getParameterized(List::class.java, String::class.java).type
                 parser.fromJson<List<String>>(source, type)
             } else null
         }
