@@ -389,10 +389,11 @@ object RequestManager {
             val httpClient = getOkHttpClient(request)
             try {
                 val serverResponse = performRequestSync(httpClient, request)
+                val type = TypeToken.getParameterized(ResponseDto::class.java, CustomerDto::class.java).type
                 val responseDto: ResponseDto<CustomerDto>? =
                     parser.fromJson<ResponseDto<CustomerDto>>(
                         serverResponse,
-                        object : TypeToken<ResponseDto<CustomerDto>>() {}.type
+                        type
                     )
 
                 responseDto?.let { cDto ->
@@ -424,10 +425,12 @@ object RequestManager {
 
             makeRequest(request) { serverResponse, error ->
                 serverResponse?.let {
+                    val typeList = TypeToken.getParameterized(List::class.java, ApphudGroupDto::class.java).type
+                    val type = TypeToken.getParameterized(ResponseDto::class.java, typeList).type
                     val responseDto: ResponseDto<List<ApphudGroupDto>>? =
                         parser.fromJson<ResponseDto<List<ApphudGroupDto>>>(
                             serverResponse,
-                            object : TypeToken<ResponseDto<List<ApphudGroupDto>>>() {}.type
+                            type
                         )
                     responseDto?.let { response ->
                         val productsList =
@@ -490,10 +493,11 @@ object RequestManager {
 
         makeUserRegisteredRequest(request) { serverResponse, error ->
             serverResponse?.let {
+                val type = TypeToken.getParameterized(ResponseDto::class.java, CustomerDto::class.java).type
                 val responseDto: ResponseDto<CustomerDto>? =
                     parser.fromJson<ResponseDto<CustomerDto>>(
                         serverResponse,
-                        object : TypeToken<ResponseDto<CustomerDto>>() {}.type
+                        type
                     )
                 responseDto?.let { cDto ->
                     currentUser = cDto.data.results?.let { customerObj ->
@@ -533,10 +537,11 @@ object RequestManager {
 
         makeUserRegisteredRequest(request) { serverResponse, error ->
             serverResponse?.let {
+                val type = TypeToken.getParameterized(ResponseDto::class.java, CustomerDto::class.java).type
                 val responseDto: ResponseDto<CustomerDto>? =
                     parser.fromJson<ResponseDto<CustomerDto>>(
                         serverResponse,
-                        object : TypeToken<ResponseDto<CustomerDto>>() {}.type
+                        type
                     )
                 responseDto?.let { cDto ->
                     currentUser = cDto.data.results?.let { customerObj ->
@@ -592,10 +597,11 @@ object RequestManager {
                 val request = buildPostRequest(URL(apphudUrl.url), it)
                 makeUserRegisteredRequest(request) { serverResponse, error ->
                     serverResponse?.let {
+                        val type = TypeToken.getParameterized(ResponseDto::class.java, CustomerDto::class.java).type
                         val responseDto: ResponseDto<CustomerDto>? =
                             parser.fromJson<ResponseDto<CustomerDto>>(
                                 serverResponse,
-                                object : TypeToken<ResponseDto<CustomerDto>>() {}.type
+                                type
                             )
                         responseDto?.let { cDto ->
                             currentUser = cDto.data.results?.let { customerObj ->
@@ -638,10 +644,11 @@ object RequestManager {
 
         makeUserRegisteredRequest(request) { serverResponse, error ->
             serverResponse?.let {
+                val type = TypeToken.getParameterized(ResponseDto::class.java, AttributionDto::class.java).type
                 val responseDto: ResponseDto<AttributionDto>? =
                     parser.fromJson<ResponseDto<AttributionDto>>(
                         serverResponse,
-                        object : TypeToken<ResponseDto<AttributionDto>>() {}.type
+                        type
                     )
                 responseDto?.let{ response ->
                     val attribution = response.data.results?.let { it1 -> attributionMapper.map(it1) }
@@ -671,10 +678,11 @@ object RequestManager {
 
         makeUserRegisteredRequest(request) { serverResponse, error ->
             serverResponse?.let {
+                val type = TypeToken.getParameterized(ResponseDto::class.java, AttributionDto::class.java).type
                 val responseDto: ResponseDto<AttributionDto>? =
                     parser.fromJson<ResponseDto<AttributionDto>>(
                         serverResponse,
-                        object : TypeToken<ResponseDto<AttributionDto>>() {}.type
+                        type
                     )
                 responseDto?.let{ response ->
                     val attribution = response.data.results?.let { it1 -> attributionMapper.map(it1) }
@@ -704,10 +712,11 @@ object RequestManager {
         val httpClient = getOkHttpClient(request)
         try {
             val serverResponse = performRequestSync(httpClient, request)
+            val type = TypeToken.getParameterized(ResponseDto::class.java, CustomerDto::class.java).type
             val responseDto: ResponseDto<CustomerDto>? =
                 parser.fromJson<ResponseDto<CustomerDto>>(
                     serverResponse,
-                    object : TypeToken<ResponseDto<CustomerDto>>() {}.type
+                    type
                 )
 
             responseDto?.let { cDto ->
