@@ -258,7 +258,7 @@ class SharedPreferencesStorage(
     override var properties: HashMap<String, ApphudUserProperty>?
         get() {
             val source = preferences.getString(PROPERTIES_KEY, null)
-            val type = object : TypeToken<HashMap<String, ApphudUserProperty>>() {}.type
+            val type = TypeToken.getParameterized(HashMap::class.java, String::class.java, ApphudUserProperty::class.java).type
             return parser.fromJson<HashMap<String, ApphudUserProperty>>(source, type)
         }
         set(value) {
