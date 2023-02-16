@@ -227,6 +227,7 @@ object RequestManager {
             }
         } catch (e: IOException) {
             val message = e.message ?: "Undefined error"
+            ApphudLog.logE(message)
             completionHandler(null, ApphudError(message))
         }
     }
@@ -406,6 +407,7 @@ object RequestManager {
                 }
             } catch (ex: Exception) {
                 val message = ex.message ?: "Undefined error"
+                ApphudLog.logE(message)
                 completionHandler(null, ApphudError(message))
             }
         } else {
@@ -729,6 +731,7 @@ object RequestManager {
             }
         } catch (ex: Exception) {
             val message = ex.message?:"Undefined error"
+            ApphudLog.logE(message)
             completionHandler(null,  ApphudError(message))
         }
     }
