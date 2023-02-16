@@ -411,4 +411,12 @@ object Apphud {
     fun grantPromotional(daysCount: Int, productId: String?, permissionGroup: ApphudGroup? = null, callback: ((Boolean) -> Unit)? = null) {
         ApphudInternal.grantPromotional(daysCount, productId, permissionGroup, callback)
     }
+
+    /**
+    Must be called before SDK initialization. If called, some user parameters like IDFA, IDFV, IP address will not be tracked by Apphud.
+     */
+    @kotlin.jvm.JvmStatic
+    fun optOutOfTracking() {
+        ApphudUtils.optOutOfTracking = true
+    }
 }

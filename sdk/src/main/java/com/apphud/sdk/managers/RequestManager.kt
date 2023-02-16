@@ -55,6 +55,8 @@ object RequestManager {
     lateinit var deviceId: DeviceId
     lateinit var applicationContext: Context
     lateinit var storage: SharedPreferencesStorage
+    var appSetId: String? = null
+    var androidId: String? = null
 
     var advertisingId: String? = null
         get() = storage.advertisingId
@@ -902,11 +904,12 @@ object RequestManager {
             app_version =  this.applicationContext.buildAppVersion(),
             device_family = Build.MANUFACTURER,
             platform = "Android",
-            device_type = Build.MODEL,
+            device_type = if (ApphudUtils.optOutOfTracking) null else Build.MODEL,
             os_version = Build.VERSION.RELEASE,
             start_app_version = this.applicationContext.buildAppVersion(),
-            idfv = null,
-            idfa = if (ApphudUtils.adTracking) advertisingId else null,
+            idfv = if (ApphudUtils.optOutOfTracking) null else appSetId,
+            idfa = if (ApphudUtils.adTracking && !ApphudUtils.optOutOfTracking) advertisingId else null,
+            android_id = if (ApphudUtils.optOutOfTracking) null else androidId,
             user_id = userId,
             device_id = deviceId,
             time_zone = TimeZone.getDefault().id,

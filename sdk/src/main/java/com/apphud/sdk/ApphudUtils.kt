@@ -14,6 +14,8 @@ internal object ApphudUtils {
     var adTracking: Boolean = true
         private set
 
+    var optOutOfTracking: Boolean = false
+
     /**
      * Enable console logging.
      */

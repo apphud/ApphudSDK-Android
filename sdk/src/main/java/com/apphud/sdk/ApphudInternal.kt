@@ -5,6 +5,7 @@ import android.app.Activity
 import android.content.Context
 import android.os.Handler
 import android.os.Looper
+import android.provider.Settings
 import com.android.billingclient.api.BillingClient
 import com.android.billingclient.api.Purchase
 import com.android.billingclient.api.PurchaseHistoryRecord
@@ -17,16 +18,20 @@ import com.apphud.sdk.internal.callback_status.PurchaseHistoryCallbackStatus
 import com.apphud.sdk.internal.callback_status.PurchaseRestoredCallbackStatus
 import com.apphud.sdk.internal.callback_status.PurchaseUpdatedCallbackStatus
 import com.apphud.sdk.managers.RequestManager
+import com.apphud.sdk.managers.RequestManager.applicationContext
 import com.apphud.sdk.parser.GsonParser
 import com.apphud.sdk.parser.Parser
 import com.apphud.sdk.storage.SharedPreferencesStorage
+import com.google.android.gms.appset.AppSet
+import com.google.android.gms.appset.AppSetIdInfo
+import com.google.android.gms.tasks.Task
 import com.google.gson.GsonBuilder
 import kotlinx.coroutines.*
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import java.util.*
-import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicInteger
+import kotlin.coroutines.resume
 
 @SuppressLint("StaticFieldLeak")
 internal object ApphudInternal {
@@ -311,7 +316,25 @@ internal object ApphudInternal {
                             )
                         },
                         async {
-                            repeatRegistration = fetchAdvertisingId()
+                            if(fetchAdvertisingId()){
+                                repeatRegistration = true
+                            }
+                        },
+                        async {
+                            val appSetID = fetchAppSetId()
+                            appSetID?.let{
+                                repeatRegistration = true
+                                RequestManager.appSetId = it
+                                ApphudLog.log(message = "appSetID: $appSetID")
+                            }
+                        },
+                        async {
+                            val androidID = fetchAndroidId()
+                            androidID?.let{
+                                repeatRegistration = true
+                                RequestManager.androidId = it
+                                ApphudLog.log(message = "androidID: $androidID")
+                            }
                         }
                     )
                     threads.awaitAll().let {
@@ -375,6 +398,42 @@ internal object ApphudInternal {
         }
         return false
     }
+
+    private suspend fun fetchAppSetId() :String? =
+        suspendCancellableCoroutine { continuation ->
+            val client = AppSet.getClient(applicationContext)
+            val task: Task<AppSetIdInfo> = client.appSetIdInfo
+            task.addOnSuccessListener{
+                // Determine current scope of app set ID.
+                val scope: Int = it.scope
+
+                // Read app set ID value, which uses version 4 of the
+                // universally unique identifier (UUID) format.
+                val id: String = it.id
+
+                if(continuation.isActive) {
+                    continuation.resume(id)
+                }
+            }
+            task.addOnFailureListener {
+                if(continuation.isActive) {
+                    continuation.resume(null)
+                }
+            }
+            task.addOnCanceledListener {
+                if(continuation.isActive) {
+                    continuation.resume(null)
+                }
+            }
+        }
+
+    private suspend fun fetchAndroidId() :String? =
+        suspendCancellableCoroutine { continuation ->
+            val androidId: String? = Settings.Secure.getString(context.contentResolver, Settings.Secure.ANDROID_ID)
+            if(continuation.isActive) {
+                continuation.resume(androidId)
+            }
+        }
 
     internal fun productsFetchCallback(callback: (List<SkuDetails>) -> Unit) {
         customProductsFetchedBlock = callback
