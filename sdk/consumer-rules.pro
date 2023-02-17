@@ -10,7 +10,7 @@
 
 # Gson specific classes
 -dontwarn sun.misc.**
--keep class com.google.gson.stream.** { *; }
+-keep class com.google.gson.** { *; }
 
 # Application classes that will be serialized/deserialized over Gson
 -keep class com.apphud.sdk.** { <fields>; }
