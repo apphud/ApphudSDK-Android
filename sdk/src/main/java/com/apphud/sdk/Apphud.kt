@@ -413,7 +413,7 @@ object Apphud {
     }
 
     /**
-    Must be called before SDK initialization. If called, some user parameters like IDFA, IDFV, IP address will not be tracked by Apphud.
+    Must be called before SDK initialization. If called, some user parameters like Advertiser ID, Android ID, App Set ID, IP address will not be tracked by Apphud.
      */
     @kotlin.jvm.JvmStatic
     fun optOutOfTracking() {

@@ -904,7 +904,7 @@ object RequestManager {
             app_version =  this.applicationContext.buildAppVersion(),
             device_family = Build.MANUFACTURER,
             platform = "Android",
-            device_type = if (ApphudUtils.optOutOfTracking) null else Build.MODEL,
+            device_type = if (ApphudUtils.optOutOfTracking) "Restricted" else Build.MODEL,
             os_version = Build.VERSION.RELEASE,
             start_app_version = this.applicationContext.buildAppVersion(),
             idfv = if (ApphudUtils.optOutOfTracking) null else appSetId,
