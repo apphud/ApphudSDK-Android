@@ -1209,16 +1209,24 @@ internal object ApphudInternal {
         }
     }
 
-    internal fun subscriptions(callback: (List<ApphudSubscription>?, error: ApphudError?) -> Unit) {
-        ApphudLog.log("Invoke subscriptions")
-
-        checkRegistration{ error ->
-            error?.let{
-                callback.invoke(null, error)
-            }?: run{
-                callback.invoke(currentUser?.subscriptions?: emptyList(), null)
+    fun subscriptions() :List<ApphudSubscription> {
+        var subscriptions : List<ApphudSubscription> = mutableListOf()
+        this.currentUser?.let{user ->
+            synchronized(user){
+                subscriptions = user.subscriptions.toCollection(mutableListOf())
             }
         }
+        return subscriptions
+    }
+
+    fun purchases() :List<ApphudNonRenewingPurchase> {
+        var purchases : List<ApphudNonRenewingPurchase> = mutableListOf()
+        this.currentUser?.let{user ->
+            synchronized(user){
+                purchases = user.purchases.toCollection(mutableListOf())
+            }
+        }
+        return purchases
     }
 
     fun paywallShown(paywall: ApphudPaywall) {

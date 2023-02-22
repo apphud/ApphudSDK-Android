@@ -91,14 +91,14 @@ object Apphud {
      */
     @kotlin.jvm.JvmStatic
     fun subscription(): ApphudSubscription? =
-        ApphudInternal.currentUser?.subscriptions?.firstOrNull()
+        ApphudInternal.subscriptions().firstOrNull()
 
     /**
      * Returns an array of all subscriptions that this user has ever purchased. Subscriptions are cached on device.
      */
     @kotlin.jvm.JvmStatic
     fun subscriptions(): List<ApphudSubscription> =
-        ApphudInternal.currentUser?.subscriptions ?: emptyList()
+        ApphudInternal.subscriptions()
 
     /**
      * Returns an array of all in-app product purchases that this user has ever purchased.
@@ -106,7 +106,7 @@ object Apphud {
      */
     @kotlin.jvm.JvmStatic
     fun nonRenewingPurchases(): List<ApphudNonRenewingPurchase> =
-        ApphudInternal.currentUser?.purchases?: emptyList()
+        ApphudInternal.purchases()
 
     /**
      * Returns paywalls configured in Apphud Dashboard > Product Hub > Paywalls.
