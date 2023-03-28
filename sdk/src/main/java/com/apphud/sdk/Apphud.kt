@@ -419,4 +419,13 @@ object Apphud {
     fun optOutOfTracking() {
         ApphudUtils.optOutOfTracking = true
     }
+
+    /**
+     * Set an Advertising ID
+     * @param advertisingId An advertising ID is a unique user ID assigned to a mobile device, to help advertising services personalize their offers..
+     */
+    @kotlin.jvm.JvmStatic
+    fun setAdvertisingId(advertisingId: String?) {
+        ApphudInternal.setAdvertisingId(advertisingId)
+    }
 }

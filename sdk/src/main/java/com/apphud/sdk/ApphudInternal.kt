@@ -316,11 +316,6 @@ internal object ApphudInternal {
                             )
                         },
                         async {
-                            if(fetchAdvertisingId()){
-                                repeatRegistration = true
-                            }
-                        },
-                        async {
                             val appSetID = fetchAppSetId()
                             appSetID?.let{
                                 repeatRegistration = true
@@ -385,18 +380,6 @@ internal object ApphudInternal {
             is_new,
             true
         )
-    }
-
-    private suspend fun fetchAdvertisingId(): Boolean{
-        val advertisingId = RequestManager.fetchAdvertisingId()
-        advertisingId?.let{
-            if(RequestManager.advertisingId.isNullOrEmpty() || RequestManager.advertisingId != it){
-                RequestManager.advertisingId = it
-                return true
-            }
-            return false
-        }
-        return false
     }
 
     private suspend fun fetchAppSetId() :String? =
@@ -1434,6 +1417,16 @@ internal object ApphudInternal {
         }
         storage.deviceId = deviceId
         return deviceId
+    }
+
+    fun setAdvertisingId(advertisingId: String?) {
+        if(RequestManager.advertisingId != advertisingId){
+            RequestManager.advertisingId = advertisingId
+            ApphudLog.log("Repeat registration advertisingId=$advertisingId")
+            coroutineScope.launch(errorHandler) {
+                repeatRegistrationSilent()
+            }
+        }
     }
     //endregion
 
