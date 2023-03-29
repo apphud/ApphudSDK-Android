@@ -890,7 +890,7 @@ object RequestManager {
             os_version = Build.VERSION.RELEASE,
             start_app_version = this.applicationContext.buildAppVersion(),
             idfv = if (ApphudUtils.optOutOfTracking) null else appSetId,
-            idfa = if (ApphudUtils.adTracking && !ApphudUtils.optOutOfTracking && !advertisingId.isNullOrEmpty()) advertisingId else null,
+            idfa = if (!ApphudUtils.optOutOfTracking && !advertisingId.isNullOrEmpty()) advertisingId else null,
             android_id = if (ApphudUtils.optOutOfTracking) null else androidId,
             user_id = userId,
             device_id = deviceId,

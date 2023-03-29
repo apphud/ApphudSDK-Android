@@ -5,7 +5,7 @@ data class RegistrationBody(
     val sdk_version: String,
     val app_version: String,
     val device_family: String,
-    val device_type: String?,
+    val device_type: String,
     val platform: String,
     val os_version: String,
     val start_app_version: String,

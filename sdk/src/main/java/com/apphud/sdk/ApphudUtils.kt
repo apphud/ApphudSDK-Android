@@ -11,9 +11,6 @@ internal object ApphudUtils {
     var logging: Boolean = false
         private set
 
-    var adTracking: Boolean = true
-        private set
-
     var optOutOfTracking: Boolean = false
 
     /**
@@ -21,10 +18,6 @@ internal object ApphudUtils {
      */
     fun enableDebugLogs() {
         logging = true
-    }
-
-    fun disableAdTracking() {
-        adTracking = false
     }
 
     fun setPackageName(packageName: String) {

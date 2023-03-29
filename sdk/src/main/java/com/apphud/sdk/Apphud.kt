@@ -379,9 +379,6 @@ object Apphud {
     @kotlin.jvm.JvmStatic
     fun enableDebugLogs() = ApphudUtils.enableDebugLogs()
 
-    @kotlin.jvm.JvmStatic
-    fun disableAdTracking() = ApphudUtils.disableAdTracking()
-
     /**
      * Use this method if you have your custom login system with own backend logic.
      */
