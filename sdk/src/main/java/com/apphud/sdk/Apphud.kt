@@ -418,11 +418,12 @@ object Apphud {
     }
 
     /**
-     * Set an Advertising ID
-     * @param advertisingId An advertising ID is a unique user ID assigned to a mobile device, to help advertising services personalize their offers..
+     * Collect Advertising ID (advertising ID is a unique user ID assigned to a mobile device, to help advertising services personalize their offers...)
+     * @warning You must declare the [AD_ID Permission](https://rev.cat/google-advertising-id) when your app targets Android 13 or above. Apps that don’t declare the permission will get a string of zeros.
+     * @warning Be sure optOutOfTracking() not called before. Otherwise Advertising ID will collected
      */
     @kotlin.jvm.JvmStatic
-    fun setAdvertisingId(advertisingId: String?) {
-        ApphudInternal.setAdvertisingId(advertisingId)
+    fun collectAdvertisingId() {
+        ApphudInternal.collectAdvertisingId()
     }
 }

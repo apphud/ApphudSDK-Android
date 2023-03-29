@@ -1008,4 +1008,19 @@ object RequestManager {
         }
         return null
     }
+
+    suspend fun fetchAdvertisingId(): String? =
+        suspendCancellableCoroutine { continuation ->
+            var advId :String? = null
+            try {
+                val adInfo: AdvertisingIdManager.AdInfo = AdvertisingIdManager.getAdvertisingIdInfo(applicationContext)
+                advId = adInfo.id
+            } catch (e: java.lang.Exception) {
+                ApphudLog.logE("Finish load advertisingId: $e")
+            }
+
+            if(continuation.isActive) {
+                continuation.resume(advId)
+            }
+        }
 }

@@ -1419,12 +1419,24 @@ internal object ApphudInternal {
         return deviceId
     }
 
-    fun setAdvertisingId(advertisingId: String?) {
-        if(RequestManager.advertisingId != advertisingId){
-            RequestManager.advertisingId = advertisingId
-            ApphudLog.log("Repeat registration advertisingId=$advertisingId")
-            coroutineScope.launch(errorHandler) {
-                repeatRegistrationSilent()
+    @Synchronized
+    fun collectAdvertisingId() {
+        if(!isInitialized()) {
+            ApphudLog.log("collectAdvertisingId: $MUST_REGISTER_ERROR")
+            return
+        }
+
+        coroutineScope.launch (errorHandler) {
+            val advertisingId = RequestManager.fetchAdvertisingId()
+            advertisingId?.let {
+                if(it == "00000000-0000-0000-0000-000000000000"){
+                    ApphudLog.log("Fetch advertisingId: something went wrong, please check AD_ID permission exists in manifest")
+                } else if (RequestManager.advertisingId.isNullOrEmpty() || RequestManager.advertisingId != it) {
+                    RequestManager.advertisingId = it
+
+                    ApphudLog.log("Repeat registration advertisingId=$advertisingId")
+                    repeatRegistrationSilent()
+                }
             }
         }
     }

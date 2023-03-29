@@ -24,6 +24,7 @@ class ApphudApplication : Application() {
         super.onCreate()
 
         Apphud.enableDebugLogs()
+        Apphud.collectAdvertisingId()
         Apphud.start(this, API_KEY)
     }
 }
