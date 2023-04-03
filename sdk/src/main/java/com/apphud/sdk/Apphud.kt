@@ -410,7 +410,7 @@ object Apphud {
     }
 
     /**
-    Must be called before SDK initialization. If called, some user parameters like Advertiser ID, Android ID, App Set ID, IP address will not be tracked by Apphud.
+     * Must be called before SDK initialization. If called, some user parameters like Advertising ID, Android ID, App Set ID, IP address will not be tracked by Apphud.
      */
     @kotlin.jvm.JvmStatic
     fun optOutOfTracking() {
@@ -418,12 +418,12 @@ object Apphud {
     }
 
     /**
-     * Collect Advertising ID (advertising ID is a unique user ID assigned to a mobile device, to help advertising services personalize their offers...)
+     * Collect Advertising ID, Android ID, App Set ID
      * @warning You must declare the [AD_ID Permission](https://rev.cat/google-advertising-id) when your app targets Android 13 or above. Apps that don’t declare the permission will get a string of zeros.
-     * @warning Be sure optOutOfTracking() not called before. Otherwise Advertising ID will collected
+     * @warning Be sure optOutOfTracking() not called before. Otherwise Advertising ID,  Android ID, App Set ID will collected
      */
     @kotlin.jvm.JvmStatic
-    fun collectAdvertisingId() {
-        ApphudInternal.collectAdvertisingId()
+    fun collectDeviceIdentifiers() {
+        ApphudInternal.collectDeviceIdentifiers()
     }
 }
