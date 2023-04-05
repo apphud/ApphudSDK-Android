@@ -4,9 +4,7 @@ import android.os.Bundle
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
-import android.widget.CompoundButton
 import android.widget.TextView
-import android.widget.Toast
 import androidx.fragment.app.Fragment
 import androidx.lifecycle.ViewModelProvider
 import androidx.navigation.fragment.findNavController
@@ -15,17 +13,13 @@ import androidx.recyclerview.widget.RecyclerView
 import com.android.billingclient.api.SkuDetails
 import com.apphud.demo.BuildConfig
 import com.apphud.demo.MainActivity
-import com.apphud.demo.R
 import com.apphud.demo.databinding.FragmentCustomerBinding
 import com.apphud.demo.ui.utils.SettingsManager
 import com.apphud.sdk.Apphud
-import com.apphud.sdk.ApphudError
 import com.apphud.sdk.ApphudListener
-import com.apphud.sdk.ApphudPurchasesRestoreCallback
 import com.apphud.sdk.domain.ApphudNonRenewingPurchase
 import com.apphud.sdk.domain.ApphudPaywall
 import com.apphud.sdk.domain.ApphudSubscription
-import com.apphud.sdk.domain.ApphudUser
 import com.apphud.sdk.managers.HeadersInterceptor
 
 class CustomerFragment : Fragment() {

@@ -11,7 +11,6 @@ import com.apphud.sdk.body.*
 import com.apphud.sdk.client.*
 import com.apphud.sdk.client.dto.*
 import com.apphud.sdk.domain.*
-import com.apphud.sdk.managers.AdvertisingIdManager.AdInfo
 import com.apphud.sdk.mappers.*
 import com.apphud.sdk.parser.GsonParser
 import com.apphud.sdk.parser.Parser
@@ -55,6 +54,8 @@ object RequestManager {
     lateinit var deviceId: DeviceId
     lateinit var applicationContext: Context
     lateinit var storage: SharedPreferencesStorage
+    var appSetId: String? = null
+    var androidId: String? = null
 
     var advertisingId: String? = null
         get() = storage.advertisingId
@@ -62,7 +63,6 @@ object RequestManager {
             field = value
             if (storage.advertisingId != value) {
                 storage.advertisingId = value
-                ApphudLog.log("advertisingId = $advertisingId is fetched and saved")
             }
         }
 
@@ -323,22 +323,6 @@ object RequestManager {
             .get()
             .build()
     }
-
-    suspend fun fetchAdvertisingId(): String? =
-        suspendCancellableCoroutine { continuation ->
-            var advId :String? = null
-            if (ApphudUtils.adTracking) {
-                try {
-                    val adInfo: AdInfo = AdvertisingIdManager.getAdvertisingIdInfo(applicationContext)
-                    advId = adInfo.id
-                } catch (e: java.lang.Exception) {
-                    ApphudLog.logE("finish load advertisingId $e")
-                }
-            }
-            if(continuation.isActive) {
-                continuation.resume(advId)
-            }
-        }
 
     suspend fun registrationSync(
         needPaywalls: Boolean,
@@ -905,11 +889,12 @@ object RequestManager {
             app_version =  this.applicationContext.buildAppVersion(),
             device_family = Build.MANUFACTURER,
             platform = "Android",
-            device_type = Build.MODEL,
+            device_type = if (ApphudUtils.optOutOfTracking) "Restricted" else Build.MODEL,
             os_version = Build.VERSION.RELEASE,
             start_app_version = this.applicationContext.buildAppVersion(),
-            idfv = null,
-            idfa = if (ApphudUtils.adTracking) advertisingId else null,
+            idfv = if (ApphudUtils.optOutOfTracking) null else appSetId,
+            idfa = if (!ApphudUtils.optOutOfTracking && !advertisingId.isNullOrEmpty()) advertisingId else null,
+            android_id = if (ApphudUtils.optOutOfTracking) null else androidId,
             user_id = userId,
             device_id = deviceId,
             time_zone = TimeZone.getDefault().id,
@@ -1026,4 +1011,19 @@ object RequestManager {
         }
         return null
     }
+
+    suspend fun fetchAdvertisingId(): String? =
+        suspendCancellableCoroutine { continuation ->
+            var advId :String? = null
+            try {
+                val adInfo: AdvertisingIdManager.AdInfo = AdvertisingIdManager.getAdvertisingIdInfo(applicationContext)
+                advId = adInfo.id
+            } catch (e: java.lang.Exception) {
+                ApphudLog.logE("Finish load advertisingId: $e")
+            }
+
+            if(continuation.isActive) {
+                continuation.resume(advId)
+            }
+        }
 }

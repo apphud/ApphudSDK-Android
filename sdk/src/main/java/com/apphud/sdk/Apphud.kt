@@ -379,9 +379,6 @@ object Apphud {
     @kotlin.jvm.JvmStatic
     fun enableDebugLogs() = ApphudUtils.enableDebugLogs()
 
-    @kotlin.jvm.JvmStatic
-    fun disableAdTracking() = ApphudUtils.disableAdTracking()
-
     /**
      * Use this method if you have your custom login system with own backend logic.
      */
@@ -410,5 +407,24 @@ object Apphud {
     @kotlin.jvm.JvmStatic
     fun grantPromotional(daysCount: Int, productId: String?, permissionGroup: ApphudGroup? = null, callback: ((Boolean) -> Unit)? = null) {
         ApphudInternal.grantPromotional(daysCount, productId, permissionGroup, callback)
+    }
+
+    /**
+     * Must be called before SDK initialization. If called, some user parameters like Advertising ID, Android ID, App Set ID, Device Type, IP address will not be tracked by Apphud.
+     */
+    @kotlin.jvm.JvmStatic
+    fun optOutOfTracking() {
+        ApphudUtils.optOutOfTracking = true
+    }
+
+    /**
+      * Collects device identifiers that are required for some third-party integrations, like AppsFlyer, Adjust, Singular, etc.
+      * Identifiers include Advertising ID, Android ID, App Set ID.
+      * @warning When targeting Android 13 and above, you must declare AD_ID permission in the manifest file: https://support.google.com/googleplay/android-developer/answer/6048248?hl=en
+      * @warning Be sure optOutOfTracking() not called before. Otherwise device identifiers will not be collected.
+     */
+    @kotlin.jvm.JvmStatic
+    fun collectDeviceIdentifiers() {
+        ApphudInternal.collectDeviceIdentifiers()
     }
 }
