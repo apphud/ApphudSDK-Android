@@ -5,6 +5,7 @@ import android.app.Activity
 import android.content.Context
 import android.os.Handler
 import android.os.Looper
+import android.provider.Settings
 import com.android.billingclient.api.BillingClient
 import com.android.billingclient.api.Purchase
 import com.android.billingclient.api.PurchaseHistoryRecord
@@ -17,16 +18,20 @@ import com.apphud.sdk.internal.callback_status.PurchaseHistoryCallbackStatus
 import com.apphud.sdk.internal.callback_status.PurchaseRestoredCallbackStatus
 import com.apphud.sdk.internal.callback_status.PurchaseUpdatedCallbackStatus
 import com.apphud.sdk.managers.RequestManager
+import com.apphud.sdk.managers.RequestManager.applicationContext
 import com.apphud.sdk.parser.GsonParser
 import com.apphud.sdk.parser.Parser
 import com.apphud.sdk.storage.SharedPreferencesStorage
+import com.google.android.gms.appset.AppSet
+import com.google.android.gms.appset.AppSetIdInfo
+import com.google.android.gms.tasks.Task
 import com.google.gson.GsonBuilder
 import kotlinx.coroutines.*
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import java.util.*
-import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicInteger
+import kotlin.coroutines.resume
 
 @SuppressLint("StaticFieldLeak")
 internal object ApphudInternal {
@@ -299,7 +304,6 @@ internal object ApphudInternal {
         ApphudLog.log("Start registration userId=$userId, deviceId=$deviceId")
         coroutineScope.launch(errorHandler) {
             var customer: Customer? = null
-            var repeatRegistration: Boolean? = false
             mutex.withLock {
                 if(currentUser == null || forceRegistration) {
                     val threads = listOf(
@@ -309,18 +313,11 @@ internal object ApphudInternal {
                                 is_new,
                                 forceRegistration
                             )
-                        },
-                        async {
-                            repeatRegistration = fetchAdvertisingId()
                         }
                     )
                     threads.awaitAll().let {
                         customer?.let {
                             storage.lastRegistration = System.currentTimeMillis()
-
-                            if(repeatRegistration == true) {
-                                repeatRegistrationSilent()
-                            }
 
                             mainScope.launch {
                                 notifyLoadingCompleted(it)
@@ -357,23 +354,7 @@ internal object ApphudInternal {
     }
 
     private suspend fun repeatRegistrationSilent(){
-        val customerNew = RequestManager.registrationSync(
-            !didRegisterCustomerAtThisLaunch,
-            is_new,
-            true
-        )
-    }
-
-    private suspend fun fetchAdvertisingId(): Boolean{
-        val advertisingId = RequestManager.fetchAdvertisingId()
-        advertisingId?.let{
-            if(RequestManager.advertisingId.isNullOrEmpty() || RequestManager.advertisingId != it){
-                RequestManager.advertisingId = it
-                return true
-            }
-            return false
-        }
-        return false
+        RequestManager.registrationSync(!didRegisterCustomerAtThisLaunch, is_new,true)
     }
 
     internal fun productsFetchCallback(callback: (List<SkuDetails>) -> Unit) {
@@ -457,7 +438,7 @@ internal object ApphudInternal {
         }else{
             val message =
                 "Unable to fetch product with given product id: $productName" + apphudProduct?.let { " [Apphud product ID: " + it.id + "]" }
-            ApphudLog.log(message = message,sendLogToServer = true)
+            ApphudLog.logE(message = message,sendLogToServer = true)
             mainScope.launch(errorHandler) {
                 callback?.invoke(ApphudPurchaseResult(null, null, null, ApphudError(message)))
             }
@@ -535,7 +516,7 @@ internal object ApphudInternal {
                 when (status) {
                     is PurchaseCallbackStatus.Error -> {
                         val message = "Failed to consume purchase with error: ${status.error}" + apphudProduct?.let{ " [Apphud product ID: " + it.id + "]"}
-                        ApphudLog.log(message = message,sendLogToServer = true)
+                        ApphudLog.logE(message = message,sendLogToServer = true)
                         callback?.invoke(ApphudPurchaseResult(null,null, purchase,ApphudError(message)))
                     }
                     is PurchaseCallbackStatus.Success -> {
@@ -618,7 +599,7 @@ internal object ApphudInternal {
             }
             else -> {
                 val message = "Unable to buy product with because SkuDetails is null" + apphudProduct?.let{ " [Apphud product ID: " + it.id + "]"}
-                ApphudLog.log(message = message)
+                ApphudLog.logE(message = message)
                 mainScope.launch {
                     callback?.invoke(ApphudPurchaseResult(null,null,null,ApphudError(message)))
                 }
@@ -823,7 +804,7 @@ internal object ApphudInternal {
         when (result){
             is PurchaseHistoryCallbackStatus.Error ->{
                 val type = if(result.type() == BillingClient.SkuType.SUBS) "subscriptions" else "in-app products"
-                ApphudLog.log("Failed to load history for $type with error: ("
+                ApphudLog.logE("Failed to load history for $type with error: ("
                         + "${result.result?.responseCode})"
                         + "${result.result?.debugMessage})")
             }
@@ -842,7 +823,7 @@ internal object ApphudInternal {
                     ApphudError(message = "Restore Purchases is failed for $type",
                         secondErrorMessage = result.message,
                         errorCode = result.result?.responseCode)
-                ApphudLog.log(message = error.toString(), sendLogToServer = true)
+                ApphudLog.logE(message = error.toString(), sendLogToServer = true)
             }
             is PurchaseRestoredCallbackStatus.Success ->{
                 return result.purchases
@@ -1209,16 +1190,24 @@ internal object ApphudInternal {
         }
     }
 
-    internal fun subscriptions(callback: (List<ApphudSubscription>?, error: ApphudError?) -> Unit) {
-        ApphudLog.log("Invoke subscriptions")
-
-        checkRegistration{ error ->
-            error?.let{
-                callback.invoke(null, error)
-            }?: run{
-                callback.invoke(currentUser?.subscriptions?: emptyList(), null)
+    fun subscriptions() :List<ApphudSubscription> {
+        var subscriptions : List<ApphudSubscription> = mutableListOf()
+        this.currentUser?.let{user ->
+            synchronized(user){
+                subscriptions = user.subscriptions.toCollection(mutableListOf())
             }
         }
+        return subscriptions
+    }
+
+    fun purchases() :List<ApphudNonRenewingPurchase> {
+        var purchases : List<ApphudNonRenewingPurchase> = mutableListOf()
+        this.currentUser?.let{user ->
+            synchronized(user){
+                purchases = user.purchases.toCollection(mutableListOf())
+            }
+        }
+        return purchases
     }
 
     fun paywallShown(paywall: ApphudPaywall) {
@@ -1375,6 +1364,100 @@ internal object ApphudInternal {
         }
         storage.deviceId = deviceId
         return deviceId
+    }
+
+    private suspend fun fetchAdvertisingId(): String?{
+        return RequestManager.fetchAdvertisingId()
+    }
+
+    private suspend fun fetchAppSetId() :String? =
+        suspendCancellableCoroutine { continuation ->
+            val client = AppSet.getClient(applicationContext)
+            val task: Task<AppSetIdInfo> = client.appSetIdInfo
+            task.addOnSuccessListener{
+                // Determine current scope of app set ID.
+                val scope: Int = it.scope
+
+                // Read app set ID value, which uses version 4 of the
+                // universally unique identifier (UUID) format.
+                val id: String = it.id
+
+                if(continuation.isActive) {
+                    continuation.resume(id)
+                }
+            }
+            task.addOnFailureListener {
+                if(continuation.isActive) {
+                    continuation.resume(null)
+                }
+            }
+            task.addOnCanceledListener {
+                if(continuation.isActive) {
+                    continuation.resume(null)
+                }
+            }
+        }
+
+    private suspend fun fetchAndroidId() :String? =
+        suspendCancellableCoroutine { continuation ->
+            val androidId: String? = Settings.Secure.getString(context.contentResolver, Settings.Secure.ANDROID_ID)
+            if(continuation.isActive) {
+                continuation.resume(androidId)
+            }
+        }
+
+    @Synchronized
+    fun collectDeviceIdentifiers() {
+        if(!isInitialized()) {
+            ApphudLog.logE("collectDeviceIdentifiers: $MUST_REGISTER_ERROR")
+            return
+        }
+
+        if(ApphudUtils.optOutOfTracking) {
+            ApphudLog.logE("Unable to collect device identifiers because optOutOfTracking() is called.")
+            return
+        }
+
+        coroutineScope.launch(errorHandler) {
+            var repeatRegistration = false
+            val threads = listOf(
+                async {
+                    val advertisingId = fetchAdvertisingId()
+                    advertisingId?.let{
+                        if(it == "00000000-0000-0000-0000-000000000000"){
+                            ApphudLog.logE("Unable to fetch Advertising ID, please check AD_ID permission in the manifest file.")
+                        } else if (RequestManager.advertisingId.isNullOrEmpty() || RequestManager.advertisingId != it) {
+                            repeatRegistration = true
+                            RequestManager.advertisingId = it
+                            ApphudLog.log(message = "advertisingID: $it")
+                        }
+                    }
+                },
+                async {
+                    val appSetID = fetchAppSetId()
+                    appSetID?.let{
+                        repeatRegistration = true
+                        RequestManager.appSetId = it
+                        ApphudLog.log(message = "appSetID: $it")
+                    }
+                },
+                async {
+                    val androidID = fetchAndroidId()
+                    androidID?.let{
+                        repeatRegistration = true
+                        RequestManager.androidId = it
+                        ApphudLog.log(message = "androidID: $it")
+                    }
+                }
+            )
+            threads.awaitAll().let {
+                if(repeatRegistration) {
+                    mutex.withLock {
+                        repeatRegistrationSilent()
+                    }
+                }
+            }
+        }
     }
     //endregion
 
