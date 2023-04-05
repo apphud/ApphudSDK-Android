@@ -1406,7 +1406,7 @@ internal object ApphudInternal {
         }
 
         if(ApphudUtils.optOutOfTracking) {
-            ApphudLog.logE("collectDeviceIdentifiers: optOutOfTracking() called before. Device identifiers will not collected")
+            ApphudLog.logE("Unable to collect device identifiers because optOutOfTracking() is called.")
             return
         }
 
@@ -1417,7 +1417,7 @@ internal object ApphudInternal {
                     val advertisingId = fetchAdvertisingId()
                     advertisingId?.let{
                         if(it == "00000000-0000-0000-0000-000000000000"){
-                            ApphudLog.logE("Fetch advertisingId: something went wrong, please check AD_ID permission exists in manifest")
+                            ApphudLog.logE("Unable to fetch Advertising ID, please check AD_ID permission in the manifest file.")
                         } else if (RequestManager.advertisingId.isNullOrEmpty() || RequestManager.advertisingId != it) {
                             repeatRegistration = true
                             RequestManager.advertisingId = it
