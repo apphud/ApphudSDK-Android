@@ -379,7 +379,7 @@ internal object ApphudInternal {
         product: ApphudProduct,
         offerIdToken: String?,
         oldToken: String?,
-        prorationMode: Int?,
+        replacementMode: Int?,
         callback: ((ApphudPurchaseResult) -> Unit)?
     ) {
         var details = product.productDetails
@@ -390,16 +390,16 @@ internal object ApphudInternal {
         details?.let{
             if(details.productType == BillingClient.ProductType.SUBS){
                 offerIdToken?.let{
-                    purchaseInternal(activity, product, offerIdToken, oldToken, prorationMode, callback)
+                    purchaseInternal(activity, product, offerIdToken, oldToken, replacementMode, callback)
                 }?: run{
                     callback?.invoke(ApphudPurchaseResult(null,null,null, ApphudError("offerIdToken required")))
                 }
             }else{
-                purchaseInternal(activity, product, offerIdToken, oldToken, prorationMode, callback)
+                purchaseInternal(activity, product, offerIdToken, oldToken, replacementMode, callback)
             }
         }?: run{
             coroutineScope.launch(errorHandler) {
-                fetchDetails(activity, product,  offerIdToken, oldToken, prorationMode, callback)
+                fetchDetails(activity, product,  offerIdToken, oldToken, replacementMode, callback)
             }
         }
     }
@@ -470,7 +470,7 @@ internal object ApphudInternal {
         apphudProduct: ApphudProduct,
         offerIdToken: String?,
         oldToken: String?,
-        prorationMode: Int?,
+        replacementMode: Int?,
         callback: ((ApphudPurchaseResult) -> Unit)?
     ) {
         billing.acknowledgeCallback = { status, purchase ->
@@ -576,7 +576,7 @@ internal object ApphudInternal {
 
         apphudProduct.productDetails?.let{
             paywallCheckoutInitiated(apphudProduct.paywall_id, apphudProduct.product_id)
-            billing.purchase(activity, it, offerIdToken, oldToken, prorationMode, deviceId)
+            billing.purchase(activity, it, offerIdToken, oldToken, replacementMode, deviceId)
         }?: run{
             val message = "Unable to buy product with because ProductDetails is null" + apphudProduct?.let{ " [Apphud product ID: " + it.id + "]"}
             ApphudLog.log(message = message)

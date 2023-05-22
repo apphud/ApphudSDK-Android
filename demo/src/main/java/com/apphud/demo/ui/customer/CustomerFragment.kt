@@ -44,27 +44,6 @@ class CustomerFragment : Fragment() {
 
         binding.btnSync.setOnClickListener {
             Apphud.syncPurchases()
-            /*Apphud.restorePurchases(object: ApphudPurchasesRestoreCallback {
-                override fun invoke(
-                    subscriptions: List<ApphudSubscription>?,
-                    purchases: List<ApphudNonRenewingPurchase>?,
-                    error: ApphudError?
-                ) {
-                    error?.let{
-                        Toast.makeText(activity, "Error: " + it.message, Toast.LENGTH_LONG).show()
-                    }?: run{
-                        var count = 0
-                        subscriptions?.let{
-                            count += it.size
-                        }
-                        purchases?.let{
-                            count += it.size
-                        }
-                        val out = getString(R.string.restore_success, count.toString())
-                        Toast.makeText(activity, out, Toast.LENGTH_LONG).show()
-                    }
-                }
-            })*/
         }
 
         paywallsViewModel = ViewModelProvider(this)[PaywallsViewModel::class.java]

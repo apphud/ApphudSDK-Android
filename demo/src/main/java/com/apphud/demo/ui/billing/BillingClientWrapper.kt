@@ -31,7 +31,7 @@ class BillingClientWrapper(
         private const val SUBS_2 = "com.apphud.demo.subscriptions.s2"
         private const val SUBS_3 = "com.apphud.demo.subscriptions.s3"
         private const val SUBS_4 = "com.apphud.multiplansub"
-        private val LIST_OF_PRODUCTS = listOf(/*PEACH, APPLE,*/ SUBS_1, SUBS_2, SUBS_3, SUBS_4)
+        private val LIST_OF_PRODUCTS = listOf(/*PEACH, APPLE, */SUBS_1, SUBS_2, SUBS_3, SUBS_4)
     }
 
     var productWithProductDetails = mutableMapOf<String, ProductDetails>()

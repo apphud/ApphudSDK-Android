@@ -248,18 +248,14 @@ object Apphud {
      * @param activity current Activity for use
      * @param product ApphudProduct to purchase
      * @param offerIdToken
-     * @param oldToken
-     * @param prorationMode replacement rules from https://developer.android.com/reference/com/android/billingclient/api/BillingFlowParams.ProrationMode
      * @param block Optional. Returns `ApphudPurchaseResult` object.
      */
     @kotlin.jvm.JvmStatic
     fun purchase(activity: Activity,
                  product: ApphudProduct,
                  offerIdToken: String? = null,
-                 oldToken: String? = null,
-                 prorationMode: Int? = null,
                  block: ((ApphudPurchaseResult) -> Unit)?) =
-        ApphudInternal.purchase(activity ,product, offerIdToken, oldToken, prorationMode, block)
+        ApphudInternal.purchase(activity ,product, offerIdToken, null, null, block)
     //===================================================================================
 
     /**

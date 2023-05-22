@@ -115,11 +115,11 @@ internal class BillingWrapper(context: Context) : Closeable {
     }
 
     fun purchase(activity: Activity, details: ProductDetails, offerToken: String?,
-                 oldToken: String?, prorationMode: Int?, deviceId: String? = null) {
+                 oldToken: String?, replacementMode: Int?, deviceId: String? = null) {
         GlobalScope.launch {
             val connectIfNeeded = connectIfNeeded()
             if (!connectIfNeeded) return@launch
-            return@launch flow.purchases(activity, details, offerToken, oldToken, prorationMode, deviceId)
+            return@launch flow.purchases(activity, details, offerToken, oldToken, replacementMode, deviceId)
         }
     }
 

@@ -4,7 +4,6 @@ import android.app.Activity
 import com.android.billingclient.api.BillingClient
 import com.android.billingclient.api.BillingFlowParams
 import com.android.billingclient.api.ProductDetails
-import com.apphud.sdk.Apphud
 import com.apphud.sdk.ApphudLog
 import com.apphud.sdk.isSuccess
 import com.apphud.sdk.logMessage
@@ -16,7 +15,7 @@ internal class FlowWrapper(private val billing: BillingClient) {
     fun purchases(activity: Activity, details: ProductDetails,
                   offerToken: String? = null,
                   oldToken: String? = null,
-                  prorationMode: Int?,
+                  replacementMode: Int?,
                   deviceId: String? = null) {
 
         obfuscatedAccountId = deviceId?.let{
@@ -30,7 +29,7 @@ internal class FlowWrapper(private val billing: BillingClient) {
             val params :BillingFlowParams =
                 if(offerToken != null){
                     if(oldToken!= null){
-                        upDowngradeBillingFlowParamsBuilder(details, offerToken, oldToken, prorationMode)
+                        upDowngradeBillingFlowParamsBuilder(details, offerToken, oldToken, replacementMode)
                     }else{
                         billingFlowParamsBuilder(details, offerToken)
                     }
@@ -68,9 +67,9 @@ internal class FlowWrapper(private val billing: BillingClient) {
         productDetails: ProductDetails,
         offerToken: String,
         oldToken: String,
-        prorationMode: Int?
+        replacementMode: Int?
     ): BillingFlowParams {
-        val pMode = prorationMode ?: BillingFlowParams.ProrationMode.IMMEDIATE_AND_CHARGE_FULL_PRICE
+        val pMode = replacementMode ?: BillingFlowParams.ProrationMode.IMMEDIATE_AND_CHARGE_FULL_PRICE
         return BillingFlowParams.newBuilder().setProductDetailsParamsList(
             listOf(
                 BillingFlowParams.ProductDetailsParams.newBuilder()
