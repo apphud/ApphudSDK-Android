@@ -14,6 +14,10 @@ class ApphudApplication : Application() {
         fun applicationContext() : Context {
             return instance.applicationContext
         }
+
+        fun application() : Application {
+            return instance
+        }
     }
 
     init {

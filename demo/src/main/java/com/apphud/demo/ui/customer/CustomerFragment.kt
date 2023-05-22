@@ -10,11 +10,9 @@ import androidx.lifecycle.ViewModelProvider
 import androidx.navigation.fragment.findNavController
 import androidx.recyclerview.widget.DividerItemDecoration
 import androidx.recyclerview.widget.RecyclerView
-import com.android.billingclient.api.SkuDetails
+import com.android.billingclient.api.ProductDetails
 import com.apphud.demo.BuildConfig
-import com.apphud.demo.MainActivity
 import com.apphud.demo.databinding.FragmentCustomerBinding
-import com.apphud.demo.ui.utils.SettingsManager
 import com.apphud.sdk.Apphud
 import com.apphud.sdk.ApphudListener
 import com.apphud.sdk.domain.ApphudNonRenewingPurchase
@@ -44,29 +42,34 @@ class CustomerFragment : Fragment() {
         binding.sdk.text = "v." + HeadersInterceptor.X_SDK_VERSION
         binding.appVersion.text = BuildConfig.VERSION_NAME + " (" + BuildConfig.VERSION_CODE + ")"
 
-        binding.switchPurchases.isChecked = SettingsManager.useApphudPurchases
-        binding.switchPurchases.setOnCheckedChangeListener{ _, isChecked ->
-            SettingsManager.useApphudPurchases = isChecked
-        }
-
         binding.btnSync.setOnClickListener {
             Apphud.syncPurchases()
-
-            /*Apphud.restorePurchases{ subscriptions: List<ApphudSubscription>?, purchases: List<ApphudNonRenewingPurchase>?, error: ApphudError? ->
-                if(subscriptions != null || purchases != null){
-                    Toast.makeText(activity, "SUCCESS", Toast.LENGTH_SHORT).show()
+            /*Apphud.restorePurchases(object: ApphudPurchasesRestoreCallback {
+                override fun invoke(
+                    subscriptions: List<ApphudSubscription>?,
+                    purchases: List<ApphudNonRenewingPurchase>?,
+                    error: ApphudError?
+                ) {
+                    error?.let{
+                        Toast.makeText(activity, "Error: " + it.message, Toast.LENGTH_LONG).show()
+                    }?: run{
+                        var count = 0
+                        subscriptions?.let{
+                            count += it.size
+                        }
+                        purchases?.let{
+                            count += it.size
+                        }
+                        val out = getString(R.string.restore_success, count.toString())
+                        Toast.makeText(activity, out, Toast.LENGTH_LONG).show()
+                    }
                 }
-
-                error?.let{
-                    Toast.makeText(activity, "ERROR", Toast.LENGTH_SHORT).show()
-                }
-            }*/
+            })*/
         }
 
         paywallsViewModel = ViewModelProvider(this)[PaywallsViewModel::class.java]
         viewAdapter = PaywallsAdapter(paywallsViewModel, context)
         viewAdapter.selectPaywall = { paywall ->
-            (activity as MainActivity).paywallIdentifier = paywall.identifier
             findNavController().navigate(CustomerFragmentDirections.actionNavCustomerToProductsFragment(paywall.id))
         }
 
@@ -90,7 +93,7 @@ class CustomerFragment : Fragment() {
                 //TODO handle updated non renewing purchases
             }
 
-            override fun apphudFetchSkuDetailsProducts(details: List<SkuDetails>) {
+            override fun apphudFetchProductDetails(details: List<ProductDetails>) {
                 //TODO handle loaded sku details
             }
 

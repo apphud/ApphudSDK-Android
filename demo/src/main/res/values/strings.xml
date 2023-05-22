@@ -26,5 +26,7 @@
     <string name="variation">Variation: </string>
     <string name="json">Json</string>
     <string name="restore_success">Success: restored purchases count %s</string>
+    <string name="select_offer">Select Offer</string>
     <string name="use_apphud_purchases">Use Apphud purchases</string>
+    <string name="menu_billing">Billing</string>
 </resources>
