@@ -1,10 +1,9 @@
 package com.apphud.sdk
 
-import com.android.billingclient.api.SkuDetails
+import com.android.billingclient.api.ProductDetails
 import com.apphud.sdk.domain.ApphudNonRenewingPurchase
 import com.apphud.sdk.domain.ApphudPaywall
 import com.apphud.sdk.domain.ApphudSubscription
-import com.apphud.sdk.domain.ApphudUser
 
 interface ApphudListener {
 
@@ -23,10 +22,10 @@ interface ApphudListener {
     fun apphudNonRenewingPurchasesUpdated(purchases: List<ApphudNonRenewingPurchase>) = Unit
 
     /**
-    Returns array of `SkuDetails` objects after they are fetched from Billing.
+    Returns array of `ProductDetails` objects after they are fetched from Billing.
     Note that you have to add all product identifiers in Apphud.
      */
-    fun apphudFetchSkuDetailsProducts(details: List<SkuDetails>)
+    fun apphudFetchProductDetails(details: List<ProductDetails>)
 
     /**
     Called when user identifier was changed
@@ -36,7 +35,7 @@ interface ApphudListener {
     /**
     Called when user is registered in Apphud [or used from cache].
     After this method is called, Apphud.paywalls() will begin to return values,
-    however their SkuDetails may still be nil at the moment.
+    however their ProductDetails may still be nil at the moment.
 
     You should only use this method in two cases:
     1) If using A/B testing, to fetch `experimentName` and `variationName` from your paywalls.
@@ -45,7 +44,7 @@ interface ApphudListener {
     fun userDidLoad()
 
     /**
-    Called when paywalls are fully loaded with their SkuDetails.
+    Called when paywalls are fully loaded with their ProductDetails.
     */
     fun paywallsDidFullyLoad(paywalls: List<ApphudPaywall>)
 }

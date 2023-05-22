@@ -1,6 +1,7 @@
 package com.apphud.sdk.domain
 
-import com.android.billingclient.api.SkuDetails
+import com.android.billingclient.api.ProductDetails
+
 
 data class ApphudProduct(
     /**
@@ -20,11 +21,11 @@ data class ApphudProduct(
      */
     var store: String,
     /**
-    When paywalls are successfully loaded, skuDetails model will always be present if Google Play returned model for this product id.
+    When paywalls are successfully loaded, productDetails model will always be present if Google Play returned model for this product id.
     getPaywalls method will return callback only when Google Play products are fetched and mapped with Apphud products.
     May be `null` if product identifier is invalid, or product is not available in Google Play.
      */
-    var skuDetails: SkuDetails?,
+    var productDetails: ProductDetails?,
     /**
     Product Identifier from Paywalls.
      */

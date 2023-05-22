@@ -7,9 +7,9 @@ import android.os.Handler
 import android.os.Looper
 import android.provider.Settings
 import com.android.billingclient.api.BillingClient
+import com.android.billingclient.api.ProductDetails
 import com.android.billingclient.api.Purchase
 import com.android.billingclient.api.PurchaseHistoryRecord
-import com.android.billingclient.api.SkuDetails
 import com.apphud.sdk.body.*
 import com.apphud.sdk.domain.*
 import com.apphud.sdk.internal.BillingWrapper
@@ -17,21 +17,21 @@ import com.apphud.sdk.internal.callback_status.PurchaseCallbackStatus
 import com.apphud.sdk.internal.callback_status.PurchaseHistoryCallbackStatus
 import com.apphud.sdk.internal.callback_status.PurchaseRestoredCallbackStatus
 import com.apphud.sdk.internal.callback_status.PurchaseUpdatedCallbackStatus
-import com.apphud.sdk.managers.RequestManager
 import com.apphud.sdk.managers.RequestManager.applicationContext
+import com.apphud.sdk.managers.RequestManager
 import com.apphud.sdk.parser.GsonParser
 import com.apphud.sdk.parser.Parser
 import com.apphud.sdk.storage.SharedPreferencesStorage
+import com.google.gson.GsonBuilder
 import com.google.android.gms.appset.AppSet
 import com.google.android.gms.appset.AppSetIdInfo
 import com.google.android.gms.tasks.Task
-import com.google.gson.GsonBuilder
 import kotlinx.coroutines.*
+import kotlin.coroutines.resume
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import java.util.*
 import java.util.concurrent.atomic.AtomicInteger
-import kotlin.coroutines.resume
 
 @SuppressLint("StaticFieldLeak")
 internal object ApphudInternal {
@@ -49,7 +49,7 @@ internal object ApphudInternal {
     private val storage by lazy { SharedPreferencesStorage(context, parser) }
     private var generatedUUID = UUID.randomUUID().toString()
     private var prevPurchases = mutableSetOf<PurchaseRecordDetails>()
-    private var skuDetails = mutableListOf<SkuDetails>()
+    private var productDetails = mutableListOf<ProductDetails>()
     internal var productGroups: MutableList<ApphudGroup> = mutableListOf()
     internal var paywalls = mutableListOf<ApphudPaywall>()
 
@@ -88,11 +88,12 @@ internal object ApphudInternal {
 
     private val mainScope = CoroutineScope(Dispatchers.Main)
     private val coroutineScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
-    private val errorHandler = CoroutineExceptionHandler { _, error ->
+    private val errorHandler = CoroutineExceptionHandler { context, error ->
         error.message?.let { ApphudLog.logE(it) }
     }
 
-    private var customProductsFetchedBlock: ((List<SkuDetails>) -> Unit)? = null
+    private var customProductsFetchedBlock: ((List<ProductDetails>) -> Unit)? = null
+
     //endregion
 
     //region === Start ===
@@ -180,7 +181,7 @@ internal object ApphudInternal {
                             productsLoaded.incrementAndGet()
 
                             mainScope.launch {
-                                notifyLoadingCompleted(null, skuDetails)
+                                notifyLoadingCompleted(null, productDetails)
                             }
                         }
                     }
@@ -208,17 +209,21 @@ internal object ApphudInternal {
 
         var isInapLoaded = false
         var isSubsLoaded = false
-        synchronized(skuDetails) {
-            skuDetails.clear()
+        synchronized(productDetails) {
+            productDetails.clear()
         }
 
         coroutineScope {
-            val subs = async{billing.detailsEx(BillingClient.SkuType.SUBS, ids)}
-            val inap =  async{billing.detailsEx(BillingClient.SkuType.INAPP, ids)}
+            val subs = async{billing.detailsEx(BillingClient.ProductType.SUBS, ids)}
+            val inap =  async{billing.detailsEx(BillingClient.ProductType.INAPP, ids)}
 
             subs.await()?.let {
-                synchronized(skuDetails) {
-                    skuDetails.addAll(it)
+                synchronized(productDetails) {
+                    productDetails.addAll(it)
+
+                    for(item in productDetails) {
+                        ApphudLog.log(item.zza())
+                    }
                 }
                 isSubsLoaded = true
             } ?: run {
@@ -226,8 +231,11 @@ internal object ApphudInternal {
             }
 
             inap.await()?.let {
-                synchronized(skuDetails) {
-                    skuDetails.addAll(it)
+                synchronized(productDetails) {
+                    productDetails.addAll(it)
+                    for(item in productDetails) {
+                        ApphudLog.log(item.name  + ":  " + item.toString())
+                    }
                 }
                 isInapLoaded = true
             } ?: run {
@@ -239,16 +247,16 @@ internal object ApphudInternal {
 
     private var notifyFullyLoaded = false
     @Synchronized
-    private fun notifyLoadingCompleted(customerLoaded: Customer? = null, skuDetailsLoaded: List<SkuDetails>? = null, fromCache: Boolean = false){
+    private fun notifyLoadingCompleted(customerLoaded: Customer? = null, productDetailsLoaded: List<ProductDetails>? = null, fromCache: Boolean = false){
         var restorePaywalls = true
 
-        skuDetailsLoaded?.let{
+        productDetailsLoaded?.let{
             productGroups = readGroupsFromCache()
-            updateGroupsWithSkuDetails(productGroups)
+            updateGroupsWithProductDetails(productGroups)
 
-            //notify that skuDetails are loaded
-            apphudListener?.apphudFetchSkuDetailsProducts(getSkuDetailsList())
-            customProductsFetchedBlock?.invoke(getSkuDetailsList())
+            //notify that productDetails are loaded
+            apphudListener?.apphudFetchProductDetails(getProductDetailsList())
+            customProductsFetchedBlock?.invoke(getProductDetailsList())
         }
 
         customerLoaded?.let{
@@ -285,9 +293,9 @@ internal object ApphudInternal {
             didRegisterCustomerAtThisLaunch = true
         }
 
-        updatePaywallsWithSkuDetails(paywalls)
+        updatePaywallsWithProductDetails(paywalls)
 
-        if(restorePaywalls && currentUser != null && paywalls.isNotEmpty() && skuDetails.isNotEmpty() && notifyFullyLoaded){
+        if(restorePaywalls && currentUser != null && paywalls.isNotEmpty() && productDetails.isNotEmpty() && notifyFullyLoaded){
             notifyFullyLoaded = false
             apphudListener?.paywallsDidFullyLoad(paywalls)
         }
@@ -357,89 +365,65 @@ internal object ApphudInternal {
         RequestManager.registrationSync(!didRegisterCustomerAtThisLaunch, is_new,true)
     }
 
-    internal fun productsFetchCallback(callback: (List<SkuDetails>) -> Unit) {
+    internal fun productsFetchCallback(callback: (List<ProductDetails>) -> Unit) {
         customProductsFetchedBlock = callback
-        if (skuDetails.isNotEmpty()) {
-            customProductsFetchedBlock?.invoke(skuDetails)
+        if (productDetails.isNotEmpty()) {
+            customProductsFetchedBlock?.invoke(productDetails)
         }
     }
     //endregion
 
     //region === Purchases ===
-    /**
-     * This is main purchase fun
-     * At start we should fill only **ONE** of this parameters: **productId** or **skuDetails** or **product**
-     * */
     internal fun purchase(
         activity: Activity,
-        productId: String?,
-        skuDetails: SkuDetails?,
-        product: ApphudProduct?,
-        withValidation: Boolean = true,
+        product: ApphudProduct,
+        offerIdToken: String?,
+        oldToken: String?,
+        prorationMode: Int?,
         callback: ((ApphudPurchaseResult) -> Unit)?
     ) {
-        checkRegistration{ error ->
-            error?.let{
-                callback?.invoke(ApphudPurchaseResult(null,null,null, error))
+        var details = product.productDetails
+        if(details == null){
+            details = getProductDetailsByProductId(product.product_id)
+        }
 
-            }?: run{
-                if (!productId.isNullOrEmpty()) {
-                    //if we have productId
-                    val sku = getSkuDetailsByProductId(productId)
-                    if (sku != null) {
-                        purchaseInternal(activity, sku, null, withValidation, callback)
-                    } else {
-                        coroutineScope.launch(errorHandler) {
-                            fetchDetails(activity, productId, null, withValidation, callback)
-                        }
-                    }
-                } else if (skuDetails != null) {
-                    //if we have SkuDetails
-                    purchaseInternal(activity, skuDetails, null, withValidation, callback)
-                } else {
-                    //if we have ApphudProduct
-                    product?.skuDetails?.let {
-                        purchaseInternal(activity, null, product, withValidation, callback)
-                    } ?: run {
-                        val sku = getSkuDetailsByProductId(product?.product_id!!)
-                        if (sku != null) {
-                            purchaseInternal(activity, sku, null, withValidation, callback)
-                        } else {
-                            coroutineScope.launch(errorHandler) {
-                                fetchDetails(activity, null, product, withValidation, callback)
-                            }
-                        }
-                    }
+        details?.let{
+            if(details.productType == BillingClient.ProductType.SUBS){
+                offerIdToken?.let{
+                    purchaseInternal(activity, product, offerIdToken, oldToken, prorationMode, callback)
+                }?: run{
+                    callback?.invoke(ApphudPurchaseResult(null,null,null, ApphudError("offerIdToken required")))
                 }
+            }else{
+                purchaseInternal(activity, product, offerIdToken, oldToken, prorationMode, callback)
+            }
+        }?: run{
+            coroutineScope.launch(errorHandler) {
+                fetchDetails(activity, product,  offerIdToken, oldToken, prorationMode, callback)
             }
         }
     }
 
     private suspend fun fetchDetails(
         activity: Activity,
-        productId: String?,
-        apphudProduct: ApphudProduct?,
-        withValidation: Boolean,
+        apphudProduct: ApphudProduct,
+        offerIdToken: String?,
+        oldToken: String?,
+        prorationMode: Int?,
         callback: ((ApphudPurchaseResult) -> Unit)?
     ) {
-        val productName: String = productId ?: apphudProduct?.product_id!!
+        val productName: String = apphudProduct.product_id
         if(loadDetails(productName, apphudProduct)){
-            getSkuDetailsByProductId(productName)?.let { sku ->
-                mainScope.launch(errorHandler) {
-                    //if we have not empty ApphudProduct
-                    apphudProduct?.let {
-                        it.skuDetails = sku
-                        purchaseInternal(activity, null, it, withValidation, callback)
-                    } ?: run {
-                        purchaseInternal(activity, sku, null, withValidation, callback)
-                    }
+            getProductDetailsByProductId(productName)?.let { details ->
+                mainScope.launch {
+                    apphudProduct.productDetails = details
+                    purchaseInternal(activity, apphudProduct, offerIdToken, oldToken, prorationMode, callback)
                 }
             }
         }else{
-            val message =
-                "Unable to fetch product with given product id: $productName" + apphudProduct?.let { " [Apphud product ID: " + it.id + "]" }
-            ApphudLog.logE(message = message,sendLogToServer = true)
-            mainScope.launch(errorHandler) {
+            val message = "Unable to fetch product with given product id: $productName" + apphudProduct.let { " [Apphud product ID: " + it.id + "]" }
+            ApphudLog.log(message = message,sendLogToServer = true)
+            mainScope.launch {
                 callback?.invoke(ApphudPurchaseResult(null, null, null, ApphudError(message)))
             }
         }
@@ -450,18 +434,18 @@ internal object ApphudInternal {
         apphudProduct: ApphudProduct?) :Boolean
     {
         val productName: String = productId ?: apphudProduct?.product_id!!
-        ApphudLog.log("Could not find SkuDetails for product id: $productName in memory")
+        ApphudLog.log("Could not find Product for product id: $productName in memory")
         ApphudLog.log("Now try fetch it from Google Billing")
 
         return coroutineScope {
             var isInapLoaded = false
             var isSubsLoaded = false
 
-            val subs = async { billing.detailsEx(BillingClient.SkuType.SUBS, listOf(productName)) }
-            val inap = async { billing.detailsEx(BillingClient.SkuType.INAPP, listOf(productName)) }
+            val subs = async { billing.detailsEx(BillingClient.ProductType.SUBS, listOf(productName)) }
+            val inap = async { billing.detailsEx(BillingClient.ProductType.INAPP, listOf(productName)) }
 
             subs.await()?.let {
-                skuDetails.addAll(it)
+                productDetails.addAll(it)
                 isSubsLoaded = true
 
                 ApphudLog.log("Google Billing return this info for product id = $productName :")
@@ -471,7 +455,7 @@ internal object ApphudInternal {
             }
 
             inap.await()?.let {
-                skuDetails.addAll(it)
+                productDetails.addAll(it)
                 isInapLoaded = true
                 it.forEach { ApphudLog.log("$it") }
             } ?: run {
@@ -483,9 +467,10 @@ internal object ApphudInternal {
 
     private fun purchaseInternal(
         activity: Activity,
-        details: SkuDetails?,
-        apphudProduct: ApphudProduct?,
-        withValidation: Boolean,
+        apphudProduct: ApphudProduct,
+        offerIdToken: String?,
+        oldToken: String?,
+        prorationMode: Int?,
         callback: ((ApphudPurchaseResult) -> Unit)?
     ) {
         billing.acknowledgeCallback = { status, purchase ->
@@ -494,40 +479,36 @@ internal object ApphudInternal {
                 when (status) {
                     is PurchaseCallbackStatus.Error -> {
                         val message = "Failed to acknowledge purchase with code: ${status.error}" + apphudProduct?.let{ " [Apphud product ID: " + it.id + "]"}
-                        ApphudLog.log(message = message,sendLogToServer = true)
-                        callback?.invoke(ApphudPurchaseResult(null,null,purchase,ApphudError(message)))
+                        ApphudLog.log(message = message,
+                            sendLogToServer = true)
+                        callback?.invoke(ApphudPurchaseResult(null,
+                            null,
+                            purchase,
+                            ApphudError(message)))
                     }
                     is PurchaseCallbackStatus.Success -> {
                         ApphudLog.log("Purchase successfully acknowledged")
-                        when {
-                            withValidation -> ackPurchase(purchase, details, apphudProduct, callback)
-                            else -> {
-                                callback?.invoke(ApphudPurchaseResult(null, null, purchase, null))
-                                ackPurchase(purchase, details, apphudProduct, null)
-                            }
-                        }
+                        ackPurchase(purchase, apphudProduct, offerIdToken, oldToken, callback)
                     }
                 }
             }
         }
         billing.consumeCallback = { status, purchase ->
+            billing.consumeCallback = null
             mainScope.launch {
-                billing.consumeCallback = null
                 when (status) {
                     is PurchaseCallbackStatus.Error -> {
                         val message = "Failed to consume purchase with error: ${status.error}" + apphudProduct?.let{ " [Apphud product ID: " + it.id + "]"}
-                        ApphudLog.logE(message = message,sendLogToServer = true)
-                        callback?.invoke(ApphudPurchaseResult(null,null, purchase,ApphudError(message)))
+                        ApphudLog.log(message = message,
+                            sendLogToServer = true)
+                        callback?.invoke(ApphudPurchaseResult(null,
+                            null,
+                            purchase,
+                            ApphudError(message)))
                     }
                     is PurchaseCallbackStatus.Success -> {
                         ApphudLog.log("Purchase successfully consumed: ${status.message}")
-                        when {
-                            withValidation -> ackPurchase(purchase, details, apphudProduct, callback)
-                            else -> {
-                                callback?.invoke(ApphudPurchaseResult(null, null, purchase, null))
-                                ackPurchase(purchase, details, apphudProduct, null)
-                            }
-                        }
+                        ackPurchase(purchase, apphudProduct, offerIdToken, oldToken, callback)
                     }
                 }
             }
@@ -538,50 +519,53 @@ internal object ApphudInternal {
                 when (purchasesResult) {
                     is PurchaseUpdatedCallbackStatus.Error -> {
                         var message =
-                            if (details != null) {
-                                "Unable to buy product with given product id: ${details.sku} "
-                            } else {
-                                paywallPaymentCancelled(apphudProduct?.paywall_id,apphudProduct?.product_id,purchasesResult.result.responseCode)
-                                "Unable to buy product with given product id: ${apphudProduct?.skuDetails?.sku} "
+                            apphudProduct.productDetails?.let{
+                                "Unable to buy product with given product id: ${it.productId} "
+                            }?: run{
+                                paywallPaymentCancelled(apphudProduct.paywall_id, apphudProduct.product_id, purchasesResult.result.responseCode)
+                                "Unable to buy product with given product id: ${apphudProduct.productDetails?.productId} "
                             }
-                        apphudProduct?.let {
-                            message += " [Apphud product ID: " + it.id + "]"
-                        }
 
-                        val error = ApphudError( message = message, secondErrorMessage = purchasesResult.result.debugMessage, errorCode = purchasesResult.result.responseCode)
+                        message += " [Apphud product ID: " + apphudProduct.id + "]"
+
+                        val error =
+                            ApphudError(message = message,
+                                secondErrorMessage = purchasesResult.result.debugMessage,
+                                errorCode = purchasesResult.result.responseCode
+                            )
                         ApphudLog.log(message = error.toString())
                         callback?.invoke(ApphudPurchaseResult(null, null, null, error))
                         processPurchaseError(purchasesResult)
                     }
                     is PurchaseUpdatedCallbackStatus.Success -> {
                         ApphudLog.log("purchases: $purchasesResult")
-                        val detailsType = if (details != null) {
-                            details.type
-                        } else {
-                            apphudProduct?.skuDetails?.type
+
+                        val detailsType = apphudProduct.productDetails?.productType ?: run {
+                            apphudProduct.productDetails?.productType
                         }
+
                         purchasesResult.purchases.forEach {
                             when (it.purchaseState) {
                                 Purchase.PurchaseState.PURCHASED ->
                                     when (detailsType) {
-                                        BillingClient.SkuType.SUBS -> {
+                                        BillingClient.ProductType.SUBS -> {
                                             if (!it.isAcknowledged) {
                                                 billing.acknowledge(it)
                                             }
                                         }
-                                        BillingClient.SkuType.INAPP -> {
+                                        BillingClient.ProductType.INAPP -> {
                                             billing.consume(it)
                                         }
                                         else -> {
                                             val message = "After purchase type is null"
                                             ApphudLog.log(message)
-                                            callback?.invoke(ApphudPurchaseResult(null,null,it,ApphudError(message)))
+                                            callback?.invoke(ApphudPurchaseResult(null,null, it, ApphudError(message)))
                                         }
                                     }
                                 else -> {
-                                    val message = "After purchase state: ${it.purchaseState}" + apphudProduct?.let { " [Apphud product ID: " + it.id + "]" }
+                                    val message = "After purchase state: ${it.purchaseState}" + apphudProduct?.let{ " [Apphud product ID: " + it.id + "]"}
                                     ApphudLog.log(message = message)
-                                    callback?.invoke(ApphudPurchaseResult(null,null,it,ApphudError(message)))
+                                    callback?.invoke(ApphudPurchaseResult(null,null, it, ApphudError(message)))
                                 }
                             }
                         }
@@ -589,20 +573,18 @@ internal object ApphudInternal {
                 }
             }
         }
-        when {
-            details != null -> {
-                billing.purchase(activity, details, deviceId)
-            }
-            apphudProduct?.skuDetails != null -> {
-                paywallCheckoutInitiated(apphudProduct.paywall_id, apphudProduct.product_id)
-                billing.purchase(activity, apphudProduct.skuDetails!!, deviceId)
-            }
-            else -> {
-                val message = "Unable to buy product with because SkuDetails is null" + apphudProduct?.let{ " [Apphud product ID: " + it.id + "]"}
-                ApphudLog.logE(message = message)
-                mainScope.launch {
-                    callback?.invoke(ApphudPurchaseResult(null,null,null,ApphudError(message)))
-                }
+
+        apphudProduct.productDetails?.let{
+            paywallCheckoutInitiated(apphudProduct.paywall_id, apphudProduct.product_id)
+            billing.purchase(activity, it, offerIdToken, oldToken, prorationMode, deviceId)
+        }?: run{
+            val message = "Unable to buy product with because ProductDetails is null" + apphudProduct?.let{ " [Apphud product ID: " + it.id + "]"}
+            ApphudLog.log(message = message)
+            mainScope.launch {
+                callback?.invoke(ApphudPurchaseResult(null,
+                    null,
+                    null,
+                    ApphudError(message)))
             }
         }
     }
@@ -618,53 +600,64 @@ internal object ApphudInternal {
 
     private fun ackPurchase(
         purchase: Purchase,
-        details: SkuDetails?,
-        apphudProduct: ApphudProduct?,
+        apphudProduct: ApphudProduct,
+        offerIdToken: String?,
+        oldToken: String?,
         callback: ((ApphudPurchaseResult) -> Unit)?
     ) {
         coroutineScope.launch(errorHandler) {
-            RequestManager.purchased(purchase, details, apphudProduct) { customer, error ->
+            RequestManager.purchased(purchase, apphudProduct, offerIdToken, oldToken) { customer, error ->
                 mainScope.launch {
                     customer?.let {
                         val newSubscriptions =
-                            customer.subscriptions.firstOrNull { it.productId == purchase.skus.first() }
+                            customer.subscriptions.firstOrNull { it.productId == purchase.products.first() }
 
                         val newPurchases =
-                            customer.purchases.firstOrNull { it.productId == purchase.skus.first() }
+                            customer.purchases.firstOrNull { it.productId == purchase.products.first() }
 
                         notifyLoadingCompleted(it)
 
                         if (newSubscriptions == null && newPurchases == null) {
-                            val productId = details?.let { details.sku } ?: purchase.skus.first()?:"unknown"
+                            val productId =apphudProduct.productDetails?.let { apphudProduct.productDetails?.productId } ?: purchase.products.first()?:"unknown"
                             val message = "Unable to validate purchase ($productId). " +
                                     "Ensure Google Service Credentials are correct and have necessary permissions. " +
                                     "Check https://docs.apphud.com/getting-started/creating-app#google-play-service-credentials or contact support."
 
                             ApphudLog.logE(message)
-                            callback?.invoke(ApphudPurchaseResult(null,null,null,ApphudError(message)))
+                            callback?.invoke(ApphudPurchaseResult(null,
+                                null,
+                                null,
+                                ApphudError(message)))
                         } else {
                             apphudListener?.apphudSubscriptionsUpdated(customer.subscriptions)
-                            callback?.invoke(ApphudPurchaseResult(newSubscriptions,newPurchases,purchase,null))
+                            callback?.invoke(ApphudPurchaseResult(newSubscriptions,
+                                newPurchases,
+                                purchase,
+                                null))
                         }
                     }
                     error?.let {
                         val message = "Unable to validate purchase with error = ${it.message}" + apphudProduct?.let{ " [Apphud product ID: " + it.id + "]"}
                         ApphudLog.logI(message = message)
-                        callback?.invoke(ApphudPurchaseResult(null, null,purchase,ApphudError(message)))
+                        callback?.invoke(ApphudPurchaseResult(null, null,
+                            purchase,
+                            ApphudError(message))
+                        )
                     }
                 }
             }
         }
     }
 
-    internal fun trackPurchase(purchase: Purchase, skuProduct: SkuDetails, paywallIdentifier: String? = null) {
+    internal fun trackPurchase(purchase: Purchase, productDetails: ProductDetails, offerIdToken: String?, paywallIdentifier: String? = null) {
         ApphudLog.log("TrackPurchase()")
         coroutineScope.launch(errorHandler) {
             sendPurchasesToApphud(
                 paywallIdentifier,
                 null,
                 purchase,
-                skuProduct,
+                productDetails,
+                offerIdToken,
                 null,
                 true
             )
@@ -693,8 +686,8 @@ internal object ApphudInternal {
                 coroutineScope.launch(errorHandler) {
                     mutexSync.withLock {
                         ApphudLog.log("SyncPurchases: mutex Lock")
-                        val subsResult = billing.queryPurchaseHistorySync(BillingClient.SkuType.SUBS)
-                        val inapsResult = billing.queryPurchaseHistorySync(BillingClient.SkuType.INAPP)
+                        val subsResult = billing.queryPurchaseHistorySync(BillingClient.ProductType.SUBS)
+                        val inapsResult = billing.queryPurchaseHistorySync(BillingClient.ProductType.INAPP)
 
                         var purchases = mutableListOf<PurchaseHistoryRecord>()
                         purchases.addAll(processHistoryCallbackStatus(subsResult))
@@ -716,9 +709,9 @@ internal object ApphudInternal {
 
                             val restoredPurchases = mutableListOf<PurchaseRecordDetails>()
                             val subsRestored =
-                                billing.restoreSync(BillingClient.SkuType.SUBS, purchases)
+                                billing.restoreSync(BillingClient.ProductType.SUBS, purchases)
                             val inapsRestored =
-                                billing.restoreSync(BillingClient.SkuType.INAPP, purchases)
+                                billing.restoreSync(BillingClient.ProductType.INAPP, purchases)
 
                             restoredPurchases.addAll(processRestoreCallbackStatus(subsRestored))
                             restoredPurchases.addAll(processRestoreCallbackStatus(inapsRestored))
@@ -738,6 +731,7 @@ internal object ApphudInternal {
                                     restoredPurchases,
                                     null,
                                     null,
+                                    null,
                                     callback,
                                     observerMode
                                 )
@@ -754,16 +748,17 @@ internal object ApphudInternal {
         paywallIdentifier: String? = null,
         tempPurchaseRecordDetails: List<PurchaseRecordDetails>?,
         purchase: Purchase?,
-        skuProduct: SkuDetails?,
+        productDetails: ProductDetails?,
+        offerIdToken: String?,
         callback: ApphudPurchasesRestoreCallback? = null,
         observerMode: Boolean
     ){
         val apphudProduct: ApphudProduct? = tempPurchaseRecordDetails?.let {
             findJustPurchasedProduct(paywallIdentifier, it)
         }?: run{
-            findJustPurchasedProduct(paywallIdentifier, skuProduct)
+            findJustPurchasedProduct(paywallIdentifier, productDetails)
         }
-        val customer = RequestManager.restorePurchasesSync(apphudProduct, tempPurchaseRecordDetails, purchase, skuProduct, observerMode)
+        val customer = RequestManager.restorePurchasesSync(apphudProduct, tempPurchaseRecordDetails, purchase, productDetails, offerIdToken, observerMode)
         customer?.let{
             tempPurchaseRecordDetails?.let{ records ->
                 if(records.isNotEmpty() && (it.subscriptions.size + it.purchases.size) == 0) {
@@ -803,8 +798,8 @@ internal object ApphudInternal {
     private fun processHistoryCallbackStatus(result: PurchaseHistoryCallbackStatus): List<PurchaseHistoryRecord>{
         when (result){
             is PurchaseHistoryCallbackStatus.Error ->{
-                val type = if(result.type() == BillingClient.SkuType.SUBS) "subscriptions" else "in-app products"
-                ApphudLog.logE("Failed to load history for $type with error: ("
+                val type = if(result.type() == BillingClient.ProductType.SUBS) "subscriptions" else "in-app products"
+                ApphudLog.log("Failed to load history for $type with error: ("
                         + "${result.result?.responseCode})"
                         + "${result.result?.debugMessage})")
             }
@@ -818,12 +813,12 @@ internal object ApphudInternal {
     private fun processRestoreCallbackStatus(result: PurchaseRestoredCallbackStatus): List<PurchaseRecordDetails>{
         when (result){
             is PurchaseRestoredCallbackStatus.Error ->{
-                val type = if(result.type() == BillingClient.SkuType.SUBS) "subscriptions" else "in-app products"
+                val type = if(result.type() == BillingClient.ProductType.SUBS) "subscriptions" else "in-app products"
                 val error =
                     ApphudError(message = "Restore Purchases is failed for $type",
                         secondErrorMessage = result.message,
                         errorCode = result.result?.responseCode)
-                ApphudLog.logE(message = error.toString(), sendLogToServer = true)
+                ApphudLog.log(message = error.toString(), sendLogToServer = true)
             }
             is PurchaseRestoredCallbackStatus.Success ->{
                 return result.purchases
@@ -841,7 +836,7 @@ internal object ApphudInternal {
                         record?.let { rec ->
                             val offset = System.currentTimeMillis() - rec.record.purchaseTime
                             if (offset < 300000L) { // 5 min
-                                return currentPaywall.products?.find { it.skuDetails?.sku == rec.details.sku }
+                                return currentPaywall.products?.find { it.productDetails?.productId == rec.details.productId }
                             }
                         }
                     }
@@ -854,13 +849,13 @@ internal object ApphudInternal {
         return null
     }
 
-    private fun findJustPurchasedProduct(paywallIdentifier: String?, skuProduct: SkuDetails?): ApphudProduct?{
+    private fun findJustPurchasedProduct(paywallIdentifier: String?, productDetails: ProductDetails?): ApphudProduct?{
         try {
             paywallIdentifier?.let {
                 getPaywalls().firstOrNull { it.identifier == paywallIdentifier }
                     ?.let { currentPaywall ->
-                        skuProduct?.let { details ->
-                            return currentPaywall.products?.find { it.skuDetails?.sku == details.sku }
+                        productDetails?.let { details ->
+                            return currentPaywall.products?.find { it.productDetails?.productId == details.productId }
                         }
                     }
             }
@@ -1190,6 +1185,18 @@ internal object ApphudInternal {
         }
     }
 
+    internal fun subscriptions(callback: (List<ApphudSubscription>?, error: ApphudError?) -> Unit) {
+        ApphudLog.log("Invoke subscriptions")
+
+        checkRegistration{ error ->
+            error?.let{
+                callback.invoke(null, error)
+            }?: run{
+                callback.invoke(currentUser?.subscriptions?: emptyList(), null)
+            }
+        }
+    }
+
     fun subscriptions() :List<ApphudSubscription> {
         var subscriptions : List<ApphudSubscription> = mutableListOf()
         this.currentUser?.let{user ->
@@ -1277,10 +1284,10 @@ internal object ApphudInternal {
         }
     }
 
-    internal fun getSkuDetailsList(): List<SkuDetails> {
-        var out: MutableList<SkuDetails>
-        synchronized(this.skuDetails){
-            out = this.skuDetails.toCollection(mutableListOf())
+    internal fun getProductDetailsList(): List<ProductDetails> {
+        var out: MutableList<ProductDetails>
+        synchronized(this.productDetails){
+            out = this.productDetails.toCollection(mutableListOf())
         }
         return out
     }
@@ -1295,75 +1302,6 @@ internal object ApphudInternal {
                 }
             }
         }
-    }
-    //endregion
-
-    //region === Secondary methods ===
-    internal fun getPackageName(): String{
-        return context.packageName
-    }
-
-    private fun isInitialized(): Boolean{
-        return ::context.isInitialized
-                && ::userId.isInitialized
-                && ::deviceId.isInitialized
-                && ::apiKey.isInitialized
-    }
-
-    private fun getType(value: Any?): String {
-        return when (value) {
-            is String -> "string"
-            is Boolean -> "boolean"
-            is Float, is Double -> "float"
-            is Int -> "integer"
-            null -> "null"
-            else -> "unknown"
-        }
-    }
-
-    internal fun logout() {
-        clear()
-    }
-
-    private fun clear() {
-        RequestManager.cleanRegistration()
-        currentUser = null
-        generatedUUID = UUID.randomUUID().toString()
-        productsLoaded.set(0)
-        customProductsFetchedBlock = null
-        storage.clean()
-        prevPurchases.clear()
-        skuDetails.clear()
-        pendingUserProperties.clear()
-        allowIdentifyUser = true
-        didRegisterCustomerAtThisLaunch = false
-        setNeedsToUpdateUserProperties = false
-    }
-
-    private fun updateUser(id: UserId?): UserId {
-        val userId = when {
-            id == null || id.isBlank() -> {
-                storage.userId ?: generatedUUID
-            }
-            else -> {
-                id
-            }
-        }
-        storage.userId = userId
-        return userId
-    }
-
-    private fun updateDevice(id: DeviceId?): DeviceId {
-        val deviceId = when {
-            id == null || id.isBlank() -> {
-                storage.deviceId?.let { is_new = false; it } ?: generatedUUID
-            }
-            else -> {
-                id
-            }
-        }
-        storage.deviceId = deviceId
-        return deviceId
     }
 
     private suspend fun fetchAdvertisingId(): String?{
@@ -1461,6 +1399,75 @@ internal object ApphudInternal {
     }
     //endregion
 
+    //region === Secondary methods ===
+    internal fun getPackageName(): String{
+        return context.packageName
+    }
+
+    private fun isInitialized(): Boolean{
+        return ::context.isInitialized
+                && ::userId.isInitialized
+                && ::deviceId.isInitialized
+                && ::apiKey.isInitialized
+    }
+
+    private fun getType(value: Any?): String {
+        return when (value) {
+            is String -> "string"
+            is Boolean -> "boolean"
+            is Float, is Double -> "float"
+            is Int -> "integer"
+            null -> "null"
+            else -> "unknown"
+        }
+    }
+
+    internal fun logout() {
+        clear()
+    }
+
+    private fun clear() {
+        RequestManager.cleanRegistration()
+        currentUser = null
+        generatedUUID = UUID.randomUUID().toString()
+        productsLoaded.set(0)
+        customProductsFetchedBlock = null
+        storage.clean()
+        prevPurchases.clear()
+        productDetails.clear()
+        pendingUserProperties.clear()
+        allowIdentifyUser = true
+        didRegisterCustomerAtThisLaunch = false
+        setNeedsToUpdateUserProperties = false
+    }
+
+    private fun updateUser(id: UserId?): UserId {
+        val userId = when {
+            id == null || id.isBlank() -> {
+                storage.userId ?: generatedUUID
+            }
+            else -> {
+                id
+            }
+        }
+        storage.userId = userId
+        return userId
+    }
+
+    private fun updateDevice(id: DeviceId?): DeviceId {
+        val deviceId = when {
+            id == null || id.isBlank() -> {
+                storage.deviceId?.let { is_new = false; it } ?: generatedUUID
+            }
+            else -> {
+                id
+            }
+        }
+        storage.deviceId = deviceId
+        return deviceId
+    }
+    //endregion
+
     //region === Cache ===
     //Groups cache ======================================
     private fun cacheGroups(groups: List<ApphudGroup>) {
@@ -1471,10 +1478,10 @@ internal object ApphudInternal {
         return  storage.productGroups?.toMutableList()?: mutableListOf()
     }
 
-    private fun updateGroupsWithSkuDetails(productGroups: List<ApphudGroup>) {
+    private fun updateGroupsWithProductDetails(productGroups: List<ApphudGroup>) {
         productGroups.forEach { group ->
             group.products?.forEach { product ->
-                product.skuDetails = getSkuDetailsByProductId(product.product_id)
+                product.productDetails = getProductDetailsByProductId(product.product_id)
             }
         }
     }
@@ -1488,23 +1495,23 @@ internal object ApphudInternal {
         return storage.paywalls?.toMutableList()?: mutableListOf()
     }
 
-    private fun updatePaywallsWithSkuDetails(paywalls: List<ApphudPaywall>) {
+    private fun updatePaywallsWithProductDetails(paywalls: List<ApphudPaywall>) {
         synchronized(paywalls) {
             paywalls.forEach { paywall ->
                 paywall.products?.forEach { product ->
-                    product.skuDetails = getSkuDetailsByProductId(product.product_id)
+                    product.productDetails = getProductDetailsByProductId(product.product_id)
                 }
             }
         }
     }
 
-    //Find SkuDetail  ======================================
-    internal fun getSkuDetailsByProductId(productIdentifier: String): SkuDetails? {
-        var skuDetail : SkuDetails?
-        synchronized(skuDetails){
-            skuDetail = skuDetails.let { skuList -> skuList.firstOrNull { it.sku == productIdentifier } }
+    //Find ProductDetails  ======================================
+    internal fun getProductDetailsByProductId(productIdentifier: String): ProductDetails? {
+        var productDetail : ProductDetails?
+        synchronized(productDetails){
+            productDetail = productDetails.let { productsList -> productsList.firstOrNull { it.productId == productIdentifier } }
         }
-        return skuDetail
+        return productDetail
     }
 
     //endregion

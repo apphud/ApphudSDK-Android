@@ -4,40 +4,47 @@ import android.content.Context
 import android.net.ConnectivityManager
 import android.net.NetworkCapabilities
 import android.os.Build
+import com.android.billingclient.api.BillingClient
+import com.android.billingclient.api.ProductDetails
 import com.android.billingclient.api.Purchase
-import com.android.billingclient.api.SkuDetails
 import com.apphud.sdk.*
+import com.apphud.sdk.ApphudUtils
+import com.apphud.sdk.ApphudVersion
 import com.apphud.sdk.body.*
 import com.apphud.sdk.client.*
 import com.apphud.sdk.client.dto.*
 import com.apphud.sdk.domain.*
 import com.apphud.sdk.mappers.*
+import com.apphud.sdk.managers.AdvertisingIdManager.AdInfo
 import com.apphud.sdk.parser.GsonParser
 import com.apphud.sdk.parser.Parser
 import com.apphud.sdk.storage.SharedPreferencesStorage
-import com.google.gson.GsonBuilder
 import com.google.gson.reflect.TypeToken
-import kotlinx.coroutines.suspendCancellableCoroutine
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import okhttp3.RequestBody.Companion.toRequestBody
-import okhttp3.Response
-import okio.Buffer
-import org.json.JSONException
-import org.json.JSONObject
+import okhttp3.logging.HttpLoggingInterceptor
 import java.io.IOException
 import java.net.URL
-import java.nio.charset.Charset
 import java.util.*
-import java.util.concurrent.TimeUnit
+import org.json.JSONException
+
+import org.json.JSONObject
 import kotlin.coroutines.resume
+import com.google.gson.GsonBuilder
+import kotlinx.coroutines.suspendCancellableCoroutine
+import okhttp3.Response
+import okio.Buffer
+import java.nio.charset.Charset
+import java.util.concurrent.TimeUnit
 
 
 object RequestManager {
     private const val MUST_REGISTER_ERROR =
         " :You must call the Apphud.start method once when your application starts before calling any other methods."
 
+    val BILLING_VERSION :Int= 5
     var currentUser: Customer? = null
 
     val gson = GsonBuilder().serializeNulls().create()
@@ -95,7 +102,7 @@ object RequestManager {
                 && apiKey != null
     }
 
-    private fun getOkHttpClient( request: Request, retry: Boolean = true): OkHttpClient {
+    private fun getOkHttpClient(request: Request, retry: Boolean = true): OkHttpClient {
         val retryInterceptor = HttpRetryInterceptor()
         val headersInterceptor = HeadersInterceptor(apiKey)
         /*val logging = HttpLoggingInterceptor {
@@ -132,7 +139,7 @@ object RequestManager {
         return builder.build()
     }
 
-    private fun logRequestStart(request: Request) {
+    private fun logRequestStart(request: Request){
         try {
             var body: String? = ""
             request.body?.let {
@@ -155,28 +162,28 @@ object RequestManager {
                 }
             }
             ApphudLog.logI("Start " + request.method + " request " + request.url + " with params:" + body)
-        } catch (ex: Exception) {
-            ApphudLog.logE(ex.message ?: "")
+        }catch (ex: Exception){
+            ApphudLog.logE(ex.message?:"")
         }
     }
 
-    private fun logRequestFinish(request: Request, response: Response) {
-        try {
+    private fun logRequestFinish(request: Request, response: Response){
+        try{
             val responseBody = response.body
             val source = responseBody?.source()
             source?.request(Long.MAX_VALUE)
 
             val buffer = source?.buffer?.clone()?.readString(Charset.forName("UTF-8"))
             var outputBody = ""
-            buffer?.let {
+            buffer?.let{
                 if (parser.isJson(buffer)) {
-                    outputBody = buildPrettyPrintedBy(it) ?: ""
+                    outputBody = buildPrettyPrintedBy(it)?:""
                 }
             }
 
             ApphudLog.logI("Finished " + request.method + " request " + request.url + " with response: " + response.code + "\n" + outputBody)
-        } catch (ex: Exception) {
-            ApphudLog.logE(ex.message ?: "")
+        }catch (ex: Exception){
+            ApphudLog.logE(ex.message?:"")
         }
     }
 
@@ -227,7 +234,6 @@ object RequestManager {
             }
         } catch (e: IOException) {
             val message = e.message ?: "Undefined error"
-            ApphudLog.logE(message)
             completionHandler(null, ApphudError(message))
         }
     }
@@ -270,7 +276,7 @@ object RequestManager {
         }
     }
 
-    private fun checkLock403(request: Request, response: Response) {
+    private fun checkLock403(request: Request, response: Response){
         if (response.code == 403 && request.method == "POST" && request.url.encodedPath.endsWith("/customers")) {
             HeadersInterceptor.isBlocked = true
         }
@@ -324,53 +330,43 @@ object RequestManager {
             .build()
     }
 
-    suspend fun registrationSync(
-        needPaywalls: Boolean,
-        isNew: Boolean,
-        forceRegistration: Boolean = false
-    ): Customer? =
+    suspend fun registrationSync(needPaywalls: Boolean, isNew: Boolean, forceRegistration: Boolean = false) :Customer? =
         suspendCancellableCoroutine { continuation ->
-            if (!canPerformRequest()) {
-                ApphudLog.logE("registrationSync $MUST_REGISTER_ERROR")
-                if (continuation.isActive) {
-                    continuation.resume(null)
-                }
-            }
-
-            if (currentUser == null || forceRegistration) {
-                registration(needPaywalls, isNew, forceRegistration) { customer, error ->
-                    if (continuation.isActive) {
-                        continuation.resume(customer)
-                    }
-                }
-            } else {
-                if (continuation.isActive) {
-                    continuation.resume(currentUser)
-                }
+        if(!canPerformRequest()) {
+            ApphudLog.logE("registrationSync $MUST_REGISTER_ERROR")
+            if(continuation.isActive) {
+                continuation.resume(null)
             }
         }
 
+        if(currentUser == null || forceRegistration) {
+            registration(needPaywalls, isNew, forceRegistration) { customer, error ->
+                if(continuation.isActive) {
+                    continuation.resume(customer)
+                }
+            }
+        }else{
+            if(continuation.isActive) {
+                continuation.resume(currentUser)
+            }
+        }
+    }
+
     @Synchronized
-    fun registration(
-        needPaywalls: Boolean,
-        isNew: Boolean,
-        forceRegistration: Boolean = false,
-        completionHandler: (Customer?, ApphudError?) -> Unit
-    ) {
-        if (!canPerformRequest()) {
+    fun registration(needPaywalls: Boolean, isNew: Boolean,  forceRegistration: Boolean = false, completionHandler: (Customer?, ApphudError?) -> Unit) {
+        if(!canPerformRequest()) {
             ApphudLog.logE(::registration.name + MUST_REGISTER_ERROR)
             return
         }
 
-        if (currentUser == null || forceRegistration) {
+        if(currentUser == null || forceRegistration) {
             val apphudUrl = ApphudUrl.Builder()
                 .host(HeadersInterceptor.HOST)
                 .version(ApphudVersion.V1)
                 .path("customers")
                 .build()
 
-            val request =
-                buildPostRequest(URL(apphudUrl.url), mkRegistrationBody(needPaywalls, isNew))
+            val request = buildPostRequest(URL(apphudUrl.url), mkRegistrationBody(needPaywalls, isNew))
             val httpClient = getOkHttpClient(request)
             try {
                 val serverResponse = performRequestSync(httpClient, request)
@@ -389,62 +385,56 @@ object RequestManager {
                     completionHandler(null, ApphudError("Registration failed"))
                 }
             } catch (ex: Exception) {
-                val message = ex.message ?: "Undefined error"
-                ApphudLog.logE(message)
-                completionHandler(null, ApphudError(message))
+                val message = ex.message?:"Undefined error"
+                completionHandler(null,  ApphudError(message))
             }
-        } else {
+        }else{
             completionHandler(currentUser, null)
         }
     }
 
-    suspend fun allProducts(): List<ApphudGroup>? =
-        suspendCancellableCoroutine { continuation ->
-            val apphudUrl = ApphudUrl.Builder()
-                .host(HeadersInterceptor.HOST)
-                .version(ApphudVersion.V2)
-                .path("products")
-                .build()
+    suspend fun allProducts() : List<ApphudGroup>? =
+    suspendCancellableCoroutine { continuation ->
+        val apphudUrl = ApphudUrl.Builder()
+            .host(HeadersInterceptor.HOST)
+            .version(ApphudVersion.V2)
+            .path("products")
+            .build()
 
-            val request = buildGetRequest(URL(apphudUrl.url))
+        val request = buildGetRequest(URL(apphudUrl.url))
 
-            makeRequest(request) { serverResponse, error ->
-                serverResponse?.let {
-                    val responseDto: ResponseDto<List<ApphudGroupDto>>? =
-                        parser.fromJson<ResponseDto<List<ApphudGroupDto>>>(
-                            serverResponse,
-                            object : TypeToken<ResponseDto<List<ApphudGroupDto>>>() {}.type
-                        )
-                    responseDto?.let { response ->
-                        val productsList =
-                            response.data.results?.let { it1 -> productMapper.map(it1) }
-                        if (continuation.isActive) {
-                            continuation.resume(productsList)
-                        }
-                    } ?: run {
-                        ApphudLog.logE("Failed to load products")
-                        if (continuation.isActive) {
-                            continuation.resume(null)
-                        }
+        makeRequest(request) { serverResponse, error ->
+            serverResponse?.let {
+                val responseDto: ResponseDto<List<ApphudGroupDto>>? =
+                    parser.fromJson<ResponseDto<List<ApphudGroupDto>>>(serverResponse, object: TypeToken<ResponseDto<List<ApphudGroupDto>>>(){}.type)
+                responseDto?.let{ response ->
+                    val productsList = response.data.results?.let { it1 -> productMapper.map(it1) }
+                    if(continuation.isActive) {
+                        continuation.resume(productsList)
                     }
-                } ?: run {
-                    if (error != null) {
-                        ApphudLog.logE(error.message)
-                    }
-                    if (continuation.isActive) {
+                }?: run{
+                    ApphudLog.logE("Failed to load products")
+                    if(continuation.isActive) {
                         continuation.resume(null)
                     }
                 }
+            } ?: run {
+                if (error != null) {
+                    ApphudLog.logE(error.message)
+                }
+                if(continuation.isActive) {
+                    continuation.resume(null)
+                }
             }
         }
+    }
 
-    fun purchased(
-        purchase: Purchase,
-        details: SkuDetails?,
-        apphudProduct: ApphudProduct?,
-        completionHandler: (Customer?, ApphudError?) -> Unit
-    ) {
-        if (!canPerformRequest()) {
+    fun purchased(purchase: Purchase,
+                  apphudProduct: ApphudProduct?,
+                  offerToken: String?,
+                  oldToken: String?,
+                  completionHandler: (Customer?, ApphudError?) -> Unit) {
+        if(!canPerformRequest()) {
             ApphudLog.logE(::purchased.name + MUST_REGISTER_ERROR)
             return
         }
@@ -455,18 +445,11 @@ object RequestManager {
             .path("subscriptions")
             .build()
 
-        val purchaseBody = details?.let { makePurchaseBody(purchase, it, null, null) }
-            ?: apphudProduct?.let {
-                makePurchaseBody(
-                    purchase,
-                    it.skuDetails,
-                    it.paywall_id,
-                    it.id
-                )
-            }
+        val purchaseBody = apphudProduct?.let {
+            makePurchaseBody(purchase, it.productDetails, it.paywall_id, it.id, offerToken, oldToken)
+        }
         if (purchaseBody == null) {
-            val message =
-                "SkuDetails and ApphudProduct can not be null at the same time" + apphudProduct?.let { " [Apphud product ID: " + it.id + "]" }
+            val message = "ProductsDetails and ApphudProduct can not be null at the same time" + apphudProduct?.let{ " [Apphud product ID: " + it.id + "]"}
             ApphudLog.logE(message = message)
             completionHandler.invoke(null, ApphudError(message))
             return
@@ -495,13 +478,9 @@ object RequestManager {
         }
     }
 
-    fun restorePurchases(
-        apphudProduct: ApphudProduct? = null,
-        purchaseRecordDetailsSet: Set<PurchaseRecordDetails>,
-        observerMode: Boolean,
-        completionHandler: (Customer?, ApphudError?) -> Unit
-    ) {
-        if (!canPerformRequest()) {
+    fun restorePurchases(apphudProduct: ApphudProduct? = null, purchaseRecordDetailsSet: Set<PurchaseRecordDetails>, observerMode: Boolean,
+                  completionHandler: (Customer?, ApphudError?) -> Unit) {
+        if(!canPerformRequest()) {
             ApphudLog.logE(::restorePurchases.name + MUST_REGISTER_ERROR)
             return
         }
@@ -512,8 +491,7 @@ object RequestManager {
             .path("subscriptions")
             .build()
 
-        val purchaseBody =
-            makeRestorePurchasesBody(apphudProduct, purchaseRecordDetailsSet.toList(), observerMode)
+        val purchaseBody = makeRestorePurchasesBody(apphudProduct, purchaseRecordDetailsSet.toList(), observerMode)
 
         val request = buildPostRequest(URL(apphudUrl.url), purchaseBody)
 
@@ -542,7 +520,8 @@ object RequestManager {
         apphudProduct: ApphudProduct? = null,
         purchaseRecordDetailsSet: List<PurchaseRecordDetails>?,
         purchase: Purchase?,
-        skuProduct: SkuDetails?,
+        productDetails: ProductDetails?,
+        offerIdToken: String?,
         observerMode: Boolean
     ): Customer? =
         suspendCancellableCoroutine { continuation ->
@@ -565,11 +544,12 @@ object RequestManager {
                     purchaseRecordDetailsSet,
                     observerMode
                 )
-            }else if(purchase != null && skuProduct != null){
+            }else if(purchase != null && productDetails != null){
                 makeTrackPurchasesBody(
                     apphudProduct,
                     purchase,
-                    skuProduct,
+                    productDetails,
+                    offerIdToken,
                     observerMode
                 )
             } else null
@@ -706,7 +686,6 @@ object RequestManager {
             }
         } catch (ex: Exception) {
             val message = ex.message?:"Undefined error"
-            ApphudLog.logE(message)
             completionHandler(null,  ApphudError(message))
         }
     }
@@ -776,10 +755,10 @@ object RequestManager {
 
         makeUserRegisteredRequest(request) { serverResponse, error ->
             serverResponse?.let {
-                ApphudLog.logI("Paywall Event log was send successfully")
-            }?: run {
-                ApphudLog.logI("Failed to send paywall event")
-            }
+                    ApphudLog.logI("Paywall Event log was send successfully")
+                }?: run {
+                    ApphudLog.logI("Failed to send paywall event")
+                }
             error?.let {
                 ApphudLog.logE("Paywall Event log was not send")
             }
@@ -880,7 +859,7 @@ object RequestManager {
             app_version =  this.applicationContext.buildAppVersion(),
             device_family = Build.MANUFACTURER,
             platform = "Android",
-            device_type = if (ApphudUtils.optOutOfTracking) "Restricted" else Build.MODEL,
+            device_type =  if (ApphudUtils.optOutOfTracking) "Restricted" else Build.MODEL,
             os_version = Build.VERSION.RELEASE,
             start_app_version = this.applicationContext.buildAppVersion(),
             idfv = if (ApphudUtils.optOutOfTracking) null else appSetId,
@@ -911,59 +890,72 @@ object RequestManager {
 
     private fun makePurchaseBody(
         purchase: Purchase,
-        details: SkuDetails?,
+        productDetails: ProductDetails?,
         paywall_id: String?,
-        apphud_product_id: String?
-    ) =
-        PurchaseBody(
+        apphud_product_id: String?,
+        offerIdToken: String?,
+        oldToken: String?
+    ):PurchaseBody {
+        return PurchaseBody(
             device_id = deviceId,
             purchases = listOf(
                 PurchaseItemBody(
                     order_id = purchase.orderId,
-                    product_id = details?.let { details.sku } ?: purchase.skus.first(),
+                    product_id = productDetails?.let { productDetails.productId } ?: purchase.products.first(),
                     purchase_token = purchase.purchaseToken,
-                    price_currency_code = details?.priceCurrencyCode,
-                    price_amount_micros = details?.priceAmountMicros,
-                    subscription_period = details?.subscriptionPeriod,
+                    price_currency_code = productDetails?.priceCurrencyCode(),
+                    price_amount_micros = productDetails?.priceAmountMicros(),
+                    subscription_period = productDetails?.subscriptionPeriod(),
                     paywall_id = paywall_id,
                     product_bundle_id = apphud_product_id,
-                    observer_mode = false
+                    observer_mode = false,
+                    billing_version = BILLING_VERSION,
+                    purchase_time = purchase.purchaseTime,
+                    product_info = productDetails?.let{ProductInfo(productDetails, offerIdToken)}
                 )
             )
         )
+    }
 
+    private val ONE_HOUR = 3600_000L
     private fun makeRestorePurchasesBody(apphudProduct: ApphudProduct? = null, purchases: List<PurchaseRecordDetails>, observerMode: Boolean) =
         PurchaseBody(
             device_id = deviceId,
             purchases = purchases.map { purchase ->
                 PurchaseItemBody(
                     order_id = null,
-                    product_id = purchase.details.sku,
+                    product_id = purchase.details.productId,
                     purchase_token = purchase.record.purchaseToken,
-                    price_currency_code = purchase.details.priceCurrencyCode,
-                    price_amount_micros = purchase.details.priceAmountMicros,
-                    subscription_period = purchase.details.subscriptionPeriod,
-                    paywall_id = if(apphudProduct?.skuDetails?.sku == purchase.details.sku) apphudProduct.paywall_id else null,
-                    product_bundle_id = if(apphudProduct?.skuDetails?.sku == purchase.details.sku) apphudProduct.id else null,
-                    observer_mode = observerMode
+                    price_currency_code = purchase.details.priceCurrencyCode(),
+                    price_amount_micros =  if((System.currentTimeMillis() - purchase.record.purchaseTime) < ONE_HOUR) {purchase.details.priceAmountMicros()} else null,
+                    subscription_period = purchase.details.subscriptionPeriod(),
+                    paywall_id = if(apphudProduct?.productDetails?.productId == purchase.details.productId) apphudProduct.paywall_id else null,
+                    product_bundle_id = if(apphudProduct?.productDetails?.productId == purchase.details.productId) apphudProduct.id else null,
+                    observer_mode = observerMode,
+                    billing_version = BILLING_VERSION,
+                    purchase_time = purchase.record.purchaseTime,
+                    product_info = null
                 )
-            }
+            }.sortedByDescending { it.purchase_time }
         )
 
-    private fun makeTrackPurchasesBody(apphudProduct: ApphudProduct? = null, purchase: Purchase, skuProduct: SkuDetails?, observerMode: Boolean) =
+    private fun makeTrackPurchasesBody(apphudProduct: ApphudProduct? = null, purchase: Purchase, productDetails: ProductDetails, offerIdToken: String?, observerMode: Boolean) =
         PurchaseBody(
             device_id = deviceId,
             purchases = listOf(
                 PurchaseItemBody(
                     order_id = purchase.orderId,
-                    product_id = purchase.skus.first(),
+                    product_id = purchase.products.first(),
                     purchase_token = purchase.purchaseToken,
-                    price_currency_code = skuProduct?.priceCurrencyCode,
-                    price_amount_micros = skuProduct?.priceAmountMicros,
-                    subscription_period = skuProduct?.let{ if(it.subscriptionPeriod.isNotEmpty()) it.subscriptionPeriod else null},
-                    paywall_id = if(apphudProduct?.skuDetails?.sku == purchase.skus.first()) apphudProduct?.paywall_id else null,
-                    product_bundle_id = if(apphudProduct?.skuDetails?.sku == purchase.skus.first()) apphudProduct?.id else null,
-                    observer_mode = observerMode
+                    price_currency_code = productDetails.priceCurrencyCode(),
+                    price_amount_micros = productDetails.priceAmountMicros(),
+                    subscription_period = productDetails.subscriptionPeriod(),
+                    paywall_id = if(apphudProduct?.productDetails?.productId == purchase.products.first()) apphudProduct?.paywall_id else null,
+                    product_bundle_id = if(apphudProduct?.productDetails?.productId == purchase.products.first()) apphudProduct?.id else null,
+                    observer_mode = observerMode,
+                    billing_version = BILLING_VERSION,
+                    purchase_time = purchase.purchaseTime,
+                    product_info = ProductInfo(productDetails, offerIdToken)
                 )
             )
         )
@@ -1007,7 +999,7 @@ object RequestManager {
         suspendCancellableCoroutine { continuation ->
             var advId :String? = null
             try {
-                val adInfo: AdvertisingIdManager.AdInfo = AdvertisingIdManager.getAdvertisingIdInfo(applicationContext)
+                val adInfo: AdInfo = AdvertisingIdManager.getAdvertisingIdInfo(applicationContext)
                 advId = adInfo.id
             } catch (e: java.lang.Exception) {
                 ApphudLog.logE("Finish load advertisingId: $e")
@@ -1017,4 +1009,39 @@ object RequestManager {
                 continuation.resume(advId)
             }
         }
+}
+
+fun ProductDetails.priceCurrencyCode(): String?{
+    val res :String? = if(this.productType == BillingClient.ProductType.SUBS) {
+        this.subscriptionOfferDetails?.get(0)?.pricingPhases?.pricingPhaseList?.get(0)?.priceCurrencyCode
+    }else{
+        this.oneTimePurchaseOfferDetails?.priceCurrencyCode
+    }
+    return res
+}
+
+fun ProductDetails.priceAmountMicros(): Long?{
+    val res :Long? = if(this.productType == BillingClient.ProductType.SUBS) {
+        if(this.subscriptionOfferDetails?.size == 1 && this.subscriptionOfferDetails?.get(0)?.pricingPhases?.pricingPhaseList?.size == 1){
+            this.subscriptionOfferDetails?.get(0)?.pricingPhases?.pricingPhaseList?.get(0)?.priceAmountMicros
+        }else{
+            null
+        }
+    }else{
+        this.oneTimePurchaseOfferDetails?.priceAmountMicros
+    }
+    return res
+}
+
+fun ProductDetails.subscriptionPeriod(): String?{
+    val res: String? = if(this.productType == BillingClient.ProductType.SUBS) {
+        if(this.subscriptionOfferDetails?.size == 1 && this.subscriptionOfferDetails?.get(0)?.pricingPhases?.pricingPhaseList?.size == 1){
+            this.subscriptionOfferDetails?.get(0)?.pricingPhases?.pricingPhaseList?.get(0)?.billingPeriod
+        }else{
+            null
+        }
+    }else{
+        null
+    }
+    return res
 }

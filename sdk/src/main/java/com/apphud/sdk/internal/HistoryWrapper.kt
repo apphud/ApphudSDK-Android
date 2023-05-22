@@ -1,12 +1,9 @@
 package com.apphud.sdk.internal
 
 import com.android.billingclient.api.BillingClient
-import com.android.billingclient.api.SkuDetails
-import com.android.billingclient.api.SkuDetailsParams
+import com.android.billingclient.api.QueryPurchaseHistoryParams
 import com.apphud.sdk.ApphudLog
 import com.apphud.sdk.internal.callback_status.PurchaseHistoryCallbackStatus
-import com.apphud.sdk.isSuccess
-import com.apphud.sdk.logMessage
 import com.apphud.sdk.response
 import kotlinx.coroutines.suspendCancellableCoroutine
 import java.io.Closeable
@@ -21,8 +18,12 @@ internal class HistoryWrapper(
 
     var callback: PurchaseHistoryListener? = null
 
-    fun queryPurchaseHistory(@BillingClient.SkuType type: SkuType) {
-        billing.queryPurchaseHistoryAsync(type) { result, purchases ->
+    fun queryPurchaseHistory(@BillingClient.ProductType type: ProductType) {
+        val params = QueryPurchaseHistoryParams.newBuilder()
+            .setProductType(type)
+            .build()
+
+        billing.queryPurchaseHistoryAsync(params) { result, purchases ->
             result.response(
                 message = "Failed restore purchases",
                 error = { callback?.invoke(PurchaseHistoryCallbackStatus.Error(type, result)) },
@@ -31,11 +32,16 @@ internal class HistoryWrapper(
         }
     }
 
-    suspend fun queryPurchaseHistorySync(@BillingClient.SkuType type: SkuType): PurchaseHistoryCallbackStatus =
+    suspend fun queryPurchaseHistorySync(@BillingClient.ProductType type: ProductType): PurchaseHistoryCallbackStatus =
         suspendCancellableCoroutine { continuation ->
             var resumed = false
             thread(start = true, name = "queryAsync+$type") {
-                billing.queryPurchaseHistoryAsync(type) { result, purchases ->
+
+                val params = QueryPurchaseHistoryParams.newBuilder()
+                    .setProductType(type)
+                    .build()
+
+                billing. queryPurchaseHistoryAsync(params) { result, purchases ->
                     result.response(
                         message = "Failed restore purchases",
                         error = {

@@ -2,10 +2,9 @@ package com.apphud.sdk
 
 import android.app.Activity
 import android.content.Context
+import com.android.billingclient.api.ProductDetails
 import com.android.billingclient.api.Purchase
-import com.android.billingclient.api.SkuDetails
 import com.apphud.sdk.domain.*
-
 
 object Apphud {
 
@@ -111,10 +110,10 @@ object Apphud {
     /**
      * Returns paywalls configured in Apphud Dashboard > Product Hub > Paywalls.
      * Each paywall contains an array of `ApphudProduct` objects that you use for purchase.
-     * `ApphudProduct` is Apphud's wrapper around `SkuDetails`.
+     * `ApphudProduct` is Apphud's wrapper around `ProductsDetails`.
      * Returns empty array if paywalls are not yet fetched.
      * To get notified when paywalls are ready to use, use ApphudListener's  `userDidLoad` or `paywallsDidFullyLoad` methods,
-     * depending on whether or not you need `SkuDetails` to be already filled in paywalls.
+     * depending on whether or not you need `ProductsDetails` to be already filled in paywalls.
      * Best practice is to use this method together with `paywallsDidFullyLoad` listener.
      */
     fun paywalls() :List<ApphudPaywall> {
@@ -123,10 +122,10 @@ object Apphud {
 
     /**
      * Returns permission groups configured in Apphud dashboard > Product Hub > Products. Groups are cached on device.
-     * Note that this method returns empty array if `SkuDetails` are not yet fetched from Google Play.
+     * Note that this method returns empty array if `ProductsDetails` are not yet fetched from Google Play.
      * To get notified when `permissionGroups` are ready to use, use ApphudListener's
-     * `apphudFetchSkuDetailsProducts` or `paywallsDidFullyLoad` methods or `productsFetchCallback`.
-     * When any of these methods is called, `SkuDetails` are loaded, which means that current
+     * `apphudFetchProductsDetailsProducts` or `paywallsDidFullyLoad` methods or `productsFetchCallback`.
+     * When any of these methods is called, `ProductsDetails` are loaded, which means that current
      * `permissionGroups` method is ready to use.
      * Best practice is not to use this method at all, but use `paywalls()` instead.
      */
@@ -164,7 +163,7 @@ object Apphud {
      * Pass `Paywall Identifier` to be able to use A/B tests in Observer Mode. See docs.apphud.com for details.
      */
     @kotlin.jvm.JvmStatic
-    fun trackPurchase(purchase: Purchase, skuProduct: SkuDetails, paywallIdentifier: String? = null) = ApphudInternal.trackPurchase(purchase, skuProduct, paywallIdentifier)
+    fun trackPurchase(purchase: Purchase, productDetails: ProductDetails, offerIdToken: String?, paywallIdentifier: String? = null) = ApphudInternal.trackPurchase(purchase, productDetails, offerIdToken, paywallIdentifier)
 
     /**
      * You should use this method only in Observer mode.
@@ -173,7 +172,7 @@ object Apphud {
      * Pass `Paywall Identifier` to be able to use A/B tests in Observer Mode. See docs.apphud.com for details.
      */
     @Deprecated("Use \"trackPurchase\" method instead.",
-        ReplaceWith("trackPurchase(purchase: Purchase, skuProduct: SkuDetails, paywallIdentifier: String? = null)"))
+        ReplaceWith("trackPurchase(purchase: Purchase, productDetails: ProductDetails, paywallIdentifier: String? = null)"))
     @kotlin.jvm.JvmStatic
     fun syncPurchases(paywallIdentifier: String? = null) = ApphudInternal.syncPurchases(paywallIdentifier)
 
@@ -202,114 +201,66 @@ object Apphud {
     }
 
     /**
-     * Returns array of `SkuDetails` objects, identifiers of which you added in Apphud > Product Hub > Products.
+     * Returns array of `ProductsDetails` objects, identifiers of which you added in Apphud > Product Hub > Products.
      * Note that this method will return **null** if products are not yet fetched.
      * To get notified when `products` are ready to use, use ApphudListener's
-     * `apphudFetchSkuDetailsProducts` or `paywallsDidFullyLoad` methods or `productsFetchCallback`.
-     * When any of these methods is called, `SkuDetails` are loaded, which means that current
+     * `apphudFetchProductsDetails` or `paywallsDidFullyLoad` methods or `productsFetchCallback`.
+     * When any of these methods is called, `ProductsDetails` are loaded, which means that current
      * `products` method is ready to use.
      * Best practice is not to use this method at all, but use `paywalls()` instead.
      */
     @Deprecated("Use \"getPaywalls\" method instead.",
         ReplaceWith("getPaywalls(callback: (paywalls: List<ApphudPaywall>?, error: ApphudError?) -> Unit)"))
     @kotlin.jvm.JvmStatic
-    fun products(): List<SkuDetails>? {
-        return ApphudInternal.getSkuDetailsList()
+    fun products(): List<ProductDetails>? {
+        return ApphudInternal.getProductDetailsList()
     }
 
     /**
-     * This callback is called when `SkuDetails` are fetched from Google Play Billing.
+     * This callback is called when `ProductsDetails` are fetched from Google Play Billing.
      * Note that you have to add all product identifiers in Apphud > Product Hub > Products.
      * You can use `productsDidFetchCallback` callback
-     * or implement `apphudFetchSkuDetailsProducts` listener method. Use whatever you like most.
+     * or implement `apphudFetchProductsDetails` listener method. Use whatever you like most.
      */
     @Deprecated("Use \"getPaywalls\" method instead.",
         ReplaceWith("getPaywalls(callback: (paywalls: List<ApphudPaywall>?, error: ApphudError?) -> Unit)"))
     @kotlin.jvm.JvmStatic
-    fun productsFetchCallback(callback: (List<SkuDetails>) -> Unit) {
+    fun productsFetchCallback(callback: (List<ProductDetails>) -> Unit) {
         ApphudInternal.productsFetchCallback(callback)
     }
 
     /**
-     * Returns `SkuDetails` object by product identifier.
+     * Returns `ProductsDetails` object by product identifier.
      * Note that you have to add this product identifier in Apphud > Product Hub > Products.
      * Will return `null` if product is not yet fetched from Google Play.
      */
     @Deprecated("Use \"getPaywalls\" method instead.",
         ReplaceWith("getPaywalls(callback: (paywalls: List<ApphudPaywall>?, error: ApphudError?) -> Unit)"))
     @kotlin.jvm.JvmStatic
-    fun product(productIdentifier: String): SkuDetails? {
-        return ApphudInternal.getSkuDetailsByProductId(productIdentifier)
+    fun product(productIdentifier: String): ProductDetails? {
+        return ApphudInternal.getProductDetailsByProductId(productIdentifier)
     }
+
 
     /**
      * Purchase product and automatically submit Google Play purchase token to Apphud
      *
      * @param activity current Activity for use
-     * @param details The SkuDetails of the product you wish to purchase
+     * @param product ApphudProduct to purchase
+     * @param offerIdToken
+     * @param oldToken
+     * @param prorationMode replacement rules from https://developer.android.com/reference/com/android/billingclient/api/BillingFlowParams.ProrationMode
      * @param block Optional. Returns `ApphudPurchaseResult` object.
      */
     @kotlin.jvm.JvmStatic
-    fun purchase(activity: Activity, product: ApphudProduct, block: ((ApphudPurchaseResult) -> Unit)?) =
-        ApphudInternal.purchase(activity, null, null, product, true, block)
-
-    /**
-     * Purchase product by id and automatically submit Google Play purchase token to Apphud
-
-     * @param activity: current Activity for use
-     * @param productId: The identifier of the product you wish to purchase
-     * @param block: Optional. Returns `ApphudPurchaseResult` object.
-     */
-    @Deprecated("Purchase product by product identifier",
-        ReplaceWith("purchase(activity: Activity, product: ApphudProduct, block: ((ApphudPurchaseResult) -> Unit)?)"))
-    @kotlin.jvm.JvmStatic
-    fun purchase(activity: Activity, productId: String, block: ((ApphudPurchaseResult) -> Unit)?) =
-        ApphudInternal.purchase(activity, productId, null, null, true, block)
-
-    /**
-     * Purchase product and automatically submit Google Play purchase token to Apphud.
-     *
-     * @param activity current Activity for use
-     * @param details The SkuDetails of the product you wish to purchase
-     * @param block Optional. Returns `ApphudPurchaseResult` object.
-     */
-    @Deprecated("Purchase product by product identifier",
-        ReplaceWith("purchase(activity: Activity, product: ApphudProduct, block: ((ApphudPurchaseResult) -> Unit)?)"))
-    @kotlin.jvm.JvmStatic
-    fun purchase(activity: Activity, details: SkuDetails, block: ((ApphudPurchaseResult) -> Unit)?) =
-        ApphudInternal.purchase(activity, null, details, null, true, block)
-
-    /**
-     * Purchase product by id and automatically submit Google Play purchase token to Apphud.
-     *
-     * This method doesn't wait until Apphud validates purchase from Google Play and immediately returns result object.
-     * This method may be useful if you don't care about purchases validation in callback.
-     *
-     * Note: When using this method properties `subscription` and `nonRenewingPurchase` in `ApphudPurchaseResult` will always be `null` !
-     *
-     * @param activity: current Activity for use
-     * @param productId: The identifier of the product you wish to purchase
-     * @param block: The closure that will be called when purchase completes.
-     */
-    @kotlin.jvm.JvmStatic
-    fun purchaseWithoutValidation(activity: Activity, productId: String, block: ((ApphudPurchaseResult) -> Unit)?) =
-        ApphudInternal.purchase(activity, productId, null,null,false, block)
-
-    /**
-     * Purchase sku product and automatically submit Google Play purchase token to Apphud.
-     *
-     * This method doesn't wait until Apphud validates purchase from Google Play and immediately returns result object.
-     * This method may be useful if you don't care about purchases validation in callback.
-     *
-     * When using this method properties `subscription` and `nonRenewingPurchase` in `ApphudPurchaseResult` will always be `null` !
-     *
-     * @param activity current Activity for use
-     * @param details The SkuDetails of the product you wish to purchase
-     * @param block The closure that will be called when purchase completes.
-     */
-    @kotlin.jvm.JvmStatic
-    fun purchaseWithoutValidation(activity: Activity, details: SkuDetails, block: ((ApphudPurchaseResult) -> Unit)?) =
-        ApphudInternal.purchase(activity,null, details, null, false, block)
+    fun purchase(activity: Activity,
+                 product: ApphudProduct,
+                 offerIdToken: String? = null,
+                 oldToken: String? = null,
+                 prorationMode: Int? = null,
+                 block: ((ApphudPurchaseResult) -> Unit)?) =
+        ApphudInternal.purchase(activity ,product, offerIdToken, oldToken, prorationMode, block)
+    //===================================================================================
 
     /**
      * Set custom user property.
@@ -403,7 +354,7 @@ object Apphud {
     - parameter productId: Optional*. Recommended. Product Id of promotional subscription. See __Note__ message above for details.
     - parameter permissionGroup: Optional*. Permission Group of promotional subscription. Use this parameter in case you have multiple permission groups. See __Note__ message above for details.
     - parameter callback: Optional. Returns `true` if promotional subscription was granted.
-     */
+    */
     @kotlin.jvm.JvmStatic
     fun grantPromotional(daysCount: Int, productId: String?, permissionGroup: ApphudGroup? = null, callback: ((Boolean) -> Unit)? = null) {
         ApphudInternal.grantPromotional(daysCount, productId, permissionGroup, callback)
@@ -418,10 +369,10 @@ object Apphud {
     }
 
     /**
-      * Collects device identifiers that are required for some third-party integrations, like AppsFlyer, Adjust, Singular, etc.
-      * Identifiers include Advertising ID, Android ID, App Set ID.
-      * @warning When targeting Android 13 and above, you must declare AD_ID permission in the manifest file: https://support.google.com/googleplay/android-developer/answer/6048248?hl=en
-      * @warning Be sure optOutOfTracking() not called before. Otherwise device identifiers will not be collected.
+     * Collects device identifiers that are required for some third-party integrations, like AppsFlyer, Adjust, Singular, etc.
+     * Identifiers include Advertising ID, Android ID, App Set ID.
+     * @warning When targeting Android 13 and above, you must declare AD_ID permission in the manifest file: https://support.google.com/googleplay/android-developer/answer/6048248?hl=en
+     * @warning Be sure optOutOfTracking() not called before. Otherwise device identifiers will not be collected.
      */
     @kotlin.jvm.JvmStatic
     fun collectDeviceIdentifiers() {
