@@ -385,6 +385,7 @@ internal object ApphudInternal {
         var details = product.productDetails
         if(details == null){
             details = getProductDetailsByProductId(product.product_id)
+            product.productDetails = details
         }
 
         details?.let{
