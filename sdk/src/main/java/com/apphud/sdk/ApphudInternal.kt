@@ -93,6 +93,7 @@ internal object ApphudInternal {
     }
 
     private var customProductsFetchedBlock: ((List<ProductDetails>) -> Unit)? = null
+    private var paywallsFetchedBlock: ((List<ApphudPaywall>) -> Unit)? = null
 
     //endregion
 
@@ -298,6 +299,7 @@ internal object ApphudInternal {
         if(restorePaywalls && currentUser != null && paywalls.isNotEmpty() && productDetails.isNotEmpty() && notifyFullyLoaded){
             notifyFullyLoaded = false
             apphudListener?.paywallsDidFullyLoad(paywalls)
+            paywallsFetchedBlock?.invoke(paywalls)
         }
     }
 
@@ -369,6 +371,13 @@ internal object ApphudInternal {
         customProductsFetchedBlock = callback
         if (productDetails.isNotEmpty()) {
             customProductsFetchedBlock?.invoke(productDetails)
+        }
+    }
+
+    internal fun paywallsFetchCallback(callback: (List<ApphudPaywall>) -> Unit) {
+        paywallsFetchedBlock = callback
+        if (paywalls.isNotEmpty()) {
+            paywallsFetchedBlock?.invoke(paywalls)
         }
     }
     //endregion

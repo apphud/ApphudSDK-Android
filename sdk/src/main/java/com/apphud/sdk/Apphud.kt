@@ -141,6 +141,13 @@ object Apphud {
     }
 
     /**
+     */
+    @kotlin.jvm.JvmStatic
+    fun paywallsDidLoadCallback(callback: (List<ApphudPaywall>) -> Unit) {
+        ApphudInternal.paywallsFetchCallback(callback)
+    }
+
+    /**
      * Returns `ProductsDetails` object by product identifier.
      * Note that you have to add this product identifier in Apphud > Product Hub > Products.
      * Will return `null` if product is not yet fetched from Google Play.
