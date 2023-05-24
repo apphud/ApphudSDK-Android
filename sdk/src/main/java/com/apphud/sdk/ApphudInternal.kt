@@ -376,7 +376,7 @@ internal object ApphudInternal {
 
     internal fun paywallsFetchCallback(callback: (List<ApphudPaywall>) -> Unit) {
         paywallsFetchedBlock = callback
-        if (paywalls.isNotEmpty()) {
+        if (paywalls.isNotEmpty() && productDetails.isNotEmpty()) {
             paywallsFetchedBlock?.invoke(paywalls)
         }
     }

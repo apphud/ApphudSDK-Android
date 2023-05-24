@@ -141,6 +141,10 @@ object Apphud {
     }
 
     /**
+     * Returns paywalls configured in Apphud Dashboard > Product Hub > Paywalls.
+     * Each paywall contains an array of `ApphudProduct` objects that you use for purchase.
+     * This callback is called when paywalls are populated with their `ProductDetails` objects.
+     * Callback is called immediately if paywalls are already loaded.
      */
     @kotlin.jvm.JvmStatic
     fun paywallsDidLoadCallback(callback: (List<ApphudPaywall>) -> Unit) {
