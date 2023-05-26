@@ -14,5 +14,6 @@ data class PurchaseItemBody(
     val observer_mode:Boolean = false,
     val billing_version :Int,
     val purchase_time: Long,
-    val product_info: ProductInfo?
+    val product_info: ProductInfo?,
+    val product_type: String?
 )

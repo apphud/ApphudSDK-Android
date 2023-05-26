@@ -911,7 +911,8 @@ object RequestManager {
                     observer_mode = false,
                     billing_version = BILLING_VERSION,
                     purchase_time = purchase.purchaseTime,
-                    product_info = productDetails?.let{ProductInfo(productDetails, offerIdToken)}
+                    product_info = productDetails?.let{ProductInfo(productDetails, offerIdToken)},
+                    product_type = productDetails?.productType
                 )
             )
         )
@@ -934,7 +935,8 @@ object RequestManager {
                     observer_mode = observerMode,
                     billing_version = BILLING_VERSION,
                     purchase_time = purchase.record.purchaseTime,
-                    product_info = null
+                    product_info = null,
+                    product_type = purchase.details.productType
                 )
             }.sortedByDescending { it.purchase_time }
         )
@@ -955,7 +957,8 @@ object RequestManager {
                     observer_mode = observerMode,
                     billing_version = BILLING_VERSION,
                     purchase_time = purchase.purchaseTime,
-                    product_info = ProductInfo(productDetails, offerIdToken)
+                    product_info = ProductInfo(productDetails, offerIdToken),
+                    product_type = productDetails.productType
                 )
             )
         )

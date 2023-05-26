@@ -15,6 +15,7 @@ import com.apphud.demo.BuildConfig
 import com.apphud.demo.databinding.FragmentCustomerBinding
 import com.apphud.sdk.Apphud
 import com.apphud.sdk.ApphudListener
+import com.apphud.sdk.ApphudPurchasesRestoreCallback
 import com.apphud.sdk.domain.ApphudNonRenewingPurchase
 import com.apphud.sdk.domain.ApphudPaywall
 import com.apphud.sdk.domain.ApphudSubscription
@@ -43,7 +44,8 @@ class CustomerFragment : Fragment() {
         binding.appVersion.text = BuildConfig.VERSION_NAME + " (" + BuildConfig.VERSION_CODE + ")"
 
         binding.btnSync.setOnClickListener {
-            Apphud.syncPurchases()
+            Apphud.restorePurchases { subscriptions, purchases, error ->
+            }
         }
 
         paywallsViewModel = ViewModelProvider(this)[PaywallsViewModel::class.java]

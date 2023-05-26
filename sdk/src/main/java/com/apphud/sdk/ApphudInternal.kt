@@ -718,13 +718,32 @@ internal object ApphudInternal {
                             ApphudLog.log("Products to restore: $purchases")
 
                             val restoredPurchases = mutableListOf<PurchaseRecordDetails>()
-                            val subsRestored =
-                                billing.restoreSync(BillingClient.ProductType.SUBS, purchases)
-                            val inapsRestored =
-                                billing.restoreSync(BillingClient.ProductType.INAPP, purchases)
+                            val purchasesToLoadDetails =  mutableListOf<PurchaseHistoryRecord>()
 
-                            restoredPurchases.addAll(processRestoreCallbackStatus(subsRestored))
-                            restoredPurchases.addAll(processRestoreCallbackStatus(inapsRestored))
+                            val loadedProductIds = productDetails.map { it.productId }
+                            for(purchase in purchases){
+                                if(loadedProductIds.containsAll(purchase.products)){
+                                    val details = productDetails.find { it.productId ==  purchase.products[0]}
+                                    details?.let{
+                                        restoredPurchases.add(PurchaseRecordDetails(purchase, it))
+                                    }
+                                }else{
+                                    purchasesToLoadDetails.add(purchase)
+                                }
+                            }
+
+                            if(purchasesToLoadDetails.isNotEmpty()){
+                                ApphudLog.log("Load product details for: $purchasesToLoadDetails")
+                                val subsRestored =
+                                    billing.restoreSync(BillingClient.ProductType.SUBS, purchasesToLoadDetails)
+                                val inapsRestored =
+                                    billing.restoreSync(BillingClient.ProductType.INAPP, purchasesToLoadDetails)
+
+                                restoredPurchases.addAll(processRestoreCallbackStatus(subsRestored))
+                                restoredPurchases.addAll(processRestoreCallbackStatus(inapsRestored))
+                            } else {
+                                ApphudLog.log("All products details already loaded.")
+                            }
 
                             ApphudLog.log("Products restored: $restoredPurchases")
 
