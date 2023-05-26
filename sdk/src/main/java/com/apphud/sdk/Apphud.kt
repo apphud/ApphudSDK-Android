@@ -77,6 +77,17 @@ object Apphud {
     //region === Paywalls ===
 
     /**
+     * Returns paywalls configured in Apphud Dashboard > Product Hub > Paywalls.
+     * Each paywall contains an array of `ApphudProduct` objects that you use for purchase.
+     * This callback is called when paywalls are populated with their `ProductDetails` objects.
+     * Callback is called immediately if paywalls are already loaded.
+     */
+    @kotlin.jvm.JvmStatic
+    fun paywallsDidLoadCallback(callback: (List<ApphudPaywall>) -> Unit) {
+        ApphudInternal.paywallsFetchCallback(callback)
+    }
+
+    /**
      * Optional. Use this method when your paywall screen is displayed to the user.
      * Used for paywalls A/B testing analysis.
      */
@@ -138,17 +149,6 @@ object Apphud {
     @kotlin.jvm.JvmStatic
     fun productsFetchCallback(callback: (List<ProductDetails>) -> Unit) {
         ApphudInternal.productsFetchCallback(callback)
-    }
-
-    /**
-     * Returns paywalls configured in Apphud Dashboard > Product Hub > Paywalls.
-     * Each paywall contains an array of `ApphudProduct` objects that you use for purchase.
-     * This callback is called when paywalls are populated with their `ProductDetails` objects.
-     * Callback is called immediately if paywalls are already loaded.
-     */
-    @kotlin.jvm.JvmStatic
-    fun paywallsDidLoadCallback(callback: (List<ApphudPaywall>) -> Unit) {
-        ApphudInternal.paywallsFetchCallback(callback)
     }
 
     /**
