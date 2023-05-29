@@ -6,7 +6,6 @@ import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import android.widget.Toast
-import androidx.appcompat.app.AlertDialog
 import androidx.lifecycle.ViewModelProvider
 import androidx.navigation.fragment.navArgs
 import androidx.recyclerview.widget.GridLayoutManager
@@ -14,7 +13,7 @@ import androidx.recyclerview.widget.RecyclerView
 import com.android.billingclient.api.BillingClient
 import com.apphud.demo.R
 import com.apphud.demo.databinding.FragmentProductsBinding
-import com.apphud.demo.ui.utils.getOfferDescription
+import com.apphud.demo.ui.utils.OffersFragment
 import com.apphud.sdk.Apphud
 
 
@@ -41,27 +40,23 @@ class ProductsFragment : Fragment() {
                 product.productDetails?.let { details ->
                     //Use Apphud purchases flow
                     if(details.productType == BillingClient.ProductType.SUBS){
-                        val offers = details.subscriptionOfferDetails?.map{details.getOfferDescription(it.offerToken)}
-                        offers?.let{ offers ->
-                            val builder = AlertDialog.Builder(activity)
-                            builder.setTitle(R.string.select_offer)
-                                .setItems(offers.toTypedArray()) { dialog, which ->
-                                    val offer = details.subscriptionOfferDetails?.get(which)
-                                    offer?.let{
-                                        Apphud.purchase(activity, product, it.offerToken){ result ->
-                                            result.error?.let{ err->
-                                                Toast.makeText(activity, err.message, Toast.LENGTH_SHORT).show()
-                                            }?: run{
-                                                Toast.makeText(activity, R.string.success, Toast.LENGTH_SHORT).show()
-                                            }
-                                        }
+                        product.productDetails?.subscriptionOfferDetails?.let {
+                            val fragment = OffersFragment()
+                            fragment.offers = it
+                            fragment.offerSelected = { offer ->
+                                Apphud.purchase(activity, product, offer.offerToken){ result ->
+                                    result.error?.let{ err->
+                                        Toast.makeText(activity, err.message, Toast.LENGTH_SHORT).show()
+                                    }?: run{
+                                        Toast.makeText(activity, R.string.success, Toast.LENGTH_SHORT).show()
                                     }
-                                    dialog.dismiss()
                                 }
-                            val dlg = builder.create()
-                            dlg.show()
+                            }
+                            fragment.apply {
+                                show(activity.supportFragmentManager, tag)
+                            }
                         }
-                    }else{
+                    } else {
                         Apphud.purchase(activity, product){ result ->
                             result.error?.let{ err->
                                 Toast.makeText(activity, err.message, Toast.LENGTH_SHORT).show()

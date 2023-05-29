@@ -6,12 +6,11 @@ import androidx.fragment.app.Fragment
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
-import androidx.appcompat.app.AlertDialog
 import androidx.lifecycle.ViewModelProvider
 import androidx.recyclerview.widget.GridLayoutManager
 import androidx.recyclerview.widget.RecyclerView
-import com.apphud.demo.R
 import com.apphud.demo.databinding.FragmentBillingBinding
+import com.apphud.demo.ui.utils.OffersFragment
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.launch
@@ -44,22 +43,22 @@ class BillingFragment : Fragment() {
             activity?.let{ activity ->
                 val offers = product.subscriptionOfferDetails?.map{it.pricingPhases.pricingPhaseList[0].formattedPrice}
                 offers?.let{ offers ->
-                    val builder = AlertDialog.Builder(activity)
-                    builder.setTitle(R.string.select_offer)
-                        .setItems(offers.toTypedArray()) { dialog, which ->
-                            val offer = product.subscriptionOfferDetails?.get(which)
-                            offer?.let{
-                                productsViewModel.buy(
-                                    productDetails = product,
-                                    currentPurchases = null,
-                                    activity = activity,
-                                    offerIdToken = offer.offerToken
-                                )
-                            }
-                            dialog.dismiss()
+
+                    product.subscriptionOfferDetails?.let {
+                        val fragment = OffersFragment()
+                        fragment.offers = it
+                        fragment.offerSelected = { offer ->
+                            productsViewModel.buy(
+                                productDetails = product,
+                                currentPurchases = null,
+                                activity = activity,
+                                offerIdToken = offer.offerToken
+                            )
                         }
-                    val dlg = builder.create()
-                    dlg.show()
+                        fragment.apply {
+                            show(activity.supportFragmentManager, tag)
+                        }
+                    }
                 }?: run {
                     productsViewModel.buy(
                         productDetails = product,

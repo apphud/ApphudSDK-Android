@@ -29,4 +29,8 @@
     <string name="select_offer">Select Offer</string>
     <string name="use_apphud_purchases">Use Apphud purchases</string>
     <string name="menu_billing">Billing</string>
+    <string name="base_plan_id">Base Plan ID:</string>
+    <string name="offer_id">Offer ID:</string>
+    <string name="offer_tag">Offer Tag:</string>
+    <string name="pricing_phases">Pricing phases:</string>
 </resources>
