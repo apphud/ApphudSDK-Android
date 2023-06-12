@@ -80,7 +80,7 @@ internal class ProductDetailsWrapper(
     suspend fun restoreSync(@BillingClient.ProductType type: ProductType, records: List<PurchaseHistoryRecord>) :PurchaseRestoredCallbackStatus =
         suspendCancellableCoroutine { continuation ->
             var resumed = false
-            val products = records.map { it.products }.flatten()
+            val products = records.map { it.products }.flatten().distinct()
             val productList = products.map {
                 QueryProductDetailsParams.Product.newBuilder()
                     .setProductId(it)
