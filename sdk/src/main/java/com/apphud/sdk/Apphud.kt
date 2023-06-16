@@ -226,18 +226,29 @@ object Apphud {
     /**
      * Purchase product and automatically submit Google Play purchase token to Apphud
      *
-     * @param activity current Activity for use
-     * @param product ApphudProduct to purchase
-     * @param offerIdToken Offer Id Token of your purchasing plan. You must manually select base plan
-     * and offer from ProductDetails and pass offet id token.
+     * @param activity Required. Current Activity for use
+     * @param product Required. ApphudProduct to purchase
+     * @param offerIdToken Optional. Specifies the identifier of the offer to initiate purchase with. You must manually select base plan
+     * and offer from ProductDetails and pass offer id token.
+     * @param oldToken Optional.Specifies the Google Play Billing purchase token that the user is upgrading or downgrading from.
+     * @param replacementMode Optional.Replacement mode (https://developer.android.com/reference/com/android/billingclient/api/BillingFlowParams.SubscriptionUpdateParams.ReplacementMode?hl=en)
      * @param block Optional. Returns `ApphudPurchaseResult` object.
      */
     @kotlin.jvm.JvmStatic
     fun purchase(activity: Activity,
-                 product: ApphudProduct,
+                 apphudProduct: ApphudProduct,
                  offerIdToken: String? = null,
+                 oldToken: String? = null,
+                 replacementMode: Int? = null,
                  block: ((ApphudPurchaseResult) -> Unit)?) =
-        ApphudInternal.purchase(activity ,product, offerIdToken, null, null, block)
+        ApphudInternal.purchase(
+            activity = activity,
+            apphudProduct = apphudProduct,
+            productId = null,
+            offerIdToken = offerIdToken,
+            oldToken = oldToken,
+            replacementMode = replacementMode,
+            callback = block)
 
     /**
      * Only in Observer Mode: call this method after every successful purchase.

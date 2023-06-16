@@ -385,31 +385,43 @@ internal object ApphudInternal {
     //region === Purchases ===
     internal fun purchase(
         activity: Activity,
-        product: ApphudProduct,
+        apphudProduct: ApphudProduct?,
+        productId: String?,
         offerIdToken: String?,
         oldToken: String?,
         replacementMode: Int?,
         callback: ((ApphudPurchaseResult) -> Unit)?
     ) {
-        var details = product.productDetails
-        if(details == null){
-            details = getProductDetailsByProductId(product.product_id)
-            product.productDetails = details
+        if(apphudProduct == null  && productId.isNullOrEmpty()){
+            callback?.invoke(ApphudPurchaseResult(null,null,null, ApphudError("Invalid parameters")))
+            return
         }
 
-        details?.let{
-            if(details.productType == BillingClient.ProductType.SUBS){
-                offerIdToken?.let{
-                    purchaseInternal(activity, product, offerIdToken, oldToken, replacementMode, callback)
-                }?: run{
-                    callback?.invoke(ApphudPurchaseResult(null,null,null, ApphudError("offerIdToken required")))
-                }
-            }else{
-                purchaseInternal(activity, product, offerIdToken, oldToken, replacementMode, callback)
+        val productToPurchase = apphudProduct?: productId?.let{ pId ->
+            val products = paywalls.map { it.products?: listOf() }.flatten().distinctBy { it.id }
+            products.firstOrNull{it.id == pId}
+        }
+
+        productToPurchase?.let{ product ->
+            var details = product.productDetails
+            if(details == null){
+                details = getProductDetailsByProductId(product.product_id)
             }
-        }?: run{
-            coroutineScope.launch(errorHandler) {
-                fetchDetails(activity, product,  offerIdToken, oldToken, replacementMode, callback)
+
+            details?.let{
+                if(details.productType == BillingClient.ProductType.SUBS){
+                    offerIdToken?.let{
+                        purchaseInternal(activity, product, offerIdToken, oldToken, replacementMode, callback)
+                    }?: run{
+                        callback?.invoke(ApphudPurchaseResult(null,null,null, ApphudError("OfferToken required")))
+                    }
+                }else{
+                    purchaseInternal(activity, product, offerIdToken, oldToken, replacementMode, callback)
+                }
+            }?: run{
+                coroutineScope.launch(errorHandler) {
+                    fetchDetails(activity, product,  offerIdToken, oldToken, replacementMode, callback)
+                }
             }
         }
     }
