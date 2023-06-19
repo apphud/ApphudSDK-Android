@@ -399,7 +399,7 @@ internal object ApphudInternal {
 
         val productToPurchase = apphudProduct?: productId?.let{ pId ->
             val products = paywalls.map { it.products?: listOf() }.flatten().distinctBy { it.id }
-            products.firstOrNull{it.id == pId}
+            products.firstOrNull{it.product_id == pId}
         }
 
         productToPurchase?.let{ product ->
@@ -423,6 +423,9 @@ internal object ApphudInternal {
                     fetchDetails(activity, product,  offerIdToken, oldToken, replacementMode, callback)
                 }
             }
+        }?: run {
+            val id = productId?: apphudProduct?.product_id?:""
+            callback?.invoke(ApphudPurchaseResult(null,null,null, ApphudError("Appphud product not found: $id")))
         }
     }
 
