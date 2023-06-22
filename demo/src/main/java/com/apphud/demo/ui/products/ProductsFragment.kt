@@ -15,6 +15,7 @@ import com.apphud.demo.R
 import com.apphud.demo.databinding.FragmentProductsBinding
 import com.apphud.demo.ui.utils.OffersFragment
 import com.apphud.sdk.Apphud
+import com.apphud.sdk.flutter.ApphudFlutter
 
 
 class ProductsFragment : Fragment() {
