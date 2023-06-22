@@ -6,6 +6,8 @@ import android.view.View
 import android.view.ViewGroup
 import android.widget.TextView
 import androidx.recyclerview.widget.RecyclerView
+import com.android.billingclient.api.BillingClient
+import com.android.billingclient.api.ProductDetails
 import com.apphud.demo.R
 import com.apphud.sdk.domain.ApphudGroup
 import com.apphud.sdk.domain.ApphudProduct
@@ -35,7 +37,17 @@ class GroupsAdapter (private val groupsViewModel: GroupsViewModel, private val c
         override fun bind(item: ApphudProduct, position: Int) {
             productName.text = item.name
             productId.text = item.product_id
-            productPrice.text = item.skuDetails?.price?:""
+
+            item.productDetails?.let{ details ->
+                if(details.productType == BillingClient.ProductType.SUBS){
+                    productPrice.text = details.subscriptionOfferDetails?.get(0)?.pricingPhases?.pricingPhaseList?.get(0)?.formattedPrice?:""
+                }else{
+                    productPrice.text = details.oneTimePurchaseOfferDetails?.formattedPrice?:""
+                }
+            }?: run{
+                productPrice.text = ""
+            }
+
             itemView.setOnClickListener {
                 selectProduct?.invoke(item)
             }

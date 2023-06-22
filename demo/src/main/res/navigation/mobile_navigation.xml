@@ -37,4 +37,11 @@
             app:argType="string" />
     </fragment>
 
+    <fragment
+        android:id="@+id/nav_billing"
+        android:name="com.apphud.demo.ui.billing.BillingFragment"
+        android:label="@string/menu_billing"
+        tools:layout="@layout/fragment_billing" >
+    </fragment>
+
 </navigation>

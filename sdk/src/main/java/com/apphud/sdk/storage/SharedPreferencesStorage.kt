@@ -1,7 +1,6 @@
 package com.apphud.sdk.storage
 
 import android.content.Context
-import com.android.billingclient.api.SkuDetails
 import com.apphud.sdk.ApphudListener
 import com.apphud.sdk.ApphudLog
 import com.apphud.sdk.ApphudUserProperty
@@ -176,7 +175,7 @@ class SharedPreferencesStorage(
             editor.apply()
         }
 
-    override var skuDetails: List<String>?
+    override var productDetails: List<String>?
         get() {
             val timestamp = preferences.getLong(SKU_TIMESTAMP_KEY, -1L) + (cacheTimeout * 1000)
             val currentTime = System.currentTimeMillis()
@@ -231,7 +230,7 @@ class SharedPreferencesStorage(
         appsflyer = null
         productGroups = null
         paywalls = null
-        skuDetails = null
+        productDetails = null
         properties = null
         adjust = null
     }

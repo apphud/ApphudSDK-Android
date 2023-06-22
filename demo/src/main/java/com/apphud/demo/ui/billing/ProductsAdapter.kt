@@ -1,4 +1,4 @@
-package com.apphud.demo.ui.products
+package com.apphud.demo.ui.billing
 
 import android.content.Context
 import android.view.LayoutInflater
@@ -6,33 +6,21 @@ import android.view.View
 import android.view.ViewGroup
 import android.widget.TextView
 import androidx.recyclerview.widget.RecyclerView
-import com.android.billingclient.api.BillingClient
+import com.android.billingclient.api.ProductDetails
 import com.apphud.demo.R
-import com.apphud.sdk.domain.ApphudProduct
 
-class ProductsAdapter(private val productsViewModel: ProductsViewModel, private val context: Context?) : RecyclerView.Adapter<ProductsAdapter.BaseViewHolder<*>>() {
-    var selectProduct: ((account: ApphudProduct)->Unit)? = null
+class ProductsAdapter(private val productsViewModel: BillingViewModel, private val context: Context?) : RecyclerView.Adapter<ProductsAdapter.BaseViewHolder<*>>() {
+    var selectProduct: ((account: ProductDetails)->Unit)? = null
     abstract class BaseViewHolder<T>(itemView: View) : RecyclerView.ViewHolder(itemView) {
         abstract fun bind(item: T, position: Int)
     }
 
-    inner class ApphudProductViewHolder(itemView: View) : BaseViewHolder<ApphudProduct>(itemView) {
+    inner class ApphudProductViewHolder(itemView: View) : BaseViewHolder<ProductDetails>(itemView) {
         private val productName: TextView = itemView.findViewById(R.id.productName)
         private val productPrice: TextView = itemView.findViewById(R.id.productPrice)
-        override fun bind(item: ApphudProduct, position: Int) {
+        override fun bind(item: ProductDetails, position: Int) {
             productName.text = item.name
-
-            item.productDetails?.let{ details ->
-                if(details.productType == BillingClient.ProductType.SUBS){
-                    productPrice.text = details.subscriptionOfferDetails?.get(0)?.pricingPhases?.pricingPhaseList?.get(0)?.formattedPrice?:""
-                }else{
-                    productPrice.text = details.oneTimePurchaseOfferDetails?.formattedPrice?:""
-                }
-            }?: run{
-                productPrice.text = ""
-            }
-
-
+            productPrice.text = item.productType
             itemView.setOnClickListener {
                 selectProduct?.invoke(item)
             }
@@ -45,7 +33,7 @@ class ProductsAdapter(private val productsViewModel: ProductsViewModel, private 
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): BaseViewHolder<*> {
         return when (viewType) {
-           TYPE_PRODUCT -> {
+            TYPE_PRODUCT -> {
                 val view = LayoutInflater.from(parent.context)
                     .inflate(R.layout.list_item_product_card, parent, false)
                 ApphudProductViewHolder(view)
@@ -57,14 +45,14 @@ class ProductsAdapter(private val productsViewModel: ProductsViewModel, private 
     override fun onBindViewHolder(holder: BaseViewHolder<*>, position: Int) {
         val element = productsViewModel.items[position]
         when (holder) {
-            is ApphudProductViewHolder -> holder.bind(element as ApphudProduct, position)
+            is ApphudProductViewHolder -> holder.bind(element as ProductDetails, position)
             else -> throw IllegalArgumentException()
         }
     }
 
     override fun getItemViewType(position: Int): Int {
         return when (productsViewModel.items[position]) {
-            is ApphudProduct -> TYPE_PRODUCT
+            is ProductDetails -> TYPE_PRODUCT
             else -> throw IllegalArgumentException("Invalid type of data " + position)
         }
     }
