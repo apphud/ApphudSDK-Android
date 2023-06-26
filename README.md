@@ -1,5 +1,5 @@
 <p align="center">
-<img src="https://cdn.siter.io/assets/ast_kSk43nA4wqPNF8sfBtWdJsL1Z/85cc5c6c-43dd-44a2-90cf-2ae17cd6a25d.svg" alt="Apphud" width="20%" height="20%"/>
+<img src="https://apphud.com/images/logo-header.svg" alt="Apphud" width="30%" height="30%"/>
  </p>
 
 ## Greetings!
