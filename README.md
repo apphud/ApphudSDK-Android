@@ -1,5 +1,5 @@
 <p align="center">
-<img src="https://cdn.siter.io/assets/ast_kSk43nA4wqPNF8sfBtWdJsL1Z/85cc5c6c-43dd-44a2-90cf-2ae17cd6a25d.svg" alt="Apphud" width="20%" height="20%"/>
+<img src="https://apphud.com/images/logo-header.svg" alt="Apphud" width="30%" height="30%"/>
  </p>
 
 ## Greetings!
@@ -22,7 +22,7 @@ Integrate in-app purchases and subscriptions in your mobile app in 2 lines of co
 
 ## Real-time Revenue Analytics
 
- View key subscription metrics in our [dashboard](https://docs.apphud.com/analyze/dashboard) and [charts](https://docs.apphud.com/analyze/charts), like MRR, Subscriber Retention (Cohorts), Churn rate, ARPU, Trial Conversions, Proceeds, Refunds, etc.
+ View key subscription metrics in our [dashboard](https://docs.apphud.com/docs/dashboard) and [charts](https://docs.apphud.com/docs/charts), like MRR, Subscriber Retention (Cohorts), Churn rate, ARPU, Trial Conversions, Proceeds, Refunds, etc.
 
 <p align="center">
 <img src="https://apphud.com/images/why.png"  width="35%" height="35%" />
@@ -44,20 +44,6 @@ Test different in-app purchases and paywalls. Run experiments to find the best c
 <img src="https://apphud.com/images/ab_tests.png"  width="35%" height="35%" />
 </p>
 
-## Web-to-App
-
-Web-to-App solution overcomes IDFA limitations in the post iOS 14.5 era. Using this solution you can run paid campaigns in Facebook or TikTok and get real-time attribution with nearly 100% accuracy.
-<p align="center">
-<img src="https://1612099904-files.gitbook.io/~/files/v0/b/gitbook-x-prod.appspot.com/o/spaces%2F-LpcBgCSJyU0DTawIxFp%2Fuploads%2FY9kRJOi4QaGn2Rp0Wksz%2Fweb-to-app.png?alt=media&token=9d851fc0-34a3-4035-8a3d-03b728e313e0"  width="50%" height="50%" />
-</p>
-
-## Rules
-
-Apphud may win back lapsed subscribers, reduce churn rate, get cancellation insights, send push notifications and many more using the mechanics below. This mechanics are called Rules. Choose between manual, scheduled and automated rule. Manual rules will be performed manually, scheduled rule will be performed on a certain time, automated rule will be triggered after certain event. Use our visual web editor to create you custom screen or screen sequence for Rule, and analyze user stats from every created screen.
-<p align="center">
-<img src="https://apphud.com/images/rules.png"  width="35%" height="35%" />
-</p>
-
 ## Why Apphud?
 
 **Complete mobile in-app purchases stack with no extra costs.** Don’t waste time and money on building your own in-app purchases infrastructure. Use Apphud for free until your app revenue increases $10,000 per month.
@@ -72,7 +58,7 @@ Apphud may win back lapsed subscribers, reduce churn rate, get cancellation insi
 
 ## Installation
 
-Create your account at [Apphud for free](https://app.apphud.com/sign_up?utm_source=github&utm_medium=article&utm_campaign=github). Please feel free to read our [SDK Integration Guide](https://docs.apphud.com/getting-started/sdk-integration).
+Create your account at [Apphud for free](https://app.apphud.com/sign_up?utm_source=github&utm_medium=article&utm_campaign=github). Please feel free to read our [SDK Integration Guide](https://docs.apphud.com/docs/quickstart).
 
 ## Having a question?
 
