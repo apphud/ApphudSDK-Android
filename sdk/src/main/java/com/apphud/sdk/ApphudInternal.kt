@@ -19,17 +19,22 @@ import com.apphud.sdk.internal.callback_status.PurchaseRestoredCallbackStatus
 import com.apphud.sdk.internal.callback_status.PurchaseUpdatedCallbackStatus
 import com.apphud.sdk.managers.RequestManager.applicationContext
 import com.apphud.sdk.managers.RequestManager
+import com.apphud.sdk.mappers.PaywallsMapper
+import com.apphud.sdk.mappers.ProductMapper
 import com.apphud.sdk.parser.GsonParser
 import com.apphud.sdk.parser.Parser
 import com.apphud.sdk.storage.SharedPreferencesStorage
-import com.google.gson.GsonBuilder
 import com.google.android.gms.appset.AppSet
 import com.google.android.gms.appset.AppSetIdInfo
 import com.google.android.gms.tasks.Task
+import com.google.gson.Gson
+import com.google.gson.GsonBuilder
+import com.google.gson.reflect.TypeToken
 import kotlinx.coroutines.*
 import kotlin.coroutines.resume
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
+import java.io.IOException
 import java.util.*
 import java.util.concurrent.atomic.AtomicInteger
 
@@ -39,19 +44,17 @@ internal object ApphudInternal {
     //region === Variables ===
     private const val MUST_REGISTER_ERROR = " :You must call `Apphud.start` method before calling any other methods."
 
-    private val builder = GsonBuilder()
-        .setPrettyPrinting()
-        .serializeNulls()//need this to pass nullable values to JSON and from JSON
-        .create()
-    private val parser: Parser = GsonParser(builder)
-
     private lateinit var billing: BillingWrapper
-    private val storage by lazy { SharedPreferencesStorage(context, parser) }
+    private val storage by lazy { SharedPreferencesStorage.getInstance(context) }
     private var generatedUUID = UUID.randomUUID().toString()
     private var prevPurchases = mutableSetOf<PurchaseRecordDetails>()
     private var productDetails = mutableListOf<ProductDetails>()
     internal var productGroups: MutableList<ApphudGroup> = mutableListOf()
     internal var paywalls = mutableListOf<ApphudPaywall>()
+
+    val gson = GsonBuilder().serializeNulls().create()
+    val parser: Parser = GsonParser(gson)
+    private val paywallsMapper = PaywallsMapper(parser)
 
     private val handler: Handler = Handler(Looper.getMainLooper())
     private val pendingUserProperties = mutableMapOf<String, ApphudUserProperty>()
@@ -82,7 +85,6 @@ internal object ApphudInternal {
     lateinit var deviceId: DeviceId
     private lateinit var apiKey: ApiKey
     private lateinit var context: Context
-
     internal var currentUser: Customer? = null
     internal var apphudListener: ApphudListener? = null
 
@@ -94,7 +96,6 @@ internal object ApphudInternal {
 
     private var customProductsFetchedBlock: ((List<ProductDetails>) -> Unit)? = null
     private var paywallsFetchedBlock: ((List<ApphudPaywall>) -> Unit)? = null
-
     //endregion
 
     //region === Start ===
@@ -119,9 +120,9 @@ internal object ApphudInternal {
 
         this.context = context
         this.apiKey = apiKey
-
         billing = BillingWrapper(context)
-        
+
+        storage.fallbackMode = false
         val needRegistration = needRegistration(userId)
 
         this.userId = updateUser(id = userId)
@@ -197,17 +198,17 @@ internal object ApphudInternal {
             val groupsList = RequestManager.allProducts()
             groupsList?.let { groups ->
                 cacheGroups(groups)
-                return fetchDetails(groups)
+                val ids = groups.map { it -> it.products?.map { it.product_id }!! }.flatten()
+                return fetchDetails(ids)
             }
         }else{
-            return fetchDetails(cachedGroups)
+            val ids = cachedGroups.map { it -> it.products?.map { it.product_id }!! }.flatten()
+            return fetchDetails(ids)
         }
         return false
     }
 
-    private suspend fun fetchDetails(groups :List<ApphudGroup>): Boolean {
-        val ids = groups.map { it -> it.products?.map { it.product_id }!! }.flatten()
-
+    private suspend fun fetchDetails(ids :List<String>): Boolean {
         var isInapLoaded = false
         var isSubsLoaded = false
         synchronized(productDetails) {
@@ -333,6 +334,10 @@ internal object ApphudInternal {
                                 notifyLoadingCompleted(it)
                                 completionHandler?.invoke(it, null)
 
+                                if(SharedPreferencesStorage.fallbackMode) {
+                                    SharedPreferencesStorage.fallbackMode = false
+                                    ApphudLog.log("Fallback: DISABLED")
+                                }
                                 if (pendingUserProperties.isNotEmpty() && setNeedsToUpdateUserProperties) {
                                     updateUserProperties()
                                 }
@@ -1557,6 +1562,42 @@ internal object ApphudInternal {
         }
         return productDetail
     }
+    //endregion
 
+    //region === Fallback ===
+    internal fun processFallback() {
+        coroutineScope.launch(errorHandler) {
+            try{
+                val jsonFileString = getJsonDataFromAsset(context, "config.json")
+                val gson = Gson()
+                val contentType = object : TypeToken<FallbackJsonObject>() {}.type
+                val fallbackJson:FallbackJsonObject = gson.fromJson(jsonFileString, contentType)
+
+                if(paywalls.isEmpty() && fallbackJson.data.results.isNotEmpty()){
+                    val paywallToParse = paywallsMapper.map(fallbackJson.data.results)
+                    val ids = paywallToParse.map {it.products?.map { it.product_id }?: listOf() }.flatten()
+                    if(ids.isNotEmpty()){
+                        fetchDetails(ids)
+                        mainScope.launch {
+                            notifyLoadingCompleted(currentUser, productDetails)
+                        }
+                    }
+                }
+            } catch( ex: Exception){
+                ApphudLog.logE("Fallback: ${ex.message}")
+            }
+        }
+    }
+
+    private fun getJsonDataFromAsset(context: Context, fileName: String): String? {
+        val jsonString: String
+        try {
+            jsonString = context.assets.open(fileName).bufferedReader().use { it.readText() }
+        } catch (ioException: IOException) {
+            ioException.printStackTrace()
+            return null
+        }
+        return jsonString
+    }
     //endregion
 }

@@ -85,7 +85,7 @@ object RequestManager {
         apiKey?.let {
             this.apiKey = it
         }
-        this.storage = SharedPreferencesStorage(this.applicationContext, parser)
+        this.storage = SharedPreferencesStorage
         currentUser = null
     }
 

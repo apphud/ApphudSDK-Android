@@ -1,6 +1,8 @@
 package com.apphud.sdk.managers
 
+import com.apphud.sdk.ApphudInternal
 import com.apphud.sdk.ApphudLog
+import com.apphud.sdk.storage.SharedPreferencesStorage
 
 import okhttp3.Interceptor
 import okhttp3.Request
@@ -28,6 +30,16 @@ class HttpRetryInterceptor : Interceptor {
 
                 if(!isSuccess){
                     ApphudLog.logE("Request (${request.url.encodedPath}) failed with code (${response.code}). Will retry in ${STEP/1000} seconds (${tryCount}).")
+
+                    //Fallback status processing
+                    val errors = listOf(408, 500, 502, 503)
+                    if(response.code in errors){
+                        if(request.url.toString().contains("customer") && SharedPreferencesStorage.needProcessFallback()){
+                            ApphudInternal.processFallback()
+                            SharedPreferencesStorage.fallbackMode = true
+                            ApphudLog.log("Fallback: ENABLED")
+                        }
+                    }
                     Thread.sleep(STEP)
                 }
             } catch (e: Exception) {

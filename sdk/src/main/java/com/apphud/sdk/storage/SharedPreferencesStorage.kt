@@ -1,49 +1,56 @@
 package com.apphud.sdk.storage
 
 import android.content.Context
+import android.content.SharedPreferences
 import com.apphud.sdk.ApphudListener
 import com.apphud.sdk.ApphudLog
 import com.apphud.sdk.ApphudUserProperty
 import com.apphud.sdk.domain.*
 import com.apphud.sdk.isDebuggable
+import com.apphud.sdk.parser.GsonParser
 import com.apphud.sdk.parser.Parser
+import com.google.gson.GsonBuilder
 import com.google.gson.reflect.TypeToken
 
-class SharedPreferencesStorage(
-    context: Context,
-    private val parser: Parser
-) : Storage {
+object SharedPreferencesStorage : Storage {
 
-    companion object {
-        private const val NAME = "apphud_storage"
-        private const val MODE = Context.MODE_PRIVATE
+    var cacheTimeout :Long = 90000L
 
-        private const val USER_ID_KEY = "userIdKey"
-        private const val CUSTOMER_KEY = "customerKey"
-        private const val DEVICE_ID_KEY = "deviceIdKey"
-        private const val ADVERTISING_DI_KEY = "advertisingIdKey"
-        private const val NEED_RESTART_KEY = "needRestartKey"
-        private const val PROPERTIES_KEY = "propertiesKey"
-
-        private const val FACEBOOK_KEY = "facebookKey"
-        private const val FIREBASE_KEY = "firebaseKey"
-        private const val APPSFLYER_KEY = "appsflyerKey"
-        private const val ADJUST_KEY = "adjustKey"
-        private const val PAYWALLS_KEY = "payWallsKey"
-        private const val PAYWALLS_TIMESTAMP_KEY = "payWallsTimestampKey"
-        private const val GROUP_KEY = "apphudGroupKey"
-        private const val GROUP_TIMESTAMP_KEY = "apphudGroupTimestampKey"
-        private const val SKU_KEY = "skuKey"
-        private const val SKU_TIMESTAMP_KEY = "skuTimestampKey"
-        private const val LAST_REGISTRATION_KEY = "lastRegistrationKey"
+    fun getInstance(applicationContext: Context) : SharedPreferencesStorage {
+        this.applicationContext = applicationContext
+        preferences = SharedPreferencesStorage.applicationContext.getSharedPreferences(NAME, Context.MODE_PRIVATE)
+        cacheTimeout = if (SharedPreferencesStorage.applicationContext.isDebuggable()) 30L else 90000L //25 hours
+        return this
     }
 
-    private val preferences = context.getSharedPreferences(
-        NAME,
-        MODE
-    )
+    private lateinit var applicationContext: Context
 
-    val cacheTimeout = if (context.isDebuggable()) 30L else 90000L //25 hours
+    private lateinit var preferences: SharedPreferences
+    private const val NAME = "apphud_storage"
+
+    private const val USER_ID_KEY = "userIdKey"
+    private const val CUSTOMER_KEY = "customerKey"
+    private const val DEVICE_ID_KEY = "deviceIdKey"
+    private const val ADVERTISING_DI_KEY = "advertisingIdKey"
+    private const val NEED_RESTART_KEY = "needRestartKey"
+    private const val PROPERTIES_KEY = "propertiesKey"
+    private const val FACEBOOK_KEY = "facebookKey"
+    private const val FIREBASE_KEY = "firebaseKey"
+    private const val APPSFLYER_KEY = "appsflyerKey"
+    private const val ADJUST_KEY = "adjustKey"
+    private const val PAYWALLS_KEY = "payWallsKey"
+    private const val PAYWALLS_TIMESTAMP_KEY = "payWallsTimestampKey"
+    private const val GROUP_KEY = "apphudGroupKey"
+    private const val GROUP_TIMESTAMP_KEY = "apphudGroupTimestampKey"
+    private const val SKU_KEY = "skuKey"
+    private const val SKU_TIMESTAMP_KEY = "skuTimestampKey"
+    private const val LAST_REGISTRATION_KEY = "lastRegistrationKey"
+    private const val FALLBACK_MODE = "fallback_mode"
+
+    private val gson = GsonBuilder()
+        .setPrettyPrinting()
+        .serializeNulls().create()
+    private val parser: Parser = GsonParser(gson)
 
     override var userId: String?
         get() = preferences.getString(USER_ID_KEY, null)
@@ -233,16 +240,14 @@ class SharedPreferencesStorage(
         productDetails = null
         properties = null
         adjust = null
+        fallbackMode = false
     }
 
     fun needRegistration() :Boolean {
         val timestamp = lastRegistration + (cacheTimeout * 1000)
         val currentTime = System.currentTimeMillis()
-        val customerWithPurchases = customer?.let{
-            !(it.purchases.isEmpty() && it.subscriptions.isEmpty())
-        }?: false
 
-        return if(customerWithPurchases){
+        return if(customerWithPurchases()){
             ApphudLog.logI("User with purchases: perform registration")
             true
         }
@@ -257,6 +262,18 @@ class SharedPreferencesStorage(
             }
             return result
         }
+    }
+
+    private fun customerWithPurchases() :Boolean {
+        return customer?.let{
+                    !(it.purchases.isEmpty() && it.subscriptions.isEmpty())
+                }?: false
+    }
+
+    fun needProcessFallback() :Boolean {
+        return customer?.let{
+            it.purchases.isEmpty() && it.subscriptions.isEmpty() && !fallbackMode
+        }?: false
     }
 
     override var properties: HashMap<String, ApphudUserProperty>?
@@ -310,4 +327,12 @@ class SharedPreferencesStorage(
 
         return true
     }
+
+    override var fallbackMode: Boolean
+        get() = preferences.getBoolean(FALLBACK_MODE, false)
+        set(value) {
+            val editor = preferences.edit()
+            editor.putBoolean(FALLBACK_MODE, value)
+            editor.apply()
+        }
 }
