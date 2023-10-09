@@ -34,6 +34,7 @@ import kotlinx.coroutines.*
 import kotlin.coroutines.resume
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
+import okhttp3.internal.notifyAll
 import java.io.IOException
 import java.util.*
 import java.util.concurrent.atomic.AtomicInteger
@@ -96,6 +97,7 @@ internal object ApphudInternal {
 
     private var customProductsFetchedBlock: ((List<ProductDetails>) -> Unit)? = null
     private var paywallsFetchedBlock: ((List<ApphudPaywall>) -> Unit)? = null
+    private var  subscriptionsTemp = mutableListOf<ApphudSubscription>()
     //endregion
 
     //region === Start ===
@@ -334,10 +336,14 @@ internal object ApphudInternal {
                                 notifyLoadingCompleted(it)
                                 completionHandler?.invoke(it, null)
 
+                                //Clean temp subscriptions when customer loaded
+                                subscriptionsTemp.clear()
                                 if(SharedPreferencesStorage.fallbackMode) {
                                     SharedPreferencesStorage.fallbackMode = false
                                     ApphudLog.log("Fallback: DISABLED")
                                 }
+                                //----------------------------------------------
+
                                 if (pendingUserProperties.isNotEmpty() && setNeedsToUpdateUserProperties) {
                                     updateUserProperties()
                                 }
@@ -636,7 +642,7 @@ internal object ApphudInternal {
         callback: ((ApphudPurchaseResult) -> Unit)?
     ) {
         coroutineScope.launch(errorHandler) {
-            RequestManager.purchased(purchase, apphudProduct, offerIdToken, oldToken) { customer, error ->
+            RequestManager.purchased(purchase, apphudProduct, offerIdToken, oldToken) { customer, error, subscription ->
                 mainScope.launch {
                     customer?.let {
                         val newSubscriptions =
@@ -673,6 +679,9 @@ internal object ApphudInternal {
                             purchase,
                             ApphudError(message))
                         )
+                    }
+                    subscription?.let{
+                        subscriptionsTemp.add(it)
                     }
                 }
             }
@@ -1247,11 +1256,15 @@ internal object ApphudInternal {
     }
 
     fun subscriptions() :List<ApphudSubscription> {
-        var subscriptions : List<ApphudSubscription> = mutableListOf()
+        var subscriptions : MutableList<ApphudSubscription> = mutableListOf()
         this.currentUser?.let{user ->
             synchronized(user){
                 subscriptions = user.subscriptions.toCollection(mutableListOf())
             }
+        }
+        if(subscriptionsTemp.isNotEmpty()){
+            subscriptionsTemp = subscriptionsTemp.filter { it.isActive() }.toMutableList()
+            subscriptions.addAll(subscriptionsTemp)
         }
         return subscriptions
     }

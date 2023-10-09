@@ -53,7 +53,13 @@ data class ApphudSubscription(
     val isIntroductoryActivated: Boolean,
 
     val kind: ApphudKind,
-    val groupId: String
+    val groupId: String,
+
+    /**
+    For internal usage
+     */
+    val isTemporary: Boolean = false,
+
 ) {
 
     /**
@@ -65,7 +71,14 @@ data class ApphudSubscription(
         ApphudSubscriptionStatus.INTRO,
         ApphudSubscriptionStatus.PROMO,
         ApphudSubscriptionStatus.REGULAR,
-        ApphudSubscriptionStatus.GRACE -> true
-        else                           -> false
+        ApphudSubscriptionStatus.GRACE ->
+            if(isTemporary){
+                !isTemporaryExpired()
+            } else true
+        else -> false
+    }
+
+    private fun isTemporaryExpired() :Boolean{
+        return System.currentTimeMillis() > expiresAt
     }
 }

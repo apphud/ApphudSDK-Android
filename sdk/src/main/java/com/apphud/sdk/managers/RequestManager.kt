@@ -433,7 +433,7 @@ object RequestManager {
                   apphudProduct: ApphudProduct?,
                   offerToken: String?,
                   oldToken: String?,
-                  completionHandler: (Customer?, ApphudError?) -> Unit) {
+                  completionHandler: (Customer?, ApphudError?, ApphudSubscription?) -> Unit) {
         if(!canPerformRequest()) {
             ApphudLog.logE(::purchased.name + MUST_REGISTER_ERROR)
             return
@@ -451,9 +451,31 @@ object RequestManager {
         if (purchaseBody == null) {
             val message = "ProductsDetails and ApphudProduct can not be null at the same time" + apphudProduct?.let{ " [Apphud product ID: " + it.id + "]"}
             ApphudLog.logE(message = message)
-            completionHandler.invoke(null, ApphudError(message))
+            completionHandler.invoke(null, ApphudError(message), null)
             return
         }
+
+        //Notify to add temporary subscription (only in fallback) -------
+        if(SharedPreferencesStorage.fallbackMode) {
+            val time = System.currentTimeMillis()
+            val subscription = ApphudSubscription(
+                status = ApphudSubscriptionStatus.REGULAR,
+                productId = apphudProduct.product_id,
+                startedAt = time,
+                expiresAt = time + 3_600_000L,
+                cancelledAt = null,
+                isInRetryBilling = false,
+                isAutoRenewEnabled = false,
+                isIntroductoryActivated = false,
+                kind = apphudProduct.productDetails?.productType?.let{
+                    if(it == "subs") ApphudKind.AUTORENEWABLE else ApphudKind.NONRENEWABLE
+                } ?: ApphudKind.NONE,
+                groupId = "",
+                isTemporary = true
+            )
+            completionHandler(null, null, subscription)
+        }
+        //-------------------------------------------
 
         val request = buildPostRequest(URL(apphudUrl.url), purchaseBody)
 
@@ -468,17 +490,17 @@ object RequestManager {
                     currentUser = cDto.data.results?.let { customerObj ->
                         customerMapper.map(customerObj)
                     }
-                    completionHandler(currentUser, null)
+                    completionHandler(currentUser, null, null)
                 } ?: run {
-                    completionHandler(null, ApphudError("Purchase failed"))
+                    completionHandler(null, ApphudError("Purchase failed"), null)
                 }
             } ?: run {
-                completionHandler(null, error)
+                completionHandler(null, error, null)
             }
         }
     }
 
-    fun restorePurchases(apphudProduct: ApphudProduct? = null, purchaseRecordDetailsSet: Set<PurchaseRecordDetails>, observerMode: Boolean,
+    /*fun restorePurchases(apphudProduct: ApphudProduct? = null, purchaseRecordDetailsSet: Set<PurchaseRecordDetails>, observerMode: Boolean,
                   completionHandler: (Customer?, ApphudError?) -> Unit) {
         if(!canPerformRequest()) {
             ApphudLog.logE(::restorePurchases.name + MUST_REGISTER_ERROR)
@@ -514,7 +536,7 @@ object RequestManager {
                 completionHandler(null, error)
             }
         }
-    }
+    }*/
 
     suspend fun restorePurchasesSync(
         apphudProduct: ApphudProduct? = null,
