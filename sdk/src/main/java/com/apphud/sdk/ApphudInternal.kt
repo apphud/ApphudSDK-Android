@@ -2,10 +2,14 @@ package com.apphud.sdk
 
 import android.annotation.SuppressLint
 import android.app.Activity
+import android.app.Application
 import android.content.Context
 import android.os.Handler
 import android.os.Looper
 import android.provider.Settings
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
+import androidx.lifecycle.ProcessLifecycleOwner
 import com.android.billingclient.api.BillingClient
 import com.android.billingclient.api.ProductDetails
 import com.android.billingclient.api.Purchase
@@ -20,7 +24,6 @@ import com.apphud.sdk.internal.callback_status.PurchaseUpdatedCallbackStatus
 import com.apphud.sdk.managers.RequestManager.applicationContext
 import com.apphud.sdk.managers.RequestManager
 import com.apphud.sdk.mappers.PaywallsMapper
-import com.apphud.sdk.mappers.ProductMapper
 import com.apphud.sdk.parser.GsonParser
 import com.apphud.sdk.parser.Parser
 import com.apphud.sdk.storage.SharedPreferencesStorage
@@ -34,7 +37,6 @@ import kotlinx.coroutines.*
 import kotlin.coroutines.resume
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
-import okhttp3.internal.notifyAll
 import java.io.IOException
 import java.util.*
 import java.util.concurrent.atomic.AtomicInteger
@@ -98,11 +100,29 @@ internal object ApphudInternal {
     private var customProductsFetchedBlock: ((List<ProductDetails>) -> Unit)? = null
     private var paywallsFetchedBlock: ((List<ApphudPaywall>) -> Unit)? = null
     private var  subscriptionsTemp = mutableListOf<ApphudSubscription>()
+
+    private var lifecycleEventObserver = LifecycleEventObserver { _, event ->
+        when (event) {
+            Lifecycle.Event.ON_STOP -> {
+                if(subscriptionsTemp.isNotEmpty()){
+                    storage.isNeedSync = true
+                }
+                ApphudLog.log("Application stopped [need sync ${storage.isNeedSync}]")
+            }
+            Lifecycle.Event.ON_START -> {
+                // do nothing
+            }
+            Lifecycle.Event.ON_CREATE-> {
+                // do nothing
+            }
+            else -> {}
+        }
+    }
     //endregion
 
     //region === Start ===
     internal fun initialize(
-        context: Context,
+        application: Application,
         apiKey: ApiKey,
         userId: UserId?,
         deviceId: DeviceId?
@@ -116,11 +136,12 @@ internal object ApphudInternal {
                 "\n=============================================================")
             return
         }
+        ProcessLifecycleOwner.get().lifecycle.addObserver(lifecycleEventObserver)
 
         ApphudLog.log("Start initialization with userId=$userId, deviceId=$deviceId")
         if(apiKey.isEmpty()) throw Exception("ApiKey can't be empty")
 
-        this.context = context
+        this.context = application
         this.apiKey = apiKey
         billing = BillingWrapper(context)
 
