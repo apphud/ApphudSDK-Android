@@ -46,6 +46,8 @@ object SharedPreferencesStorage : Storage {
     private const val SKU_TIMESTAMP_KEY = "skuTimestampKey"
     private const val LAST_REGISTRATION_KEY = "lastRegistrationKey"
     private const val FALLBACK_MODE = "fallback_mode"
+    private const val TEMP_SUBSCRIPTIONS = "temp_subscriptions"
+    private const val TEMP_PURCHASES = "temp_purchases"
 
     private val gson = GsonBuilder()
         .setPrettyPrinting()
@@ -272,6 +274,9 @@ object SharedPreferencesStorage : Storage {
 
     fun needProcessFallback() :Boolean {
         return customer?.let{
+            //TODO TEST
+            //!fallbackMode
+            //---------------------------
             it.purchases.isEmpty() && it.subscriptions.isEmpty() && !fallbackMode
         }?: false
     }
@@ -333,6 +338,32 @@ object SharedPreferencesStorage : Storage {
         set(value) {
             val editor = preferences.edit()
             editor.putBoolean(FALLBACK_MODE, value)
+            editor.apply()
+        }
+
+    override var subscriptionsTemp: MutableList<ApphudSubscription>
+        get() {
+            val source = preferences.getString(TEMP_SUBSCRIPTIONS, null)
+            val type = object : TypeToken<MutableList<ApphudSubscription>>() {}.type
+            return parser.fromJson<MutableList<ApphudSubscription>>(source, type)?: mutableListOf()
+        }
+        set(value) {
+            val source = parser.toJson(value)
+            val editor = preferences.edit()
+            editor.putString(TEMP_SUBSCRIPTIONS, source)
+            editor.apply()
+        }
+
+    override var purchasesTemp: MutableList<ApphudNonRenewingPurchase>
+        get() {
+            val source = preferences.getString(TEMP_PURCHASES, null)
+            val type = object : TypeToken<MutableList<ApphudNonRenewingPurchase>>() {}.type
+            return parser.fromJson<MutableList<ApphudNonRenewingPurchase>>(source, type)?: mutableListOf()
+        }
+        set(value) {
+            val source = parser.toJson(value)
+            val editor = preferences.edit()
+            editor.putString(TEMP_PURCHASES, source)
             editor.apply()
         }
 }

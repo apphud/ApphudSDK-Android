@@ -18,11 +18,23 @@ data class ApphudNonRenewingPurchase(
     /**
      *  Canceled date of in-app purchase, i.e. refund date. Nil if in-app purchase is not refunded.
      */
-    val canceledAt: Long?
+    val canceledAt: Long?,
+
+    /**
+    For internal usage
+     */
+    val isTemporary: Boolean = false
 ) {
 
     /**
      * Returns `true` if purchase is not refunded.
      */
-    fun isActive() = canceledAt == null
+    fun isActive() =
+        if(isTemporary){
+            !isTemporaryExpired()
+        } else canceledAt == null
+
+    private fun isTemporaryExpired() :Boolean{
+        return System.currentTimeMillis() > (canceledAt?: 0L)
+    }
 }

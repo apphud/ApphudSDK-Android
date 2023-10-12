@@ -24,7 +24,6 @@ import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import okhttp3.RequestBody.Companion.toRequestBody
-import okhttp3.logging.HttpLoggingInterceptor
 import java.io.IOException
 import java.net.URL
 import java.util.*
@@ -36,6 +35,7 @@ import com.google.gson.GsonBuilder
 import kotlinx.coroutines.suspendCancellableCoroutine
 import okhttp3.Response
 import okio.Buffer
+import java.net.SocketTimeoutException
 import java.nio.charset.Charset
 import java.util.concurrent.TimeUnit
 
@@ -213,6 +213,19 @@ object RequestManager {
 
                 logRequestFinish(request, response)
 
+                //TODO TEST
+                /*if(returnException){
+                    if(request.url.toString().contains("customer")){
+                        throw SocketTimeoutException()
+                    }
+
+                    //Process purchase in fallback mode
+                    if(request.url.toString().contains("subscriptions") && SharedPreferencesStorage.fallbackMode){
+                        throw SocketTimeoutException()
+                    }
+                }*/
+                //--------------------------
+
                 if (response.isSuccessful) {
                     response.body?.let {
                         completionHandler(it.string(), null)
@@ -232,11 +245,19 @@ object RequestManager {
                 ApphudLog.logE(message)
                 completionHandler(null, ApphudError(message))
             }
+        } catch (e: SocketTimeoutException) {
+            ApphudInternal.processFallbackError(request)
+            val message = e.message ?: "Undefined error"
+            completionHandler(null, ApphudError(message))
         } catch (e: IOException) {
             val message = e.message ?: "Undefined error"
             completionHandler(null, ApphudError(message))
         }
     }
+
+    //TODO TEST
+    //var returnException :Boolean = true
+    //===================
 
     @Throws(Exception::class)
     fun performRequestSync(client: OkHttpClient, request: Request): String {
@@ -258,6 +279,18 @@ object RequestManager {
 
             logRequestFinish(request, response)
 
+            //TODO TEST
+            /*if(returnException){
+                if(request.url.toString().contains("customer")){
+                    throw SocketTimeoutException()
+                }
+
+                //Process purchase in fallback mode
+                if(request.url.toString().contains("subscriptions") && SharedPreferencesStorage.fallbackMode){
+                    throw SocketTimeoutException()
+                }
+            }*/
+            //--------------------------
             val responseBody = response.body!!.string()
             if (response.isSuccessful) {
                 return responseBody
@@ -384,6 +417,10 @@ object RequestManager {
                 } ?: run {
                     completionHandler(null, ApphudError("Registration failed"))
                 }
+            } catch (e: SocketTimeoutException) {
+                ApphudInternal.processFallbackError(request)
+                val message = e.message ?: "Undefined error"
+                completionHandler(null, ApphudError(message))
             } catch (ex: Exception) {
                 val message = ex.message?:"Undefined error"
                 completionHandler(null,  ApphudError(message))
@@ -433,7 +470,7 @@ object RequestManager {
                   apphudProduct: ApphudProduct?,
                   offerToken: String?,
                   oldToken: String?,
-                  completionHandler: (Customer?, ApphudError?, ApphudSubscription?) -> Unit) {
+                  completionHandler: (Customer?, ApphudError?) -> Unit) {
         if(!canPerformRequest()) {
             ApphudLog.logE(::purchased.name + MUST_REGISTER_ERROR)
             return
@@ -451,29 +488,49 @@ object RequestManager {
         if (purchaseBody == null) {
             val message = "ProductsDetails and ApphudProduct can not be null at the same time" + apphudProduct?.let{ " [Apphud product ID: " + it.id + "]"}
             ApphudLog.logE(message = message)
-            completionHandler.invoke(null, ApphudError(message), null)
+            completionHandler.invoke(null, ApphudError(message))
             return
         }
 
-        //Notify to add temporary subscription (only in fallback) -------
+        //Add temporary subscription (only in fallback) -------
         if(SharedPreferencesStorage.fallbackMode) {
-            val time = System.currentTimeMillis()
-            val subscription = ApphudSubscription(
-                status = ApphudSubscriptionStatus.REGULAR,
-                productId = apphudProduct.product_id,
-                startedAt = time,
-                expiresAt = time + 3_600_000L,
-                cancelledAt = null,
-                isInRetryBilling = false,
-                isAutoRenewEnabled = false,
-                isIntroductoryActivated = false,
-                kind = apphudProduct.productDetails?.productType?.let{
-                    if(it == "subs") ApphudKind.AUTORENEWABLE else ApphudKind.NONRENEWABLE
-                } ?: ApphudKind.NONE,
-                groupId = "",
-                isTemporary = true
-            )
-            completionHandler(null, null, subscription)
+            apphudProduct.productDetails?.let{
+                val time = System.currentTimeMillis()
+                when(it.productType){
+                    BillingClient.ProductType.SUBS -> {
+                        val subscription = ApphudSubscription(
+                            status = ApphudSubscriptionStatus.REGULAR,
+                            productId = apphudProduct.product_id,
+                            startedAt = time,
+                            expiresAt = time + 3_600_000L,
+                            cancelledAt = null,
+                            isInRetryBilling = false,
+                            isAutoRenewEnabled = false,
+                            isIntroductoryActivated = false,
+                            kind = ApphudKind.NONRENEWABLE,
+                            groupId = "",
+                            isTemporary = true
+                        )
+                        val listSubs = SharedPreferencesStorage.subscriptionsTemp
+                        listSubs.add(subscription)
+                        SharedPreferencesStorage.subscriptionsTemp = listSubs
+                    }
+                    BillingClient.ProductType.INAPP -> {
+                        val purchase = ApphudNonRenewingPurchase(
+                            productId = apphudProduct.product_id,
+                            purchasedAt = time,
+                            canceledAt = time + 3_600_000L,
+                            isTemporary = true
+                        )
+                        val listInap = SharedPreferencesStorage.purchasesTemp
+                        listInap.add(purchase)
+                        SharedPreferencesStorage.purchasesTemp = listInap
+                    }
+                    else -> {
+                        //nothing
+                    }
+                }
+            }
         }
         //-------------------------------------------
 
@@ -490,12 +547,12 @@ object RequestManager {
                     currentUser = cDto.data.results?.let { customerObj ->
                         customerMapper.map(customerObj)
                     }
-                    completionHandler(currentUser, null, null)
+                    completionHandler(currentUser, null)
                 } ?: run {
-                    completionHandler(null, ApphudError("Purchase failed"), null)
+                    completionHandler(null, ApphudError("Purchase failed"))
                 }
             } ?: run {
-                completionHandler(null, error, null)
+                completionHandler(null, error)
             }
         }
     }
@@ -706,7 +763,12 @@ object RequestManager {
             } ?: run {
                 completionHandler(null, ApphudError("Promotional request failed"))
             }
-        } catch (ex: Exception) {
+        } catch (e: SocketTimeoutException) {
+            ApphudInternal.processFallbackError(request)
+            val message = e.message ?: "Undefined error"
+            completionHandler(null, ApphudError(message))
+        }
+        catch (ex: Exception) {
             val message = ex.message?:"Undefined error"
             completionHandler(null,  ApphudError(message))
         }

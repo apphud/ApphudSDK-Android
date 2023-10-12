@@ -58,7 +58,7 @@ data class ApphudSubscription(
     /**
     For internal usage
      */
-    val isTemporary: Boolean = false,
+    val isTemporary: Boolean = false
 
 ) {
 

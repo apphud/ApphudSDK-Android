@@ -37,6 +37,7 @@ import kotlinx.coroutines.*
 import kotlin.coroutines.resume
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
+import okhttp3.Request
 import java.io.IOException
 import java.util.*
 import java.util.concurrent.atomic.AtomicInteger
@@ -99,12 +100,11 @@ internal object ApphudInternal {
 
     private var customProductsFetchedBlock: ((List<ProductDetails>) -> Unit)? = null
     private var paywallsFetchedBlock: ((List<ApphudPaywall>) -> Unit)? = null
-    private var  subscriptionsTemp = mutableListOf<ApphudSubscription>()
 
     private var lifecycleEventObserver = LifecycleEventObserver { _, event ->
         when (event) {
             Lifecycle.Event.ON_STOP -> {
-                if(subscriptionsTemp.isNotEmpty()){
+                if(storage.subscriptionsTemp.isNotEmpty() || storage.purchasesTemp.isNotEmpty()){
                     storage.isNeedSync = true
                 }
                 ApphudLog.log("Application stopped [need sync ${storage.isNeedSync}]")
@@ -272,7 +272,7 @@ internal object ApphudInternal {
 
     private var notifyFullyLoaded = false
     @Synchronized
-    private fun notifyLoadingCompleted(customerLoaded: Customer? = null, productDetailsLoaded: List<ProductDetails>? = null, fromCache: Boolean = false){
+    private fun notifyLoadingCompleted(customerLoaded: Customer? = null, productDetailsLoaded: List<ProductDetails>? = null, fromCache: Boolean = false, fromFallback: Boolean = false){
         var restorePaywalls = true
 
         productDetailsLoaded?.let{
@@ -285,6 +285,10 @@ internal object ApphudInternal {
         }
 
         customerLoaded?.let{
+            if(!fromFallback && storage.fallbackMode){
+                disableFallback()
+            }
+
             if(fromCache){
                 RequestManager.currentUser = it
                 notifyFullyLoaded = true
@@ -295,18 +299,19 @@ internal object ApphudInternal {
                 }else{
                     /* Attention:
                      * If customer loaded without paywalls, do not reload paywalls from cache!
-                     * If cache time is over, paywall from cach will be NULL
+                     * If cache time is over, paywall from cache will be NULL
                     */
                     restorePaywalls = false
                 }
                 storage.updateCustomer(it, apphudListener)
             }
 
-            if (restorePaywalls) {
+            if (restorePaywalls || fromFallback) {
                 paywalls = readPaywallsFromCache()
             }
 
             currentUser = it
+            RequestManager.currentUser = currentUser
             userId = it.user.userId
 
             apphudListener?.apphudNonRenewingPurchasesUpdated(currentUser!!.purchases)
@@ -356,14 +361,6 @@ internal object ApphudInternal {
                             mainScope.launch {
                                 notifyLoadingCompleted(it)
                                 completionHandler?.invoke(it, null)
-
-                                //Clean temp subscriptions when customer loaded
-                                subscriptionsTemp.clear()
-                                if(SharedPreferencesStorage.fallbackMode) {
-                                    SharedPreferencesStorage.fallbackMode = false
-                                    ApphudLog.log("Fallback: DISABLED")
-                                }
-                                //----------------------------------------------
 
                                 if (pendingUserProperties.isNotEmpty() && setNeedsToUpdateUserProperties) {
                                     updateUserProperties()
@@ -663,7 +660,7 @@ internal object ApphudInternal {
         callback: ((ApphudPurchaseResult) -> Unit)?
     ) {
         coroutineScope.launch(errorHandler) {
-            RequestManager.purchased(purchase, apphudProduct, offerIdToken, oldToken) { customer, error, subscription ->
+            RequestManager.purchased(purchase, apphudProduct, offerIdToken, oldToken) { customer, error ->
                 mainScope.launch {
                     customer?.let {
                         val newSubscriptions =
@@ -700,9 +697,6 @@ internal object ApphudInternal {
                             purchase,
                             ApphudError(message))
                         )
-                    }
-                    subscription?.let{
-                        subscriptionsTemp.add(it)
                     }
                 }
             }
@@ -856,14 +850,8 @@ internal object ApphudInternal {
             userId = customer.user.userId
 
             mainScope.launch {
-                storage.updateCustomer(it, apphudListener)
-                currentUser = storage.customer
-                RequestManager.currentUser = currentUser
-
                 ApphudLog.log("SyncPurchases: customer was updated $customer")
-
-                apphudListener?.apphudSubscriptionsUpdated(it.subscriptions)
-                apphudListener?.apphudNonRenewingPurchasesUpdated(it.purchases)
+                notifyLoadingCompleted(it)
                 callback?.invoke(it.subscriptions, it.purchases, null)
             }
         }?: run{
@@ -1248,6 +1236,7 @@ internal object ApphudInternal {
                     RequestManager.grantPromotional(daysCount, productId, permissionGroup) { customer, error ->
                         mainScope.launch {
                             customer?.let {
+                                notifyLoadingCompleted(it)
                                 callback?.invoke(true)
                                 ApphudLog.logI("Promotional is granted")
                             } ?: run {
@@ -1265,18 +1254,6 @@ internal object ApphudInternal {
         }
     }
 
-    internal fun subscriptions(callback: (List<ApphudSubscription>?, error: ApphudError?) -> Unit) {
-        ApphudLog.log("Invoke subscriptions")
-
-        checkRegistration{ error ->
-            error?.let{
-                callback.invoke(null, error)
-            }?: run{
-                callback.invoke(currentUser?.subscriptions?: emptyList(), null)
-            }
-        }
-    }
-
     fun subscriptions() :List<ApphudSubscription> {
         var subscriptions : MutableList<ApphudSubscription> = mutableListOf()
         this.currentUser?.let{user ->
@@ -1284,19 +1261,23 @@ internal object ApphudInternal {
                 subscriptions = user.subscriptions.toCollection(mutableListOf())
             }
         }
-        if(subscriptionsTemp.isNotEmpty()){
-            subscriptionsTemp = subscriptionsTemp.filter { it.isActive() }.toMutableList()
-            subscriptions.addAll(subscriptionsTemp)
+        if(storage.subscriptionsTemp.isNotEmpty()){
+            storage.subscriptionsTemp = storage.subscriptionsTemp.filter { it.isActive() }.toMutableList()
+            subscriptions.addAll(storage.subscriptionsTemp)
         }
         return subscriptions
     }
 
     fun purchases() :List<ApphudNonRenewingPurchase> {
-        var purchases : List<ApphudNonRenewingPurchase> = mutableListOf()
+        var purchases : MutableList<ApphudNonRenewingPurchase> = mutableListOf()
         this.currentUser?.let{user ->
             synchronized(user){
                 purchases = user.purchases.toCollection(mutableListOf())
             }
+        }
+        if(storage.purchasesTemp.isNotEmpty()){
+            storage.purchasesTemp = storage.purchasesTemp.filter { it.isActive() }.toMutableList()
+            purchases.addAll(storage.purchasesTemp)
         }
         return purchases
     }
@@ -1600,7 +1581,16 @@ internal object ApphudInternal {
     //endregion
 
     //region === Fallback ===
-    internal fun processFallback() {
+    internal fun processFallbackError(request :Request) {
+        //Detect fallback
+        if(request.url.toString().contains("customers") && storage.needProcessFallback()){
+            storage.fallbackMode = true
+            processFallbackData()
+            ApphudLog.log("Fallback: ENABLED")
+        }
+    }
+
+    private fun processFallbackData() {
         coroutineScope.launch(errorHandler) {
             try{
                 val jsonFileString = getJsonDataFromAsset(context, "config.json")
@@ -1613,8 +1603,9 @@ internal object ApphudInternal {
                     val ids = paywallToParse.map {it.products?.map { it.product_id }?: listOf() }.flatten()
                     if(ids.isNotEmpty()){
                         fetchDetails(ids)
+                        cachePaywalls(paywallToParse)
                         mainScope.launch {
-                            notifyLoadingCompleted(currentUser, productDetails)
+                            notifyLoadingCompleted(customerLoaded = currentUser, productDetailsLoaded = productDetails, fromFallback = true)
                         }
                     }
                 }
@@ -1633,6 +1624,19 @@ internal object ApphudInternal {
             return null
         }
         return jsonString
+    }
+
+    private fun disableFallback() {
+        storage.subscriptionsTemp = mutableListOf()
+        storage.purchasesTemp = mutableListOf()
+        storage.fallbackMode = false
+        ApphudLog.log("Fallback: DISABLED")
+
+        storage.isNeedSync = true
+        coroutineScope.launch(errorHandler) {
+            ApphudLog.log("Fallback: syncPurchases")
+            syncPurchases()
+        }
     }
     //endregion
 }
