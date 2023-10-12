@@ -854,13 +854,14 @@ internal object ApphudInternal {
             }
 
             userId = customer.user.userId
-            storage.updateCustomer(it, apphudListener)
 
-            currentUser = storage.customer
-            RequestManager.currentUser = currentUser
-
-            ApphudLog.log("SyncPurchases: customer was updated $customer")
             mainScope.launch {
+                storage.updateCustomer(it, apphudListener)
+                currentUser = storage.customer
+                RequestManager.currentUser = currentUser
+
+                ApphudLog.log("SyncPurchases: customer was updated $customer")
+
                 apphudListener?.apphudSubscriptionsUpdated(it.subscriptions)
                 apphudListener?.apphudNonRenewingPurchasesUpdated(it.purchases)
                 callback?.invoke(it.subscriptions, it.purchases, null)
