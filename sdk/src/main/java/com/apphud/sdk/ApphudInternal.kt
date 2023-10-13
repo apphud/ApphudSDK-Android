@@ -419,6 +419,7 @@ internal object ApphudInternal {
         offerIdToken: String?,
         oldToken: String?,
         replacementMode: Int?,
+        cunsumableInappProduct: Boolean,
         callback: ((ApphudPurchaseResult) -> Unit)?
     ) {
         if(apphudProduct == null  && productId.isNullOrEmpty()){
@@ -440,16 +441,16 @@ internal object ApphudInternal {
             details?.let{
                 if(details.productType == BillingClient.ProductType.SUBS){
                     offerIdToken?.let{
-                        purchaseInternal(activity, product, offerIdToken, oldToken, replacementMode, callback)
+                        purchaseInternal(activity, product, offerIdToken, oldToken, replacementMode, cunsumableInappProduct, callback)
                     }?: run{
                         callback?.invoke(ApphudPurchaseResult(null,null,null, ApphudError("OfferToken required")))
                     }
                 }else{
-                    purchaseInternal(activity, product, offerIdToken, oldToken, replacementMode, callback)
+                    purchaseInternal(activity, product, offerIdToken, oldToken, replacementMode, cunsumableInappProduct, callback)
                 }
             }?: run{
                 coroutineScope.launch(errorHandler) {
-                    fetchDetails(activity, product,  offerIdToken, oldToken, replacementMode, callback)
+                    fetchDetails(activity, product,  offerIdToken, oldToken, replacementMode, cunsumableInappProduct, callback)
                 }
             }
         }?: run {
@@ -464,6 +465,7 @@ internal object ApphudInternal {
         offerIdToken: String?,
         oldToken: String?,
         prorationMode: Int?,
+        cunsumableInappProduct: Boolean,
         callback: ((ApphudPurchaseResult) -> Unit)?
     ) {
         val productName: String = apphudProduct.product_id
@@ -471,7 +473,7 @@ internal object ApphudInternal {
             getProductDetailsByProductId(productName)?.let { details ->
                 mainScope.launch {
                     apphudProduct.productDetails = details
-                    purchaseInternal(activity, apphudProduct, offerIdToken, oldToken, prorationMode, callback)
+                    purchaseInternal(activity, apphudProduct, offerIdToken, oldToken, prorationMode, cunsumableInappProduct, callback)
                 }
             }
         }else{
@@ -525,6 +527,7 @@ internal object ApphudInternal {
         offerIdToken: String?,
         oldToken: String?,
         replacementMode: Int?,
+        cunsumableInappProduct: Boolean,
         callback: ((ApphudPurchaseResult) -> Unit)?
     ) {
         billing.acknowledgeCallback = { status, purchase ->
@@ -604,11 +607,18 @@ internal object ApphudInternal {
                                     when (detailsType) {
                                         BillingClient.ProductType.SUBS -> {
                                             if (!it.isAcknowledged) {
+                                                ApphudLog.log("Start subs purchase acknowledge")
                                                 billing.acknowledge(it)
                                             }
                                         }
                                         BillingClient.ProductType.INAPP -> {
-                                            billing.consume(it)
+                                            if(cunsumableInappProduct){
+                                                ApphudLog.log("Start inapp consume purchase")
+                                                billing.consume(it)
+                                            } else {
+                                                ApphudLog.log("Start inapp purchase acknowledge")
+                                                billing.acknowledge(it)
+                                            }
                                         }
                                         else -> {
                                             val message = "After purchase type is null"

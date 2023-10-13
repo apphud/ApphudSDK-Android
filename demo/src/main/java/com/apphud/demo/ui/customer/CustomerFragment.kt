@@ -20,7 +20,6 @@ import com.apphud.sdk.domain.ApphudNonRenewingPurchase
 import com.apphud.sdk.domain.ApphudPaywall
 import com.apphud.sdk.domain.ApphudSubscription
 import com.apphud.sdk.managers.HeadersInterceptor
-import com.apphud.sdk.managers.RequestManager
 
 class CustomerFragment : Fragment() {
 

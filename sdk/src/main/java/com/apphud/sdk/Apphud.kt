@@ -233,6 +233,7 @@ object Apphud {
      * and offer from ProductDetails and pass offer id token.
      * @param oldToken Optional.Specifies the Google Play Billing purchase token that the user is upgrading or downgrading from.
      * @param replacementMode Optional.Replacement mode (https://developer.android.com/reference/com/android/billingclient/api/BillingFlowParams.SubscriptionUpdateParams.ReplacementMode?hl=en)
+     * @param isCunsumableInappProduct Optional. Default true. Pass true for consumables products or false - for non consumable products
      * @param block Optional. Returns `ApphudPurchaseResult` object.
      */
     @kotlin.jvm.JvmStatic
@@ -241,6 +242,7 @@ object Apphud {
                  offerIdToken: String? = null,
                  oldToken: String? = null,
                  replacementMode: Int? = null,
+                 cunsumableInappProduct: Boolean = true,
                  block: ((ApphudPurchaseResult) -> Unit)?) =
         ApphudInternal.purchase(
             activity = activity,
@@ -249,6 +251,7 @@ object Apphud {
             offerIdToken = offerIdToken,
             oldToken = oldToken,
             replacementMode = replacementMode,
+            cunsumableInappProduct = cunsumableInappProduct,
             callback = block)
 
     /**
@@ -260,6 +263,7 @@ object Apphud {
      * and offer from ProductDetails and pass offer id token.
      * @param oldToken Optional.Specifies the Google Play Billing purchase token that the user is upgrading or downgrading from.
      * @param replacementMode Optional.Replacement mode (https://developer.android.com/reference/com/android/billingclient/api/BillingFlowParams.SubscriptionUpdateParams.ReplacementMode?hl=en)
+     * @param isCunsumableInappProduct Optional. Default true. Pass true for consumables products or false - for non consumable products
      * @param block Optional. Returns `ApphudPurchaseResult` object.
      */
     @kotlin.jvm.JvmStatic
@@ -268,6 +272,7 @@ object Apphud {
                  offerIdToken: String? = null,
                  oldToken: String? = null,
                  replacementMode: Int? = null,
+                 cunsumableInappProduct: Boolean = true,
                  block: ((ApphudPurchaseResult) -> Unit)?) =
         ApphudInternal.purchase(
             activity = activity,
@@ -276,7 +281,9 @@ object Apphud {
             offerIdToken = offerIdToken,
             oldToken = oldToken,
             replacementMode = replacementMode,
+            cunsumableInappProduct = cunsumableInappProduct,
             callback = block)
+
 
     /**
      * Only in Observer Mode: call this method after every successful purchase.

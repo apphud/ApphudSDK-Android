@@ -58,11 +58,21 @@ class ProductsFragment : Fragment() {
                             }
                         }
                     } else {
-                        Apphud.purchase(activity, product){ result ->
-                            result.error?.let{ err->
-                                Toast.makeText(activity, err.message, Toast.LENGTH_SHORT).show()
-                            }?: run{
-                                Toast.makeText(activity, R.string.success, Toast.LENGTH_SHORT).show()
+                        if(product.product_id == "com.apphud.demo.nonconsumable.premium"){
+                            Apphud.purchase(activity = activity, apphudProduct = product, cunsumableInappProduct = false){ result ->
+                                result.error?.let{ err->
+                                    Toast.makeText(activity, err.message, Toast.LENGTH_SHORT).show()
+                                }?: run{
+                                    Toast.makeText(activity, R.string.success, Toast.LENGTH_SHORT).show()
+                                }
+                            }
+                        } else {
+                            Apphud.purchase(activity, product){ result ->
+                                result.error?.let{ err->
+                                    Toast.makeText(activity, err.message, Toast.LENGTH_SHORT).show()
+                                }?: run{
+                                    Toast.makeText(activity, R.string.success, Toast.LENGTH_SHORT).show()
+                                }
                             }
                         }
                     }
