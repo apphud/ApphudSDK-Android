@@ -17,7 +17,7 @@ private val parser: Parser = GsonParser(gson)
 private val paywallsMapper = PaywallsMapper(parser)
 
 internal fun ApphudInternal.processFallbackError(request : Request) {
-    if(request.url.toString().contains("customers") && storage.needProcessFallback() && !fallbackMode){
+    if(request.url.encodedPath.endsWith("/customers") && storage.needProcessFallback() && !fallbackMode){
         fallbackMode = true
         processFallbackData()
         ApphudLog.log("Fallback: ENABLED")

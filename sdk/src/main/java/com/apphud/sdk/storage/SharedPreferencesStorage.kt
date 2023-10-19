@@ -274,7 +274,7 @@ object SharedPreferencesStorage : Storage {
     fun needProcessFallback() :Boolean {
         return customer?.let{
             //TODO TEST
-            //!fallbackMode
+            //true
             //---------------------------
             it.purchases.isEmpty() && it.subscriptions.isEmpty()
         }?: false

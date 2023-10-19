@@ -213,19 +213,6 @@ object RequestManager {
 
                 logRequestFinish(request, response)
 
-                //TODO TEST
-                /*if(returnException){
-                    if(request.url.toString().contains("customer")){
-                        throw SocketTimeoutException()
-                    }
-
-                    //Process purchase in fallback mode
-                    if(request.url.toString().contains("subscriptions") && SharedPreferencesStorage.fallbackMode){
-                        throw SocketTimeoutException()
-                    }
-                }*/
-                //--------------------------
-
                 if (response.isSuccessful) {
                     response.body?.let {
                         completionHandler(it.string(), null)
@@ -245,10 +232,6 @@ object RequestManager {
                 ApphudLog.logE(message)
                 completionHandler(null, ApphudError(message))
             }
-        } catch (e: SocketTimeoutException) {
-            ApphudInternal.processFallbackError(request)
-            val message = e.message ?: "Undefined error"
-            completionHandler(null, ApphudError(message))
         } catch (e: IOException) {
             val message = e.message ?: "Undefined error"
             completionHandler(null, ApphudError(message))
@@ -281,7 +264,7 @@ object RequestManager {
 
             //TODO TEST
             /*if(returnException){
-                if(request.url.toString().contains("customer")){
+                if(request.url.encodedPath.endsWith("/customers")){
                     throw SocketTimeoutException()
                 }
 
@@ -403,11 +386,7 @@ object RequestManager {
             val httpClient = getOkHttpClient(request)
             try {
                 val serverResponse = performRequestSync(httpClient, request)
-                val responseDto: ResponseDto<CustomerDto>? =
-                    parser.fromJson<ResponseDto<CustomerDto>>(
-                        serverResponse,
-                        object : TypeToken<ResponseDto<CustomerDto>>() {}.type
-                    )
+                val responseDto: ResponseDto<CustomerDto>? = parser.fromJson<ResponseDto<CustomerDto>>(serverResponse,object : TypeToken<ResponseDto<CustomerDto>>() {}.type)
 
                 responseDto?.let { cDto ->
                     currentUser = cDto.data.results?.let { customerObj ->
@@ -745,12 +724,7 @@ object RequestManager {
             } ?: run {
                 completionHandler(null, ApphudError("Promotional request failed"))
             }
-        } catch (e: SocketTimeoutException) {
-            ApphudInternal.processFallbackError(request)
-            val message = e.message ?: "Undefined error"
-            completionHandler(null, ApphudError(message))
-        }
-        catch (ex: Exception) {
+        } catch (ex: Exception) {
             val message = ex.message?:"Undefined error"
             completionHandler(null,  ApphudError(message))
         }

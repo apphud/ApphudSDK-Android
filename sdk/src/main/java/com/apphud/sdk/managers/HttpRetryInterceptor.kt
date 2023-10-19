@@ -2,6 +2,7 @@ package com.apphud.sdk.managers
 
 import com.apphud.sdk.ApphudInternal
 import com.apphud.sdk.ApphudLog
+import com.apphud.sdk.processFallbackError
 
 import okhttp3.Interceptor
 import okhttp3.Request
