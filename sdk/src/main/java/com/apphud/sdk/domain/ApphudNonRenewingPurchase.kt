@@ -26,6 +26,18 @@ data class ApphudNonRenewingPurchase(
     val isTemporary: Boolean = false
 ) {
 
+    companion object {
+        fun createTemporary(productId: String): ApphudNonRenewingPurchase {
+            val time = System.currentTimeMillis()
+            return ApphudNonRenewingPurchase(
+                productId = productId,
+                purchasedAt = time,
+                canceledAt = time + 3_600_000L,
+                isTemporary = true
+            )
+        }
+    }
+
     /**
      * Returns `true` if purchase is not refunded.
      */

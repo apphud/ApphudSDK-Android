@@ -18,7 +18,6 @@ interface Storage {
     var paywalls: List<ApphudPaywall>?
     var productDetails: List<String>?
     var properties: HashMap<String, ApphudUserProperty>?
-    var fallbackMode: Boolean
     var subscriptionsTemp: MutableList<ApphudSubscription>
     var purchasesTemp: MutableList<ApphudNonRenewingPurchase>
 }

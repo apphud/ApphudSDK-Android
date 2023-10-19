@@ -24,7 +24,7 @@ object ApphudFlutter {
      * @param oldToken Optional. Specifies the Google Play Billing purchase token that the user is upgrading or downgrading from.
      * @param replacementMode Optional. Replacement mode (https://developer.android.com/reference/com/android/billingclient/api/BillingFlowParams.SubscriptionUpdateParams.ReplacementMode?hl=en)
      * and offer from ProductDetails and pass offer id token.
-     * @param isCunsumableInappProduct Optional. Default true. Pass true for consumables products or false - for non consumable products
+     * @param consumableInappProduct Optional. Default false. Pass true for consumables products
      * @param block: Optional. Returns `ApphudPurchaseResult` object.
      */
     @kotlin.jvm.JvmStatic
@@ -33,8 +33,8 @@ object ApphudFlutter {
                  offerIdToken: String? = null,
                  oldToken: String? = null,
                  replacementMode: Int? = null,
-                 cunsumableInappProduct:Boolean = true,
+                 consumableInappProduct:Boolean = false,
                  block: ((ApphudPurchaseResult) -> Unit)?) =
-        ApphudInternal.purchase(activity, null, productId, offerIdToken, oldToken, replacementMode, cunsumableInappProduct,  block)
+        ApphudInternal.purchase(activity, null, productId, offerIdToken, oldToken, replacementMode, consumableInappProduct,  block)
 
 }

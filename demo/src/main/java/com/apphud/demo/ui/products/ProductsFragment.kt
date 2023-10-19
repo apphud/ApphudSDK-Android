@@ -59,7 +59,7 @@ class ProductsFragment : Fragment() {
                         }
                     } else {
                         if(product.product_id == "com.apphud.demo.nonconsumable.premium"){
-                            Apphud.purchase(activity = activity, apphudProduct = product, cunsumableInappProduct = false){ result ->
+                            Apphud.purchase(activity = activity, apphudProduct = product, consumableInappProduct = false){ result ->
                                 result.error?.let{ err->
                                     Toast.makeText(activity, err.message, Toast.LENGTH_SHORT).show()
                                 }?: run{

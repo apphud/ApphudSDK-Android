@@ -2,6 +2,7 @@ package com.apphud.sdk.storage
 
 import android.content.Context
 import android.content.SharedPreferences
+import com.apphud.sdk.ApphudInternal
 import com.apphud.sdk.ApphudListener
 import com.apphud.sdk.ApphudLog
 import com.apphud.sdk.ApphudUserProperty
@@ -45,7 +46,6 @@ object SharedPreferencesStorage : Storage {
     private const val SKU_KEY = "skuKey"
     private const val SKU_TIMESTAMP_KEY = "skuTimestampKey"
     private const val LAST_REGISTRATION_KEY = "lastRegistrationKey"
-    private const val FALLBACK_MODE = "fallback_mode"
     private const val TEMP_SUBSCRIPTIONS = "temp_subscriptions"
     private const val TEMP_PURCHASES = "temp_purchases"
 
@@ -242,7 +242,6 @@ object SharedPreferencesStorage : Storage {
         productDetails = null
         properties = null
         adjust = null
-        fallbackMode = false
     }
 
     fun needRegistration() :Boolean {
@@ -277,7 +276,7 @@ object SharedPreferencesStorage : Storage {
             //TODO TEST
             //!fallbackMode
             //---------------------------
-            it.purchases.isEmpty() && it.subscriptions.isEmpty() && !fallbackMode
+            it.purchases.isEmpty() && it.subscriptions.isEmpty()
         }?: false
     }
 
@@ -332,14 +331,6 @@ object SharedPreferencesStorage : Storage {
 
         return true
     }
-
-    override var fallbackMode: Boolean
-        get() = preferences.getBoolean(FALLBACK_MODE, false)
-        set(value) {
-            val editor = preferences.edit()
-            editor.putBoolean(FALLBACK_MODE, value)
-            editor.apply()
-        }
 
     override var subscriptionsTemp: MutableList<ApphudSubscription>
         get() {

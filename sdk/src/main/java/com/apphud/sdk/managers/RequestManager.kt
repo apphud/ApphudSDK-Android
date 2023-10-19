@@ -493,35 +493,17 @@ object RequestManager {
         }
 
         //Add temporary subscription (only in fallback) -------
-        if(SharedPreferencesStorage.fallbackMode) {
+        if(ApphudInternal.fallbackMode) {
             apphudProduct.productDetails?.let{
-                val time = System.currentTimeMillis()
                 when(it.productType){
                     BillingClient.ProductType.SUBS -> {
-                        val subscription = ApphudSubscription(
-                            status = ApphudSubscriptionStatus.REGULAR,
-                            productId = apphudProduct.product_id,
-                            startedAt = time,
-                            expiresAt = time + 3_600_000L,
-                            cancelledAt = null,
-                            isInRetryBilling = false,
-                            isAutoRenewEnabled = false,
-                            isIntroductoryActivated = false,
-                            kind = ApphudKind.NONRENEWABLE,
-                            groupId = "",
-                            isTemporary = true
-                        )
+                        val subscription = ApphudSubscription.createTemporary(apphudProduct.product_id)
                         val listSubs = SharedPreferencesStorage.subscriptionsTemp
                         listSubs.add(subscription)
                         SharedPreferencesStorage.subscriptionsTemp = listSubs
                     }
                     BillingClient.ProductType.INAPP -> {
-                        val purchase = ApphudNonRenewingPurchase(
-                            productId = apphudProduct.product_id,
-                            purchasedAt = time,
-                            canceledAt = time + 3_600_000L,
-                            isTemporary = true
-                        )
+                        val purchase = ApphudNonRenewingPurchase.createTemporary(apphudProduct.product_id)
                         val listInap = SharedPreferencesStorage.purchasesTemp
                         listInap.add(purchase)
                         SharedPreferencesStorage.purchasesTemp = listInap

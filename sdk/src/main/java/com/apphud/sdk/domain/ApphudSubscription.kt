@@ -62,6 +62,25 @@ data class ApphudSubscription(
 
 ) {
 
+    companion object {
+        fun createTemporary(productId: String): ApphudSubscription {
+            val time = System.currentTimeMillis()
+            return ApphudSubscription(
+                status = ApphudSubscriptionStatus.REGULAR,
+                productId = productId,
+                startedAt = time,
+                expiresAt = time + 3_600_000L,
+                cancelledAt = null,
+                isInRetryBilling = false,
+                isAutoRenewEnabled = false,
+                isIntroductoryActivated = false,
+                kind = ApphudKind.AUTORENEWABLE,
+                groupId = "",
+                isTemporary = true
+            )
+        }
+    }
+
     /**
     Use this function to detect whether to give or not premium content to the user.
     - Returns: If value is `true` then user should have access to premium content.
