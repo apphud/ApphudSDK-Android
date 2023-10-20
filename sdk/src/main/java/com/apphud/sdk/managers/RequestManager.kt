@@ -213,6 +213,19 @@ object RequestManager {
 
                 logRequestFinish(request, response)
 
+                //TODO TEST
+                /*if(returnException){
+                    if(request.url.toString().contains("customer")){
+                        throw SocketTimeoutException()
+                    }
+
+                    //Process purchase in fallback mode
+                    if(request.url.toString().contains("subscriptions") && SharedPreferencesStorage.fallbackMode){
+                        throw SocketTimeoutException()
+                    }
+                }*/
+                //--------------------------
+
                 if (response.isSuccessful) {
                     response.body?.let {
                         completionHandler(it.string(), null)
@@ -232,6 +245,10 @@ object RequestManager {
                 ApphudLog.logE(message)
                 completionHandler(null, ApphudError(message))
             }
+        } catch (e: SocketTimeoutException) {
+            ApphudInternal.processFallbackError(request)
+            val message = e.message ?: "Undefined error"
+            completionHandler(null, ApphudError(message, null, ApphudInternal.ERROR_TIMEOUT))
         } catch (e: IOException) {
             val message = e.message ?: "Undefined error"
             completionHandler(null, ApphudError(message))
@@ -399,7 +416,7 @@ object RequestManager {
             } catch (e: SocketTimeoutException) {
                 ApphudInternal.processFallbackError(request)
                 val message = e.message ?: "Undefined error"
-                completionHandler(null, ApphudError(message))
+                completionHandler(null, ApphudError(message, null, ApphudInternal.ERROR_TIMEOUT))
             } catch (ex: Exception) {
                 val message = ex.message?:"Undefined error"
                 completionHandler(null,  ApphudError(message))
@@ -471,30 +488,6 @@ object RequestManager {
             return
         }
 
-        //Add temporary subscription (only in fallback) -------
-        if(ApphudInternal.fallbackMode) {
-            apphudProduct.productDetails?.let{
-                when(it.productType){
-                    BillingClient.ProductType.SUBS -> {
-                        val subscription = ApphudSubscription.createTemporary(apphudProduct.product_id)
-                        val listSubs = SharedPreferencesStorage.subscriptionsTemp
-                        listSubs.add(subscription)
-                        SharedPreferencesStorage.subscriptionsTemp = listSubs
-                    }
-                    BillingClient.ProductType.INAPP -> {
-                        val purchase = ApphudNonRenewingPurchase.createTemporary(apphudProduct.product_id)
-                        val listInap = SharedPreferencesStorage.purchasesTemp
-                        listInap.add(purchase)
-                        SharedPreferencesStorage.purchasesTemp = listInap
-                    }
-                    else -> {
-                        //nothing
-                    }
-                }
-            }
-        }
-        //-------------------------------------------
-
         val request = buildPostRequest(URL(apphudUrl.url), purchaseBody)
 
         makeUserRegisteredRequest(request) { serverResponse, error ->
@@ -517,44 +510,6 @@ object RequestManager {
             }
         }
     }
-
-    /*fun restorePurchases(apphudProduct: ApphudProduct? = null, purchaseRecordDetailsSet: Set<PurchaseRecordDetails>, observerMode: Boolean,
-                  completionHandler: (Customer?, ApphudError?) -> Unit) {
-        if(!canPerformRequest()) {
-            ApphudLog.logE(::restorePurchases.name + MUST_REGISTER_ERROR)
-            return
-        }
-
-        val apphudUrl = ApphudUrl.Builder()
-            .host(HeadersInterceptor.HOST)
-            .version(ApphudVersion.V1)
-            .path("subscriptions")
-            .build()
-
-        val purchaseBody = makeRestorePurchasesBody(apphudProduct, purchaseRecordDetailsSet.toList(), observerMode)
-
-        val request = buildPostRequest(URL(apphudUrl.url), purchaseBody)
-
-        makeUserRegisteredRequest(request) { serverResponse, error ->
-            serverResponse?.let {
-                val responseDto: ResponseDto<CustomerDto>? =
-                    parser.fromJson<ResponseDto<CustomerDto>>(
-                        serverResponse,
-                        object : TypeToken<ResponseDto<CustomerDto>>() {}.type
-                    )
-                responseDto?.let { cDto ->
-                    currentUser = cDto.data.results?.let { customerObj ->
-                        customerMapper.map(customerObj)
-                    }
-                    completionHandler(currentUser, null)
-                } ?: run {
-                    completionHandler(null, ApphudError("Failed to restore purchases"))
-                }
-            } ?: run {
-                completionHandler(null, error)
-            }
-        }
-    }*/
 
     suspend fun restorePurchasesSync(
         apphudProduct: ApphudProduct? = null,

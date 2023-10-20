@@ -4,7 +4,10 @@ import android.app.Activity
 import com.android.billingclient.api.BillingClient
 import com.android.billingclient.api.ProductDetails
 import com.android.billingclient.api.Purchase
+import com.apphud.sdk.domain.ApphudNonRenewingPurchase
 import com.apphud.sdk.domain.ApphudProduct
+import com.apphud.sdk.domain.ApphudSubscription
+import com.apphud.sdk.domain.Customer
 import com.apphud.sdk.internal.callback_status.PurchaseCallbackStatus
 import com.apphud.sdk.internal.callback_status.PurchaseUpdatedCallbackStatus
 import com.apphud.sdk.managers.RequestManager
@@ -137,19 +140,12 @@ private fun ApphudInternal.purchaseInternal(
             when (status) {
                 is PurchaseCallbackStatus.Error -> {
                     val message = "Failed to acknowledge purchase with code: ${status.error}" + apphudProduct?.let{ " [Apphud product ID: " + it.id + "]"}
-                    ApphudLog.log(message = message,
-                        sendLogToServer = true)
-                    callback?.invoke(
-                        ApphudPurchaseResult(null,
-                        null,
-                        purchase,
-                        ApphudError(message)
-                        )
-                    )
+                    ApphudLog.log(message = message,sendLogToServer = true)
+                    callback?.invoke(ApphudPurchaseResult(null,null, purchase, ApphudError(message)))
                 }
                 is PurchaseCallbackStatus.Success -> {
                     ApphudLog.log("Purchase successfully acknowledged")
-                    ackPurchase(purchase, apphudProduct, offerIdToken, oldToken, callback)
+                    sendCheckToApphud(purchase, apphudProduct, offerIdToken, oldToken, callback)
                 }
             }
         }
@@ -160,19 +156,12 @@ private fun ApphudInternal.purchaseInternal(
             when (status) {
                 is PurchaseCallbackStatus.Error -> {
                     val message = "Failed to consume purchase with error: ${status.error}" + apphudProduct?.let{ " [Apphud product ID: " + it.id + "]"}
-                    ApphudLog.log(message = message,
-                        sendLogToServer = true)
-                    callback?.invoke(
-                        ApphudPurchaseResult(null,
-                        null,
-                        purchase,
-                        ApphudError(message)
-                        )
-                    )
+                    ApphudLog.log(message = message, sendLogToServer = true)
+                    callback?.invoke(ApphudPurchaseResult(null, null, purchase, ApphudError(message)))
                 }
                 is PurchaseCallbackStatus.Success -> {
                     ApphudLog.log("Purchase successfully consumed: ${status.message}")
-                    ackPurchase(purchase, apphudProduct, offerIdToken, oldToken, callback)
+                    sendCheckToApphud(purchase, apphudProduct, offerIdToken, oldToken, callback)
                 }
             }
         }
@@ -267,7 +256,7 @@ private fun ApphudInternal.processPurchaseError(status:  PurchaseUpdatedCallback
     }
 }
 
-private fun ApphudInternal.ackPurchase(
+private fun ApphudInternal.sendCheckToApphud(
     purchase: Purchase,
     apphudProduct: ApphudProduct,
     offerIdToken: String?,
@@ -281,28 +270,69 @@ private fun ApphudInternal.ackPurchase(
                     val newSubscriptions = customer.subscriptions.firstOrNull { it.productId == purchase.products.first() }
                     val newPurchases = customer.purchases.firstOrNull { it.productId == purchase.products.first() }
 
-                    notifyLoadingCompleted(it)
-
-                    if (newSubscriptions == null && newPurchases == null) {
-                        val productId =apphudProduct.productDetails?.let { apphudProduct.productDetails?.productId } ?: purchase.products.first()?:"unknown"
-                        val message = "Unable to validate purchase ($productId). " +
-                                "Ensure Google Service Credentials are correct and have necessary permissions. " +
-                                "Check https://docs.apphud.com/getting-started/creating-app#google-play-service-credentials or contact support."
-
-                        ApphudLog.logE(message)
-                        callback?.invoke(ApphudPurchaseResult(null,null,null,ApphudError(message)))
-                    } else {
-                        apphudListener?.apphudSubscriptionsUpdated(customer.subscriptions)
-                        callback?.invoke(ApphudPurchaseResult(newSubscriptions, newPurchases, purchase, null))
-                    }
+                    notifyAboutSuccess(it, purchase, newSubscriptions, newPurchases, callback)
                 }
                 error?.let {
+                    if(fallbackMode){
+                        it.errorCode?.let{ code->
+                            if(code in FALLBACK_ERRORS){
+                                currentUser?.let{
+                                    addTempPurchase(it, purchase, apphudProduct.productDetails?.productType?:"", apphudProduct.product_id, callback)
+                                    return@launch
+                                }
+                            }
+                        }
+                    }
+
                     val message = "Unable to validate purchase with error = ${it.message}" + apphudProduct?.let{ " [Apphud product ID: " + it.id + "]"}
                     ApphudLog.logI(message = message)
                     callback?.invoke(ApphudPurchaseResult(null, null, purchase, ApphudError(message)))
                 }
             }
         }
+    }
+}
+
+internal fun ApphudInternal.addTempPurchase(customer: Customer, purchase: Purchase, type: String, productId: String, callback: ((ApphudPurchaseResult) -> Unit)?){
+    var newSubscriptions: ApphudSubscription? = null
+    var newPurchases: ApphudNonRenewingPurchase? = null
+    when (type) {
+        BillingClient.ProductType.SUBS -> {
+            newSubscriptions = ApphudSubscription.createTemporary(productId)
+            currentUser?.subscriptions?.add(newSubscriptions)
+            ApphudLog.log("Fallback: created temp SUBS purchase: ${productId}")
+        }
+        BillingClient.ProductType.INAPP -> {
+            newPurchases = ApphudNonRenewingPurchase.createTemporary(productId)
+            currentUser?.purchases?.add(newPurchases)
+            ApphudLog.log("Fallback: created temp INAPP purchase: ${productId}")
+        }
+        else -> {
+            //nothing
+        }
+    }
+    notifyAboutSuccess(customer, purchase, newSubscriptions, newPurchases, callback)
+}
+
+private fun notifyAboutSuccess(customer: Customer,
+                               purchase: Purchase,
+                               newSubscription: ApphudSubscription?,
+                               newPurchase: ApphudNonRenewingPurchase?,
+                               callback: ((ApphudPurchaseResult) -> Unit)?){
+
+    ApphudInternal.notifyLoadingCompleted(customer)
+
+    if (newSubscription == null && newPurchase == null) {
+        val productId = purchase.products.first()?:"unknown"
+        val message = "Unable to validate purchase ($productId). " +
+                "Ensure Google Service Credentials are correct and have necessary permissions. " +
+                "Check https://docs.apphud.com/getting-started/creating-app#google-play-service-credentials or contact support."
+
+        ApphudLog.logE(message)
+        callback?.invoke(ApphudPurchaseResult(null,null,null,ApphudError(message)))
+    } else {
+        ApphudInternal.apphudListener?.apphudSubscriptionsUpdated(customer.subscriptions)
+        callback?.invoke(ApphudPurchaseResult(newSubscription, newPurchase, purchase, null))
     }
 }
 

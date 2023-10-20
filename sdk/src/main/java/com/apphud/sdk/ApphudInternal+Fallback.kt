@@ -65,8 +65,6 @@ private fun getJsonDataFromAsset(context: Context, fileName: String): String? {
 }
 
 internal fun ApphudInternal.disableFallback() {
-    storage.subscriptionsTemp = mutableListOf()
-    storage.purchasesTemp = mutableListOf()
     fallbackMode = false
     ApphudLog.log("Fallback: DISABLED")
 

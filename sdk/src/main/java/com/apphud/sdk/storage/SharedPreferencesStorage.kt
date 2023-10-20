@@ -331,30 +331,4 @@ object SharedPreferencesStorage : Storage {
 
         return true
     }
-
-    override var subscriptionsTemp: MutableList<ApphudSubscription>
-        get() {
-            val source = preferences.getString(TEMP_SUBSCRIPTIONS, null)
-            val type = object : TypeToken<MutableList<ApphudSubscription>>() {}.type
-            return parser.fromJson<MutableList<ApphudSubscription>>(source, type)?: mutableListOf()
-        }
-        set(value) {
-            val source = parser.toJson(value)
-            val editor = preferences.edit()
-            editor.putString(TEMP_SUBSCRIPTIONS, source)
-            editor.apply()
-        }
-
-    override var purchasesTemp: MutableList<ApphudNonRenewingPurchase>
-        get() {
-            val source = preferences.getString(TEMP_PURCHASES, null)
-            val type = object : TypeToken<MutableList<ApphudNonRenewingPurchase>>() {}.type
-            return parser.fromJson<MutableList<ApphudNonRenewingPurchase>>(source, type)?: mutableListOf()
-        }
-        set(value) {
-            val source = parser.toJson(value)
-            val editor = preferences.edit()
-            editor.putString(TEMP_PURCHASES, source)
-            editor.apply()
-        }
 }

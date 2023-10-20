@@ -1,6 +1,7 @@
 package com.apphud.sdk.managers
 
 import com.apphud.sdk.ApphudInternal
+import com.apphud.sdk.ApphudInternal.FALLBACK_ERRORS
 import com.apphud.sdk.ApphudLog
 import com.apphud.sdk.processFallbackError
 
@@ -31,9 +32,7 @@ class HttpRetryInterceptor : Interceptor {
                 if(!isSuccess){
                     ApphudLog.logE("Request (${request.url.encodedPath}) failed with code (${response.code}). Will retry in ${STEP/1000} seconds (${tryCount}).")
 
-                    //Fallback status processing
-                    val errors = listOf(500, 502, 503)
-                    if(response.code in errors){
+                    if(response.code in FALLBACK_ERRORS){
                         ApphudInternal.processFallbackError(request)
                     }
                     Thread.sleep(STEP)
@@ -48,7 +47,7 @@ class HttpRetryInterceptor : Interceptor {
                 tryCount++
             }
         }
-        if(!isSuccess && tryCount >= MAX_COUNT){
+        if(!isSuccess){
             ApphudLog.logE("Reached max number (${MAX_COUNT}) of (${request.url.encodedPath}) request retries. Exiting..")
         }
         return response ?: chain.proceed(request)

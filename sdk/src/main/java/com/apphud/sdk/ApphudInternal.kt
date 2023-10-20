@@ -36,6 +36,9 @@ internal object ApphudInternal {
         error.message?.let { ApphudLog.logE(it) }
     }
 
+    internal const val ERROR_TIMEOUT = 408
+    internal val FALLBACK_ERRORS = listOf(ERROR_TIMEOUT, 500, 502, 503)
+
     internal lateinit var billing: BillingWrapper
     internal val storage by lazy { SharedPreferencesStorage.getInstance(context) }
     internal var prevPurchases = mutableSetOf<PurchaseRecordDetails>()
@@ -84,7 +87,7 @@ internal object ApphudInternal {
     private var lifecycleEventObserver = LifecycleEventObserver { _, event ->
         when (event) {
             Lifecycle.Event.ON_STOP -> {
-                if(storage.subscriptionsTemp.isNotEmpty() || storage.purchasesTemp.isNotEmpty()){
+                if(fallbackMode){
                     storage.isNeedSync = true
                 }
                 ApphudLog.log("Application stopped [need sync ${storage.isNeedSync}]")
@@ -494,11 +497,7 @@ internal object ApphudInternal {
                 subscriptions = user.subscriptions.toCollection(mutableListOf())
             }
         }
-        if(storage.subscriptionsTemp.isNotEmpty()){
-            storage.subscriptionsTemp = storage.subscriptionsTemp.filter { it.isActive() }.toMutableList()
-            subscriptions.addAll(storage.subscriptionsTemp)
-        }
-        return subscriptions
+        return subscriptions.filter { !it.isTemporary || it.isActive()}
     }
 
     fun purchases() :List<ApphudNonRenewingPurchase> {
@@ -508,11 +507,7 @@ internal object ApphudInternal {
                 purchases = user.purchases.toCollection(mutableListOf())
             }
         }
-        if(storage.purchasesTemp.isNotEmpty()){
-            storage.purchasesTemp = storage.purchasesTemp.filter { it.isActive() }.toMutableList()
-            purchases.addAll(storage.purchasesTemp)
-        }
-        return purchases
+        return purchases.filter { !it.isTemporary || it.isActive()}
     }
 
     fun paywallShown(paywall: ApphudPaywall) {

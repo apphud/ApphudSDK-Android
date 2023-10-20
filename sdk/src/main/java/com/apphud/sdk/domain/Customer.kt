@@ -2,7 +2,7 @@ package com.apphud.sdk.domain
 
 data class Customer(
     val user: ApphudUser,
-    val subscriptions: List<ApphudSubscription>,
-    val purchases: List<ApphudNonRenewingPurchase>,
+    val subscriptions: MutableList<ApphudSubscription>,
+    val purchases: MutableList<ApphudNonRenewingPurchase>,
     val paywalls: List<ApphudPaywall>
 )
