@@ -3,6 +3,8 @@ package com.apphud.sdk.flutter
 import android.app.Activity
 import com.apphud.sdk.ApphudInternal
 import com.apphud.sdk.ApphudPurchaseResult
+import com.apphud.sdk.purchase
+import com.apphud.sdk.syncPurchases
 
 object ApphudFlutter {
     /**
