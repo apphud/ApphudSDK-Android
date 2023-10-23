@@ -270,7 +270,7 @@ private fun ApphudInternal.sendCheckToApphud(
                     val newSubscriptions = customer.subscriptions.firstOrNull { it.productId == purchase.products.first() }
                     val newPurchases = customer.purchases.firstOrNull { it.productId == purchase.products.first() }
 
-                    notifyAboutSuccess(it, purchase, newSubscriptions, newPurchases, callback)
+                    notifyAboutSuccess(it, purchase, newSubscriptions, newPurchases, false, callback)
                 }
                 error?.let {
                     if(fallbackMode){
@@ -311,16 +311,17 @@ internal fun ApphudInternal.addTempPurchase(customer: Customer, purchase: Purcha
             //nothing
         }
     }
-    notifyAboutSuccess(customer, purchase, newSubscriptions, newPurchases, callback)
+    notifyAboutSuccess(customer, purchase, newSubscriptions, newPurchases, true, callback)
 }
 
 private fun notifyAboutSuccess(customer: Customer,
                                purchase: Purchase,
                                newSubscription: ApphudSubscription?,
                                newPurchase: ApphudNonRenewingPurchase?,
+                               fromFallback: Boolean,
                                callback: ((ApphudPurchaseResult) -> Unit)?){
 
-    ApphudInternal.notifyLoadingCompleted(customer)
+    ApphudInternal.notifyLoadingCompleted(customerLoaded = customer, fromFallback = fromFallback)
 
     if (newSubscription == null && newPurchase == null) {
         val productId = purchase.products.first()?:"unknown"
@@ -331,7 +332,7 @@ private fun notifyAboutSuccess(customer: Customer,
         ApphudLog.logE(message)
         callback?.invoke(ApphudPurchaseResult(null,null,null,ApphudError(message)))
     } else {
-        ApphudInternal.apphudListener?.apphudSubscriptionsUpdated(customer.subscriptions)
+        //ApphudInternal.apphudListener?.apphudSubscriptionsUpdated(customer.subscriptions)
         callback?.invoke(ApphudPurchaseResult(newSubscription, newPurchase, purchase, null))
     }
 }

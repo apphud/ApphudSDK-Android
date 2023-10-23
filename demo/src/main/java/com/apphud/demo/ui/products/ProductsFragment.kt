@@ -67,7 +67,7 @@ class ProductsFragment : Fragment() {
                                 }
                             }
                         } else {
-                            Apphud.purchase(activity, product){ result ->
+                            Apphud.purchase(activity = activity, apphudProduct = product, consumableInappProduct = true){ result ->
                                 result.error?.let{ err->
                                     Toast.makeText(activity, err.message, Toast.LENGTH_SHORT).show()
                                 }?: run{

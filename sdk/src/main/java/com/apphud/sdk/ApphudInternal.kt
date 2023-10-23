@@ -196,14 +196,14 @@ internal object ApphudInternal {
                 disableFallback()
             }
 
-            if(fromCache){
+            if(fromCache || fromFallback){
                 RequestManager.currentUser = it
                 notifyFullyLoaded = true
             }else{
                 if (it.paywalls.isNotEmpty()) {
                     notifyFullyLoaded = true
                     cachePaywalls(it.paywalls)
-                }else{
+                }else {
                     /* Attention:
                      * If customer loaded without paywalls, do not reload paywalls from cache!
                      * If cache time is over, paywall from cache will be NULL
@@ -784,7 +784,7 @@ internal object ApphudInternal {
         storage.paywalls = paywalls
     }
 
-    private fun readPaywallsFromCache(): MutableList<ApphudPaywall> {
+    internal fun readPaywallsFromCache(): MutableList<ApphudPaywall> {
         return storage.paywalls?.toMutableList()?: mutableListOf()
     }
 

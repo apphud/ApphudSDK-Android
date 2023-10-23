@@ -170,7 +170,7 @@ object SharedPreferencesStorage : Storage {
         get() {
             val timestamp = preferences.getLong(PAYWALLS_TIMESTAMP_KEY, -1L) + (cacheTimeout * 1000)
             val currentTime = System.currentTimeMillis()
-            return if (currentTime < timestamp) {
+            return if ((currentTime < timestamp) || ApphudInternal.fallbackMode) {
                 val source = preferences.getString(PAYWALLS_KEY, null)
                 val type = object : TypeToken<List<ApphudPaywall>>() {}.type
                 parser.fromJson<List<ApphudPaywall>>(source, type)
@@ -274,9 +274,9 @@ object SharedPreferencesStorage : Storage {
     fun needProcessFallback() :Boolean {
         return customer?.let{
             //TODO TEST
-            //true
+            true
             //---------------------------
-            it.purchases.isEmpty() && it.subscriptions.isEmpty()
+            //it.purchases.isEmpty() && it.subscriptions.isEmpty()
         }?: false
     }
 

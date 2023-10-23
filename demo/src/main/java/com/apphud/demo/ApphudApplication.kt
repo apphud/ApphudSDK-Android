@@ -28,7 +28,7 @@ class ApphudApplication : Application() {
         super.onCreate()
 
         Apphud.enableDebugLogs()
-//        Apphud.optOutOfTracking()
+      //Apphud.optOutOfTracking()
         Apphud.start(this, API_KEY)
         Apphud.collectDeviceIdentifiers()
     }

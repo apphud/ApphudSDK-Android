@@ -20,6 +20,7 @@ import com.apphud.sdk.domain.ApphudNonRenewingPurchase
 import com.apphud.sdk.domain.ApphudPaywall
 import com.apphud.sdk.domain.ApphudSubscription
 import com.apphud.sdk.managers.HeadersInterceptor
+import com.apphud.sdk.managers.RequestManager
 
 class CustomerFragment : Fragment() {
 
@@ -72,26 +73,30 @@ class CustomerFragment : Fragment() {
 
         val listener = object : ApphudListener {
             override fun apphudSubscriptionsUpdated(subscriptions: List<ApphudSubscription>) {
-                //TODO handle updated subscriptions
+                Log.d("Apphud", "Fallback DEMO: apphudSubscriptionsUpdated")
             }
 
             override fun apphudNonRenewingPurchasesUpdated(purchases: List<ApphudNonRenewingPurchase>) {
-                //TODO handle updated non renewing purchases
+                Log.d("Apphud", "Fallback DEMO: apphudNonRenewingPurchasesUpdated")
             }
 
             override fun apphudFetchProductDetails(details: List<ProductDetails>) {
+                Log.d("Apphud", "Fallback DEMO: apphudFetchProductDetails()")
                 //TODO handle loaded sku details
             }
 
             override fun apphudDidChangeUserID(userId: String) {
+                Log.d("Apphud", "Fallback DEMO: apphudDidChangeUserID()")
                 //TODO handle User ID changed event
             }
 
             override fun userDidLoad() {
+                Log.d("Apphud", "Fallback DEMO: userDidLoad()")
                 //TODO handle user registered event
             }
             
             override fun paywallsDidFullyLoad(paywalls: List<ApphudPaywall>){
+                Log.d("Apphud", "Fallback DEMO: paywallsDidFullyLoad()")
                 updateData()
             }
         }

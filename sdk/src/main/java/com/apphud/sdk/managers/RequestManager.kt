@@ -220,7 +220,7 @@ object RequestManager {
                     }
 
                     //Process purchase in fallback mode
-                    if(request.url.toString().contains("subscriptions") && SharedPreferencesStorage.fallbackMode){
+                    if(request.url.toString().contains("subscriptions") && ApphudInternal.fallbackMode){
                         throw SocketTimeoutException()
                     }
                 }*/
@@ -286,7 +286,7 @@ object RequestManager {
                 }
 
                 //Process purchase in fallback mode
-                if(request.url.toString().contains("subscriptions") && SharedPreferencesStorage.fallbackMode){
+                if(request.url.toString().contains("subscriptions") && ApphudInternal.fallbackMode){
                     throw SocketTimeoutException()
                 }
             }*/
