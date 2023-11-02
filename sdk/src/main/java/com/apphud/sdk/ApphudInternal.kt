@@ -70,7 +70,7 @@ internal object ApphudInternal {
     private var generatedUUID = UUID.randomUUID().toString()
     private var productGroups: MutableList<ApphudGroup> = mutableListOf()
     private var allowIdentifyUser = true
-    private var didRegisterCustomerAtThisLaunch = false
+    internal var didRegisterCustomerAtThisLaunch = false
     private var is_new = true
     private lateinit var apiKey: ApiKey
     lateinit var deviceId: DeviceId
@@ -140,6 +140,7 @@ internal object ApphudInternal {
 
         //Restore from cache
         this.currentUser = storage.customer
+        RequestManager.currentUser = this.currentUser
         this.productGroups = readGroupsFromCache()
         this.paywalls = readPaywallsFromCache()
 
@@ -191,19 +192,15 @@ internal object ApphudInternal {
             customProductsFetchedBlock?.invoke(getProductDetailsList())
         }
 
-        customerLoaded?.let{
-            if(!fromFallback && fallbackMode){
-                disableFallback()
-            }
-
-            if(fromCache || fromFallback){
+        customerLoaded?.let {
+            if (fromCache || fromFallback) {
                 RequestManager.currentUser = it
                 notifyFullyLoaded = true
-            }else{
+            } else {
                 if (it.paywalls.isNotEmpty()) {
                     notifyFullyLoaded = true
                     cachePaywalls(it.paywalls)
-                }else {
+                } else {
                     /* Attention:
                      * If customer loaded without paywalls, do not reload paywalls from cache!
                      * If cache time is over, paywall from cache will be NULL
@@ -227,7 +224,13 @@ internal object ApphudInternal {
             if (!didRegisterCustomerAtThisLaunch) {
                 apphudListener?.userDidLoad()
             }
-            didRegisterCustomerAtThisLaunch = true
+            if (it.isTemporary == false && !fallbackMode){
+                didRegisterCustomerAtThisLaunch = true
+            }
+
+            if(!fromFallback && fallbackMode){
+                disableFallback()
+            }
         }
 
         updatePaywallsWithProductDetails(paywalls)
@@ -246,22 +249,15 @@ internal object ApphudInternal {
         forceRegistration: Boolean = false,
         completionHandler: ((Customer?, ApphudError?) -> Unit)?
     ) {
-        ApphudLog.log("Start registration userId=$userId, deviceId=$deviceId")
         coroutineScope.launch(errorHandler) {
-            var customer: Customer? = null
             mutex.withLock {
-                if(currentUser == null || forceRegistration) {
-                    val threads = listOf(
-                        async {
-                            customer = RequestManager.registrationSync(
-                                !didRegisterCustomerAtThisLaunch,
-                                is_new,
-                                forceRegistration
-                            )
-                        }
-                    )
-                    threads.awaitAll().let {
+                if(currentUser == null || forceRegistration || currentUser?.isTemporary == true) {
+                    ApphudLog.log("Start registration userId=$userId, deviceId=$deviceId")
+                    ApphudLog.log("Registration conditions: user_is_null=${currentUser == null}, forceRegistration=$forceRegistration isTemporary=${currentUser!!.isTemporary}")
+
+                    RequestManager.registration(!didRegisterCustomerAtThisLaunch, is_new, forceRegistration) { customer, error ->
                         customer?.let {
+                            currentUser = it
                             storage.lastRegistration = System.currentTimeMillis()
 
                             mainScope.launch {
@@ -275,6 +271,7 @@ internal object ApphudInternal {
 
                             if(storage.isNeedSync) {
                                 coroutineScope.launch(errorHandler) {
+                                    ApphudLog.log("Registration: syncPurchases()")
                                     syncPurchases()
                                 }
                             }
@@ -569,7 +566,13 @@ internal object ApphudInternal {
         }
 
         currentUser?.let{
-            callback.invoke(null)
+            if(it.isTemporary == false){
+                callback.invoke(null)
+            } else {
+                registration(this.userId, this.deviceId){ _, error ->
+                    callback.invoke(error)
+                }
+            }
         }?:run{
             registration(this.userId, this.deviceId){ _, error ->
                 callback.invoke(error)

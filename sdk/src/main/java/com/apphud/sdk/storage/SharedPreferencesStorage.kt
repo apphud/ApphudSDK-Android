@@ -20,7 +20,7 @@ object SharedPreferencesStorage : Storage {
     fun getInstance(applicationContext: Context) : SharedPreferencesStorage {
         this.applicationContext = applicationContext
         preferences = SharedPreferencesStorage.applicationContext.getSharedPreferences(NAME, Context.MODE_PRIVATE)
-        cacheTimeout = if (SharedPreferencesStorage.applicationContext.isDebuggable()) 30L else 90000L //25 hours
+        cacheTimeout = if (SharedPreferencesStorage.applicationContext.isDebuggable()) 30000L else 90000L //25 hours //TODO TEST return 30
         return this
     }
 
@@ -273,11 +273,8 @@ object SharedPreferencesStorage : Storage {
 
     fun needProcessFallback() :Boolean {
         return customer?.let{
-            //TODO TEST
-            //true
-            //---------------------------
-            it.purchases.isEmpty() && it.subscriptions.isEmpty()
-        }?: false
+            true//it.purchases.isEmpty() && it.subscriptions.isEmpty() //TODO TEST
+        }?: true
     }
 
     override var properties: HashMap<String, ApphudUserProperty>?

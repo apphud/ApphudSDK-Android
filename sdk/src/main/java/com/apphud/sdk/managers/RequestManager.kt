@@ -8,6 +8,7 @@ import com.android.billingclient.api.BillingClient
 import com.android.billingclient.api.ProductDetails
 import com.android.billingclient.api.Purchase
 import com.apphud.sdk.*
+import com.apphud.sdk.ApphudInternal.fallbackMode
 import com.apphud.sdk.ApphudUtils
 import com.apphud.sdk.ApphudVersion
 import com.apphud.sdk.body.*
@@ -213,19 +214,6 @@ object RequestManager {
 
                 logRequestFinish(request, response)
 
-                //TODO TEST
-                /*if(returnException){
-                    if(request.url.toString().contains("customer")){
-                        throw SocketTimeoutException()
-                    }
-
-                    //Process purchase in fallback mode
-                    if(request.url.toString().contains("subscriptions") && ApphudInternal.fallbackMode){
-                        throw SocketTimeoutException()
-                    }
-                }*/
-                //--------------------------
-
                 if (response.isSuccessful) {
                     response.body?.let {
                         completionHandler(it.string(), null)
@@ -255,10 +243,6 @@ object RequestManager {
         }
     }
 
-    //TODO TEST
-    //var returnException :Boolean = true
-    //===================
-
     @Throws(Exception::class)
     fun performRequestSync(client: OkHttpClient, request: Request): String {
         if (HeadersInterceptor.isBlocked) {
@@ -279,18 +263,6 @@ object RequestManager {
 
             logRequestFinish(request, response)
 
-            //TODO TEST
-            /*if(returnException){
-                if(request.url.encodedPath.endsWith("/customers")){
-                    throw SocketTimeoutException()
-                }
-
-                //Process purchase in fallback mode
-                if(request.url.toString().contains("subscriptions") && ApphudInternal.fallbackMode){
-                    throw SocketTimeoutException()
-                }
-            }*/
-            //--------------------------
             val responseBody = response.body!!.string()
             if (response.isSuccessful) {
                 return responseBody
@@ -326,9 +298,10 @@ object RequestManager {
 
     private fun makeUserRegisteredRequest(
         request: Request,
+        retry: Boolean = true,
         completionHandler: (String?, ApphudError?) -> Unit
     ) {
-        val httpClient = getOkHttpClient(request)
+        val httpClient = getOkHttpClient(request, retry)
         if (currentUser == null) {
             registration(true, true) { customer, error ->
                 customer?.let {
@@ -372,7 +345,7 @@ object RequestManager {
             }
         }
 
-        if(currentUser == null || forceRegistration) {
+        if(currentUser == null || forceRegistration || currentUser?.isTemporary == true) {
             registration(needPaywalls, isNew, forceRegistration) { customer, error ->
                 if(continuation.isActive) {
                     continuation.resume(customer)
@@ -392,7 +365,7 @@ object RequestManager {
             return
         }
 
-        if(currentUser == null || forceRegistration) {
+        if(currentUser == null || forceRegistration || currentUser?.isTemporary == true) {
             val apphudUrl = ApphudUrl.Builder()
                 .host(HeadersInterceptor.HOST)
                 .version(ApphudVersion.V1)
@@ -490,7 +463,7 @@ object RequestManager {
 
         val request = buildPostRequest(URL(apphudUrl.url), purchaseBody)
 
-        makeUserRegisteredRequest(request) { serverResponse, error ->
+        makeUserRegisteredRequest(request, !fallbackMode) { serverResponse, error ->
             serverResponse?.let {
                 val responseDto: ResponseDto<CustomerDto>? =
                     parser.fromJson<ResponseDto<CustomerDto>>(
@@ -551,7 +524,7 @@ object RequestManager {
 
             purchaseBody?.let{
                 val request = buildPostRequest(URL(apphudUrl.url), it)
-                makeUserRegisteredRequest(request) { serverResponse, error ->
+                makeUserRegisteredRequest(request, !fallbackMode) { serverResponse, error ->
                     serverResponse?.let {
                         val responseDto: ResponseDto<CustomerDto>? =
                             parser.fromJson<ResponseDto<CustomerDto>>(

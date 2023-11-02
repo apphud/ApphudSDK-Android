@@ -20,7 +20,6 @@ import com.apphud.sdk.domain.ApphudNonRenewingPurchase
 import com.apphud.sdk.domain.ApphudPaywall
 import com.apphud.sdk.domain.ApphudSubscription
 import com.apphud.sdk.managers.HeadersInterceptor
-import com.apphud.sdk.managers.RequestManager
 
 class CustomerFragment : Fragment() {
 
@@ -105,7 +104,7 @@ class CustomerFragment : Fragment() {
         updateData()
 
         //TODO TEST
-        /*binding.btnSubs.setOnClickListener {
+        binding.btnSubs.setOnClickListener {
             val subs = Apphud.subscriptions()
             val item = subs.firstOrNull { it.isTemporary }
             val itemActive = subs.firstOrNull { it.isTemporary && it.isActive() }
@@ -122,9 +121,10 @@ class CustomerFragment : Fragment() {
         }
 
         binding.btnException.setOnClickListener {
-            RequestManager.returnException = !RequestManager.returnException
-            Log.d("Apphud", "Fallback Socket exception:   ${RequestManager.returnException}")
-        }*/
+            HeadersInterceptor.isTest  = !HeadersInterceptor.isTest
+            Log.d("Apphud", "Fallback use timeout:   ${HeadersInterceptor.isTest}")
+        }
+        ////////////////////
 
         return root
     }

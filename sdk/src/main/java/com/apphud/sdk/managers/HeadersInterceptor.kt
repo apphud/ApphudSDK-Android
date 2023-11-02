@@ -11,8 +11,19 @@ class HeadersInterceptor(private val apiKey: String?) : Interceptor {
     companion object Shared{
         var X_SDK_VERSION: String = BuildConfig.VERSION_NAME
         var X_SDK: String = "Kotlin"
-        var HOST: String = ApiClient.host
+        //var HOST: String = ApiClient.host
         var isBlocked: Boolean = false
+
+        //TODO TEST
+        var isTest = true
+        var HOST :String = ""
+            get() {
+                if(isTest){
+                    return "https://log-prod.apphud.com"
+                } else {
+                    return "https://api.apphud.com"
+                }
+            }
     }
 
     @Throws(IOException::class)

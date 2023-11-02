@@ -1,6 +1,8 @@
 package com.apphud.sdk
 
 import android.content.Context
+import com.apphud.sdk.domain.ApphudUser
+import com.apphud.sdk.domain.Customer
 import com.apphud.sdk.domain.FallbackJsonObject
 import com.apphud.sdk.mappers.PaywallsMapper
 import com.apphud.sdk.parser.GsonParser
@@ -19,6 +21,7 @@ private val paywallsMapper = PaywallsMapper(parser)
 internal fun ApphudInternal.processFallbackError(request : Request) {
     if(request.url.encodedPath.endsWith("/customers") && storage.needProcessFallback() && !fallbackMode){
         fallbackMode = true
+        didRegisterCustomerAtThisLaunch = false
         processFallbackData()
         ApphudLog.log("Fallback: ENABLED")
     }
@@ -38,6 +41,11 @@ private fun ApphudInternal.processFallbackData() {
                 if(ids.isNotEmpty()){
                     fetchDetails(ids)
                     cachePaywalls(paywallToParse)
+
+                    if(currentUser == null){
+                        currentUser = Customer(ApphudUser(userId, "", ""), mutableListOf(), mutableListOf(), listOf(), true)
+                        ApphudLog.log("Fallback: user created: ${userId}")
+                    }
                     mainScope.launch {
                         notifyLoadingCompleted(
                             customerLoaded = currentUser,
@@ -70,7 +78,10 @@ internal fun ApphudInternal.disableFallback() {
 
     storage.isNeedSync = true
     coroutineScope.launch(ApphudInternal.errorHandler) {
-        ApphudLog.log("Fallback: syncPurchases")
+        if(productDetails.isEmpty()){ //if fallback raised on start, there no product details, so reload products and details
+            loadProducts()
+        }
+        ApphudLog.log("Fallback: syncPurchases()")
         syncPurchases()
     }
 }

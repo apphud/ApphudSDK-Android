@@ -10,12 +10,13 @@ import okhttp3.Request
 import okhttp3.Response
 import java.io.IOException
 import java.lang.Exception
+import java.net.SocketTimeoutException
 
 
 class HttpRetryInterceptor : Interceptor {
     companion object {
         private const val STEP = 3_000L
-        private const val MAX_COUNT = 30
+        private const val MAX_COUNT = 3 //TODO TEST must be 30
     }
 
     @Throws(IOException::class)
@@ -37,6 +38,10 @@ class HttpRetryInterceptor : Interceptor {
                     }
                     Thread.sleep(STEP)
                 }
+            } catch (e: SocketTimeoutException) {
+                ApphudInternal.processFallbackError(request)
+                ApphudLog.logE("Request (${request.url.encodedPath}) failed with code (${response?.code ?: 0}). Will retry in ${STEP/1000} seconds (${tryCount}).")
+                Thread.sleep(STEP)
             } catch (e: Exception) {
                 ApphudLog.logE("Request (${request.url.encodedPath}) failed with code (${response?.code ?: 0}). Will retry in ${STEP/1000} seconds (${tryCount}).")
                 Thread.sleep(STEP)

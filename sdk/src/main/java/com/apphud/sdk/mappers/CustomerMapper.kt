@@ -16,7 +16,7 @@ class CustomerMapper(
         user = ApphudUser(
             userId = customer.user_id,
             currencyCode = customer.currency?.code,
-            currencyCountryCode = customer.currency?.country_code
+            currencyCountryCode = customer.currency?.country_code,
         ),
         subscriptions = customer.subscriptions
             .filter { it.kind == ApphudKind.AUTORENEWABLE.source }
@@ -30,6 +30,7 @@ class CustomerMapper(
             paywallsList.map {paywallsMapper.map(it)}
         }?: run{
             mutableListOf<ApphudPaywall>()
-        }
+        },
+        isTemporary = false
     )
 }

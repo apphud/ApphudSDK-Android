@@ -14,6 +14,7 @@ import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 
 internal fun ApphudInternal.restorePurchases(callback: ApphudPurchasesRestoreCallback) {
+    ApphudLog.log("User called: SyncPurchases()")
     syncPurchases(observerMode = false, callback = callback)
 }
 
@@ -29,10 +30,9 @@ internal fun ApphudInternal.syncPurchases(
             ApphudLog.log("SyncPurchases: checkRegistration fail")
             callback?.invoke(null, null, error)
         } ?: run {
-            ApphudLog.log("SyncPurchases: user registered")
             coroutineScope.launch(errorHandler) {
                 mutexSync.withLock {
-                    ApphudLog.log("SyncPurchases: mutex Lock")
+                    ApphudLog.log("SyncPurchases: start")
                     val subsResult = billing.queryPurchaseHistorySync(BillingClient.ProductType.SUBS)
                     val inapsResult = billing.queryPurchaseHistorySync(BillingClient.ProductType.INAPP)
 
@@ -41,7 +41,7 @@ internal fun ApphudInternal.syncPurchases(
                     purchases.addAll(processHistoryCallbackStatus(inapsResult))
 
                     if (purchases.isEmpty()) {
-                        ApphudLog.log(message = "Nothing to restore", sendLogToServer = false)
+                        ApphudLog.log(message = "SyncPurchases: Nothing to restore", sendLogToServer = false)
                         mainScope.launch {
                             refreshEntitlements(true)
                             currentUser?.let {
@@ -49,7 +49,7 @@ internal fun ApphudInternal.syncPurchases(
                             }
                         }
                     } else {
-                        ApphudLog.log("Products to restore: $purchases")
+                        ApphudLog.log("SyncPurchases: Products to restore: $purchases")
 
                         val restoredPurchases = mutableListOf<PurchaseRecordDetails>()
                         val purchasesToLoadDetails = mutableListOf<PurchaseHistoryRecord>()
@@ -67,17 +67,19 @@ internal fun ApphudInternal.syncPurchases(
                         }
 
                         if (purchasesToLoadDetails.isNotEmpty()) {
-                            ApphudLog.log("Load product details for: $purchasesToLoadDetails")
+                            ApphudLog.log("SyncPurchases: Load product details for: $purchasesToLoadDetails")
                             val subsRestored = billing.restoreSync(BillingClient.ProductType.SUBS, purchasesToLoadDetails)
                             val inapsRestored = billing.restoreSync(BillingClient.ProductType.INAPP, purchasesToLoadDetails)
 
                             restoredPurchases.addAll(processRestoreCallbackStatus(subsRestored))
                             restoredPurchases.addAll(processRestoreCallbackStatus(inapsRestored))
                         } else {
-                            ApphudLog.log("All products details already loaded.")
+                            ApphudLog.log("SyncPurchases: All products details already loaded.")
                         }
 
-                        ApphudLog.log("Products restored: $restoredPurchases")
+                        ApphudLog.log("SyncPurchases: Products restored: $restoredPurchases")
+
+                        ApphudLog.log("SyncPurchases: observerMode = $observerMode")
 
                         if (observerMode && prevPurchases.containsAll(restoredPurchases)) {
                             ApphudLog.log("SyncPurchases: Don't send equal purchases from prev state")
@@ -98,7 +100,7 @@ internal fun ApphudInternal.syncPurchases(
                             )
                         }
                     }
-                    ApphudLog.log("SyncPurchases: mutex unlock")
+                    ApphudLog.log("SyncPurchases: finish")
                 }
             }
         }
@@ -138,7 +140,7 @@ internal suspend fun ApphudInternal.sendPurchasesToApphud(
         userId = customer.user.userId
 
         mainScope.launch {
-            ApphudLog.log("SyncPurchases: customer was updated $customer")
+            ApphudLog.log("SyncPurchases: success $customer")
             notifyLoadingCompleted(it)
             callback?.invoke(it.subscriptions, it.purchases, null)
         }
