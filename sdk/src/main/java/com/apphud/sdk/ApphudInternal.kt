@@ -68,7 +68,7 @@ internal object ApphudInternal {
 
     private const val MUST_REGISTER_ERROR = " :You must call `Apphud.start` method before calling any other methods."
     private var generatedUUID = UUID.randomUUID().toString()
-    private var productGroups: MutableList<ApphudGroup> = mutableListOf()
+    internal var productGroups: MutableList<ApphudGroup> = mutableListOf()
     private var allowIdentifyUser = true
     internal var didRegisterCustomerAtThisLaunch = false
     private var is_new = true

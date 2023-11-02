@@ -78,6 +78,10 @@ internal fun ApphudInternal.disableFallback() {
 
     storage.isNeedSync = true
     coroutineScope.launch(errorHandler) {
+        if(productGroups.isEmpty()){ //if fallback raised on start, there no product groups, so reload products and details
+            ApphudLog.log("Fallback: reload products")
+            loadProducts()
+        }
         ApphudLog.log("Fallback: syncPurchases()")
         syncPurchases()
     }
