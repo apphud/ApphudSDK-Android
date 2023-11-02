@@ -77,10 +77,7 @@ internal fun ApphudInternal.disableFallback() {
     ApphudLog.log("Fallback: DISABLED")
 
     storage.isNeedSync = true
-    coroutineScope.launch(ApphudInternal.errorHandler) {
-        if(productDetails.isEmpty()){ //if fallback raised on start, there no product details, so reload products and details
-            loadProducts()
-        }
+    coroutineScope.launch(errorHandler) {
         ApphudLog.log("Fallback: syncPurchases()")
         syncPurchases()
     }
