@@ -253,7 +253,7 @@ internal object ApphudInternal {
             mutex.withLock {
                 if(currentUser == null || forceRegistration || currentUser?.isTemporary == true) {
                     ApphudLog.log("Start registration userId=$userId, deviceId=$deviceId")
-                    ApphudLog.log("Registration conditions: user_is_null=${currentUser == null}, forceRegistration=$forceRegistration isTemporary=${currentUser!!.isTemporary}")
+                    ApphudLog.log("Registration conditions: user_is_null=${currentUser == null}, forceRegistration=$forceRegistration isTemporary=${currentUser?.isTemporary}")
 
                     RequestManager.registration(!didRegisterCustomerAtThisLaunch, is_new, forceRegistration) { customer, error ->
                         customer?.let {

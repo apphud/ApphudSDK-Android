@@ -373,7 +373,7 @@ object RequestManager {
                 .build()
 
             val request = buildPostRequest(URL(apphudUrl.url), mkRegistrationBody(needPaywalls, isNew))
-            val httpClient = getOkHttpClient(request)
+            val httpClient = getOkHttpClient(request, !fallbackMode)
             try {
                 val serverResponse = performRequestSync(httpClient, request)
                 val responseDto: ResponseDto<CustomerDto>? = parser.fromJson<ResponseDto<CustomerDto>>(serverResponse,object : TypeToken<ResponseDto<CustomerDto>>() {}.type)

@@ -1,6 +1,7 @@
 package com.apphud.demo.ui.products
 
 import android.os.Bundle
+import android.util.Log
 import androidx.fragment.app.Fragment
 import android.view.LayoutInflater
 import android.view.View
@@ -48,8 +49,10 @@ class ProductsFragment : Fragment() {
                                 Apphud.purchase(activity, product, offer.offerToken){ result ->
                                     result.error?.let{ err->
                                         Toast.makeText(activity, err.message, Toast.LENGTH_SHORT).show()
+                                        Log.d("Apphud", "Fallback DEMO: purchas error ${product.product_id}")
                                     }?: run{
                                         Toast.makeText(activity, R.string.success, Toast.LENGTH_SHORT).show()
+                                        Log.d("Apphud", "Fallback DEMO: purchased ${product.product_id}")
                                     }
                                 }
                             }
@@ -62,16 +65,20 @@ class ProductsFragment : Fragment() {
                             Apphud.purchase(activity = activity, apphudProduct = product, consumableInappProduct = false){ result ->
                                 result.error?.let{ err->
                                     Toast.makeText(activity, err.message, Toast.LENGTH_SHORT).show()
+                                    Log.d("Apphud", "Fallback DEMO: purchas error ${product.product_id}")
                                 }?: run{
                                     Toast.makeText(activity, R.string.success, Toast.LENGTH_SHORT).show()
+                                    Log.d("Apphud", "Fallback DEMO: purchased ${product.product_id}")
                                 }
                             }
                         } else {
                             Apphud.purchase(activity = activity, apphudProduct = product, consumableInappProduct = true){ result ->
                                 result.error?.let{ err->
                                     Toast.makeText(activity, err.message, Toast.LENGTH_SHORT).show()
+                                    Log.d("Apphud", "Fallback DEMO: purchas error ${product.product_id}")
                                 }?: run{
                                     Toast.makeText(activity, R.string.success, Toast.LENGTH_SHORT).show()
+                                    Log.d("Apphud", "Fallback DEMO: purchased ${product.product_id}")
                                 }
                             }
                         }
