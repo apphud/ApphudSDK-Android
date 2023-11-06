@@ -1,6 +1,8 @@
 package com.apphud.sdk.managers
 
 import android.content.Context
+import android.content.pm.PackageManager
+import android.content.pm.PackageManager.PackageInfoFlags
 import android.net.ConnectivityManager
 import android.net.NetworkCapabilities
 import android.os.Build
@@ -9,36 +11,33 @@ import com.android.billingclient.api.ProductDetails
 import com.android.billingclient.api.Purchase
 import com.apphud.sdk.*
 import com.apphud.sdk.ApphudInternal.fallbackMode
-import com.apphud.sdk.ApphudUtils
-import com.apphud.sdk.ApphudVersion
 import com.apphud.sdk.body.*
 import com.apphud.sdk.client.*
 import com.apphud.sdk.client.dto.*
 import com.apphud.sdk.domain.*
-import com.apphud.sdk.mappers.*
 import com.apphud.sdk.managers.AdvertisingIdManager.AdInfo
+import com.apphud.sdk.mappers.*
 import com.apphud.sdk.parser.GsonParser
 import com.apphud.sdk.parser.Parser
 import com.apphud.sdk.storage.SharedPreferencesStorage
+import com.google.gson.GsonBuilder
 import com.google.gson.reflect.TypeToken
+import kotlinx.coroutines.suspendCancellableCoroutine
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import okhttp3.RequestBody.Companion.toRequestBody
-import java.io.IOException
-import java.net.URL
-import java.util.*
-import org.json.JSONException
-
-import org.json.JSONObject
-import kotlin.coroutines.resume
-import com.google.gson.GsonBuilder
-import kotlinx.coroutines.suspendCancellableCoroutine
 import okhttp3.Response
 import okio.Buffer
+import org.json.JSONException
+import org.json.JSONObject
+import java.io.IOException
 import java.net.SocketTimeoutException
+import java.net.URL
 import java.nio.charset.Charset
+import java.util.*
 import java.util.concurrent.TimeUnit
+import kotlin.coroutines.resume
 
 
 object RequestManager {
@@ -968,18 +967,45 @@ object RequestManager {
 
     suspend fun fetchAdvertisingId(): String? =
         suspendCancellableCoroutine { continuation ->
-            var advId :String? = null
-            try {
-                val adInfo: AdInfo = AdvertisingIdManager.getAdvertisingIdInfo(applicationContext)
-                advId = adInfo.id
-            } catch (e: java.lang.Exception) {
-                ApphudLog.logE("Finish load advertisingId: $e")
-            }
+            if(hasPermission("com.google.android.gms.permission.AD_ID")){
+                var advId :String? = null
+                try {
+                    val adInfo: AdInfo = AdvertisingIdManager.getAdvertisingIdInfo(applicationContext)
+                    advId = adInfo.id
+                } catch (e: java.lang.Exception) {
+                    ApphudLog.logE("Finish load advertisingId: $e")
+                }
 
-            if(continuation.isActive) {
-                continuation.resume(advId)
+                if(continuation.isActive) {
+                    continuation.resume(advId)
+                }
+            } else {
+                if(continuation.isActive) {
+                    continuation.resume(null)
+                }
             }
         }
+
+    private fun hasPermission(permission: String): Boolean {
+        try {
+            var pInfo = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                applicationContext.packageManager.getPackageInfo(ApphudUtils.packageName, PackageInfoFlags.of(PackageManager.GET_PERMISSIONS.toLong()))
+            } else {
+                applicationContext.packageManager.getPackageInfo(ApphudUtils.packageName, PackageManager.GET_PERMISSIONS)
+            }
+
+            if (pInfo.requestedPermissions != null) {
+                for (p in pInfo.requestedPermissions) {
+                    if (p == permission) {
+                        return true
+                    }
+                }
+            }
+        } catch (e: java.lang.Exception) {
+            e.printStackTrace()
+        }
+        return false
+    }
 }
 
 fun ProductDetails.priceCurrencyCode(): String?{
