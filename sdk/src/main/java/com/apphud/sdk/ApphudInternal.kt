@@ -659,12 +659,14 @@ internal object ApphudInternal {
                     val advertisingId = fetchAdvertisingId()
                     advertisingId?.let{
                         if(it == "00000000-0000-0000-0000-000000000000"){
-                            ApphudLog.logE("Unable to fetch Advertising ID, please check AD_ID permission in the manifest file.")
+                            ApphudLog.log("Unable to fetch Advertising ID, please check AD_ID permission in the manifest file.")
                         } else if (RequestManager.advertisingId.isNullOrEmpty() || RequestManager.advertisingId != it) {
                             repeatRegistration = true
                             RequestManager.advertisingId = it
                             ApphudLog.log(message = "advertisingID: $it")
                         }
+                    } ?: run {
+                        ApphudLog.log("Unable to fetch Advertising ID, please check AD_ID permission in the manifest file.")
                     }
                 },
                 async {
