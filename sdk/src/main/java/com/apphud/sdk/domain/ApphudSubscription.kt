@@ -53,8 +53,33 @@ data class ApphudSubscription(
     val isIntroductoryActivated: Boolean,
 
     val kind: ApphudKind,
-    val groupId: String
+    val groupId: String,
+
+    /**
+    For internal usage
+     */
+    val isTemporary: Boolean = false
+
 ) {
+
+    companion object {
+        fun createTemporary(productId: String): ApphudSubscription {
+            val time = System.currentTimeMillis()
+            return ApphudSubscription(
+                status = ApphudSubscriptionStatus.REGULAR,
+                productId = productId,
+                startedAt = time,
+                expiresAt = time + 3_600_000L,
+                cancelledAt = null,
+                isInRetryBilling = false,
+                isAutoRenewEnabled = false,
+                isIntroductoryActivated = false,
+                kind = ApphudKind.AUTORENEWABLE,
+                groupId = "",
+                isTemporary = true
+            )
+        }
+    }
 
     /**
     Use this function to detect whether to give or not premium content to the user.
@@ -65,7 +90,14 @@ data class ApphudSubscription(
         ApphudSubscriptionStatus.INTRO,
         ApphudSubscriptionStatus.PROMO,
         ApphudSubscriptionStatus.REGULAR,
-        ApphudSubscriptionStatus.GRACE -> true
-        else                           -> false
+        ApphudSubscriptionStatus.GRACE ->
+            if(isTemporary){
+                !isTemporaryExpired()
+            } else true
+        else -> false
+    }
+
+    private fun isTemporaryExpired() :Boolean{
+        return System.currentTimeMillis() > expiresAt
     }
 }

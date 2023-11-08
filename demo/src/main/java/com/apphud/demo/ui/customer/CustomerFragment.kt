@@ -1,6 +1,7 @@
 package com.apphud.demo.ui.customer
 
 import android.os.Bundle
+import android.util.Log
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
@@ -15,7 +16,6 @@ import com.apphud.demo.BuildConfig
 import com.apphud.demo.databinding.FragmentCustomerBinding
 import com.apphud.sdk.Apphud
 import com.apphud.sdk.ApphudListener
-import com.apphud.sdk.ApphudPurchasesRestoreCallback
 import com.apphud.sdk.domain.ApphudNonRenewingPurchase
 import com.apphud.sdk.domain.ApphudPaywall
 import com.apphud.sdk.domain.ApphudSubscription
@@ -45,6 +45,7 @@ class CustomerFragment : Fragment() {
 
         binding.btnSync.setOnClickListener {
             Apphud.restorePurchases { subscriptions, purchases, error ->
+
             }
         }
 
@@ -67,26 +68,30 @@ class CustomerFragment : Fragment() {
 
         val listener = object : ApphudListener {
             override fun apphudSubscriptionsUpdated(subscriptions: List<ApphudSubscription>) {
-                //TODO handle updated subscriptions
+                Log.d("Apphud", "apphudSubscriptionsUpdated")
             }
 
             override fun apphudNonRenewingPurchasesUpdated(purchases: List<ApphudNonRenewingPurchase>) {
-                //TODO handle updated non renewing purchases
+                Log.d("Apphud", "apphudNonRenewingPurchasesUpdated")
             }
 
             override fun apphudFetchProductDetails(details: List<ProductDetails>) {
+                Log.d("Apphud", "apphudFetchProductDetails()")
                 //TODO handle loaded sku details
             }
 
             override fun apphudDidChangeUserID(userId: String) {
+                Log.d("Apphud", "apphudDidChangeUserID()")
                 //TODO handle User ID changed event
             }
 
             override fun userDidLoad() {
+                Log.d("Apphud", "userDidLoad()")
                 //TODO handle user registered event
             }
             
             override fun paywallsDidFullyLoad(paywalls: List<ApphudPaywall>){
+                Log.d("Apphud", "paywallsDidFullyLoad()")
                 updateData()
             }
         }

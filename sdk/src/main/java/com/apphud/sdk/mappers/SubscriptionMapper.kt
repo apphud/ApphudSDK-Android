@@ -30,7 +30,6 @@ class SubscriptionMapper {
                 isInRetryBilling = dto.in_retry_billing,
                 isIntroductoryActivated = dto.introductory_activated,
                 isAutoRenewEnabled = dto.autorenew_enabled,
-                //TODO
                 groupId = ""
             )
         }
