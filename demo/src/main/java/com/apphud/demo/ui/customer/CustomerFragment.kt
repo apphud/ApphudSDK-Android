@@ -45,11 +45,7 @@ class CustomerFragment : Fragment() {
 
         binding.btnSync.setOnClickListener {
             Apphud.restorePurchases { subscriptions, purchases, error ->
-                val itemActive = subscriptions?.firstOrNull { it.isTemporary && it.isActive() }
-                Log.d("Apphud", "Fallback restorePurchases subs: temp&active ${itemActive}")
 
-                val itemActive2 = purchases?.firstOrNull { it.isTemporary && it.isActive() }
-                Log.d("Apphud", "Fallback restorePurchases inap: temp&active ${itemActive2}")
             }
         }
 
@@ -72,59 +68,36 @@ class CustomerFragment : Fragment() {
 
         val listener = object : ApphudListener {
             override fun apphudSubscriptionsUpdated(subscriptions: List<ApphudSubscription>) {
-                Log.d("Apphud", "Fallback DEMO: apphudSubscriptionsUpdated")
+                Log.d("Apphud", "apphudSubscriptionsUpdated")
             }
 
             override fun apphudNonRenewingPurchasesUpdated(purchases: List<ApphudNonRenewingPurchase>) {
-                Log.d("Apphud", "Fallback DEMO: apphudNonRenewingPurchasesUpdated")
+                Log.d("Apphud", "apphudNonRenewingPurchasesUpdated")
             }
 
             override fun apphudFetchProductDetails(details: List<ProductDetails>) {
-                Log.d("Apphud", "Fallback DEMO: apphudFetchProductDetails()")
+                Log.d("Apphud", "apphudFetchProductDetails()")
                 //TODO handle loaded sku details
             }
 
             override fun apphudDidChangeUserID(userId: String) {
-                Log.d("Apphud", "Fallback DEMO: apphudDidChangeUserID()")
+                Log.d("Apphud", "apphudDidChangeUserID()")
                 //TODO handle User ID changed event
             }
 
             override fun userDidLoad() {
-                Log.d("Apphud", "Fallback DEMO: userDidLoad()")
+                Log.d("Apphud", "userDidLoad()")
                 //TODO handle user registered event
             }
             
             override fun paywallsDidFullyLoad(paywalls: List<ApphudPaywall>){
-                Log.d("Apphud", "Fallback DEMO: paywallsDidFullyLoad()")
+                Log.d("Apphud", "paywallsDidFullyLoad()")
                 updateData()
             }
         }
         Apphud.setListener(listener)
 
         updateData()
-
-        //TODO TEST
-        binding.btnSubs.setOnClickListener {
-            val subs = Apphud.subscriptions()
-            val item = subs.firstOrNull { it.isTemporary }
-            val itemActive = subs.firstOrNull { it.isTemporary && it.isActive() }
-            Log.d("Apphud", "Fallback SUBS: temp  ${item}")
-            Log.d("Apphud", "Fallback SUBS: temp&active ${itemActive}")
-        }
-
-        binding.btnInab.setOnClickListener {
-            val pses = Apphud.nonRenewingPurchases()
-            val item = pses.firstOrNull{it.isTemporary}
-            val itemActive = pses.firstOrNull{it.isTemporary && it.isActive()}
-            Log.d("Apphud", "Fallback INAP: temp  ${item}")
-            Log.d("Apphud", "Fallback INAP: temp&active ${itemActive}")
-        }
-
-        binding.btnException.setOnClickListener {
-            HeadersInterceptor.isTest  = !HeadersInterceptor.isTest
-            Log.d("Apphud", "Fallback use timeout:   ${HeadersInterceptor.isTest}")
-        }
-        ////////////////////
 
         return root
     }

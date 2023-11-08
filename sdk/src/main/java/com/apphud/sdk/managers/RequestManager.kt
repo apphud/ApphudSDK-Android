@@ -344,7 +344,7 @@ object RequestManager {
             }
         }
 
-        if(currentUser == null || forceRegistration || currentUser?.isTemporary == true) {
+        if(currentUser == null || forceRegistration) {
             registration(needPaywalls, isNew, forceRegistration) { customer, error ->
                 if(continuation.isActive) {
                     continuation.resume(customer)
@@ -364,7 +364,7 @@ object RequestManager {
             return
         }
 
-        if(currentUser == null || forceRegistration || currentUser?.isTemporary == true) {
+        if(currentUser == null || forceRegistration) {
             val apphudUrl = ApphudUrl.Builder()
                 .host(HeadersInterceptor.HOST)
                 .version(ApphudVersion.V1)

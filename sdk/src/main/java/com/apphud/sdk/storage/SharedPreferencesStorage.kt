@@ -20,7 +20,7 @@ object SharedPreferencesStorage : Storage {
     fun getInstance(applicationContext: Context) : SharedPreferencesStorage {
         this.applicationContext = applicationContext
         preferences = SharedPreferencesStorage.applicationContext.getSharedPreferences(NAME, Context.MODE_PRIVATE)
-        cacheTimeout = if (SharedPreferencesStorage.applicationContext.isDebuggable()) 30000L else 90000L //25 hours //TODO TEST return 30
+        cacheTimeout = if (SharedPreferencesStorage.applicationContext.isDebuggable()) 30L else 90000L //25 hours
         return this
     }
 
@@ -273,7 +273,7 @@ object SharedPreferencesStorage : Storage {
 
     fun needProcessFallback() :Boolean {
         return customer?.let{
-            true//it.purchases.isEmpty() && it.subscriptions.isEmpty() //TODO TEST
+            it.purchases.isEmpty() && it.subscriptions.isEmpty()
         }?: true
     }
 

@@ -251,7 +251,7 @@ internal object ApphudInternal {
     ) {
         coroutineScope.launch(errorHandler) {
             mutex.withLock {
-                if(currentUser == null || forceRegistration || currentUser?.isTemporary == true) {
+                if(currentUser == null || forceRegistration) {
                     ApphudLog.log("Start registration userId=$userId, deviceId=$deviceId")
                     ApphudLog.log("Registration conditions: user_is_null=${currentUser == null}, forceRegistration=$forceRegistration isTemporary=${currentUser?.isTemporary}")
 

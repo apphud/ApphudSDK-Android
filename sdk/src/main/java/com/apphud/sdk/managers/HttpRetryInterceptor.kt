@@ -16,7 +16,7 @@ import java.net.SocketTimeoutException
 class HttpRetryInterceptor : Interceptor {
     companion object {
         private const val STEP = 3_000L
-        private const val MAX_COUNT = 3 //TODO TEST must be 30
+        private const val MAX_COUNT = 30
     }
 
     @Throws(IOException::class)
