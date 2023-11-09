@@ -16,20 +16,21 @@ class CustomerMapper(
         user = ApphudUser(
             userId = customer.user_id,
             currencyCode = customer.currency?.code,
-            currencyCountryCode = customer.currency?.country_code
+            currencyCountryCode = customer.currency?.country_code,
         ),
         subscriptions = customer.subscriptions
             .filter { it.kind == ApphudKind.AUTORENEWABLE.source }
             .mapNotNull { mapper.mapRenewable(it) }
-            .sortedByDescending { it.expiresAt },
+            .sortedByDescending { it.expiresAt }.toMutableList(),
         purchases = customer.subscriptions
             .filter { it.kind == ApphudKind.NONRENEWABLE.source }
             .mapNotNull { mapper.mapNonRenewable(it) }
-            .sortedByDescending { it.purchasedAt },
+            .sortedByDescending { it.purchasedAt }.toMutableList(),
         paywalls = customer.paywalls?.let{ paywallsList ->
             paywallsList.map {paywallsMapper.map(it)}
         }?: run{
             mutableListOf<ApphudPaywall>()
-        }
+        },
+        isTemporary = false
     )
 }

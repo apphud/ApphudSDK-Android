@@ -9,9 +9,7 @@ class PaywallsMapper(
     private val parser: Parser
 ){
 
-    fun map(dto: List<ApphudPaywallDto>): List<ApphudPaywall> =
-        dto.map { paywallDto -> map (paywallDto)
-        }
+    fun map(dto: List<ApphudPaywallDto>): List<ApphudPaywall> = dto.map { paywallDto -> map (paywallDto) }
 
     fun map(paywallDto: ApphudPaywallDto) = ApphudPaywall(
                 id = paywallDto.id, //paywall id

@@ -1,5 +1,6 @@
 package com.apphud.sdk
 
+import com.android.billingclient.api.BillingClient
 import com.android.billingclient.api.Purchase
 import com.apphud.sdk.domain.ApphudNonRenewingPurchase
 import com.apphud.sdk.domain.ApphudSubscription
@@ -35,5 +36,9 @@ class ApphudPurchaseResult (
 ) {
     override fun toString(): String {
         return "ApphudPurchaseResult(subscription=$subscription, nonRenewingPurchase=$nonRenewingPurchase, purchase=$purchase, error=$error)"
+    }
+
+    fun userCanceled(): Boolean {
+        return error?.errorCode == BillingClient.BillingResponseCode.USER_CANCELED
     }
 }

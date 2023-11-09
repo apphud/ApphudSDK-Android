@@ -15,7 +15,6 @@ import com.apphud.demo.R
 import com.apphud.demo.databinding.FragmentProductsBinding
 import com.apphud.demo.ui.utils.OffersFragment
 import com.apphud.sdk.Apphud
-import com.apphud.sdk.flutter.ApphudFlutter
 
 
 class ProductsFragment : Fragment() {
@@ -47,7 +46,7 @@ class ProductsFragment : Fragment() {
                             fragment.offerSelected = { offer ->
                                 Apphud.purchase(activity, product, offer.offerToken){ result ->
                                     result.error?.let{ err->
-                                        Toast.makeText(activity, err.message, Toast.LENGTH_SHORT).show()
+                                        Toast.makeText(activity, if (result.userCanceled()) "User Canceled" else err.message, Toast.LENGTH_SHORT).show()
                                     }?: run{
                                         Toast.makeText(activity, R.string.success, Toast.LENGTH_SHORT).show()
                                     }
@@ -58,11 +57,21 @@ class ProductsFragment : Fragment() {
                             }
                         }
                     } else {
-                        Apphud.purchase(activity, product){ result ->
-                            result.error?.let{ err->
-                                Toast.makeText(activity, err.message, Toast.LENGTH_SHORT).show()
-                            }?: run{
-                                Toast.makeText(activity, R.string.success, Toast.LENGTH_SHORT).show()
+                        if(product.product_id == "com.apphud.demo.nonconsumable.premium"){
+                            Apphud.purchase(activity = activity, apphudProduct = product, consumableInappProduct = false){ result ->
+                                result.error?.let{ err->
+                                    Toast.makeText(activity, if (result.userCanceled()) "User Canceled" else err.message, Toast.LENGTH_SHORT).show()
+                                }?: run{
+                                    Toast.makeText(activity, R.string.success, Toast.LENGTH_SHORT).show()
+                                }
+                            }
+                        } else {
+                            Apphud.purchase(activity = activity, apphudProduct = product, consumableInappProduct = true){ result ->
+                                result.error?.let{ err->
+                                    Toast.makeText(activity, if (result.userCanceled()) "User Canceled" else err.message, Toast.LENGTH_SHORT).show()
+                                }?: run{
+                                    Toast.makeText(activity, R.string.success, Toast.LENGTH_SHORT).show()
+                                }
                             }
                         }
                     }

@@ -1,12 +1,16 @@
 package com.apphud.sdk.managers
 
+import com.apphud.sdk.ApphudInternal
+import com.apphud.sdk.ApphudInternal.FALLBACK_ERRORS
 import com.apphud.sdk.ApphudLog
+import com.apphud.sdk.processFallbackError
 
 import okhttp3.Interceptor
 import okhttp3.Request
 import okhttp3.Response
 import java.io.IOException
 import java.lang.Exception
+import java.net.SocketTimeoutException
 
 
 class HttpRetryInterceptor : Interceptor {
@@ -28,8 +32,16 @@ class HttpRetryInterceptor : Interceptor {
 
                 if(!isSuccess){
                     ApphudLog.logE("Request (${request.url.encodedPath}) failed with code (${response.code}). Will retry in ${STEP/1000} seconds (${tryCount}).")
+
+                    if(response.code in FALLBACK_ERRORS){
+                        ApphudInternal.processFallbackError(request)
+                    }
                     Thread.sleep(STEP)
                 }
+            } catch (e: SocketTimeoutException) {
+                ApphudInternal.processFallbackError(request)
+                ApphudLog.logE("Request (${request.url.encodedPath}) failed with code (${response?.code ?: 0}). Will retry in ${STEP/1000} seconds (${tryCount}).")
+                Thread.sleep(STEP)
             } catch (e: Exception) {
                 ApphudLog.logE("Request (${request.url.encodedPath}) failed with code (${response?.code ?: 0}). Will retry in ${STEP/1000} seconds (${tryCount}).")
                 Thread.sleep(STEP)
@@ -40,7 +52,7 @@ class HttpRetryInterceptor : Interceptor {
                 tryCount++
             }
         }
-        if(!isSuccess && tryCount >= MAX_COUNT){
+        if(!isSuccess){
             ApphudLog.logE("Reached max number (${MAX_COUNT}) of (${request.url.encodedPath}) request retries. Exiting..")
         }
         return response ?: chain.proceed(request)
