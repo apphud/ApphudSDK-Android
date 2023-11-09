@@ -52,7 +52,7 @@ internal object ApphudLog {
      * Send Error Logs to Apphud Server
      * */
     private fun sendErrorLogs(message: String) {
-        ApphudInternal.sendErrorLogs(message)
+        //ApphudInternal.sendErrorLogs(message)
     }
 
     /**
@@ -65,7 +65,7 @@ internal object ApphudLog {
             || path == "/v1/subscriptions"){
 
             logI("Benchmark: " + path + ": " + time + "ms")
-            val seconds: Double = time / 1000.0
+            /*val seconds: Double = time / 1000.0
             synchronized(data){
                 val logItem: MutableMap<String, Any?> = mutableMapOf(
                     "path" to path,
@@ -73,7 +73,7 @@ internal object ApphudLog {
                 )
                 data.add(logItem)
             }
-            startTimer()
+            startTimer()*/
         }
     }
 
