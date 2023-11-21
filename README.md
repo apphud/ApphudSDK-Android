@@ -5,6 +5,7 @@
 ## Greetings!
 
 Apphud SDK is an open-source library for iOS and Android to manage [auto-renewable subscriptions](https://apphud.com/blog/swift-tutorial-auto-renewable-subscriptions-in-ios) and other in-app purchases in your app.
+
 Apphud has SDKs in [iOS (Swift)](https://github.com/apphud/ApphudSDK), [Android (Kotlin)](https://github.com/apphud/ApphudSDK-android), and cross-platform SDKs: [React Native](https://github.com/apphud/ApphudSDK-react-native) and [Flutter](https://github.com/apphud/ApphudSDK-flutter).
 <p align="center">
 <img src="https://apphud.com/images/greetings.webp" width="30%" height="30%" />
