@@ -10,7 +10,7 @@ class ProductsViewModel : ViewModel() {
         val list = Apphud.paywalls()
         items.clear()
         list.forEach{
-            if(it.id == paywallId) {
+            if(it.identifier == paywallId) {
                 if (!it.products.isNullOrEmpty()) {
                     it.products?.let { productsList ->
                         items.addAll(productsList)

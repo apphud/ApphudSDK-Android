@@ -2,7 +2,10 @@ package com.apphud.demo
 
 import android.app.Application
 import android.content.Context
+import android.util.Log
 import com.apphud.sdk.Apphud
+import com.apphud.sdk.ApphudUserPropertyKey
+import com.apphud.sdk.flutter.ApphudFlutter
 
 class ApphudApplication : Application() {
 

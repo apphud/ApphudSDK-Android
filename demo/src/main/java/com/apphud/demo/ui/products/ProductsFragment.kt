@@ -80,7 +80,7 @@ class ProductsFragment : Fragment() {
         }
 
         val recyclerView: RecyclerView = binding.productsList
-        recyclerView.layoutManager = GridLayoutManager(activity,2)
+        recyclerView.layoutManager = GridLayoutManager(activity,1)
         recyclerView.apply {
             adapter = viewAdapter
         }

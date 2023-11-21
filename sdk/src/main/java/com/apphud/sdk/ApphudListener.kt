@@ -38,7 +38,7 @@ interface ApphudListener {
     however their ProductDetails may still be nil at the moment.
 
     You should only use this method in two cases:
-    1) If using A/B testing, to fetch `experimentName` and `variationName` from your paywalls.
+    1) If using A/B testing, to fetch `experimentName` from your paywalls.
     2) To update User ID via Apphud.updateUserId method which should be placed inside.
      */
     fun userDidLoad()

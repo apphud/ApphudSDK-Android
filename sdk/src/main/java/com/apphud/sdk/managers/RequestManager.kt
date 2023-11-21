@@ -1010,34 +1010,29 @@ object RequestManager {
 
 fun ProductDetails.priceCurrencyCode(): String?{
     val res :String? = if(this.productType == BillingClient.ProductType.SUBS) {
-        this.subscriptionOfferDetails?.get(0)?.pricingPhases?.pricingPhaseList?.get(0)?.priceCurrencyCode
-    }else{
+        this.subscriptionOfferDetails?.firstOrNull()?.pricingPhases?.pricingPhaseList?.firstOrNull()?.priceCurrencyCode
+    } else {
         this.oneTimePurchaseOfferDetails?.priceCurrencyCode
     }
     return res
 }
 
-fun ProductDetails.priceAmountMicros(): Long?{
-    val res :Long? = if(this.productType == BillingClient.ProductType.SUBS) {
-        if(this.subscriptionOfferDetails?.size == 1 && this.subscriptionOfferDetails?.get(0)?.pricingPhases?.pricingPhaseList?.size == 1){
-            this.subscriptionOfferDetails?.get(0)?.pricingPhases?.pricingPhaseList?.get(0)?.priceAmountMicros
-        }else{
-            null
-        }
-    }else{
-        this.oneTimePurchaseOfferDetails?.priceAmountMicros
+fun ProductDetails.priceAmountMicros(): Long? {
+    if (this.productType == BillingClient.ProductType.SUBS) {
+        return null
+    } else {
+        return this.oneTimePurchaseOfferDetails?.priceAmountMicros
     }
-    return res
 }
 
 fun ProductDetails.subscriptionPeriod(): String?{
     val res: String? = if(this.productType == BillingClient.ProductType.SUBS) {
-        if(this.subscriptionOfferDetails?.size == 1 && this.subscriptionOfferDetails?.get(0)?.pricingPhases?.pricingPhaseList?.size == 1){
-            this.subscriptionOfferDetails?.get(0)?.pricingPhases?.pricingPhaseList?.get(0)?.billingPeriod
-        }else{
+        if(this.subscriptionOfferDetails?.size == 1 && this.subscriptionOfferDetails?.firstOrNull()?.pricingPhases?.pricingPhaseList?.size == 1) {
+            this.subscriptionOfferDetails?.firstOrNull()?.pricingPhases?.pricingPhaseList?.firstOrNull()?.billingPeriod
+        } else {
             null
         }
-    }else{
+    } else {
         null
     }
     return res

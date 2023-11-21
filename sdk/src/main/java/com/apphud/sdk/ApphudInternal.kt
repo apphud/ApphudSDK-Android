@@ -119,7 +119,10 @@ internal object ApphudInternal {
                 "\n=============================================================")
             return
         }
-        ProcessLifecycleOwner.get().lifecycle.addObserver(lifecycleEventObserver)
+
+        mainScope.launch {
+            ProcessLifecycleOwner.get().lifecycle.addObserver(lifecycleEventObserver)
+        }
 
         ApphudLog.log("Start initialization with userId=$userId, deviceId=$deviceId")
         if(apiKey.isEmpty()) throw Exception("ApiKey can't be empty")
@@ -713,8 +716,8 @@ internal object ApphudInternal {
         return when (value) {
             is String -> "string"
             is Boolean -> "boolean"
-            is Float, is Double -> "float"
             is Int -> "integer"
+            is Float, is Double -> "float"
             null -> "null"
             else -> "unknown"
         }
