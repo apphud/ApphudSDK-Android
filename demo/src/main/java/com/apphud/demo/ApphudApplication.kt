@@ -9,7 +9,7 @@ import com.apphud.sdk.flutter.ApphudFlutter
 
 class ApphudApplication : Application() {
 
-    val API_KEY = "app_oBcXz2z9j8spKPL2T7sZwQaQN5Jzme"
+    val API_KEY = "app_4sY9cLggXpMDDQMmvc5wXUPGReMp8G"
 
     companion object {
         private lateinit var instance: ApphudApplication
