@@ -8,8 +8,8 @@ android {
     defaultConfig {
         applicationId "com.apphud.demo"
         minSdkVersion 26
-        compileSdk 32
-        targetSdk 32
+        compileSdk 33
+        targetSdk 33
         versionCode 1
         versionName "1.0.0"
 
@@ -34,6 +34,7 @@ android {
     kotlinOptions {
         jvmTarget = '1.8'
     }
+    namespace 'com.apphud.demo'
 }
 
 dependencies {

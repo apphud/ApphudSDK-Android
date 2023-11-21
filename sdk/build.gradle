@@ -22,24 +22,21 @@ ext {
 android {
     defaultConfig {
         minSdkVersion 26
-        targetSdk 32
-        compileSdk 32
-        versionCode 1
-        final name = project.properties.sdkVersion
-        versionName name
-
+        targetSdk 33
+        compileSdk 33
+        versionName project.properties.sdkVersion
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         consumerProguardFiles "consumer-rules.pro"
     }
 
     buildTypes {
+        debug {
+            buildConfigField("String","VERSION_NAME","\"${project.properties.sdkVersion}\"")
+        }
         release {
+            buildConfigField("String","VERSION_NAME","\"${project.properties.sdkVersion}\"")
             minifyEnabled false
             proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
-            release {
-                minifyEnabled false
-                proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
-            }
         }
     }
 
@@ -50,6 +47,7 @@ android {
     kotlinOptions {
         jvmTarget = '1.8'
     }
+    namespace 'com.apphud.sdk'
 }
 
 dependencies {
