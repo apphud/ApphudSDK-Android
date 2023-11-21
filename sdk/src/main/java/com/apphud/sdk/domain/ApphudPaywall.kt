@@ -2,7 +2,7 @@ package com.apphud.sdk.domain
 
 data class ApphudPaywall(
 
-    val id: String,
+    internal val id: String,
 
     /**
      Paywall name, from Apphud Dashboard.
@@ -35,11 +35,5 @@ data class ApphudPaywall(
     A/B test experiment name, if user is included in the experiment.
     You can use it for additional analytics.
      */
-    val experimentName: String?,
-
-    /**
-    A/B test variation name, if user is included in the experiment.
-    You can use it for additional analytics.
-     */
-    val variationName: String?
+    val experimentName: String?
 )

@@ -40,7 +40,7 @@ class GroupsAdapter (private val groupsViewModel: GroupsViewModel, private val c
 
             item.productDetails?.let{ details ->
                 if(details.productType == BillingClient.ProductType.SUBS){
-                    productPrice.text = details.subscriptionOfferDetails?.get(0)?.pricingPhases?.pricingPhaseList?.get(0)?.formattedPrice?:""
+                    productPrice.text = details.subscriptionOfferDetails?.firstOrNull()?.pricingPhases?.pricingPhaseList?.firstOrNull()?.formattedPrice?:""
                 }else{
                     productPrice.text = details.oneTimePurchaseOfferDetails?.formattedPrice?:""
                 }

@@ -16,23 +16,24 @@
         android:orientation="vertical">
 
         <ImageView
-            android:layout_width="match_parent"
-            android:layout_height="150dp"
             android:id="@+id/image"
+            android:layout_width="match_parent"
+            android:layout_height="50dp"
             android:scaleType="fitCenter"
-            app:tint = "@color/branding_blue_1"
-            android:src="@drawable/ic_baseline_rocket_launch_24"/>
+            android:src="@drawable/ic_baseline_rocket_launch_24"
+            app:tint="@color/branding_blue_1" />
 
         <TextView
             android:id="@+id/productName"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:textColor="@android:color/black"
-            android:gravity="center"
-            android:textSize="18sp"
-            tools:text="Product 1"
             android:layout_marginStart="14dp"
-            android:layout_marginEnd="10dp"/>
+            android:layout_marginEnd="10dp"
+            android:gravity="center"
+            android:textAlignment="viewStart"
+            android:textColor="@android:color/black"
+            android:textSize="12sp"
+            tools:text="In Kotlin, internal is a visibility modifier that restricts the visibility of a class, function, property, or constructor to " />
 
         <TextView
             android:id="@+id/productPrice"

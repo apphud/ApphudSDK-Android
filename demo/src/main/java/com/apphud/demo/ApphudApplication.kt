@@ -2,11 +2,14 @@ package com.apphud.demo
 
 import android.app.Application
 import android.content.Context
+import android.util.Log
 import com.apphud.sdk.Apphud
+import com.apphud.sdk.ApphudUserPropertyKey
+import com.apphud.sdk.flutter.ApphudFlutter
 
 class ApphudApplication : Application() {
 
-    val API_KEY = "app_4sY9cLggXpMDDQMmvc5wXUPGReMp8G"
+    val API_KEY = "app_oBcXz2z9j8spKPL2T7sZwQaQN5Jzme"
 
     companion object {
         private lateinit var instance: ApphudApplication

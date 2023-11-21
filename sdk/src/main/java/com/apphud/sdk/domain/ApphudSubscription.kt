@@ -30,7 +30,7 @@ data class ApphudSubscription(
     /**
     Date when user has purchased the subscription.
      */
-    val startedAt: Long?,
+    val startedAt: Long,
 
     /**
     Canceled date of subscription, i.e. refund date. Null if subscription is not refunded.

@@ -23,12 +23,12 @@ class PaywallsMapper(
                         product_id = item.product_id,
                         name = item.name,
                         store = item.store,
+                        basePlanId = item.base_plan_id,
                         productDetails = null,
                         paywall_id = paywallDto.id,
                         paywall_identifier = paywallDto.identifier
                     )
                 },
-                experimentName = paywallDto.experiment_name,
-                variationName = paywallDto.variation_name
+                experimentName = paywallDto.experiment_name
             )
 }

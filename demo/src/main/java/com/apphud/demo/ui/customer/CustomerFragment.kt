@@ -52,7 +52,7 @@ class CustomerFragment : Fragment() {
         paywallsViewModel = ViewModelProvider(this)[PaywallsViewModel::class.java]
         viewAdapter = PaywallsAdapter(paywallsViewModel, context)
         viewAdapter.selectPaywall = { paywall ->
-            findNavController().navigate(CustomerFragmentDirections.actionNavCustomerToProductsFragment(paywall.id))
+            findNavController().navigate(CustomerFragmentDirections.actionNavCustomerToProductsFragment(paywall.identifier))
         }
 
         val recyclerView: RecyclerView = binding.paywallsList

@@ -17,6 +17,7 @@ class ProductMapper {
                         product_id = item.product_id,
                         name = item.name,
                         store = item.store,
+                        basePlanId = item.base_plan_id,
                         productDetails = null,
                         paywall_id = null,
                         paywall_identifier = null

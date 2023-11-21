@@ -7,6 +7,7 @@ import android.view.ViewGroup
 import android.widget.TextView
 import androidx.recyclerview.widget.RecyclerView
 import com.android.billingclient.api.BillingClient
+import com.android.billingclient.api.Purchase
 import com.apphud.demo.R
 import com.apphud.sdk.domain.ApphudProduct
 
@@ -20,11 +21,11 @@ class ProductsAdapter(private val productsViewModel: ProductsViewModel, private 
         private val productName: TextView = itemView.findViewById(R.id.productName)
         private val productPrice: TextView = itemView.findViewById(R.id.productPrice)
         override fun bind(item: ApphudProduct, position: Int) {
-            productName.text = item.name
+            productName.text = "Name: " + item.name + "\nProduct ID: " + item.product_id + "\nBase Plan ID: " + item.basePlanId
 
             item.productDetails?.let{ details ->
                 if(details.productType == BillingClient.ProductType.SUBS){
-                    productPrice.text = details.subscriptionOfferDetails?.get(0)?.pricingPhases?.pricingPhaseList?.get(0)?.formattedPrice?:""
+                    productPrice.text = item.subscriptionOffers()?.firstOrNull()?.pricingPhases?.pricingPhaseList?.firstOrNull()?.formattedPrice?:""
                 }else{
                     productPrice.text = details.oneTimePurchaseOfferDetails?.formattedPrice?:""
                 }

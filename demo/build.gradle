@@ -5,12 +5,11 @@ apply plugin: 'androidx.navigation.safeargs'
 
 android {
 
-    compileSdkVersion 33
-
     defaultConfig {
         applicationId "com.apphud.demo"
         minSdkVersion 26
-        targetSdkVersion 33
+        compileSdk 32
+        targetSdk 32
         versionCode 1
         versionName "1.0.0"
 
@@ -52,14 +51,7 @@ dependencies {
 
     implementation project(path: ':sdk')
 
-    //To use from maven central
-    //implementation "com.apphud:ApphudSDK-Android:2.1.0"
-
-    //To use from jitpack
-    //implementation "com.github.apphud:ApphudSDK-Android:2.1.0"
-
-
-    implementation 'com.android.billingclient:billing:5.2.0'
+    implementation 'com.android.billingclient:billing:6.1.0'
 
     testImplementation 'junit:junit:4.13.2'
     androidTestImplementation 'androidx.test.ext:junit:1.1.3'

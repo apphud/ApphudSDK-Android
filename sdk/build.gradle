@@ -20,12 +20,10 @@ ext {
 //apply from: "${rootProject.projectDir}/scripts/publish-module.gradle"
 
 android {
-    compileSdkVersion 33
-
     defaultConfig {
         minSdkVersion 26
-        targetSdkVersion 33
-
+        targetSdk 32
+        compileSdk 32
         versionCode 1
         final name = project.properties.sdkVersion
         versionName name
@@ -57,13 +55,13 @@ android {
 dependencies {
     implementation fileTree(dir: "libs", include: ["*.jar"])
     implementation "org.jetbrains.kotlin:kotlin-stdlib:$kotlin_version"
-    implementation 'com.android.billingclient:billing:5.2.0'
+    implementation 'com.android.billingclient:billing:6.1.0'
     implementation "com.google.code.gson:gson:2.10.1"
 
     implementation 'com.squareup.okhttp3:okhttp:4.10.0'
     implementation 'com.squareup.okhttp3:logging-interceptor:4.10.0'
-    implementation "org.jetbrains.kotlinx:kotlinx-coroutines-core:1.6.4"
-    implementation "org.jetbrains.kotlinx:kotlinx-coroutines-android:1.6.4"
+    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.7.3")
+    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.7.3")
     implementation 'com.google.android.gms:play-services-appset:16.0.2'
     implementation("androidx.lifecycle:lifecycle-process:2.5.1")
 
