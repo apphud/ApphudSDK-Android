@@ -26,11 +26,15 @@ ext {
 android {
     defaultConfig {
         minSdkVersion 26
-        targetSdk 33
-        compileSdk 33
+        targetSdk 34
+        compileSdk 34
         versionName project.properties.sdkVersion
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         consumerProguardFiles "consumer-rules.pro"
+    }
+
+    buildFeatures {
+        buildConfig = true
     }
 
     buildTypes {
@@ -60,12 +64,12 @@ dependencies {
     implementation 'com.android.billingclient:billing:6.1.0'
     implementation "com.google.code.gson:gson:2.10.1"
 
-    implementation 'com.squareup.okhttp3:okhttp:4.10.0'
-    implementation 'com.squareup.okhttp3:logging-interceptor:4.10.0'
+    implementation 'com.squareup.okhttp3:okhttp:4.11.0'
+    implementation 'com.squareup.okhttp3:logging-interceptor:4.11.0'
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.7.3")
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.7.3")
     implementation 'com.google.android.gms:play-services-appset:16.0.2'
-    implementation("androidx.lifecycle:lifecycle-process:2.5.1")
+    implementation("androidx.lifecycle:lifecycle-process:2.6.2")
 
     testImplementation 'junit:junit:4.13.2'
     androidTestImplementation 'androidx.test.ext:junit:1.1.5'
