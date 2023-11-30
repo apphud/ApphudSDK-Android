@@ -1,9 +1,6 @@
-plugins {
-    id 'maven-publish'
-}
-
 apply plugin: 'com.android.library'
 apply plugin: 'kotlin-android'
+apply plugin: 'maven-publish'
 
 ext {
     PUBLISH_GROUP_ID = 'com.apphud'
@@ -56,6 +53,16 @@ android {
         jvmTarget = '17'
     }
     namespace 'com.apphud.sdk'
+}
+
+afterEvaluate {
+    publishing {
+        publications {
+            release(MavenPublication) {
+                from components.release
+            }
+        }
+    }
 }
 
 dependencies {
