@@ -57,7 +57,7 @@ class ProductsFragment : Fragment() {
                             }
                         }
                     } else {
-                        if(product.product_id == "com.apphud.demo.nonconsumable.premium"){
+                        if(product.productId == "com.apphud.demo.nonconsumable.premium"){
                             Apphud.purchase(activity = activity, apphudProduct = product, consumableInappProduct = false){ result ->
                                 result.error?.let{ err->
                                     Toast.makeText(activity, if (result.userCanceled()) "User Canceled" else err.message, Toast.LENGTH_SHORT).show()

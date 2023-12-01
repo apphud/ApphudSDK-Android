@@ -39,11 +39,11 @@ private suspend fun ApphudInternal.fetchProducts(): Boolean {
         val groupsList = RequestManager.allProducts()
         groupsList?.let { groups ->
             cacheGroups(groups)
-            val ids = groups.map { it -> it.products?.map { it.product_id }!! }.flatten()
+            val ids = groups.map { it -> it.products?.map { it.productId }!! }.flatten()
             return fetchDetails(ids)
         }
     }else{
-        val ids = cachedGroups.map { it -> it.products?.map { it.product_id }!! }.flatten()
+        val ids = cachedGroups.map { it -> it.products?.map { it.productId }!! }.flatten()
         return fetchDetails(ids)
     }
     return false

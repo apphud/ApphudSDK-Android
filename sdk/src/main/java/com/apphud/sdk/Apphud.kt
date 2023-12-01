@@ -16,31 +16,43 @@ object Apphud {
      * @parameter apiKey: Required. Your api key.
      */
     @kotlin.jvm.JvmStatic
-    fun start(context: Context, apiKey: ApiKey) =
-        start(context, apiKey, null)
+    fun start(context: Context, apiKey: ApiKey, callback: ((ApphudUser) -> Unit)? = null) =
+        start(context, apiKey, null, null, callback)
 
     /**
      * Initializes Apphud SDK. You should call it during app launch.
      *
      * @parameter apiKey: Required. Your api key.
-     * @parameter userId: Optional. You can provide your own unique user identifier. If null passed then UUID will be generated instead.
+     * @parameter userId: Optional. You can provide your own unique user identifier.
+     * If null passed then UUID will be generated instead.
      */
     @kotlin.jvm.JvmStatic
-    fun start(context: Context, apiKey: ApiKey, userId: UserId? = null) =
-        start(context, apiKey, userId, null)
+    fun start(context: Context,
+              apiKey: ApiKey,
+              userId: UserId? = null,
+              callback: ((ApphudUser) -> Unit)? = null) =
+        start(context, apiKey, userId, null, callback)
 
     /**
+     * Not recommended. Use this type of initialization with care.
+     * Passing different Device ID will create a new user in Apphud.
      * Initializes Apphud SDK. You should call it during app launch.
      *
      * @parameter apiKey: Required. Your api key.
-     * @parameter userId: Optional. You can provide your own unique user identifier. If null passed then UUID will be generated instead.
-     * @parameter deviceID: Optional. You can provide your own unique device identifier. If null passed then UUID will be generated instead.
+     * @parameter userId: Optional. You can provide your own unique user identifier.
+     * If null passed then UUID will be generated instead.
+     * @parameter deviceID: Optional. You can provide your own unique device identifier.
+     * If null passed then UUID will be generated instead.
      */
     @kotlin.jvm.JvmStatic
-    fun start(context: Context, apiKey: ApiKey, userId: UserId? = null, deviceId: DeviceId? = null)
+    fun start(context: Context,
+              apiKey: ApiKey,
+              userId: UserId? = null,
+              deviceId: DeviceId? = null,
+              callback: ((ApphudUser) -> Unit)? = null)
     {
         ApphudUtils.setPackageName(context.packageName)
-        ApphudInternal.initialize(context, apiKey, userId, deviceId)
+        ApphudInternal.initialize(context, apiKey, userId, deviceId, callback)
     }
 
     /**
@@ -69,31 +81,26 @@ object Apphud {
     /**
      * Returns current device ID. You should use it only if you want to implement custom logout/login flow by saving User ID & Device ID pair for each app user.
      */
+    @kotlin.jvm.JvmStatic
     fun deviceId(): String {
         return ApphudInternal.deviceId
     }
 
     //endregion
-    //region === Paywalls ===
+    //region === Placements, Paywalls and Products ===
 
     /**
      * Returns paywalls configured in Apphud Dashboard > Product Hub > Paywalls.
      * Each paywall contains an array of `ApphudProduct` objects that you use for purchase.
      * This callback is called when paywalls are populated with their `ProductDetails` objects.
      * Callback is called immediately if paywalls are already loaded.
+     *
+     * To get notified when paywalls are loaded without `ProductDetails`,
+     * use `userDidLoad()` method of ApphudListener.
      */
     @kotlin.jvm.JvmStatic
     fun paywallsDidLoadCallback(callback: (List<ApphudPaywall>) -> Unit) {
         ApphudInternal.paywallsFetchCallback(callback)
-    }
-
-    /**
-     * Optional. Use this method when your paywall screen is displayed to the user.
-     * Used for paywalls A/B testing analysis.
-     */
-    @kotlin.jvm.JvmStatic
-    fun paywallShown(paywall: ApphudPaywall) {
-        ApphudInternal.paywallShown(paywall)
     }
 
     /**
@@ -105,8 +112,47 @@ object Apphud {
      * depending on whether or not you need `ProductsDetails` to be already filled in paywalls.
      * Best practice is to use this method together with `paywallsDidFullyLoad` listener.
      */
+    @kotlin.jvm.JvmStatic
     fun paywalls() :List<ApphudPaywall> {
         return ApphudInternal.getPaywalls()
+    }
+
+    /**
+     * Use this method when your paywall screen is displayed to the user.
+     * Required for A/B testing analysis.
+     */
+    @kotlin.jvm.JvmStatic
+    fun paywallShown(paywall: ApphudPaywall) {
+        ApphudInternal.paywallShown(paywall)
+    }
+
+    /**
+     * Use this method when your paywall screen is dismissed without a purchase.
+     * Required for A/B testing analysis.
+     */
+    @kotlin.jvm.JvmStatic
+    fun paywallClosed(paywall: ApphudPaywall) {
+        ApphudInternal.paywallClosed(paywall)
+    }
+
+    /**
+     * Returns `ApphudPlacement` configured in Apphud Dashboard > Product Hub > Placements.
+     * Each Placement contains `ApphudPaywall` object that you use for purchase.
+     * Method returns immediately if placements are already loaded.
+     */
+    @kotlin.jvm.JvmStatic
+    fun placements(): List<ApphudPlacement>? {
+        return  ApphudInternal.placements
+    }
+
+    /**
+     * Returns `ApphudPlacement` by its identifier configured in Apphud Dashboard > Product Hub > Placements.
+     * Each Placement contains `ApphudPaywall` object that you use for purchase.
+     * Method returns immediately if placements are already loaded.
+     */
+    @kotlin.jvm.JvmStatic
+    fun placement(identifier: String): ApphudPlacement? {
+        return  ApphudInternal.placements?.firstOrNull { it.identifier == identifier }
     }
 
     /**
@@ -118,6 +164,7 @@ object Apphud {
      * `permissionGroups` method is ready to use.
      * Best practice is not to use this method at all, but use `paywalls()` instead.
      */
+    @kotlin.jvm.JvmStatic
     fun permissionGroups(): List<ApphudGroup> {
         return ApphudInternal.permissionGroups()
     }
@@ -405,14 +452,6 @@ object Apphud {
     @kotlin.jvm.JvmStatic
     fun grantPromotional(daysCount: Int, productId: String?, permissionGroup: ApphudGroup? = null, callback: ((Boolean) -> Unit)? = null) {
         ApphudInternal.grantPromotional(daysCount, productId, permissionGroup, callback)
-    }
-
-    /**
-     * Optional. Use this method when your paywall screen is dismissed without purchase.
-     */
-    @kotlin.jvm.JvmStatic
-    fun paywallClosed(paywall: ApphudPaywall) {
-        ApphudInternal.paywallClosed(paywall)
     }
 
     /**

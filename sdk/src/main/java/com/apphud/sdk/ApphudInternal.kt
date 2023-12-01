@@ -44,6 +44,7 @@ internal object ApphudInternal {
     internal var prevPurchases = mutableSetOf<PurchaseRecordDetails>()
     internal var productDetails = mutableListOf<ProductDetails>()
     internal var paywalls = mutableListOf<ApphudPaywall>()
+    internal var placements: List<ApphudPlacement>? = null
 
     private val handler: Handler = Handler(Looper.getMainLooper())
     private val pendingUserProperties = mutableMapOf<String, ApphudUserProperty>()
@@ -78,12 +79,13 @@ internal object ApphudInternal {
     internal var fallbackMode = false
     internal lateinit var userId: UserId
     internal lateinit var context: Context
-    internal var currentUser: Customer? = null
+    internal var currentUser: ApphudUser? = null
     internal var apphudListener: ApphudListener? = null
 
 
     private var customProductsFetchedBlock: ((List<ProductDetails>) -> Unit)? = null
     private var paywallsFetchedBlock: ((List<ApphudPaywall>) -> Unit)? = null
+    private var userRegisteredBlock: ((ApphudUser) -> Unit)? = null
     private var lifecycleEventObserver = LifecycleEventObserver { _, event ->
         when (event) {
             Lifecycle.Event.ON_STOP -> {
@@ -108,7 +110,8 @@ internal object ApphudInternal {
         context: Context,
         apiKey: ApiKey,
         userId: UserId?,
-        deviceId: DeviceId?
+        deviceId: DeviceId?,
+        callback: ((ApphudUser) -> Unit)?
     ) {
         if (!allowIdentifyUser) {
             ApphudLog.logE(" " +
@@ -142,17 +145,21 @@ internal object ApphudInternal {
 
 
         //Restore from cache
-        this.currentUser = storage.customer
+        this.currentUser = storage.apphudUser
         RequestManager.currentUser = this.currentUser
         this.productGroups = readGroupsFromCache()
         this.paywalls = readPaywallsFromCache()
+        this.placements = readPlacementsFromCache()
+        this.userRegisteredBlock = callback
 
         loadProducts()
 
         if(needRegistration) {
             registration(this.userId, this.deviceId, true, null)
         }else{
-            notifyLoadingCompleted(storage.customer, null, true)
+            mainScope.launch {
+                notifyLoadingCompleted(storage.apphudUser, null, true)
+            }
         }
     }
 
@@ -175,7 +182,7 @@ internal object ApphudInternal {
         }
         if(storage.userId.isNullOrEmpty()
             || storage.deviceId.isNullOrEmpty()
-            || storage.customer == null
+            || storage.apphudUser == null
             || storage.paywalls == null
             || storage.needRegistration()) return true
         return false
@@ -183,7 +190,7 @@ internal object ApphudInternal {
 
     private var notifyFullyLoaded = false
     @Synchronized
-    internal fun notifyLoadingCompleted(customerLoaded: Customer? = null, productDetailsLoaded: List<ProductDetails>? = null, fromCache: Boolean = false, fromFallback: Boolean = false){
+    internal fun notifyLoadingCompleted(customerLoaded: ApphudUser? = null, productDetailsLoaded: List<ProductDetails>? = null, fromCache: Boolean = false, fromFallback: Boolean = false){
         var restorePaywalls = true
 
         productDetailsLoaded?.let{
@@ -219,13 +226,18 @@ internal object ApphudInternal {
 
             currentUser = it
             RequestManager.currentUser = currentUser
-            userId = it.user.userId
+            userId = it.userId
 
+            // TODO: should be called only if something changed
             apphudListener?.apphudNonRenewingPurchasesUpdated(currentUser!!.purchases)
             apphudListener?.apphudSubscriptionsUpdated(currentUser!!.subscriptions)
 
             if (!didRegisterCustomerAtThisLaunch) {
                 apphudListener?.userDidLoad()
+                this.userRegisteredBlock?.let { block ->
+                    block.invoke(it)
+                }
+                this.userRegisteredBlock = null
             }
             if (it.isTemporary == false && !fallbackMode){
                 didRegisterCustomerAtThisLaunch = true
@@ -236,11 +248,14 @@ internal object ApphudInternal {
             }
         }
 
-        updatePaywallsWithProductDetails(paywalls)
+        updatePaywallsAndPlacements()
 
         if(restorePaywalls && currentUser != null && paywalls.isNotEmpty() && productDetails.isNotEmpty() && notifyFullyLoaded){
             notifyFullyLoaded = false
             apphudListener?.paywallsDidFullyLoad(paywalls)
+            placements?.let {
+                apphudListener?.placementsDidFullyLoad(it)
+            }
             paywallsFetchedBlock?.invoke(paywalls)
         }
     }
@@ -250,7 +265,7 @@ internal object ApphudInternal {
         userId: UserId,
         deviceId: DeviceId,
         forceRegistration: Boolean = false,
-        completionHandler: ((Customer?, ApphudError?) -> Unit)?
+        completionHandler: ((ApphudUser?, ApphudError?) -> Unit)?
     ) {
         coroutineScope.launch(errorHandler) {
             mutex.withLock {
@@ -782,7 +797,7 @@ internal object ApphudInternal {
     private fun updateGroupsWithProductDetails(productGroups: List<ApphudGroup>) {
         productGroups.forEach { group ->
             group.products?.forEach { product ->
-                product.productDetails = getProductDetailsByProductId(product.product_id)
+                product.productDetails = getProductDetailsByProductId(product.productId)
             }
         }
     }
@@ -796,11 +811,32 @@ internal object ApphudInternal {
         return storage.paywalls?.toMutableList()?: mutableListOf()
     }
 
-    private fun updatePaywallsWithProductDetails(paywalls: List<ApphudPaywall>) {
+    internal fun readPlacementsFromCache(): List<ApphudPlacement>? {
+        return storage.placements
+    }
+
+    private fun updatePaywallsAndPlacements() {
         synchronized(paywalls) {
             paywalls.forEach { paywall ->
                 paywall.products?.forEach { product ->
-                    product.productDetails = getProductDetailsByProductId(product.product_id)
+                    product.paywallId = paywall.id
+                    product.paywallIdentifier = paywall.identifier
+                    product.productDetails = getProductDetailsByProductId(product.productId)
+                }
+            }
+        }
+
+        placements?.let { placementsList ->
+            synchronized(placementsList) {
+                placementsList.forEach { placement ->
+                    val paywall = placement.paywall
+                    paywall?.placementId = placement.id
+                    paywall?.products?.forEach { product ->
+                        product.paywallId = placement.paywall?.id
+                        product.paywallIdentifier = placement.paywall?.identifier
+                        product.placementId = placement.id
+                        product.productDetails = getProductDetailsByProductId(product.productId)
+                    }
                 }
             }
         }

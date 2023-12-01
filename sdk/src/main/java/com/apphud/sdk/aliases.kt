@@ -10,10 +10,10 @@ typealias ProductId = String
 
 typealias Callback1<T> = (T) -> Unit
 typealias Callback2<T1, T2> = (T1, T2) -> Unit
-typealias CustomerCallback = Callback1<Customer>
+typealias CustomerCallback = Callback1<ApphudUser>
 typealias ProductsCallback = Callback1<List<ApphudGroup>>
 typealias AttributionCallback = Callback1<Attribution>
-typealias PurchasedCallback = Callback2<Customer?, ApphudError?>
+typealias PurchasedCallback = Callback2<ApphudUser?, ApphudError?>
 typealias PaywallCallback = Callback2<List<ApphudPaywall>?, ApphudError?>
 
 typealias Milliseconds = Long

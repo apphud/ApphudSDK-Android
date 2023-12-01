@@ -18,7 +18,7 @@ class PaywallsAdapter(private val paywallsViewModel: PaywallsViewModel, private 
         abstract fun bind(item: T, position: Int)
     }
 
-    inner class PaywallViewHolder(itemView: View) : BaseViewHolder<ApphudPaywall>(itemView) {
+    inner class PaywallViewHolder(itemView: View) : BaseViewHolder<AdapterItem>(itemView) {
         private val paywallName: TextView = itemView.findViewById(R.id.paywallName)
         private val paywallDefault: TextView = itemView.findViewById(R.id.paywallDefault)
         private val paywallExperiment: TextView = itemView.findViewById(R.id.paywallExperiment)
@@ -26,13 +26,17 @@ class PaywallsAdapter(private val paywallsViewModel: PaywallsViewModel, private 
         private val paywallJson: TextView = itemView.findViewById(R.id.paywallJson)
         private val layoutHolder: LinearLayout = itemView.findViewById(R.id.layoutHolder)
 
-        override fun bind(item: ApphudPaywall, position: Int) {
-            paywallName.text = item.name
-            paywallDefault.text = item.default.toString()
-            paywallExperiment.text = item.experimentName?:"-"
+        override fun bind(item: AdapterItem, position: Int) {
+            val paywall = item.paywall ?: item.placement?.paywall
+
+            val experimentName = item.placement?.experimentName ?: paywall?.experimentName
+
+            paywallName.text = item.placement?.identifier ?: paywall?.name ?: "N/A"
+            paywallDefault.text = paywall?.default.toString()
+            paywallExperiment.text = item.placement?.experimentName ?: paywall?.experimentName?: "N/A"
             paywallVariation.text = "N/A"
-            paywallJson.text = if(item.json != null) "true" else "false"
-            item.experimentName?.let{
+            paywallJson.text = if(paywall?.json != null) "true" else "false"
+            experimentName?.let{
                 layoutHolder.setBackgroundResource(R.color.teal_200)
                 paywallDefault.setTextColor(Color.WHITE)
                 paywallExperiment.setTextColor(Color.WHITE)
@@ -45,7 +49,9 @@ class PaywallsAdapter(private val paywallsViewModel: PaywallsViewModel, private 
             }
 
             itemView.setOnClickListener {
-                selectPaywall?.invoke(item)
+                paywall?.let { paywall ->
+                    selectPaywall?.invoke(paywall)
+                }
             }
         }
     }
@@ -68,14 +74,14 @@ class PaywallsAdapter(private val paywallsViewModel: PaywallsViewModel, private 
     override fun onBindViewHolder(holder: BaseViewHolder<*>, position: Int) {
         val element = paywallsViewModel.items[position]
         when (holder) {
-            is PaywallViewHolder -> holder.bind(element as ApphudPaywall, position)
+            is PaywallViewHolder -> holder.bind(element as AdapterItem, position)
             else -> throw IllegalArgumentException()
         }
     }
 
     override fun getItemViewType(position: Int): Int {
         return when (paywallsViewModel.items[position]) {
-            is ApphudPaywall -> TYPE_PAYWALL
+            is AdapterItem -> TYPE_PAYWALL
             else -> throw IllegalArgumentException("Invalid type of data " + position)
         }
     }

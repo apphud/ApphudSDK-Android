@@ -21,7 +21,7 @@ class ProductsAdapter(private val productsViewModel: ProductsViewModel, private 
         private val productName: TextView = itemView.findViewById(R.id.productName)
         private val productPrice: TextView = itemView.findViewById(R.id.productPrice)
         override fun bind(item: ApphudProduct, position: Int) {
-            productName.text = "Name: " + item.name + "\nProduct ID: " + item.product_id + "\nBase Plan ID: " + item.basePlanId
+            productName.text = "Name: " + item.name + "\nProduct ID: " + item.productId + "\nBase Plan ID: " + item.basePlanId
 
             item.productDetails?.let{ details ->
                 if(details.productType == BillingClient.ProductType.SUBS){

@@ -7,7 +7,7 @@ import com.android.billingclient.api.Purchase
 import com.apphud.sdk.domain.ApphudNonRenewingPurchase
 import com.apphud.sdk.domain.ApphudProduct
 import com.apphud.sdk.domain.ApphudSubscription
-import com.apphud.sdk.domain.Customer
+import com.apphud.sdk.domain.ApphudUser
 import com.apphud.sdk.internal.callback_status.PurchaseCallbackStatus
 import com.apphud.sdk.internal.callback_status.PurchaseUpdatedCallbackStatus
 import com.apphud.sdk.managers.RequestManager
@@ -33,13 +33,13 @@ internal fun ApphudInternal.purchase(
 
     val productToPurchase = apphudProduct?: productId?.let{ pId ->
         val products = paywalls.map { it.products?: listOf() }.flatten().distinctBy { it.id }
-        products.firstOrNull{it.product_id == pId}
+        products.firstOrNull{it.productId == pId}
     }
 
     productToPurchase?.let{ product ->
         var details = product.productDetails
         if(details == null){
-            details = getProductDetailsByProductId(product.product_id)
+            details = getProductDetailsByProductId(product.productId)
         }
 
         details?.let{
@@ -58,7 +58,7 @@ internal fun ApphudInternal.purchase(
             }
         }
     }?: run {
-        val id = productId?: apphudProduct?.product_id?:""
+        val id = productId?: apphudProduct?.productId?:""
         callback?.invoke(ApphudPurchaseResult(null,null,null, ApphudError("Appphud product not found: $id")))
     }
 }
@@ -72,7 +72,7 @@ private suspend fun ApphudInternal.fetchDetails(
     consumableInappProduct: Boolean,
     callback: ((ApphudPurchaseResult) -> Unit)?
 ) {
-    val productName: String = apphudProduct.product_id
+    val productName: String = apphudProduct.productId
     if(loadDetails(productName, apphudProduct)){
         getProductDetailsByProductId(productName)?.let { details ->
             mainScope.launch {
@@ -93,7 +93,7 @@ private suspend fun ApphudInternal.loadDetails(
     productId: String?,
     apphudProduct: ApphudProduct?) :Boolean
 {
-    val productName: String = productId ?: apphudProduct?.product_id!!
+    val productName: String = productId ?: apphudProduct?.productId ?: "none"
     ApphudLog.log("Could not find Product for product id: $productName in memory")
     ApphudLog.log("Now try fetch it from Google Billing")
 
@@ -174,7 +174,7 @@ private fun ApphudInternal.purchaseInternal(
                     var message = apphudProduct.productDetails?.let{
                             "Unable to buy product with given product id: ${it.productId} "
                         }?: run{
-                            paywallPaymentCancelled(apphudProduct.paywall_id, apphudProduct.product_id, purchasesResult.result.responseCode)
+                            paywallPaymentCancelled(apphudProduct.paywallId, apphudProduct.productId, purchasesResult.result.responseCode)
                             "Unable to buy product with given product id: ${apphudProduct.productDetails?.productId} "
                         }
 
@@ -234,7 +234,7 @@ private fun ApphudInternal.purchaseInternal(
     }
 
     apphudProduct.productDetails?.let{
-        paywallCheckoutInitiated(apphudProduct.paywall_id, apphudProduct.product_id)
+        paywallCheckoutInitiated(apphudProduct.paywallId, apphudProduct.productId)
         billing.purchase(activity, it, offerIdToken, oldToken, replacementMode,
             deviceId
         )
@@ -269,7 +269,15 @@ private fun ApphudInternal.sendCheckToApphud(
             ApphudLog.logE(it.message)
             if(fallbackMode){
                 currentUser?.let{
-                    addTempPurchase(it, purchase, apphudProduct.productDetails?.productType?:"", apphudProduct.product_id, callback)
+                    mainScope.launch {
+                        addTempPurchase(
+                            it,
+                            purchase,
+                            apphudProduct.productDetails?.productType ?: "",
+                            apphudProduct.productId,
+                            callback
+                        )
+                    }
                 }
             }
         } ?: run {
@@ -287,7 +295,7 @@ private fun ApphudInternal.sendCheckToApphud(
                                 it.errorCode?.let{ code->
                                     if(code in FALLBACK_ERRORS){
                                         currentUser?.let{
-                                            addTempPurchase(it, purchase, apphudProduct.productDetails?.productType?:"", apphudProduct.product_id, callback)
+                                            addTempPurchase(it, purchase, apphudProduct.productDetails?.productType?:"", apphudProduct.productId, callback)
                                             return@launch
                                         }
                                     }
@@ -306,7 +314,7 @@ private fun ApphudInternal.sendCheckToApphud(
 }
 
 
-internal fun ApphudInternal.addTempPurchase(customer: Customer, purchase: Purchase, type: String, productId: String, callback: ((ApphudPurchaseResult) -> Unit)?){
+internal fun ApphudInternal.addTempPurchase(apphudUser: ApphudUser, purchase: Purchase, type: String, productId: String, callback: ((ApphudPurchaseResult) -> Unit)?){
     var newSubscriptions: ApphudSubscription? = null
     var newPurchases: ApphudNonRenewingPurchase? = null
     when (type) {
@@ -324,17 +332,17 @@ internal fun ApphudInternal.addTempPurchase(customer: Customer, purchase: Purcha
             //nothing
         }
     }
-    notifyAboutSuccess(customer, purchase, newSubscriptions, newPurchases, true, callback)
+    notifyAboutSuccess(apphudUser, purchase, newSubscriptions, newPurchases, true, callback)
 }
 
-private fun notifyAboutSuccess(customer: Customer,
+private fun notifyAboutSuccess(apphudUser: ApphudUser,
                                purchase: Purchase,
                                newSubscription: ApphudSubscription?,
                                newPurchase: ApphudNonRenewingPurchase?,
                                fromFallback: Boolean,
                                callback: ((ApphudPurchaseResult) -> Unit)?){
 
-    ApphudInternal.notifyLoadingCompleted(customerLoaded = customer, fromFallback = fromFallback)
+    ApphudInternal.notifyLoadingCompleted(customerLoaded = apphudUser, fromFallback = fromFallback)
 
     if (newSubscription == null && newPurchase == null) {
         val productId = purchase.products.first()?:"unknown"

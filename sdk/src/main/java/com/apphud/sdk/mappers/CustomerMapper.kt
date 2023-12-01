@@ -1,23 +1,20 @@
 package com.apphud.sdk.mappers
 
-import com.apphud.sdk.client.dto.ApphudPaywallDto
 import com.apphud.sdk.client.dto.CustomerDto
 import com.apphud.sdk.domain.ApphudKind
 import com.apphud.sdk.domain.ApphudPaywall
-import com.apphud.sdk.domain.Customer
 import com.apphud.sdk.domain.ApphudUser
 
 class CustomerMapper(
     private val mapper: SubscriptionMapper,
-    private val paywallsMapper: PaywallsMapper
+    private val paywallsMapper: PaywallsMapper,
+    private var placementsMapper: PlacementsMapper
 ) {
 
-    fun map(customer: CustomerDto) = Customer(
-        user = ApphudUser(
-            userId = customer.user_id,
-            currencyCode = customer.currency?.code,
-            currencyCountryCode = customer.currency?.country_code,
-        ),
+    fun map(customer: CustomerDto) = ApphudUser(
+        userId = customer.user_id,
+        currencyCode = customer.currency?.code,
+        countryCode = customer.currency?.country_code,
         subscriptions = customer.subscriptions
             .filter { it.kind == ApphudKind.AUTORENEWABLE.source }
             .mapNotNull { mapper.mapRenewable(it) }
@@ -30,6 +27,9 @@ class CustomerMapper(
             paywallsList.map {paywallsMapper.map(it)}
         }?: run{
             mutableListOf<ApphudPaywall>()
+        },
+        placements = customer.placements?.let { placementsList ->
+            placementsList.map { placementsMapper.map(it) }
         },
         isTemporary = false
     )

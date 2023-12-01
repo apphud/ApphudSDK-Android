@@ -35,5 +35,10 @@ data class ApphudPaywall(
     A/B test experiment name, if user is included in the experiment.
     You can use it for additional analytics.
      */
-    val experimentName: String?
+    val experimentName: String?,
+
+    /**
+     * For internal usage
+     */
+    internal var placementId: String?
 )

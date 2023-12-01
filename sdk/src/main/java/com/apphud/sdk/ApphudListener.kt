@@ -3,6 +3,7 @@ package com.apphud.sdk
 import com.android.billingclient.api.ProductDetails
 import com.apphud.sdk.domain.ApphudNonRenewingPurchase
 import com.apphud.sdk.domain.ApphudPaywall
+import com.apphud.sdk.domain.ApphudPlacement
 import com.apphud.sdk.domain.ApphudSubscription
 
 interface ApphudListener {
@@ -34,12 +35,9 @@ interface ApphudListener {
 
     /**
     Called when user is registered in Apphud [or used from cache].
-    After this method is called, Apphud.paywalls() will begin to return values,
-    however their ProductDetails may still be nil at the moment.
-
-    You should only use this method in two cases:
-    1) If using A/B testing, to fetch `experimentName` from your paywalls.
-    2) To update User ID via Apphud.updateUserId method which should be placed inside.
+    After this method is called, paywalls() and placements() will begin to return values,
+    however their `ProductDetails` may still be nil at the moment.
+    If using A/B testing, you can fetch `experimentName` from your paywalls or placements.
      */
     fun userDidLoad()
 
@@ -47,4 +45,10 @@ interface ApphudListener {
     Called when paywalls are fully loaded with their ProductDetails.
     */
     fun paywallsDidFullyLoad(paywalls: List<ApphudPaywall>)
+
+    /**
+     * Called when placements are fully loaded with their ApphudPaywalls and ProductDetails products.
+     * Not called if no placements added in Apphud.
+     */
+    fun placementsDidFullyLoad(placements: List<ApphudPlacement>)
 }

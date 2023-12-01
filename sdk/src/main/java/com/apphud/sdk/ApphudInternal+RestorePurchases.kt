@@ -137,7 +137,7 @@ internal suspend fun ApphudInternal.sendPurchasesToApphud(
             prevPurchases.addAll(records)
         }
 
-        userId = customer.user.userId
+        userId = customer.userId
 
         mainScope.launch {
             ApphudLog.log("SyncPurchases: success $customer")

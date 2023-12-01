@@ -2,7 +2,6 @@ package com.apphud.sdk
 
 import android.content.Context
 import com.apphud.sdk.domain.ApphudUser
-import com.apphud.sdk.domain.Customer
 import com.apphud.sdk.domain.FallbackJsonObject
 import com.apphud.sdk.mappers.PaywallsMapper
 import com.apphud.sdk.parser.GsonParser
@@ -37,13 +36,14 @@ private fun ApphudInternal.processFallbackData() {
 
             if(paywalls.isEmpty() && fallbackJson.data.results.isNotEmpty()){
                 val paywallToParse = paywallsMapper.map(fallbackJson.data.results)
-                val ids = paywallToParse.map {it.products?.map { it.product_id }?: listOf() }.flatten()
+                val ids = paywallToParse.map {it.products?.map { it.productId }?: listOf() }.flatten()
                 if(ids.isNotEmpty()){
                     fetchDetails(ids)
                     cachePaywalls(paywallToParse)
 
                     if(currentUser == null){
-                        currentUser = Customer(ApphudUser(userId, "", ""), mutableListOf(), mutableListOf(), listOf(), true)
+                        currentUser = ApphudUser(userId, "", "", mutableListOf(), mutableListOf(), listOf(),
+                            null, true)
                         ApphudLog.log("Fallback: user created: ${userId}")
                     }
                     mainScope.launch {

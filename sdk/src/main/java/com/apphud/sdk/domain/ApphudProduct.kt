@@ -13,7 +13,7 @@ data class ApphudProduct(
     /**
     Product Identifier from Google Play.
      */
-    var product_id: String,
+    var productId: String,
 
     /**
     Product name from Apphud Dashboard
@@ -38,14 +38,24 @@ data class ApphudProduct(
     var productDetails: ProductDetails?,
 
     /**
-     * Product Identifier from Paywalls.
+     * Placement Identifier, if any.
      */
-    var paywall_id: String?,
+    var placementIdentifier: String?,
 
     /**
     User Generated Paywall Identifier
      */
-    var paywall_identifier: String?
+    var paywallIdentifier: String?,
+
+    /**
+     * For internal usage
+     * */
+    internal var placementId: String?,
+
+    /**
+     * For internal usage
+     */
+    internal var paywallId: String?,
 ) {
     /**
      * @returns – Array of subscription offers with given Base Plan Id, or all offers.

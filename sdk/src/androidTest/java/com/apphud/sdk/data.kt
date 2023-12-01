@@ -18,5 +18,9 @@ internal fun mkRegistrationBody(userId: String, deviceId: String) =
         device_id = deviceId,
         time_zone = "UTF",
         is_sandbox = true,
-        is_new = true
+        is_new = true,
+        need_paywalls = true,
+        need_placements = true,
+        android_id = "",
+        first_seen = null
     )

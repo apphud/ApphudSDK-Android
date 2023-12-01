@@ -36,7 +36,7 @@ class GroupsAdapter (private val groupsViewModel: GroupsViewModel, private val c
         private val productPrice: TextView = itemView.findViewById(R.id.productPrice)
         override fun bind(item: ApphudProduct, position: Int) {
             productName.text = item.name
-            productId.text = item.product_id
+            productId.text = item.productId
 
             item.productDetails?.let{ details ->
                 if(details.productType == BillingClient.ProductType.SUBS){

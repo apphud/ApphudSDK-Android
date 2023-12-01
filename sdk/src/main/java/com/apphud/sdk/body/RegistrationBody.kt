@@ -18,5 +18,6 @@ data class RegistrationBody(
     val is_sandbox: Boolean,
     val is_new: Boolean,
     val need_paywalls: Boolean,
+    val need_placements: Boolean,
     val first_seen: Long?
 )

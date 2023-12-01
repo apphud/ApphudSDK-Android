@@ -47,16 +47,16 @@
 
         <TextView
             android:id="@+id/idExperiment"
-            android:layout_width="70dp"
-            android:layout_height="wrap_content"
-            android:text="@string/experiment"
+            android:layout_width="95dp"
+            android:layout_height="15dp"
             android:ellipsize="end"
+            android:text="@string/experiment"
             android:textColor="@color/black"
-            android:textStyle="bold"
             android:textSize="12sp"
-            app:layout_constraintStart_toStartOf="parent"
+            android:textStyle="bold"
             app:layout_constraintBottom_toBottomOf="parent"
-            app:layout_constraintTop_toTopOf="parent"/>
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toTopOf="parent" />
 
         <TextView
             android:id="@+id/paywallExperiment"
@@ -80,16 +80,16 @@
 
         <TextView
             android:id="@+id/idVariation"
-            android:layout_width="70dp"
-            android:layout_height="wrap_content"
-            android:text="@string/variation"
+            android:layout_width="98dp"
+            android:layout_height="14dp"
             android:ellipsize="end"
+            android:text="@string/variation"
             android:textColor="@color/black"
-            android:textStyle="bold"
             android:textSize="12sp"
-            app:layout_constraintStart_toStartOf="parent"
+            android:textStyle="bold"
             app:layout_constraintBottom_toBottomOf="parent"
-            app:layout_constraintTop_toTopOf="parent"/>
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toTopOf="parent" />
 
         <TextView
             android:id="@+id/paywallVariation"
@@ -113,16 +113,16 @@
 
         <TextView
             android:id="@+id/idDefault"
-            android:layout_width="70dp"
-            android:layout_height="wrap_content"
-            android:text="@string/is_default"
+            android:layout_width="96dp"
+            android:layout_height="13dp"
             android:ellipsize="end"
+            android:text="@string/is_default"
             android:textColor="@color/black"
-            android:textStyle="bold"
             android:textSize="12sp"
-            app:layout_constraintStart_toStartOf="parent"
+            android:textStyle="bold"
             app:layout_constraintBottom_toBottomOf="parent"
-            app:layout_constraintTop_toTopOf="parent"/>
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toTopOf="parent" />
 
         <TextView
             android:id="@+id/paywallDefault"
@@ -147,16 +147,16 @@
 
         <TextView
             android:id="@+id/idJson"
-            android:layout_width="70dp"
-            android:layout_height="wrap_content"
-            android:text="@string/json"
+            android:layout_width="97dp"
+            android:layout_height="13dp"
             android:ellipsize="end"
+            android:text="@string/json"
             android:textColor="@color/black"
-            android:textStyle="bold"
             android:textSize="12sp"
-            app:layout_constraintStart_toStartOf="parent"
+            android:textStyle="bold"
             app:layout_constraintBottom_toBottomOf="parent"
-            app:layout_constraintTop_toTopOf="parent"/>
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toTopOf="parent" />
 
         <TextView
             android:id="@+id/paywallJson"

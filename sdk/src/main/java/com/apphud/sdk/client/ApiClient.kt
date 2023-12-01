@@ -1,5 +1,5 @@
 package com.apphud.sdk.client
 
-internal object ApiClient {
-    const val host = "https://api.apphud.com"
+object ApiClient {
+    var host = "https://api.apphud.com"
 }

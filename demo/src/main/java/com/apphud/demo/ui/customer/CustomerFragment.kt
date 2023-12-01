@@ -6,6 +6,7 @@ import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import android.widget.TextView
+import android.widget.ToggleButton
 import androidx.fragment.app.Fragment
 import androidx.lifecycle.ViewModelProvider
 import androidx.navigation.fragment.findNavController
@@ -18,6 +19,7 @@ import com.apphud.sdk.Apphud
 import com.apphud.sdk.ApphudListener
 import com.apphud.sdk.domain.ApphudNonRenewingPurchase
 import com.apphud.sdk.domain.ApphudPaywall
+import com.apphud.sdk.domain.ApphudPlacement
 import com.apphud.sdk.domain.ApphudSubscription
 import com.apphud.sdk.managers.HeadersInterceptor
 
@@ -61,6 +63,11 @@ class CustomerFragment : Fragment() {
             addItemDecoration(DividerItemDecoration(this.context, DividerItemDecoration.VERTICAL))
         }
 
+        binding.toggleButton.setOnCheckedChangeListener { buttonView, isChecked ->
+            paywallsViewModel.showPlacements = isChecked
+            updateData()
+        }
+
         binding.swipeRefresh.setOnRefreshListener {
             updateData()
             binding.swipeRefresh.isRefreshing = false
@@ -92,6 +99,11 @@ class CustomerFragment : Fragment() {
             
             override fun paywallsDidFullyLoad(paywalls: List<ApphudPaywall>){
                 Log.d("Apphud", "paywallsDidFullyLoad()")
+                updateData()
+            }
+
+            override fun placementsDidFullyLoad(placements: List<ApphudPlacement>) {
+                Log.d("Apphud", "placementsDidFullyLoad()")
                 updateData()
             }
         }

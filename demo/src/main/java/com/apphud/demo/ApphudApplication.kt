@@ -5,11 +5,12 @@ import android.content.Context
 import android.util.Log
 import com.apphud.sdk.Apphud
 import com.apphud.sdk.ApphudUserPropertyKey
+import com.apphud.sdk.client.ApiClient
 import com.apphud.sdk.flutter.ApphudFlutter
 
 class ApphudApplication : Application() {
 
-    val API_KEY = "app_4sY9cLggXpMDDQMmvc5wXUPGReMp8G"
+    var API_KEY = "app_4sY9cLggXpMDDQMmvc5wXUPGReMp8G"
 
     companion object {
         private lateinit var instance: ApphudApplication
@@ -32,6 +33,11 @@ class ApphudApplication : Application() {
 
         Apphud.enableDebugLogs()
       //Apphud.optOutOfTracking()
+
+        if (BuildConfig.DEBUG) {
+            ApiClient.host = "https://api.apphudstage.com"
+            API_KEY = "app_oBcXz2z9j8spKPL2T7sZwQaQN5Jzme"
+        }
         Apphud.start(this, API_KEY)
         Apphud.collectDeviceIdentifiers()
     }

@@ -45,7 +45,7 @@ object RequestManager {
         " :You must call the Apphud.start method once when your application starts before calling any other methods."
 
     val BILLING_VERSION :Int= 5
-    var currentUser: Customer? = null
+    var currentUser: ApphudUser? = null
 
     val gson = GsonBuilder().serializeNulls().create()
     val parser: Parser = GsonParser(gson)
@@ -53,7 +53,8 @@ object RequestManager {
     private val productMapper = ProductMapper()
     private val paywallsMapper = PaywallsMapper(parser)
     private val attributionMapper = AttributionMapper()
-    private val customerMapper = CustomerMapper(SubscriptionMapper(), paywallsMapper)
+    private val placementsMapper = PlacementsMapper(parser)
+    private val customerMapper = CustomerMapper(SubscriptionMapper(), paywallsMapper, placementsMapper)
 
     //TODO to be settled
     private var apiKey: String? = null
@@ -335,7 +336,7 @@ object RequestManager {
             .build()
     }
 
-    suspend fun registrationSync(needPaywalls: Boolean, isNew: Boolean, forceRegistration: Boolean = false) :Customer? =
+    suspend fun registrationSync(needPaywalls: Boolean, isNew: Boolean, forceRegistration: Boolean = false) :ApphudUser? =
         suspendCancellableCoroutine { continuation ->
         if(!canPerformRequest()) {
             ApphudLog.logE("registrationSync $MUST_REGISTER_ERROR")
@@ -358,7 +359,7 @@ object RequestManager {
     }
 
     @Synchronized
-    fun registration(needPaywalls: Boolean, isNew: Boolean,  forceRegistration: Boolean = false, completionHandler: (Customer?, ApphudError?) -> Unit) {
+    fun registration(needPaywalls: Boolean, isNew: Boolean,  forceRegistration: Boolean = false, completionHandler: (ApphudUser?, ApphudError?) -> Unit) {
         if(!canPerformRequest()) {
             ApphudLog.logE(::registration.name + MUST_REGISTER_ERROR)
             return
@@ -438,7 +439,7 @@ object RequestManager {
                   apphudProduct: ApphudProduct?,
                   offerToken: String?,
                   oldToken: String?,
-                  completionHandler: (Customer?, ApphudError?) -> Unit) {
+                  completionHandler: (ApphudUser?, ApphudError?) -> Unit) {
         if(!canPerformRequest()) {
             ApphudLog.logE(::purchased.name + MUST_REGISTER_ERROR)
             return
@@ -451,7 +452,7 @@ object RequestManager {
             .build()
 
         val purchaseBody = apphudProduct?.let {
-            makePurchaseBody(purchase, it.productDetails, it.paywall_id, it.id, offerToken, oldToken)
+            makePurchaseBody(purchase, it.productDetails, it.paywallId, it.placementId, it.id, offerToken, oldToken)
         }
         if (purchaseBody == null) {
             val message = "ProductsDetails and ApphudProduct can not be null at the same time" + apphudProduct?.let{ " [Apphud product ID: " + it.id + "]"}
@@ -490,7 +491,7 @@ object RequestManager {
         productDetails: ProductDetails?,
         offerIdToken: String?,
         observerMode: Boolean
-    ): Customer? =
+    ): ApphudUser? =
         suspendCancellableCoroutine { continuation ->
             if (!canPerformRequest()) {
                 ApphudLog.logE("restorePurchasesSync $MUST_REGISTER_ERROR")
@@ -621,7 +622,7 @@ object RequestManager {
         }
     }
 
-    fun grantPromotional(daysCount: Int, productId: String?, permissionGroup: ApphudGroup?, completionHandler: (Customer?, ApphudError?) -> Unit) {
+    fun grantPromotional(daysCount: Int, productId: String?, permissionGroup: ApphudGroup?, completionHandler: (ApphudUser?, ApphudError?) -> Unit) {
         if(!canPerformRequest()) {
             ApphudLog.logE(::grantPromotional.name + MUST_REGISTER_ERROR)
             return
@@ -838,6 +839,7 @@ object RequestManager {
             is_sandbox = this.applicationContext.isDebuggable(),
             is_new = isNew,
             need_paywalls = needPaywalls,
+            need_placements = needPaywalls,
             first_seen = getInstallationDate()
         )
 
@@ -859,6 +861,7 @@ object RequestManager {
         purchase: Purchase,
         productDetails: ProductDetails?,
         paywall_id: String?,
+        placement_id: String?,
         apphud_product_id: String?,
         offerIdToken: String?,
         oldToken: String?
@@ -874,6 +877,7 @@ object RequestManager {
                     price_amount_micros = productDetails?.priceAmountMicros(),
                     subscription_period = productDetails?.subscriptionPeriod(),
                     paywall_id = paywall_id,
+                    placement_id = placement_id,
                     product_bundle_id = apphud_product_id,
                     observer_mode = false,
                     billing_version = BILLING_VERSION,
@@ -897,7 +901,8 @@ object RequestManager {
                     price_currency_code = purchase.details.priceCurrencyCode(),
                     price_amount_micros =  if((System.currentTimeMillis() - purchase.record.purchaseTime) < ONE_HOUR) {purchase.details.priceAmountMicros()} else null,
                     subscription_period = purchase.details.subscriptionPeriod(),
-                    paywall_id = if(apphudProduct?.productDetails?.productId == purchase.details.productId) apphudProduct.paywall_id else null,
+                    paywall_id = if(apphudProduct?.productDetails?.productId == purchase.details.productId) apphudProduct.paywallId else null,
+                    placement_id = if(apphudProduct?.productDetails?.productId == purchase.details.productId) apphudProduct.placementId else null,
                     product_bundle_id = if(apphudProduct?.productDetails?.productId == purchase.details.productId) apphudProduct.id else null,
                     observer_mode = observerMode,
                     billing_version = BILLING_VERSION,
@@ -919,7 +924,8 @@ object RequestManager {
                     price_currency_code = productDetails.priceCurrencyCode(),
                     price_amount_micros = productDetails.priceAmountMicros(),
                     subscription_period = productDetails.subscriptionPeriod(),
-                    paywall_id = if(apphudProduct?.productDetails?.productId == purchase.products.first()) apphudProduct?.paywall_id else null,
+                    paywall_id = if(apphudProduct?.productDetails?.productId == purchase.products.first()) apphudProduct?.paywallId else null,
+                    placement_id = if(apphudProduct?.productDetails?.productId == purchase.products.first()) apphudProduct?.placementId else null,
                     product_bundle_id = if(apphudProduct?.productDetails?.productId == purchase.products.first()) apphudProduct?.id else null,
                     observer_mode = observerMode,
                     billing_version = BILLING_VERSION,

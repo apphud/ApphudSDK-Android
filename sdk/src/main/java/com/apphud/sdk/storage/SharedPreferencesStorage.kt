@@ -41,6 +41,8 @@ object SharedPreferencesStorage : Storage {
     private const val ADJUST_KEY = "adjustKey"
     private const val PAYWALLS_KEY = "payWallsKey"
     private const val PAYWALLS_TIMESTAMP_KEY = "payWallsTimestampKey"
+    private const val PLACEMENTS_KEY = "PLACEMENTS_KEY"
+    private const val PLACEMENTS_TIMESTAMP_KEY = "PLACEMENTS_TIMESTAMP_KEY"
     private const val GROUP_KEY = "apphudGroupKey"
     private const val GROUP_TIMESTAMP_KEY = "apphudGroupTimestampKey"
     private const val SKU_KEY = "skuKey"
@@ -62,11 +64,11 @@ object SharedPreferencesStorage : Storage {
             editor.apply()
         }
 
-    override var customer: Customer?
+    override var apphudUser: ApphudUser?
         get() {
             val source = preferences.getString(CUSTOMER_KEY, null)
-            val type = object : TypeToken<Customer>() {}.type
-            return parser.fromJson<Customer>(source, type)
+            val type = object : TypeToken<ApphudUser>() {}.type
+            return parser.fromJson<ApphudUser>(source, type)
         }
         set(value) {
             val source = parser.toJson(value)
@@ -184,6 +186,24 @@ object SharedPreferencesStorage : Storage {
             editor.apply()
         }
 
+    override var placements: List<ApphudPlacement>?
+        get() {
+            val timestamp = preferences.getLong(PLACEMENTS_TIMESTAMP_KEY, -1L) + (cacheTimeout * 1000)
+            val currentTime = System.currentTimeMillis()
+            return if ((currentTime < timestamp) || ApphudInternal.fallbackMode) {
+                val source = preferences.getString(PLACEMENTS_KEY, null)
+                val type = object : TypeToken<List<ApphudPlacement>>() {}.type
+                parser.fromJson<List<ApphudPlacement>>(source, type)
+            } else null
+        }
+        set(value) {
+            val source = parser.toJson(value)
+            val editor = preferences.edit()
+            editor.putLong(PLACEMENTS_TIMESTAMP_KEY, System.currentTimeMillis())
+            editor.putString(PLACEMENTS_KEY, source)
+            editor.apply()
+        }
+
     override var productDetails: List<String>?
         get() {
             val timestamp = preferences.getLong(SKU_TIMESTAMP_KEY, -1L) + (cacheTimeout * 1000)
@@ -210,26 +230,26 @@ object SharedPreferencesStorage : Storage {
             editor.apply()
         }
 
-    fun updateCustomer(customer: Customer, apphudListener: ApphudListener?){
+    fun updateCustomer(apphudUser: ApphudUser, apphudListener: ApphudListener?){
         var userIdChanged = false
-        this.customer?.let{
-            if(it.user.userId != customer.user.userId){
+        this.apphudUser?.let{
+            if(it.userId != apphudUser.userId){
                 userIdChanged = true
             }
         }
-        this.customer = customer
-        this.userId = customer.user.userId
+        this.apphudUser = apphudUser
+        this.userId = apphudUser.userId
 
         if(userIdChanged) {
             apphudListener?.let{
-                apphudListener.apphudDidChangeUserID(customer.user.userId)
+                apphudListener.apphudDidChangeUserID(apphudUser.userId)
             }
         }
     }
 
     fun clean() {
         lastRegistration = 0L
-        customer = null
+        apphudUser = null
         userId = null
         deviceId = null
         advertisingId = null
@@ -266,13 +286,13 @@ object SharedPreferencesStorage : Storage {
     }
 
     private fun customerWithPurchases() :Boolean {
-        return customer?.let{
+        return apphudUser?.let{
                     !(it.purchases.isEmpty() && it.subscriptions.isEmpty())
                 }?: false
     }
 
     fun needProcessFallback() :Boolean {
-        return customer?.let{
+        return apphudUser?.let{
             it.purchases.isEmpty() && it.subscriptions.isEmpty()
         }?: true
     }
