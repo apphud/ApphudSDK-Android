@@ -95,6 +95,7 @@ class CustomerFragment : Fragment() {
             override fun userDidLoad() {
                 Log.d("Apphud", "userDidLoad()")
                 //TODO handle user registered event
+                updateData()
             }
             
             override fun paywallsDidFullyLoad(paywalls: List<ApphudPaywall>){

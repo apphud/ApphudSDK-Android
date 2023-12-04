@@ -21,6 +21,7 @@ internal fun ApphudInternal.restorePurchases(callback: ApphudPurchasesRestoreCal
 private val mutexSync = Mutex()
 internal fun ApphudInternal.syncPurchases(
     paywallIdentifier: String? = null,
+    placementIdentifier: String? = null,
     observerMode: Boolean = true,
     callback: ApphudPurchasesRestoreCallback? = null
 ) {
@@ -91,6 +92,7 @@ internal fun ApphudInternal.syncPurchases(
                             ApphudLog.log("SyncPurchases: call syncPurchasesWithApphud()")
                             sendPurchasesToApphud(
                                 paywallIdentifier,
+                                placementIdentifier,
                                 restoredPurchases,
                                 null,
                                 null,
@@ -109,6 +111,7 @@ internal fun ApphudInternal.syncPurchases(
 
 internal suspend fun ApphudInternal.sendPurchasesToApphud(
     paywallIdentifier: String? = null,
+    placementIdentifier: String? = null,
     tempPurchaseRecordDetails: List<PurchaseRecordDetails>?,
     purchase: Purchase?,
     productDetails: ProductDetails?,
@@ -116,11 +119,8 @@ internal suspend fun ApphudInternal.sendPurchasesToApphud(
     callback: ApphudPurchasesRestoreCallback? = null,
     observerMode: Boolean
 ){
-    val apphudProduct: ApphudProduct? = tempPurchaseRecordDetails?.let {
-        findJustPurchasedProduct(paywallIdentifier, it)
-    }?: run{
-        findJustPurchasedProduct(paywallIdentifier, productDetails)
-    }
+    val apphudProduct: ApphudProduct? = findJustPurchasedProduct(paywallIdentifier, placementIdentifier, productDetails, tempPurchaseRecordDetails)
+
     val customer = RequestManager.restorePurchasesSync(apphudProduct, tempPurchaseRecordDetails, purchase, productDetails, offerIdToken, observerMode)
     customer?.let{
         tempPurchaseRecordDetails?.let{ records ->
@@ -184,38 +184,26 @@ private fun processRestoreCallbackStatus(result: PurchaseRestoredCallbackStatus)
     return emptyList()
 }
 
-private fun ApphudInternal.findJustPurchasedProduct(paywallIdentifier: String?, tempPurchaseRecordDetails: List<PurchaseRecordDetails>): ApphudProduct?{
+private fun ApphudInternal.findJustPurchasedProduct(paywallIdentifier: String?, placementIdentifier: String?, productDetails: ProductDetails?, tempPurchaseRecordDetails: List<PurchaseRecordDetails>?): ApphudProduct? {
     try {
-        paywallIdentifier?.let {
+        val targetPaywall = if (placementIdentifier != null) {
+            placements?.firstOrNull { it.identifier == placementIdentifier }?.paywall
+        } else {
             getPaywalls().firstOrNull { it.identifier == paywallIdentifier }
-                ?.let { currentPaywall ->
-                    val record = tempPurchaseRecordDetails.maxByOrNull { it.record.purchaseTime }
-                    record?.let { rec ->
-                        val offset = System.currentTimeMillis() - rec.record.purchaseTime
-                        if (offset < 300000L) { // 5 min
-                            return currentPaywall.products?.find { it.productDetails?.productId == rec.details.productId }
-                        }
-                    }
-                }
         }
-    }catch (ex: Exception){
-        ex.message?.let{
-            ApphudLog.logE(message = it)
-        }
-    }
-    return null
-}
 
-internal fun ApphudInternal.findJustPurchasedProduct(paywallIdentifier: String?, productDetails: ProductDetails?): ApphudProduct?{
-    try {
-        paywallIdentifier?.let {
-            getPaywalls().firstOrNull { it.identifier == paywallIdentifier }
-                ?.let { currentPaywall ->
-                    productDetails?.let { details ->
-                        return currentPaywall.products?.find { it.productDetails?.productId == details.productId }
-                    }
-                }
+        productDetails?.let { details ->
+            return targetPaywall?.products?.find { it.productDetails?.productId == details.productId }
         }
+
+        val record = tempPurchaseRecordDetails?.maxByOrNull { it.record.purchaseTime }
+        record?.let { rec ->
+            val offset = System.currentTimeMillis() - rec.record.purchaseTime
+            if (offset < 300000L) { // 5 min
+                return targetPaywall?.products?.find { it.productId == rec.details.productId }
+            }
+        }
+
     }catch (ex: Exception){
         ex.message?.let{
             ApphudLog.logE(message = it)

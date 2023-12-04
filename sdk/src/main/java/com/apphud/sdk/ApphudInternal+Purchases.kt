@@ -357,7 +357,7 @@ private fun notifyAboutSuccess(apphudUser: ApphudUser,
     }
 }
 
-internal fun ApphudInternal.trackPurchase(purchase: Purchase, productDetails: ProductDetails, offerIdToken: String?, paywallIdentifier: String? = null) {
+internal fun ApphudInternal.trackPurchase(purchase: Purchase, productDetails: ProductDetails, offerIdToken: String?, paywallIdentifier: String? = null, placementIdentifier: String? = null) {
     checkRegistration { error ->
         error?.let {
             ApphudLog.logE(it.message)
@@ -366,6 +366,7 @@ internal fun ApphudInternal.trackPurchase(purchase: Purchase, productDetails: Pr
             coroutineScope.launch(errorHandler) {
                 sendPurchasesToApphud(
                     paywallIdentifier,
+                    placementIdentifier,
                     null,
                     purchase,
                     productDetails,

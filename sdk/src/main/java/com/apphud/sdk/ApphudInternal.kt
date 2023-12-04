@@ -191,7 +191,7 @@ internal object ApphudInternal {
     private var notifyFullyLoaded = false
     @Synchronized
     internal fun notifyLoadingCompleted(customerLoaded: ApphudUser? = null, productDetailsLoaded: List<ProductDetails>? = null, fromCache: Boolean = false, fromFallback: Boolean = false){
-        var restorePaywalls = true
+        var paywallsPrepared = true
 
         productDetailsLoaded?.let{
             productGroups = readGroupsFromCache()
@@ -210,18 +210,20 @@ internal object ApphudInternal {
                 if (it.paywalls.isNotEmpty()) {
                     notifyFullyLoaded = true
                     cachePaywalls(it.paywalls)
+                    cachePlacements(it.placements)
                 } else {
                     /* Attention:
                      * If customer loaded without paywalls, do not reload paywalls from cache!
                      * If cache time is over, paywall from cache will be NULL
                     */
-                    restorePaywalls = false
+                    paywallsPrepared = false
                 }
                 storage.updateCustomer(it, apphudListener)
             }
 
-            if (restorePaywalls || fromFallback) {
+            if (paywallsPrepared || fromFallback) {
                 paywalls = readPaywallsFromCache()
+                placements = readPlacementsFromCache()
             }
 
             currentUser = it
@@ -250,7 +252,7 @@ internal object ApphudInternal {
 
         updatePaywallsAndPlacements()
 
-        if(restorePaywalls && currentUser != null && paywalls.isNotEmpty() && productDetails.isNotEmpty() && notifyFullyLoaded){
+        if(paywallsPrepared && currentUser != null && paywalls.isNotEmpty() && productDetails.isNotEmpty() && notifyFullyLoaded){
             notifyFullyLoaded = false
             apphudListener?.paywallsDidFullyLoad(paywalls)
             placements?.let {
@@ -809,6 +811,10 @@ internal object ApphudInternal {
 
     internal fun readPaywallsFromCache(): MutableList<ApphudPaywall> {
         return storage.paywalls?.toMutableList()?: mutableListOf()
+    }
+
+    internal fun cachePlacements(placements: List<ApphudPlacement>?) {
+        storage.placements = placements
     }
 
     internal fun readPlacementsFromCache(): List<ApphudPlacement>? {

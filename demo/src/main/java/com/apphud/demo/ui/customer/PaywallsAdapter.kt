@@ -10,7 +10,6 @@ import android.widget.TextView
 import androidx.recyclerview.widget.RecyclerView
 import com.apphud.demo.R
 import com.apphud.sdk.domain.ApphudPaywall
-import com.apphud.sdk.domain.ApphudProduct
 
 class PaywallsAdapter(private val paywallsViewModel: PaywallsViewModel, private val context: Context?) : RecyclerView.Adapter<PaywallsAdapter.BaseViewHolder<*>>() {
     var selectPaywall: ((account: ApphudPaywall)->Unit)? = null
@@ -20,6 +19,7 @@ class PaywallsAdapter(private val paywallsViewModel: PaywallsViewModel, private 
 
     inner class PaywallViewHolder(itemView: View) : BaseViewHolder<AdapterItem>(itemView) {
         private val paywallName: TextView = itemView.findViewById(R.id.paywallName)
+        private val paywallIdentifier: TextView = itemView.findViewById(R.id.paywallIdentifier)
         private val paywallDefault: TextView = itemView.findViewById(R.id.paywallDefault)
         private val paywallExperiment: TextView = itemView.findViewById(R.id.paywallExperiment)
         private val paywallVariation: TextView = itemView.findViewById(R.id.paywallVariation)
@@ -31,7 +31,8 @@ class PaywallsAdapter(private val paywallsViewModel: PaywallsViewModel, private 
 
             val experimentName = item.placement?.experimentName ?: paywall?.experimentName
 
-            paywallName.text = item.placement?.identifier ?: paywall?.name ?: "N/A"
+            paywallName.text = if (item.placement != null) { "${item.placement.identifier} -> ${paywall?.name}" } else {paywall?.name}
+            paywallIdentifier.text = "Paywall ID: " + (paywall?.identifier ?: "N/A")
             paywallDefault.text = paywall?.default.toString()
             paywallExperiment.text = item.placement?.experimentName ?: paywall?.experimentName?: "N/A"
             paywallVariation.text = "N/A"

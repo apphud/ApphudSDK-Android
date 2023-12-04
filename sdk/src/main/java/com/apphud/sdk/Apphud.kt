@@ -332,13 +332,14 @@ object Apphud {
 
 
     /**
-     * Only in Observer Mode: call this method after every successful purchase.
+     * __Only in Observer Mode__: call this method after every successful purchase.
+     *
      * __Passing offerIdToken is mandatory for subscriptions!__
      * This method submits successful purchase to Apphud.
-     * Pass `Paywall Identifier` to be able to use A/B tests in Observer Mode. See https://docs.apphud.com/docs/observer-mode#android for details.
+     * Pass `paywallIdentifier` and `placementIdentifier` to be able to use A/B tests in Observer Mode. See https://docs.apphud.com/docs/observer-mode#android for details.
      */
     @kotlin.jvm.JvmStatic
-    fun trackPurchase(purchase: Purchase, productDetails: ProductDetails, offerIdToken: String?, paywallIdentifier: String? = null) = ApphudInternal.trackPurchase(purchase, productDetails, offerIdToken, paywallIdentifier)
+    fun trackPurchase(purchase: Purchase, productDetails: ProductDetails, offerIdToken: String?, paywallIdentifier: String? = null, placementIdentifier: String? = null) = ApphudInternal.trackPurchase(purchase, productDetails, offerIdToken, paywallIdentifier, placementIdentifier)
 
     /**
      * Implements `Restore Purchases` mechanism. Basically it just sends current Play Market Purchase Tokens to Apphud and returns subscriptions info.

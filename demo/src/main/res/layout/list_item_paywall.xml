@@ -27,17 +27,38 @@
             android:id="@+id/paywallName"
             android:layout_width="0dp"
             android:layout_height="wrap_content"
-            android:ellipsize="end"
-            android:textColor="@color/black"
-            android:textSize="20sp"
-            android:textStyle="bold"
             android:layout_marginStart="6dp"
             android:layout_marginEnd="16dp"
-            tools:text="Paywall 1"
+            android:ellipsize="end"
+            android:textColor="@color/black"
+            android:textSize="14sp"
+            android:textStyle="bold"
+            app:layout_constraintBottom_toBottomOf="parent"
             app:layout_constraintEnd_toEndOf="parent"
             app:layout_constraintStart_toEndOf="@+id/idPaywallImage"
+            app:layout_constraintTop_toTopOf="parent"
+            tools:text="Paywall 1" />
+
+    </androidx.constraintlayout.widget.ConstraintLayout>
+
+    <androidx.constraintlayout.widget.ConstraintLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content">
+
+        <TextView
+            android:id="@+id/paywallIdentifier"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_marginEnd="16dp"
+            android:ellipsize="end"
+            android:textColor="@color/black"
+            android:textSize="14sp"
+            android:textStyle="bold"
             app:layout_constraintBottom_toBottomOf="parent"
-            app:layout_constraintTop_toTopOf="parent"/>
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toTopOf="parent"
+            tools:text="Paywall 1" />
 
     </androidx.constraintlayout.widget.ConstraintLayout>
 
@@ -48,7 +69,7 @@
         <TextView
             android:id="@+id/idExperiment"
             android:layout_width="95dp"
-            android:layout_height="15dp"
+            android:layout_height="23dp"
             android:ellipsize="end"
             android:text="@string/experiment"
             android:textColor="@color/black"
@@ -76,12 +97,13 @@
 
     <androidx.constraintlayout.widget.ConstraintLayout
         android:layout_width="match_parent"
-        android:layout_height="wrap_content">
+        android:layout_height="wrap_content"
+        android:layout_weight="23">
 
         <TextView
             android:id="@+id/idVariation"
             android:layout_width="98dp"
-            android:layout_height="14dp"
+            android:layout_height="23dp"
             android:ellipsize="end"
             android:text="@string/variation"
             android:textColor="@color/black"
@@ -96,14 +118,14 @@
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_marginStart="10dp"
-            tools:text="Var A"
             android:ellipsize="end"
             android:textColor="@color/gray"
             android:textSize="12sp"
+            app:layout_constraintBottom_toBottomOf="parent"
             app:layout_constraintEnd_toEndOf="parent"
             app:layout_constraintStart_toEndOf="@+id/idVariation"
-            app:layout_constraintBottom_toBottomOf="parent"
-            app:layout_constraintTop_toTopOf="parent"/>
+            app:layout_constraintTop_toTopOf="parent"
+            tools:text="Var A" />
 
     </androidx.constraintlayout.widget.ConstraintLayout>
 
@@ -114,7 +136,7 @@
         <TextView
             android:id="@+id/idDefault"
             android:layout_width="96dp"
-            android:layout_height="13dp"
+            android:layout_height="23dp"
             android:ellipsize="end"
             android:text="@string/is_default"
             android:textColor="@color/black"
@@ -148,7 +170,7 @@
         <TextView
             android:id="@+id/idJson"
             android:layout_width="97dp"
-            android:layout_height="13dp"
+            android:layout_height="23dp"
             android:ellipsize="end"
             android:text="@string/json"
             android:textColor="@color/black"
