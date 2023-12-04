@@ -662,7 +662,8 @@ object RequestManager {
         trackPaywallEvent(
             makePaywallEventBody(
                 name = "paywall_shown",
-                paywall_id = paywall.id
+                paywall_id = paywall.id,
+                placement_id = paywall.placementId
             )
         )
     }
@@ -671,36 +672,40 @@ object RequestManager {
         trackPaywallEvent(
             makePaywallEventBody(
                 name = "paywall_closed",
-                paywall_id = paywall.id
+                paywall_id = paywall.id,
+                placement_id = paywall.placementId
             )
         )
     }
 
-    fun paywallCheckoutInitiated(paywall_id: String?, product_id: String?) {
+    fun paywallCheckoutInitiated(paywall_id: String?, placement_id: String?, product_id: String?) {
         trackPaywallEvent(
             makePaywallEventBody(
                 name = "paywall_checkout_initiated",
                 paywall_id = paywall_id,
+                placement_id = placement_id,
                 product_id = product_id
             )
         )
     }
 
-    fun paywallPaymentCancelled(paywall_id: String?, product_id: String?) {
+    fun paywallPaymentCancelled(paywall_id: String?, placement_id: String?, product_id: String?) {
         trackPaywallEvent(
             makePaywallEventBody(
                 name = "paywall_payment_cancelled",
                 paywall_id = paywall_id,
+                placement_id = placement_id,
                 product_id = product_id
             )
         )
     }
 
-    fun paywallPaymentError(paywall_id: String?, product_id: String?, error_code: String?) {
+    fun paywallPaymentError(paywall_id: String?, placement_id: String?, product_id: String?, error_code: String?) {
         trackPaywallEvent(
             makePaywallEventBody(
                 name = "paywall_payment_error",
                 paywall_id = paywall_id,
+                placement_id = placement_id,
                 product_id = product_id,
                 error_code = error_code
             )
@@ -805,18 +810,20 @@ object RequestManager {
         return false
     }
 
-    private fun makePaywallEventBody(name: String, paywall_id: String? = null, product_id: String? = null, error_code: String? = null): PaywallEventBody {
+    private fun makePaywallEventBody(name: String, paywall_id: String?, placement_id: String?, product_id: String? = null, error_code: String? = null): PaywallEventBody {
         val properties = mutableMapOf<String, Any>()
         paywall_id?.let { properties.put("paywall_id", it) }
         product_id?.let { properties.put("product_id", it) }
+        placement_id?.let { properties.put("placement_id", it) }
         error_code?.let { properties.put("error_code", it) }
+
         return PaywallEventBody(
             name = name,
             user_id = userId,
             device_id = deviceId,
             environment = if (applicationContext.isDebuggable()) "sandbox" else "production",
             timestamp = System.currentTimeMillis(),
-            properties = if (properties.isNotEmpty()) properties else null
+            properties = properties.ifEmpty { null }
         )
     }
 

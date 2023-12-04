@@ -84,13 +84,13 @@ class ProductsFragment : Fragment() {
         recyclerView.apply {
             adapter = viewAdapter
         }
-        updateData(args.paywallId)
+        updateData(args.paywallId, args.placementId)
 
         return root
     }
 
-    private fun updateData(pywallId: String){
-        productsViewModel.updateData(pywallId)
+    private fun updateData(paywallId: String?, placementId: String?){
+        productsViewModel.updateData(paywallId, placementId)
         viewAdapter.notifyDataSetChanged()
     }
 

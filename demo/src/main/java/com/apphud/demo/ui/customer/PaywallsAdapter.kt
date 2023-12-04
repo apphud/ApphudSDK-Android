@@ -12,7 +12,7 @@ import com.apphud.demo.R
 import com.apphud.sdk.domain.ApphudPaywall
 
 class PaywallsAdapter(private val paywallsViewModel: PaywallsViewModel, private val context: Context?) : RecyclerView.Adapter<PaywallsAdapter.BaseViewHolder<*>>() {
-    var selectPaywall: ((account: ApphudPaywall)->Unit)? = null
+    var selectItem: ((item: AdapterItem)->Unit)? = null
     abstract class BaseViewHolder<T>(itemView: View) : RecyclerView.ViewHolder(itemView) {
         abstract fun bind(item: T, position: Int)
     }
@@ -51,7 +51,7 @@ class PaywallsAdapter(private val paywallsViewModel: PaywallsViewModel, private 
 
             itemView.setOnClickListener {
                 paywall?.let { paywall ->
-                    selectPaywall?.invoke(paywall)
+                    selectItem?.invoke(item)
                 }
             }
         }

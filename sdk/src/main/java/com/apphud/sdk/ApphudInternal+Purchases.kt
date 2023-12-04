@@ -140,7 +140,7 @@ private fun ApphudInternal.purchaseInternal(
             when (status) {
                 is PurchaseCallbackStatus.Error -> {
                     val message = "Failed to acknowledge purchase with code: ${status.error}" + apphudProduct?.let{ " [Apphud product ID: " + it.id + "]"}
-                    ApphudLog.log(message = message,sendLogToServer = true)
+                    ApphudLog.log(message = message, sendLogToServer = true)
                     callback?.invoke(ApphudPurchaseResult(null,null, purchase, ApphudError(message)))
                 }
                 is PurchaseCallbackStatus.Success -> {
@@ -174,7 +174,7 @@ private fun ApphudInternal.purchaseInternal(
                     var message = apphudProduct.productDetails?.let{
                             "Unable to buy product with given product id: ${it.productId} "
                         }?: run{
-                            paywallPaymentCancelled(apphudProduct.paywallId, apphudProduct.productId, purchasesResult.result.responseCode)
+                            paywallPaymentCancelled(apphudProduct.paywallId, apphudProduct.placementId, apphudProduct.productId, purchasesResult.result.responseCode)
                             "Unable to buy product with given product id: ${apphudProduct.productDetails?.productId} "
                         }
 
@@ -234,7 +234,7 @@ private fun ApphudInternal.purchaseInternal(
     }
 
     apphudProduct.productDetails?.let{
-        paywallCheckoutInitiated(apphudProduct.paywallId, apphudProduct.productId)
+        paywallCheckoutInitiated(apphudProduct.paywallId, apphudProduct.placementId, apphudProduct.productId)
         billing.purchase(activity, it, offerIdToken, oldToken, replacementMode,
             deviceId
         )

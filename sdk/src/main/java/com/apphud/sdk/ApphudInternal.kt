@@ -551,28 +551,28 @@ internal object ApphudInternal {
         }
     }
 
-    internal fun paywallCheckoutInitiated(paywall_id: String?, product_id: String?) {
+    internal fun paywallCheckoutInitiated(paywall_id: String?, placement_id: String?, product_id: String?) {
         checkRegistration{ error ->
             error?.let{
                 ApphudLog.logI(error.message)
             }?: run{
                 coroutineScope.launch(errorHandler) {
-                    RequestManager.paywallCheckoutInitiated(paywall_id, product_id)
+                    RequestManager.paywallCheckoutInitiated(paywall_id, placement_id, product_id)
                 }
             }
         }
     }
 
-    internal fun paywallPaymentCancelled(paywall_id: String?, product_id: String?, error_Code: Int) {
+    internal fun paywallPaymentCancelled(paywall_id: String?, placement_id: String?, product_id: String?, error_Code: Int) {
         checkRegistration{ error ->
             error?.let{
                 ApphudLog.logI(error.message)
             }?: run{
                 coroutineScope.launch(errorHandler) {
                     if (error_Code == BillingClient.BillingResponseCode.USER_CANCELED) {
-                        RequestManager.paywallPaymentCancelled(paywall_id, product_id)
+                        RequestManager.paywallPaymentCancelled(paywall_id, placement_id, product_id)
                     }else{
-                        RequestManager.paywallPaymentError(paywall_id, product_id, error_Code.toString())
+                        RequestManager.paywallPaymentError(paywall_id, placement_id, product_id, error_Code.toString())
                     }
                 }
             }
@@ -841,6 +841,7 @@ internal object ApphudInternal {
                         product.paywallId = placement.paywall?.id
                         product.paywallIdentifier = placement.paywall?.identifier
                         product.placementId = placement.id
+                        product.placementIdentifier = placement.identifier
                         product.productDetails = getProductDetailsByProductId(product.productId)
                     }
                 }

@@ -137,8 +137,8 @@
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:text="ToggleButton"
-        android:textOff="Paywalls"
-        android:textOn="Placements" />
+        android:textOff="Show Placements"
+        android:textOn="Show Paywalls" />
 
     <androidx.swiperefreshlayout.widget.SwipeRefreshLayout
         android:id="@+id/swipeRefresh"

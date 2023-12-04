@@ -6,18 +6,17 @@ import com.apphud.sdk.Apphud
 class ProductsViewModel : ViewModel() {
     var items = mutableListOf<Any>()
 
-    fun updateData(paywallId: String){
-        val list = Apphud.paywalls()
+    fun updateData(paywallId: String?, placementId: String?) {
+
+        val paywall = if (placementId != null) {
+            Apphud.placement(placementId)?.paywall
+        } else {
+            Apphud.paywalls().firstOrNull { it.identifier == paywallId }
+        }
+
         items.clear()
-        list.forEach{
-            if(it.identifier == paywallId) {
-                if (!it.products.isNullOrEmpty()) {
-                    it.products?.let { productsList ->
-                        items.addAll(productsList)
-                    }
-                }
-                return
-            }
+        paywall?.products?.let {
+            items.addAll(it)
         }
     }
 }
