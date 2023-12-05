@@ -6,29 +6,31 @@ import com.apphud.sdk.domain.ApphudProduct
 import com.apphud.sdk.parser.Parser
 
 class PaywallsMapper(
-    private val parser: Parser
-){
+    private val parser: Parser,
+) {
 
-    fun map(dto: List<ApphudPaywallDto>): List<ApphudPaywall> = dto.map { paywallDto -> map (paywallDto) }
+    fun map(dto: List<ApphudPaywallDto>): List<ApphudPaywall> = dto.map { paywallDto -> map(paywallDto) }
 
-    fun map(paywallDto: ApphudPaywallDto) = ApphudPaywall(
-                id = paywallDto.id, //paywall id
-                name = paywallDto.name,
-                identifier = paywallDto.identifier,
-                default = paywallDto.default,
-                json = parser.fromJson<Map<String, Any>>(paywallDto.json, Map::class.java),
-                products = paywallDto.items.map { item ->
+    fun map(paywallDto: ApphudPaywallDto) =
+        ApphudPaywall(
+            id = paywallDto.id, // paywall id
+            name = paywallDto.name,
+            identifier = paywallDto.identifier,
+            default = paywallDto.default,
+            json = parser.fromJson<Map<String, Any>>(paywallDto.json, Map::class.java),
+            products =
+                paywallDto.items.map { item ->
                     ApphudProduct(
-                        id = item.id,//product bundle id
+                        id = item.id, // product bundle id
                         product_id = item.product_id,
                         name = item.name,
                         store = item.store,
                         basePlanId = item.base_plan_id,
                         productDetails = null,
                         paywall_id = paywallDto.id,
-                        paywall_identifier = paywallDto.identifier
+                        paywall_identifier = paywallDto.identifier,
                     )
                 },
-                experimentName = paywallDto.experiment_name
-            )
+            experimentName = paywallDto.experiment_name,
+        )
 }

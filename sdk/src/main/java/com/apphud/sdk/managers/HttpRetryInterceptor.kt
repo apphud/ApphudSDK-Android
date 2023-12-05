@@ -4,14 +4,12 @@ import com.apphud.sdk.ApphudInternal
 import com.apphud.sdk.ApphudInternal.FALLBACK_ERRORS
 import com.apphud.sdk.ApphudLog
 import com.apphud.sdk.processFallbackError
-
 import okhttp3.Interceptor
 import okhttp3.Request
 import okhttp3.Response
 import java.io.IOException
 import java.lang.Exception
 import java.net.SocketTimeoutException
-
 
 class HttpRetryInterceptor : Interceptor {
     companion object {
@@ -30,31 +28,40 @@ class HttpRetryInterceptor : Interceptor {
                 response = chain.proceed(request)
                 isSuccess = response.isSuccessful
 
-                if(!isSuccess){
-                    ApphudLog.logE("Request (${request.url.encodedPath}) failed with code (${response.code}). Will retry in ${STEP/1000} seconds (${tryCount}).")
+                if (!isSuccess)
+                    {
+                        ApphudLog.logE(
+                            "Request (${request.url.encodedPath}) failed with code (${response.code}). Will retry in ${STEP / 1000} seconds ($tryCount).",
+                        )
 
-                    if(response.code in FALLBACK_ERRORS){
-                        ApphudInternal.processFallbackError(request)
+                        if (response.code in FALLBACK_ERRORS)
+                            {
+                                ApphudInternal.processFallbackError(request)
+                            }
+                        Thread.sleep(STEP)
                     }
-                    Thread.sleep(STEP)
-                }
             } catch (e: SocketTimeoutException) {
                 ApphudInternal.processFallbackError(request)
-                ApphudLog.logE("Request (${request.url.encodedPath}) failed with code (${response?.code ?: 0}). Will retry in ${STEP/1000} seconds (${tryCount}).")
+                ApphudLog.logE(
+                    "Request (${request.url.encodedPath}) failed with code (${response?.code ?: 0}). Will retry in ${STEP / 1000} seconds ($tryCount).",
+                )
                 Thread.sleep(STEP)
             } catch (e: Exception) {
-                ApphudLog.logE("Request (${request.url.encodedPath}) failed with code (${response?.code ?: 0}). Will retry in ${STEP/1000} seconds (${tryCount}).")
+                ApphudLog.logE(
+                    "Request (${request.url.encodedPath}) failed with code (${response?.code ?: 0}). Will retry in ${STEP / 1000} seconds ($tryCount).",
+                )
                 Thread.sleep(STEP)
             } finally {
-                if(!isSuccess) {
+                if (!isSuccess) {
                     response?.close()
                 }
                 tryCount++
             }
         }
-        if(!isSuccess){
-            ApphudLog.logE("Reached max number (${MAX_COUNT}) of (${request.url.encodedPath}) request retries. Exiting..")
-        }
+        if (!isSuccess)
+            {
+                ApphudLog.logE("Reached max number (${MAX_COUNT}) of (${request.url.encodedPath}) request retries. Exiting..")
+            }
         return response ?: chain.proceed(request)
     }
 }

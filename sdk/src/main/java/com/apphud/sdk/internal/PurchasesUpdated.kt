@@ -10,9 +10,8 @@ import java.io.Closeable
 typealias PurchasesUpdatedCallback = (PurchaseUpdatedCallbackStatus) -> Unit
 
 internal class PurchasesUpdated(
-    builder: BillingClient.Builder
+    builder: BillingClient.Builder,
 ) : Closeable {
-
     var callback: PurchasesUpdatedCallback? = null
 
     init {
@@ -30,7 +29,7 @@ internal class PurchasesUpdated(
         }
     }
 
-    //Closeable
+    // Closeable
     override fun close() {
         callback = null
     }

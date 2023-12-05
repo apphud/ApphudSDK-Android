@@ -4,7 +4,6 @@ package com.apphud.sdk
  * This class will contain some utils, more will be added in the future.
  */
 internal object ApphudUtils {
-
     var packageName: String = ""
         private set
 

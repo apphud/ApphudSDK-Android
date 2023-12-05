@@ -5,5 +5,5 @@ data class Customer(
     val subscriptions: MutableList<ApphudSubscription>,
     val purchases: MutableList<ApphudNonRenewingPurchase>,
     val paywalls: List<ApphudPaywall>,
-    val isTemporary :Boolean?
+    val isTemporary: Boolean?,
 )

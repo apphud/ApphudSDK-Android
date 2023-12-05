@@ -5,18 +5,12 @@ import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import android.widget.Toast
-import androidx.appcompat.app.AlertDialog
 import androidx.fragment.app.Fragment
 import androidx.lifecycle.ViewModelProvider
 import androidx.recyclerview.widget.RecyclerView
-import com.android.billingclient.api.BillingClient
-import com.apphud.demo.R
 import com.apphud.demo.databinding.FragmentGroupsBinding
-import com.apphud.demo.ui.utils.getOfferDescription
-import com.apphud.sdk.Apphud
 
 class GroupsFragment : Fragment() {
-
     private lateinit var groupsViewModel: GroupsViewModel
     private lateinit var viewAdapter: GroupsAdapter
     private var _binding: FragmentGroupsBinding? = null
@@ -25,7 +19,7 @@ class GroupsFragment : Fragment() {
     override fun onCreateView(
         inflater: LayoutInflater,
         container: ViewGroup?,
-        savedInstanceState: Bundle?
+        savedInstanceState: Bundle?,
     ): View? {
         groupsViewModel =
             ViewModelProvider(this).get(GroupsViewModel::class.java)
@@ -38,7 +32,7 @@ class GroupsFragment : Fragment() {
             Toast.makeText(activity, it.name, Toast.LENGTH_SHORT).show()
         }
         viewAdapter.selectProduct = { product ->
-            //Do nothing here
+            // Do nothing here
         }
 
         val recyclerView: RecyclerView = binding.groupsList
@@ -56,7 +50,7 @@ class GroupsFragment : Fragment() {
         return root
     }
 
-    private fun updateData(){
+    private fun updateData()  {
         groupsViewModel.updateData()
     }
 

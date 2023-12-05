@@ -9,33 +9,42 @@ import com.apphud.sdk.isSuccess
 import com.apphud.sdk.logMessage
 
 internal class FlowWrapper(private val billing: BillingClient) {
+    var obfuscatedAccountId: String? = null
 
-    var obfuscatedAccountId :String? = null
-
-    fun purchases(activity: Activity, details: ProductDetails,
-                  offerToken: String? = null,
-                  oldToken: String? = null,
-                  replacementMode: Int?,
-                  deviceId: String? = null) {
-
-        obfuscatedAccountId = deviceId?.let{
-            val regex = Regex("[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}")
-            if(regex.matches(input = it)){
-                it
-            }else null
-        }
-
-        try{
-            val params :BillingFlowParams =
-                if(offerToken != null){
-                    if(oldToken!= null){
-                        upDowngradeBillingFlowParamsBuilder(details, offerToken, oldToken, replacementMode)
-                    }else{
-                        billingFlowParamsBuilder(details, offerToken)
-                    }
-                }else{
-                    billingFlowParamsBuilder(details)
+    fun purchases(
+        activity: Activity,
+        details: ProductDetails,
+        offerToken: String? = null,
+        oldToken: String? = null,
+        replacementMode: Int?,
+        deviceId: String? = null,
+    ) {
+        obfuscatedAccountId =
+            deviceId?.let {
+                val regex = Regex("[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}")
+                if (regex.matches(input = it))
+                    {
+                        it
+                    } else {
+                    null
                 }
+            }
+
+        try {
+            val params: BillingFlowParams =
+                if (offerToken != null)
+                    {
+                        if (oldToken != null)
+                            {
+                                upDowngradeBillingFlowParamsBuilder(details, offerToken, oldToken, replacementMode)
+                            } else
+                            {
+                                billingFlowParamsBuilder(details, offerToken)
+                            }
+                    } else
+                    {
+                        billingFlowParamsBuilder(details)
+                    }
 
             billing.launchBillingFlow(activity, params)
                 .also {
@@ -49,7 +58,7 @@ internal class FlowWrapper(private val billing: BillingClient) {
                         }
                     }
                 }
-        }catch (ex: Exception){
+        } catch (ex: Exception) {
             ex.message?.let { ApphudLog.logE(it) }
         }
     }
@@ -67,7 +76,7 @@ internal class FlowWrapper(private val billing: BillingClient) {
         productDetails: ProductDetails,
         offerToken: String,
         oldToken: String,
-        replacementMode: Int?
+        replacementMode: Int?,
     ): BillingFlowParams {
         val pMode = replacementMode ?: BillingFlowParams.ProrationMode.IMMEDIATE_AND_CHARGE_FULL_PRICE
         return BillingFlowParams.newBuilder().setProductDetailsParamsList(
@@ -75,18 +84,18 @@ internal class FlowWrapper(private val billing: BillingClient) {
                 BillingFlowParams.ProductDetailsParams.newBuilder()
                     .setProductDetails(productDetails)
                     .setOfferToken(offerToken)
-                    .build()
-            )
+                    .build(),
+            ),
         ).setSubscriptionUpdateParams(
             BillingFlowParams.SubscriptionUpdateParams.newBuilder()
                 .setOldPurchaseToken(oldToken)
                 .setReplaceProrationMode(
-                    pMode
+                    pMode,
                 )
-                .build()
+                .build(),
         )
-        .apply { obfuscatedAccountId?.let { setObfuscatedAccountId(it) } }
-        .build()
+            .apply { obfuscatedAccountId?.let { setObfuscatedAccountId(it) } }
+            .build()
     }
 
     /**
@@ -99,18 +108,18 @@ internal class FlowWrapper(private val billing: BillingClient) {
      */
     private fun billingFlowParamsBuilder(
         productDetails: ProductDetails,
-        offerToken: String
+        offerToken: String,
     ): BillingFlowParams {
         return BillingFlowParams.newBuilder().setProductDetailsParamsList(
             listOf(
                 BillingFlowParams.ProductDetailsParams.newBuilder()
                     .setProductDetails(productDetails)
                     .setOfferToken(offerToken)
-                    .build()
-            )
+                    .build(),
+            ),
         )
-        .apply { obfuscatedAccountId?.let { setObfuscatedAccountId(it) } }
-        .build()
+            .apply { obfuscatedAccountId?.let { setObfuscatedAccountId(it) } }
+            .build()
     }
 
     /**
@@ -120,17 +129,15 @@ internal class FlowWrapper(private val billing: BillingClient) {
      *
      * @return [BillingFlowParams].
      */
-    private fun billingFlowParamsBuilder(
-        productDetails: ProductDetails
-    ): BillingFlowParams{
+    private fun billingFlowParamsBuilder(productDetails: ProductDetails): BillingFlowParams  {
         return BillingFlowParams.newBuilder().setProductDetailsParamsList(
             listOf(
                 BillingFlowParams.ProductDetailsParams.newBuilder()
                     .setProductDetails(productDetails)
-                    .build()
-            )
+                    .build(),
+            ),
         )
-        .apply { obfuscatedAccountId?.let { setObfuscatedAccountId(it) } }
-        .build()
+            .apply { obfuscatedAccountId?.let { setObfuscatedAccountId(it) } }
+            .build()
     }
 }

@@ -6,10 +6,10 @@ import com.apphud.sdk.Apphud
 class PaywallsViewModel : ViewModel() {
     var items = mutableListOf<Any>()
 
-    fun updateData(){
+    fun updateData()  {
         val list = Apphud.paywalls()
         items.clear()
-        list.forEach{
+        list.forEach {
             items.add(it)
         }
     }

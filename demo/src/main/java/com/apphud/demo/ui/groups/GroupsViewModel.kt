@@ -6,13 +6,13 @@ import com.apphud.sdk.Apphud
 class GroupsViewModel : ViewModel() {
     var items = mutableListOf<Any>()
 
-    fun updateData(){
+    fun updateData()  {
         val list = Apphud.permissionGroups()
         items.clear()
 
-        list.forEach{
+        list.forEach {
             items.add(it)
-            it.products?.let{ productsList ->
+            it.products?.let { productsList ->
                 items.addAll(productsList)
             }
         }

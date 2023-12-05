@@ -1,16 +1,9 @@
 package com.apphud.sdk
 
-import android.util.Log
 import com.apphud.sdk.body.*
-import com.apphud.sdk.client.ApiClient
-import com.apphud.sdk.parser.GsonParser
-import com.google.gson.Gson
-import org.junit.Before
-import org.junit.Test
 
 class ApphudServiceTest {
-
-//    private val userId = "987654321"
+    //    private val userId = "987654321"
 //    private val deviceId = "123456789"
 
     /*private val userId = "cleaner_303"

@@ -8,7 +8,6 @@ import android.os.*
 import java.io.IOException
 import java.util.concurrent.LinkedBlockingQueue
 
-
 object AdvertisingIdManager {
     @Throws(Exception::class)
     fun getAdvertisingIdInfo(context: Context): AdInfo {
@@ -36,10 +35,15 @@ object AdvertisingIdManager {
     }
 
     class AdInfo internal constructor(val id: String?, val isLimitAdTrackingEnabled: Boolean)
+
     private class AdvertisingConnection : ServiceConnection {
         var retrieved = false
         private val queue = LinkedBlockingQueue<IBinder>(1)
-        override fun onServiceConnected(name: ComponentName, service: IBinder) {
+
+        override fun onServiceConnected(
+            name: ComponentName,
+            service: IBinder,
+        ) {
             try {
                 queue.put(service)
             } catch (localInterruptedException: InterruptedException) {
@@ -67,15 +71,16 @@ object AdvertisingIdManager {
             get() {
                 val data = Parcel.obtain()
                 val reply = Parcel.obtain()
-                val id: String? = try {
-                    data.writeInterfaceToken("com.google.android.gms.ads.identifier.internal.IAdvertisingIdService")
-                    binder.transact(1, data, reply, 0)
-                    reply.readException()
-                    reply.readString()
-                } finally {
-                    reply.recycle()
-                    data.recycle()
-                }
+                val id: String? =
+                    try {
+                        data.writeInterfaceToken("com.google.android.gms.ads.identifier.internal.IAdvertisingIdService")
+                        binder.transact(1, data, reply, 0)
+                        reply.readException()
+                        reply.readString()
+                    } finally {
+                        reply.recycle()
+                        data.recycle()
+                    }
                 return id
             }
 
@@ -83,16 +88,17 @@ object AdvertisingIdManager {
         fun isLimitAdTrackingEnabled(paramBoolean: Boolean): Boolean {
             val data = Parcel.obtain()
             val reply = Parcel.obtain()
-            val limitAdTracking: Boolean = try {
-                data.writeInterfaceToken("com.google.android.gms.ads.identifier.internal.IAdvertisingIdService")
-                data.writeInt(if (paramBoolean) 1 else 0)
-                binder.transact(2, data, reply, 0)
-                reply.readException()
-                0 != reply.readInt()
-            } finally {
-                reply.recycle()
-                data.recycle()
-            }
+            val limitAdTracking: Boolean =
+                try {
+                    data.writeInterfaceToken("com.google.android.gms.ads.identifier.internal.IAdvertisingIdService")
+                    data.writeInt(if (paramBoolean) 1 else 0)
+                    binder.transact(2, data, reply, 0)
+                    reply.readException()
+                    0 != reply.readInt()
+                } finally {
+                    reply.recycle()
+                    data.recycle()
+                }
             return limitAdTracking
         }
     }

@@ -4,5 +4,5 @@ enum class ApphudAttributionProvider {
     appsFlyer,
     adjust,
     facebook,
-    firebase
+    firebase,
 }

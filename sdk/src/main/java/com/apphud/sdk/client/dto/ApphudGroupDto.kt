@@ -4,5 +4,5 @@ data class ApphudGroupDto(
     val id: String,
     val name: String,
     val icon: Int?,
-    val bundles: List<ApphudProductDto>
+    val bundles: List<ApphudProductDto>,
 )

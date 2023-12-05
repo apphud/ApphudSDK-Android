@@ -1,7 +1,6 @@
 package com.apphud.sdk.client
 
 class ApphudUrl private constructor(val url: String) {
-
     companion object {
         private const val PREFIX = "?"
         private const val SEPARATOR = "&"
@@ -18,20 +17,26 @@ class ApphudUrl private constructor(val url: String) {
             private set
 
         fun host(host: String) = apply { this.host = host }
+
         fun version(version: String) = apply { this.version = version }
+
         fun path(path: String) = apply { this.path = path }
+
         fun params(params: Map<String, String>) = apply { this.params = params }
 
-        private fun buildUrl() = buildString {
-            append(host)
-            append("/")
-            append(version)
-            append("/")
-            append(path)
-            append(params.toList().joinToString(prefix = PREFIX, separator = SEPARATOR) { pair ->
-                "${pair.first}=${pair.second}"
-            })
-        }
+        private fun buildUrl() =
+            buildString {
+                append(host)
+                append("/")
+                append(version)
+                append("/")
+                append(path)
+                append(
+                    params.toList().joinToString(prefix = PREFIX, separator = SEPARATOR) { pair ->
+                        "${pair.first}=${pair.second}"
+                    },
+                )
+            }
 
         fun build() = ApphudUrl(buildUrl())
     }

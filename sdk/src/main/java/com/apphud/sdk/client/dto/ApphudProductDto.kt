@@ -5,5 +5,5 @@ data class ApphudProductDto(
     val name: String,
     val product_id: String,
     val store: String,
-    val base_plan_id: String?
+    val base_plan_id: String?,
 )

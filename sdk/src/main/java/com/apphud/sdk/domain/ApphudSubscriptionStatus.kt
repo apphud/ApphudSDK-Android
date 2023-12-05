@@ -22,10 +22,10 @@ enum class ApphudSubscriptionStatus(val source: String) {
     REGULAR("regular"),
     GRACE("grace"),
     REFUNDED("refunded"),
-    EXPIRED("expired");
+    EXPIRED("expired"),
+    ;
 
     companion object {
-        fun map(value: String?) =
-            values().find { it.source == value } ?: NONE
+        fun map(value: String?) = values().find { it.source == value } ?: NONE
     }
 }
