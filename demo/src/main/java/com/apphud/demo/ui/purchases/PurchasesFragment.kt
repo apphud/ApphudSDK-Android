@@ -11,7 +11,6 @@ import androidx.recyclerview.widget.RecyclerView
 import com.apphud.demo.databinding.FragmentPurchasesBinding
 
 class PurchasesFragment : Fragment() {
-
     private lateinit var purchasesViewModel: PurchasesViewModel
     private lateinit var viewAdapter: PurchasesAdapter
     private var _binding: FragmentPurchasesBinding? = null
@@ -20,7 +19,7 @@ class PurchasesFragment : Fragment() {
     override fun onCreateView(
         inflater: LayoutInflater,
         container: ViewGroup?,
-        savedInstanceState: Bundle?
+        savedInstanceState: Bundle?,
     ): View? {
         purchasesViewModel =
             ViewModelProvider(this).get(PurchasesViewModel::class.java)
@@ -51,7 +50,7 @@ class PurchasesFragment : Fragment() {
         return root
     }
 
-    private fun updateData(){
+    private fun updateData()  {
         purchasesViewModel.updateData()
         viewAdapter.notifyDataSetChanged()
     }

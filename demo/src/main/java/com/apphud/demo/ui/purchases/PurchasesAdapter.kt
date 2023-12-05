@@ -11,17 +11,24 @@ import com.apphud.demo.ui.utils.convertLongToTime
 import com.apphud.sdk.domain.ApphudNonRenewingPurchase
 import com.apphud.sdk.domain.ApphudSubscription
 
-class PurchasesAdapter (private val purchasesViewModel: PurchasesViewModel, private val context: Context?) : RecyclerView.Adapter<PurchasesAdapter.BaseViewHolder<*>>() {
-    var selectPurchase: ((account: ApphudNonRenewingPurchase)->Unit)? = null
-    var selectSubscription: ((account: ApphudSubscription)->Unit)? = null
+class PurchasesAdapter(private val purchasesViewModel: PurchasesViewModel, private val context: Context?) : RecyclerView.Adapter<PurchasesAdapter.BaseViewHolder<*>>() {
+    var selectPurchase: ((account: ApphudNonRenewingPurchase) -> Unit)? = null
+    var selectSubscription: ((account: ApphudSubscription) -> Unit)? = null
 
     abstract class BaseViewHolder<T>(itemView: View) : RecyclerView.ViewHolder(itemView) {
-        abstract fun bind(item: T, position: Int)
+        abstract fun bind(
+            item: T,
+            position: Int,
+        )
     }
 
     inner class HeaderViewHolder(itemView: View) : BaseViewHolder<String>(itemView) {
         private val headerTitle: TextView = itemView.findViewById(R.id.headerTitle)
-        override fun bind(item: String, position: Int) {
+
+        override fun bind(
+            item: String,
+            position: Int,
+        ) {
             headerTitle.text = item
         }
     }
@@ -29,7 +36,11 @@ class PurchasesAdapter (private val purchasesViewModel: PurchasesViewModel, priv
     inner class ApphudNonRenewingPurchaseViewHolder(itemView: View) : BaseViewHolder<ApphudNonRenewingPurchase>(itemView) {
         private val productId: TextView = itemView.findViewById(R.id.productId)
         private val purchasedAt: TextView = itemView.findViewById(R.id.purchasedAt)
-        override fun bind(item: ApphudNonRenewingPurchase, position: Int) {
+
+        override fun bind(
+            item: ApphudNonRenewingPurchase,
+            position: Int,
+        ) {
             productId.text = item.productId
             purchasedAt.text = convertLongToTime(item.purchasedAt)
             itemView.setOnClickListener {
@@ -43,16 +54,22 @@ class PurchasesAdapter (private val purchasesViewModel: PurchasesViewModel, priv
         private val purchasedAt: TextView = itemView.findViewById(R.id.purchasedAt)
         private val expiresAt: TextView = itemView.findViewById(R.id.expiresAt)
         private val status: TextView = itemView.findViewById(R.id.status)
-        override fun bind(item: ApphudSubscription, position: Int) {
+
+        override fun bind(
+            item: ApphudSubscription,
+            position: Int,
+        ) {
             productId.text = item.productId
-            purchasedAt.text = item.startedAt?.let { convertLongToTime(it) }?:run{""}
+            purchasedAt.text = item.startedAt?.let { convertLongToTime(it) } ?: run { "" }
             expiresAt.text = convertLongToTime(item.expiresAt)
             status.text = item.status.name
-            if(item.status.name.equals("expired" , true)){
-                status.setBackgroundResource(R.color.red)
-            }else{
-                status.setBackgroundResource(R.color.green)
-            }
+            if (item.status.name.equals("expired", true))
+                {
+                    status.setBackgroundResource(R.color.red)
+                } else
+                {
+                    status.setBackgroundResource(R.color.green)
+                }
             itemView.setOnClickListener {
                 selectSubscription?.invoke(item)
             }
@@ -65,28 +82,37 @@ class PurchasesAdapter (private val purchasesViewModel: PurchasesViewModel, priv
         private const val TYPE_SUBSCRIPTION = 2
     }
 
-    override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): BaseViewHolder<*> {
+    override fun onCreateViewHolder(
+        parent: ViewGroup,
+        viewType: Int,
+    ): BaseViewHolder<*> {
         return when (viewType) {
             TYPE_HEADER -> {
-                val view = LayoutInflater.from(parent.context)
-                    .inflate(R.layout.list_item_header, parent, false)
+                val view =
+                    LayoutInflater.from(parent.context)
+                        .inflate(R.layout.list_item_header, parent, false)
                 HeaderViewHolder(view)
             }
             TYPE_PURCHASE -> {
-                val view = LayoutInflater.from(parent.context)
-                    .inflate(R.layout.list_item_purchase, parent, false)
+                val view =
+                    LayoutInflater.from(parent.context)
+                        .inflate(R.layout.list_item_purchase, parent, false)
                 ApphudNonRenewingPurchaseViewHolder(view)
             }
             TYPE_SUBSCRIPTION -> {
-                val view = LayoutInflater.from(parent.context)
-                    .inflate(R.layout.list_item_subscription, parent, false)
+                val view =
+                    LayoutInflater.from(parent.context)
+                        .inflate(R.layout.list_item_subscription, parent, false)
                 ApphudSubscriptionViewHolder(view)
             }
             else -> throw IllegalArgumentException("Invalid view type")
         }
     }
 
-    override fun onBindViewHolder(holder: BaseViewHolder<*>, position: Int) {
+    override fun onBindViewHolder(
+        holder: BaseViewHolder<*>,
+        position: Int,
+    ) {
         val element = purchasesViewModel.items[position]
         when (holder) {
             is HeaderViewHolder -> holder.bind(element as String, position)

@@ -2,10 +2,10 @@ package com.apphud.demo.ui.billing
 
 import android.annotation.SuppressLint
 import android.os.Bundle
-import androidx.fragment.app.Fragment
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
+import androidx.fragment.app.Fragment
 import androidx.lifecycle.ViewModelProvider
 import androidx.recyclerview.widget.GridLayoutManager
 import androidx.recyclerview.widget.RecyclerView
@@ -20,9 +20,7 @@ import org.greenrobot.eventbus.ThreadMode
 import java.util.*
 import kotlin.concurrent.schedule
 
-
 class BillingFragment : Fragment() {
-
     private var _binding: FragmentBillingBinding? = null
     private val binding get() = _binding!!
 
@@ -31,8 +29,9 @@ class BillingFragment : Fragment() {
 
     @SuppressLint("NotifyDataSetChanged")
     override fun onCreateView(
-        inflater: LayoutInflater, container: ViewGroup?,
-        savedInstanceState: Bundle?
+        inflater: LayoutInflater,
+        container: ViewGroup?,
+        savedInstanceState: Bundle?,
     ): View? {
         productsViewModel = ViewModelProvider(this)[BillingViewModel::class.java]
         _binding = FragmentBillingBinding.inflate(inflater, container, false)
@@ -40,9 +39,9 @@ class BillingFragment : Fragment() {
 
         viewAdapter = ProductsAdapter(productsViewModel, context)
         viewAdapter.selectProduct = { product ->
-            activity?.let{ activity ->
-                val offers = product.subscriptionOfferDetails?.map{it.pricingPhases.pricingPhaseList[0].formattedPrice}
-                offers?.let{ offers ->
+            activity?.let { activity ->
+                val offers = product.subscriptionOfferDetails?.map { it.pricingPhases.pricingPhaseList[0].formattedPrice }
+                offers?.let { offers ->
 
                     product.subscriptionOfferDetails?.let {
                         val fragment = OffersFragment()
@@ -52,29 +51,29 @@ class BillingFragment : Fragment() {
                                 productDetails = product,
                                 currentPurchases = null,
                                 activity = activity,
-                                offerIdToken = offer.offerToken
+                                offerIdToken = offer.offerToken,
                             )
                         }
                         fragment.apply {
                             show(activity.supportFragmentManager, tag)
                         }
                     }
-                }?: run {
+                } ?: run {
                     productsViewModel.buy(
                         productDetails = product,
                         currentPurchases = null,
                         activity = activity,
-                        offerIdToken = null
+                        offerIdToken = null,
                     )
                 }
             }
         }
 
         val recyclerView: RecyclerView = binding.productsList
-        recyclerView.layoutManager = GridLayoutManager(activity,2)
+        recyclerView.layoutManager = GridLayoutManager(activity, 2)
         recyclerView.adapter = viewAdapter
 
-        activity?.let{
+        activity?.let {
             productsViewModel.billingConnectionState.observe(it) { isConnected ->
                 if (isConnected) {
                     Timer("Update", false).schedule(500) {
@@ -89,7 +88,6 @@ class BillingFragment : Fragment() {
 
         return root
     }
-
 
     override fun onStart() {
         super.onStart()

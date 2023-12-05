@@ -11,19 +11,19 @@ data class ApphudUserProperty(
     val value: Any?,
     val increment: Boolean = false,
     val setOnce: Boolean = false,
-    var type: String = ""
+    var type: String = "",
 ) {
-
     fun toJSON(): MutableMap<String, Any?>? {
         if (increment && value == null) {
             return null
         }
 
-        val jsonParamsString: MutableMap<String, Any?> = mutableMapOf(
-            JSON_NAME_NAME to key,
-            JSON_NAME_VALUE to if (value !is Float || value !is Double) value else value as Double,
-            JSON_NAME_SET_ONCE to setOnce
-        )
+        val jsonParamsString: MutableMap<String, Any?> =
+            mutableMapOf(
+                JSON_NAME_NAME to key,
+                JSON_NAME_VALUE to if (value !is Float || value !is Double) value else value as Double,
+                JSON_NAME_SET_ONCE to setOnce,
+            )
         if (value != null) {
             jsonParamsString[JSON_NAME_KIND] = type
         }
@@ -33,9 +33,9 @@ data class ApphudUserProperty(
         return jsonParamsString
     }
 
-    internal fun getValue() :Any{
-        try{
-            when(type){
+    internal fun getValue(): Any  {
+        try {
+            when (type) {
                 "string" -> {
                     return value.toString()
                 }
@@ -52,13 +52,11 @@ data class ApphudUserProperty(
                     value.toString().toDouble()
                 }
             }
-        }catch (ex: Exception){
+        } catch (ex: Exception) {
             type = "string"
-            ApphudLog.logE(ex.message?:"Unable to parse property value. Processed as string.")
+            ApphudLog.logE(ex.message ?: "Unable to parse property value. Processed as string.")
         }
 
         return value.toString()
     }
-
-
 }

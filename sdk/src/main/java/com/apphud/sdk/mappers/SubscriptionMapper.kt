@@ -10,38 +10,40 @@ import java.text.ParseException
 import java.util.*
 
 class SubscriptionMapper {
-
-    private fun buildDate(date: String?): Long? = try {
-        date?.let { DateTimeFormatter.formatter.parse(it)?.time }
-    } catch (e: ParseException) {
-        null
-    }
+    private fun buildDate(date: String?): Long? =
+        try {
+            date?.let { DateTimeFormatter.formatter.parse(it)?.time }
+        } catch (e: ParseException) {
+            null
+        }
 
     fun mapRenewable(dto: SubscriptionDto): ApphudSubscription? =
         when (val expires = buildDate(dto.expires_at)) {
             null -> null
-            else -> ApphudSubscription(
-                status = ApphudSubscriptionStatus.map(dto.status),
-                productId = dto.product_id,
-                kind = ApphudKind.map(dto.kind),
-                expiresAt = expires,
-                startedAt = buildDate(dto.started_at) ?: Date().time,
-                cancelledAt = buildDate(dto.cancelled_at),
-                isInRetryBilling = dto.in_retry_billing,
-                isIntroductoryActivated = dto.introductory_activated,
-                isAutoRenewEnabled = dto.autorenew_enabled,
-                groupId = ""
-            )
+            else ->
+                ApphudSubscription(
+                    status = ApphudSubscriptionStatus.map(dto.status),
+                    productId = dto.product_id,
+                    kind = ApphudKind.map(dto.kind),
+                    expiresAt = expires,
+                    startedAt = buildDate(dto.started_at) ?: Date().time,
+                    cancelledAt = buildDate(dto.cancelled_at),
+                    isInRetryBilling = dto.in_retry_billing,
+                    isIntroductoryActivated = dto.introductory_activated,
+                    isAutoRenewEnabled = dto.autorenew_enabled,
+                    groupId = "",
+                )
         }
 
     fun mapNonRenewable(dto: SubscriptionDto): ApphudNonRenewingPurchase? {
         return when (val purchase = buildDate(dto.started_at)) {
             null -> null
-            else -> ApphudNonRenewingPurchase(
-                productId = dto.product_id,
-                purchasedAt = purchase,
-                canceledAt = buildDate(dto.cancelled_at)
-            )
+            else ->
+                ApphudNonRenewingPurchase(
+                    productId = dto.product_id,
+                    purchasedAt = purchase,
+                    canceledAt = buildDate(dto.cancelled_at),
+                )
         }
     }
 }

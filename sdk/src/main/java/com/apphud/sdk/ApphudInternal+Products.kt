@@ -9,21 +9,22 @@ import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import java.util.concurrent.atomic.AtomicInteger
 
-internal var productsLoaded = AtomicInteger(0) //to know that products already loaded by another thread
+internal var productsLoaded = AtomicInteger(0) // to know that products already loaded by another thread
 private val mutexProducts = Mutex()
-internal fun ApphudInternal.loadProducts(){
+
+internal fun ApphudInternal.loadProducts()  {
     coroutineScope.launch(errorHandler) {
         mutexProducts.withLock {
             async {
                 if (productsLoaded.get() == 0) {
                     if (fetchProducts()) {
-                        //Let to know to another threads that details are loaded successfully
+                        // Let to know to another threads that details are loaded successfully
                         productsLoaded.incrementAndGet()
 
                         mainScope.launch {
                             notifyLoadingCompleted(
                                 null,
-                                productDetails
+                                productDetails,
                             )
                         }
                     }
@@ -35,21 +36,23 @@ internal fun ApphudInternal.loadProducts(){
 
 private suspend fun ApphudInternal.fetchProducts(): Boolean {
     val cachedGroups = storage.productGroups
-    if(cachedGroups == null || storage.needUpdateProductGroups()){
-        val groupsList = RequestManager.allProducts()
-        groupsList?.let { groups ->
-            cacheGroups(groups)
-            val ids = groups.map { it -> it.products?.map { it.product_id }!! }.flatten()
+    if (cachedGroups == null || storage.needUpdateProductGroups())
+        {
+            val groupsList = RequestManager.allProducts()
+            groupsList?.let { groups ->
+                cacheGroups(groups)
+                val ids = groups.map { it -> it.products?.map { it.product_id }!! }.flatten()
+                return fetchDetails(ids)
+            }
+        } else
+        {
+            val ids = cachedGroups.map { it -> it.products?.map { it.product_id }!! }.flatten()
             return fetchDetails(ids)
         }
-    }else{
-        val ids = cachedGroups.map { it -> it.products?.map { it.product_id }!! }.flatten()
-        return fetchDetails(ids)
-    }
     return false
 }
 
-internal suspend fun ApphudInternal.fetchDetails(ids :List<String>): Boolean {
+internal suspend fun ApphudInternal.fetchDetails(ids: List<String>): Boolean {
     var isInapLoaded = false
     var isSubsLoaded = false
     synchronized(productDetails) {
@@ -57,14 +60,14 @@ internal suspend fun ApphudInternal.fetchDetails(ids :List<String>): Boolean {
     }
 
     coroutineScope {
-        val subs = async{ billing.detailsEx(BillingClient.ProductType.SUBS, ids)}
-        val inap =  async{ billing.detailsEx(BillingClient.ProductType.INAPP, ids)}
+        val subs = async { billing.detailsEx(BillingClient.ProductType.SUBS, ids) }
+        val inap = async { billing.detailsEx(BillingClient.ProductType.INAPP, ids) }
 
         subs.await()?.let {
             synchronized(productDetails) {
                 productDetails.addAll(it)
 
-                for(item in productDetails) {
+                for (item in productDetails) {
                     ApphudLog.log(item.zza())
                 }
             }
@@ -76,8 +79,8 @@ internal suspend fun ApphudInternal.fetchDetails(ids :List<String>): Boolean {
         inap.await()?.let {
             synchronized(productDetails) {
                 productDetails.addAll(it)
-                for(item in productDetails) {
-                    ApphudLog.log(item.name  + ":  " + item.toString())
+                for (item in productDetails) {
+                    ApphudLog.log(item.name + ":  " + item.toString())
                 }
             }
             isInapLoaded = true

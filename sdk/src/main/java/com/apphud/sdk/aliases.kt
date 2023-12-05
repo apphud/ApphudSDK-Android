@@ -21,5 +21,5 @@ typealias Milliseconds = Long
 typealias ApphudPurchasesRestoreCallback = (
     subscriptions: List<ApphudSubscription>?,
     purchases: List<ApphudNonRenewingPurchase>?,
-    error: ApphudError?
+    error: ApphudError?,
 ) -> Unit

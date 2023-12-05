@@ -9,5 +9,5 @@ data class ApphudError(
     /**
      * Additional error code
      * */
-    val errorCode: Int? = null
+    val errorCode: Int? = null,
 ) : Error(message)

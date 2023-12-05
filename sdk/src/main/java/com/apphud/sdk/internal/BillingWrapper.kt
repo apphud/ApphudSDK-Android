@@ -2,7 +2,6 @@ package com.apphud.sdk.internal
 
 import android.app.Activity
 import android.content.Context
-import android.util.Log
 import com.android.billingclient.api.*
 import com.apphud.sdk.ApphudLog
 import com.apphud.sdk.ProductId
@@ -18,10 +17,10 @@ import kotlin.coroutines.resume
  * Обертка над платежной системой Google
  */
 internal class BillingWrapper(context: Context) : Closeable {
-
-    private val builder = BillingClient
-        .newBuilder(context)
-        .enablePendingPurchases()
+    private val builder =
+        BillingClient
+            .newBuilder(context)
+            .enablePendingPurchases()
     private val purchases = PurchasesUpdated(builder)
 
     private val billing = builder.build()
@@ -32,22 +31,24 @@ internal class BillingWrapper(context: Context) : Closeable {
     private val acknowledge = AcknowledgeWrapper(billing)
 
     private val mutex = Mutex()
+
     private suspend fun connectIfNeeded(): Boolean {
         var result: Boolean
         mutex.withLock {
-            if(billing.isReady) {
+            if (billing.isReady) {
                 result = true
-            }else{
-                try {
-                    while (!billing.connect()) {
-                        Thread.sleep(300)
+            } else
+                {
+                    try {
+                        while (!billing.connect()) {
+                            Thread.sleep(300)
+                        }
+                        result = true
+                    } catch (ex: java.lang.Exception) {
+                        ApphudLog.log("Connect to Billing failed: ${ex.message ?: "error"}")
+                        result = false
                     }
-                    result = true
-                }catch (ex: java.lang.Exception){
-                    ApphudLog.log("Connect to Billing failed: ${ex.message?:"error"}")
-                    result = false
                 }
-            }
         }
         return result
     }
@@ -55,25 +56,26 @@ internal class BillingWrapper(context: Context) : Closeable {
     suspend fun BillingClient.connect(): Boolean {
         var resumed = false
         return suspendCancellableCoroutine { continuation ->
-            startConnection(object : BillingClientStateListener {
-                override fun onBillingSetupFinished(billingResult: BillingResult) {
-                    if (billingResult.responseCode == BillingClient.BillingResponseCode.OK) {
-                        if(continuation.isActive && !resumed) {
-                            resumed = true
-                            continuation.resume(true)
-                        }
-                    } else {
-                        if(continuation.isActive && !resumed) {
-                            resumed = true
-                            continuation.resume(false)
+            startConnection(
+                object : BillingClientStateListener {
+                    override fun onBillingSetupFinished(billingResult: BillingResult) {
+                        if (billingResult.responseCode == BillingClient.BillingResponseCode.OK) {
+                            if (continuation.isActive && !resumed) {
+                                resumed = true
+                                continuation.resume(true)
+                            }
+                        } else {
+                            if (continuation.isActive && !resumed) {
+                                resumed = true
+                                continuation.resume(false)
+                            }
                         }
                     }
-                }
 
-                override fun onBillingServiceDisconnected() {
-
-                }
-            })
+                    override fun onBillingServiceDisconnected() {
+                    }
+                },
+            )
         }
     }
 
@@ -95,27 +97,41 @@ internal class BillingWrapper(context: Context) : Closeable {
             consume.callBack = value
         }
 
-    suspend fun queryPurchaseHistorySync(@BillingClient.ProductType type: ProductType) : PurchaseHistoryCallbackStatus {
+    suspend fun queryPurchaseHistorySync(
+        @BillingClient.ProductType type: ProductType,
+    ): PurchaseHistoryCallbackStatus {
         val connectIfNeeded = connectIfNeeded()
         if (!connectIfNeeded) return PurchaseHistoryCallbackStatus.Error(type, null)
         return history.queryPurchaseHistorySync(type)
     }
 
-    suspend fun detailsEx(@BillingClient.ProductType type: ProductType, products: List<ProductId>) : List<ProductDetails>? {
+    suspend fun detailsEx(
+        @BillingClient.ProductType type: ProductType,
+        products: List<ProductId>,
+    ): List<ProductDetails>? {
         val connectIfNeeded = connectIfNeeded()
         if (!connectIfNeeded) return null
 
         return prod.querySync(type = type, products = products)
     }
 
-    suspend fun restoreSync(@BillingClient.ProductType type: ProductType, products: List<PurchaseHistoryRecord>): PurchaseRestoredCallbackStatus {
+    suspend fun restoreSync(
+        @BillingClient.ProductType type: ProductType,
+        products: List<PurchaseHistoryRecord>,
+    ): PurchaseRestoredCallbackStatus {
         val connectIfNeeded = connectIfNeeded()
         if (!connectIfNeeded) return PurchaseRestoredCallbackStatus.Error(type)
         return prod.restoreSync(type, products)
     }
 
-    fun purchase(activity: Activity, details: ProductDetails, offerToken: String?,
-                 oldToken: String?, replacementMode: Int?, deviceId: String? = null) {
+    fun purchase(
+        activity: Activity,
+        details: ProductDetails,
+        offerToken: String?,
+        oldToken: String?,
+        replacementMode: Int?,
+        deviceId: String? = null,
+    ) {
         GlobalScope.launch {
             val connectIfNeeded = connectIfNeeded()
             if (!connectIfNeeded) return@launch
@@ -139,7 +155,7 @@ internal class BillingWrapper(context: Context) : Closeable {
         }
     }
 
-    //Closeable
+    // Closeable
     override fun close() {
         billing.endConnection()
         prod.use { }

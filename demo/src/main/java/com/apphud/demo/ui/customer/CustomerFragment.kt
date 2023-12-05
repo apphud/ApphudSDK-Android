@@ -22,7 +22,6 @@ import com.apphud.sdk.domain.ApphudSubscription
 import com.apphud.sdk.managers.HeadersInterceptor
 
 class CustomerFragment : Fragment() {
-
     private var _binding: FragmentCustomerBinding? = null
     private val binding get() = _binding!!
     private lateinit var viewAdapter: PaywallsAdapter
@@ -31,9 +30,8 @@ class CustomerFragment : Fragment() {
     override fun onCreateView(
         inflater: LayoutInflater,
         container: ViewGroup?,
-        savedInstanceState: Bundle?
+        savedInstanceState: Bundle?,
     ): View? {
-
         _binding = FragmentCustomerBinding.inflate(inflater, container, false)
         val root: View = binding.root
 
@@ -45,7 +43,6 @@ class CustomerFragment : Fragment() {
 
         binding.btnSync.setOnClickListener {
             Apphud.restorePurchases { subscriptions, purchases, error ->
-
             }
         }
 
@@ -66,35 +63,36 @@ class CustomerFragment : Fragment() {
             binding.swipeRefresh.isRefreshing = false
         }
 
-        val listener = object : ApphudListener {
-            override fun apphudSubscriptionsUpdated(subscriptions: List<ApphudSubscription>) {
-                Log.d("Apphud", "apphudSubscriptionsUpdated")
-            }
+        val listener =
+            object : ApphudListener {
+                override fun apphudSubscriptionsUpdated(subscriptions: List<ApphudSubscription>) {
+                    Log.d("Apphud", "apphudSubscriptionsUpdated")
+                }
 
-            override fun apphudNonRenewingPurchasesUpdated(purchases: List<ApphudNonRenewingPurchase>) {
-                Log.d("Apphud", "apphudNonRenewingPurchasesUpdated")
-            }
+                override fun apphudNonRenewingPurchasesUpdated(purchases: List<ApphudNonRenewingPurchase>) {
+                    Log.d("Apphud", "apphudNonRenewingPurchasesUpdated")
+                }
 
-            override fun apphudFetchProductDetails(details: List<ProductDetails>) {
-                Log.d("Apphud", "apphudFetchProductDetails()")
-                //TODO handle loaded sku details
-            }
+                override fun apphudFetchProductDetails(details: List<ProductDetails>) {
+                    Log.d("Apphud", "apphudFetchProductDetails()")
+                    // TODO handle loaded sku details
+                }
 
-            override fun apphudDidChangeUserID(userId: String) {
-                Log.d("Apphud", "apphudDidChangeUserID()")
-                //TODO handle User ID changed event
-            }
+                override fun apphudDidChangeUserID(userId: String) {
+                    Log.d("Apphud", "apphudDidChangeUserID()")
+                    // TODO handle User ID changed event
+                }
 
-            override fun userDidLoad() {
-                Log.d("Apphud", "userDidLoad()")
-                //TODO handle user registered event
+                override fun userDidLoad() {
+                    Log.d("Apphud", "userDidLoad()")
+                    // TODO handle user registered event
+                }
+
+                override fun paywallsDidFullyLoad(paywalls: List<ApphudPaywall>)  {
+                    Log.d("Apphud", "paywallsDidFullyLoad()")
+                    updateData()
+                }
             }
-            
-            override fun paywallsDidFullyLoad(paywalls: List<ApphudPaywall>){
-                Log.d("Apphud", "paywallsDidFullyLoad()")
-                updateData()
-            }
-        }
         Apphud.setListener(listener)
 
         updateData()
@@ -102,7 +100,7 @@ class CustomerFragment : Fragment() {
         return root
     }
 
-    private fun updateData(){
+    private fun updateData()  {
         paywallsViewModel.updateData()
         viewAdapter.notifyDataSetChanged()
     }

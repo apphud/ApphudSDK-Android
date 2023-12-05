@@ -14,5 +14,5 @@ data class SubscriptionDto(
     val active_till: String,
     val kind: String,
     val units_count: Int,
-    val status: String
+    val status: String,
 )

@@ -7,7 +7,6 @@ import com.android.billingclient.api.Purchase
 import com.apphud.sdk.domain.*
 
 object Apphud {
-
     //region === Initialization ===
 
     /**
@@ -16,8 +15,10 @@ object Apphud {
      * @parameter apiKey: Required. Your api key.
      */
     @kotlin.jvm.JvmStatic
-    fun start(context: Context, apiKey: ApiKey) =
-        start(context, apiKey, null)
+    fun start(
+        context: Context,
+        apiKey: ApiKey,
+    ) = start(context, apiKey, null)
 
     /**
      * Initializes Apphud SDK. You should call it during app launch.
@@ -26,8 +27,11 @@ object Apphud {
      * @parameter userId: Optional. You can provide your own unique user identifier. If null passed then UUID will be generated instead.
      */
     @kotlin.jvm.JvmStatic
-    fun start(context: Context, apiKey: ApiKey, userId: UserId? = null) =
-        start(context, apiKey, userId, null)
+    fun start(
+        context: Context,
+        apiKey: ApiKey,
+        userId: UserId? = null,
+    ) = start(context, apiKey, userId, null)
 
     /**
      * Initializes Apphud SDK. You should call it during app launch.
@@ -37,8 +41,12 @@ object Apphud {
      * @parameter deviceID: Optional. You can provide your own unique device identifier. If null passed then UUID will be generated instead.
      */
     @kotlin.jvm.JvmStatic
-    fun start(context: Context, apiKey: ApiKey, userId: UserId? = null, deviceId: DeviceId? = null)
-    {
+    fun start(
+        context: Context,
+        apiKey: ApiKey,
+        userId: UserId? = null,
+        deviceId: DeviceId? = null,
+    ) {
         ApphudUtils.setPackageName(context.packageName)
         ApphudInternal.initialize(context, apiKey, userId, deviceId)
     }
@@ -105,7 +113,7 @@ object Apphud {
      * depending on whether or not you need `ProductsDetails` to be already filled in paywalls.
      * Best practice is to use this method together with `paywallsDidFullyLoad` listener.
      */
-    fun paywalls() :List<ApphudPaywall> {
+    fun paywalls(): List<ApphudPaywall> {
         return ApphudInternal.getPaywalls()
     }
 
@@ -131,8 +139,10 @@ object Apphud {
      * `products` method is ready to use.
      * Best practice is not to use this method at all, but use `paywalls()` instead.
      */
-    @Deprecated("Use \"getPaywalls\" method instead.",
-        ReplaceWith("getPaywalls(callback: (paywalls: List<ApphudPaywall>?, error: ApphudError?) -> Unit)"))
+    @Deprecated(
+        "Use \"getPaywalls\" method instead.",
+        ReplaceWith("getPaywalls(callback: (paywalls: List<ApphudPaywall>?, error: ApphudError?) -> Unit)"),
+    )
     @kotlin.jvm.JvmStatic
     fun products(): List<ProductDetails>? {
         return ApphudInternal.getProductDetailsList()
@@ -144,8 +154,10 @@ object Apphud {
      * You can use `productsDidFetchCallback` callback
      * or implement `apphudFetchProductsDetails` listener method. Use whatever you like most.
      */
-    @Deprecated("Use \"getPaywalls\" method instead.",
-        ReplaceWith("getPaywalls(callback: (paywalls: List<ApphudPaywall>?, error: ApphudError?) -> Unit)"))
+    @Deprecated(
+        "Use \"getPaywalls\" method instead.",
+        ReplaceWith("getPaywalls(callback: (paywalls: List<ApphudPaywall>?, error: ApphudError?) -> Unit)"),
+    )
     @kotlin.jvm.JvmStatic
     fun productsFetchCallback(callback: (List<ProductDetails>) -> Unit) {
         ApphudInternal.productsFetchCallback(callback)
@@ -156,8 +168,10 @@ object Apphud {
      * Note that you have to add this product identifier in Apphud > Product Hub > Products.
      * Will return `null` if product is not yet fetched from Google Play.
      */
-    @Deprecated("Use \"getPaywalls\" method instead.",
-        ReplaceWith("getPaywalls(callback: (paywalls: List<ApphudPaywall>?, error: ApphudError?) -> Unit)"))
+    @Deprecated(
+        "Use \"getPaywalls\" method instead.",
+        ReplaceWith("getPaywalls(callback: (paywalls: List<ApphudPaywall>?, error: ApphudError?) -> Unit)"),
+    )
     @kotlin.jvm.JvmStatic
     fun product(productIdentifier: String): ProductDetails? {
         return ApphudInternal.getProductDetailsByProductId(productIdentifier)
@@ -167,15 +181,15 @@ object Apphud {
     //region === Purchases ===
 
     /**
-    Returns `true` if user has active subscription or non renewing purchase (lifetime).
-    Note: You should not use this method if you have consumable in-app purchases, like coin packs.
-    Use this method to determine whether or not user has active premium access.
-    If you have consumable purchases, this method won't operate correctly,
-    because Apphud SDK doesn't differ consumables from non-consumables.
+     Returns `true` if user has active subscription or non renewing purchase (lifetime).
+     Note: You should not use this method if you have consumable in-app purchases, like coin packs.
+     Use this method to determine whether or not user has active premium access.
+     If you have consumable purchases, this method won't operate correctly,
+     because Apphud SDK doesn't differ consumables from non-consumables.
      */
     @kotlin.jvm.JvmStatic
-    fun hasPremiumAccess() : Boolean {
-        return hasActiveSubscription() || nonRenewingPurchases().firstOrNull{ it.isActive() } != null
+    fun hasPremiumAccess(): Boolean {
+        return hasActiveSubscription() || nonRenewingPurchases().firstOrNull { it.isActive() } != null
     }
 
     /**
@@ -193,25 +207,20 @@ object Apphud {
      *      value to determine whether or not to unlock premium functionality to the user.
      */
     @kotlin.jvm.JvmStatic
-    fun subscription(): ApphudSubscription? =
-        ApphudInternal.subscriptions().firstOrNull()
+    fun subscription(): ApphudSubscription? = ApphudInternal.subscriptions().firstOrNull()
 
     /**
      * Returns an array of all subscriptions that this user has ever purchased. Subscriptions are cached on device.
      */
     @kotlin.jvm.JvmStatic
-    fun subscriptions(): List<ApphudSubscription> =
-        ApphudInternal.subscriptions()
+    fun subscriptions(): List<ApphudSubscription> = ApphudInternal.subscriptions()
 
     /**
      * Returns an array of all in-app product purchases that this user has ever purchased.
      * Purchases are cached on device. This array is sorted by purchase date.
      */
     @kotlin.jvm.JvmStatic
-    fun nonRenewingPurchases(): List<ApphudNonRenewingPurchase> =
-        ApphudInternal.purchases()
-
-
+    fun nonRenewingPurchases(): List<ApphudNonRenewingPurchase> = ApphudInternal.purchases()
 
     /**
      * Returns `true` if current user has purchased in-app product with given product identifier.
@@ -236,22 +245,24 @@ object Apphud {
      * @param block Optional. Returns `ApphudPurchaseResult` object.
      */
     @kotlin.jvm.JvmStatic
-    fun purchase(activity: Activity,
-                 apphudProduct: ApphudProduct,
-                 offerIdToken: String? = null,
-                 oldToken: String? = null,
-                 replacementMode: Int? = null,
-                 consumableInappProduct: Boolean = false,
-                 block: ((ApphudPurchaseResult) -> Unit)?) =
-        ApphudInternal.purchase(
-            activity = activity,
-            apphudProduct = apphudProduct,
-            productId = null,
-            offerIdToken = offerIdToken,
-            oldToken = oldToken,
-            replacementMode = replacementMode,
-            consumableInappProduct = consumableInappProduct,
-            callback = block)
+    fun purchase(
+        activity: Activity,
+        apphudProduct: ApphudProduct,
+        offerIdToken: String? = null,
+        oldToken: String? = null,
+        replacementMode: Int? = null,
+        consumableInappProduct: Boolean = false,
+        block: ((ApphudPurchaseResult) -> Unit)?,
+    ) = ApphudInternal.purchase(
+        activity = activity,
+        apphudProduct = apphudProduct,
+        productId = null,
+        offerIdToken = offerIdToken,
+        oldToken = oldToken,
+        replacementMode = replacementMode,
+        consumableInappProduct = consumableInappProduct,
+        callback = block,
+    )
 
     /**
      * Purchase product and automatically submit Google Play purchase token to Apphud
@@ -266,23 +277,24 @@ object Apphud {
      * @param block Optional. Returns `ApphudPurchaseResult` object.
      */
     @kotlin.jvm.JvmStatic
-    fun purchase(activity: Activity,
-                 productId: String,
-                 offerIdToken: String? = null,
-                 oldToken: String? = null,
-                 replacementMode: Int? = null,
-                 consumableInappProduct: Boolean = false,
-                 block: ((ApphudPurchaseResult) -> Unit)?) =
-        ApphudInternal.purchase(
-            activity = activity,
-            apphudProduct = null,
-            productId = productId,
-            offerIdToken = offerIdToken,
-            oldToken = oldToken,
-            replacementMode = replacementMode,
-            consumableInappProduct = consumableInappProduct,
-            callback = block)
-
+    fun purchase(
+        activity: Activity,
+        productId: String,
+        offerIdToken: String? = null,
+        oldToken: String? = null,
+        replacementMode: Int? = null,
+        consumableInappProduct: Boolean = false,
+        block: ((ApphudPurchaseResult) -> Unit)?,
+    ) = ApphudInternal.purchase(
+        activity = activity,
+        apphudProduct = null,
+        productId = productId,
+        offerIdToken = offerIdToken,
+        oldToken = oldToken,
+        replacementMode = replacementMode,
+        consumableInappProduct = consumableInappProduct,
+        callback = block,
+    )
 
     /**
      * Only in Observer Mode: call this method after every successful purchase.
@@ -291,7 +303,12 @@ object Apphud {
      * Pass `Paywall Identifier` to be able to use A/B tests in Observer Mode. See https://docs.apphud.com/docs/observer-mode#android for details.
      */
     @kotlin.jvm.JvmStatic
-    fun trackPurchase(purchase: Purchase, productDetails: ProductDetails, offerIdToken: String?, paywallIdentifier: String? = null) = ApphudInternal.trackPurchase(purchase, productDetails, offerIdToken, paywallIdentifier)
+    fun trackPurchase(
+        purchase: Purchase,
+        productDetails: ProductDetails,
+        offerIdToken: String?,
+        paywallIdentifier: String? = null,
+    ) = ApphudInternal.trackPurchase(purchase, productDetails, offerIdToken, paywallIdentifier)
 
     /**
      * Implements `Restore Purchases` mechanism. Basically it just sends current Play Market Purchase Tokens to Apphud and returns subscriptions info.
@@ -341,7 +358,7 @@ object Apphud {
     fun addAttribution(
         provider: ApphudAttributionProvider,
         data: Map<String, Any>? = null,
-        identifier: String? = null
+        identifier: String? = null,
     ) = ApphudInternal.addAttribution(provider, data, identifier)
 
     //endregion
@@ -370,7 +387,11 @@ object Apphud {
      * @param setOnce  Optional. Pass "true" to make this property non-updatable.
      */
     @kotlin.jvm.JvmStatic
-    fun setUserProperty(key: ApphudUserPropertyKey, value: Any?, setOnce: Boolean = false) {
+    fun setUserProperty(
+        key: ApphudUserPropertyKey,
+        value: Any?,
+        setOnce: Boolean = false,
+    ) {
         ApphudInternal.setUserProperty(key = key, value = value, setOnce = setOnce, increment = false)
     }
 
@@ -385,7 +406,10 @@ object Apphud {
      * @param by Required/Optional. You can pass negative value to decrement.
      */
     @kotlin.jvm.JvmStatic
-    fun incrementUserProperty(key: ApphudUserPropertyKey, by: Any) {
+    fun incrementUserProperty(
+        key: ApphudUserPropertyKey,
+        by: Any,
+    ) {
         ApphudInternal.setUserProperty(key = key, value = by, setOnce = false, increment = true)
     }
 
@@ -393,17 +417,22 @@ object Apphud {
     //region === Other ===
 
     /**
-    You can grant free promotional subscription to user. Returns `true` in a callback if promotional was granted.
+     You can grant free promotional subscription to user. Returns `true` in a callback if promotional was granted.
 
-    __Note__: You should pass either `productId` (recommended) or `permissionGroup` OR both parameters `nil`. Sending both `productId` and `permissionGroup` parameters will result in `productId` being used.
+     __Note__: You should pass either `productId` (recommended) or `permissionGroup` OR both parameters `nil`. Sending both `productId` and `permissionGroup` parameters will result in `productId` being used.
 
-    - parameter daysCount: Required. Number of days of free premium usage. For lifetime promotionals just pass extremely high value, like 10000.
-    - parameter productId: Optional*. Recommended. Product Id of promotional subscription. See __Note__ message above for details.
-    - parameter permissionGroup: Optional*. Permission Group of promotional subscription. Use this parameter in case you have multiple permission groups. See __Note__ message above for details.
-    - parameter callback: Optional. Returns `true` if promotional subscription was granted.
+     - parameter daysCount: Required. Number of days of free premium usage. For lifetime promotionals just pass extremely high value, like 10000.
+     - parameter productId: Optional*. Recommended. Product Id of promotional subscription. See __Note__ message above for details.
+     - parameter permissionGroup: Optional*. Permission Group of promotional subscription. Use this parameter in case you have multiple permission groups. See __Note__ message above for details.
+     - parameter callback: Optional. Returns `true` if promotional subscription was granted.
      */
     @kotlin.jvm.JvmStatic
-    fun grantPromotional(daysCount: Int, productId: String?, permissionGroup: ApphudGroup? = null, callback: ((Boolean) -> Unit)? = null) {
+    fun grantPromotional(
+        daysCount: Int,
+        productId: String?,
+        permissionGroup: ApphudGroup? = null,
+        callback: ((Boolean) -> Unit)? = null,
+    ) {
         ApphudInternal.grantPromotional(daysCount, productId, permissionGroup, callback)
     }
 

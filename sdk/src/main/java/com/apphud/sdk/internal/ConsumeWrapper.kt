@@ -10,28 +10,27 @@ import java.io.Closeable
 typealias ConsumeCallback = (PurchaseCallbackStatus, Purchase) -> Unit
 
 internal class ConsumeWrapper(
-    private val billing: BillingClient
+    private val billing: BillingClient,
 ) : Closeable {
-
     var callBack: ConsumeCallback? = null
 
     fun purchase(purchase: Purchase) {
-
         val token = purchase.purchaseToken
 
-        val params = ConsumeParams.newBuilder()
-            .setPurchaseToken(token)
-            .build()
+        val params =
+            ConsumeParams.newBuilder()
+                .setPurchaseToken(token)
+                .build()
         billing.consumeAsync(params) { result, value ->
             result.response(
                 message = "failed response with value: $value",
                 error = { callBack?.invoke(PurchaseCallbackStatus.Error(value), purchase) },
-                success = { callBack?.invoke(PurchaseCallbackStatus.Success(value), purchase) }
+                success = { callBack?.invoke(PurchaseCallbackStatus.Success(value), purchase) },
             )
         }
     }
 
-    //Closeable
+    // Closeable
     override fun close() {
         callBack = null
     }
