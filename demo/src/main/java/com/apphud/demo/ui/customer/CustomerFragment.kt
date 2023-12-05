@@ -115,9 +115,11 @@ class CustomerFragment : Fragment() {
         return root
     }
 
-    private fun updateData(){
-        paywallsViewModel.updateData()
-        viewAdapter.notifyDataSetChanged()
+    private fun updateData() {
+        suspend {
+            paywallsViewModel.updateData()
+            viewAdapter.notifyDataSetChanged()
+        }
     }
 
     override fun onDestroyView() {

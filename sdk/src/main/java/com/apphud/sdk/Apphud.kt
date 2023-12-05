@@ -5,6 +5,8 @@ import android.content.Context
 import com.android.billingclient.api.ProductDetails
 import com.android.billingclient.api.Purchase
 import com.apphud.sdk.domain.*
+import kotlinx.coroutines.suspendCancellableCoroutine
+import kotlin.coroutines.resume
 
 object Apphud {
 
@@ -94,28 +96,58 @@ object Apphud {
      * Each paywall contains an array of `ApphudProduct` objects that you use for purchase.
      * This callback is called when paywalls are populated with their `ProductDetails` objects.
      * Callback is called immediately if paywalls are already loaded.
-     *
+     * To get notified when paywalls are loaded without `ProductDetails`,
+     * use `userDidLoad()` method of ApphudListener.
+     */
+    @kotlin.jvm.JvmStatic
+    fun placementsDidLoadCallback(callback: (List<ApphudPlacement>?) -> Unit) {
+        ApphudInternal.performWhenOfferingsPrepared { callback(ApphudInternal.placements) }
+    }
+
+    /**
+     * Returns `ApphudPlacement` configured in Apphud Dashboard > Product Hub > Placements.
+     * Each Placement contains `ApphudPaywall` object that you use for purchase.
+     * This method suspends until inner ProductDetails are loaded from Google Play.
+     * Method returns immediately if placements are already loaded.
+     */
+    @kotlin.jvm.JvmStatic
+    suspend fun placements(): List<ApphudPlacement>? =
+        suspendCancellableCoroutine { continuation ->
+            ApphudInternal.performWhenOfferingsPrepared {
+                if (!continuation.isCompleted) {  continuation.resume(ApphudInternal.placements) }
+            }
+        }
+
+    /**
+     * Returns paywalls configured in Apphud Dashboard > Product Hub > Paywalls.
+     * Each paywall contains an array of `ApphudProduct` objects that you use for purchase.
+     * This callback is called when paywalls are populated with their `ProductDetails` objects.
+     * Callback is called immediately if paywalls are already loaded.
      * To get notified when paywalls are loaded without `ProductDetails`,
      * use `userDidLoad()` method of ApphudListener.
      */
     @kotlin.jvm.JvmStatic
     fun paywallsDidLoadCallback(callback: (List<ApphudPaywall>) -> Unit) {
-        ApphudInternal.paywallsFetchCallback(callback)
+        ApphudInternal.performWhenOfferingsPrepared { callback(ApphudInternal.getPaywalls()) }
     }
 
     /**
      * Returns paywalls configured in Apphud Dashboard > Product Hub > Paywalls.
      * Each paywall contains an array of `ApphudProduct` objects that you use for purchase.
      * `ApphudProduct` is Apphud's wrapper around `ProductsDetails`.
+     * This method suspends until inner ProductDetails are loaded from Google Play.
      * Returns empty array if paywalls are not yet fetched.
      * To get notified when paywalls are ready to use, use ApphudListener's  `userDidLoad` or `paywallsDidFullyLoad` methods,
      * depending on whether or not you need `ProductsDetails` to be already filled in paywalls.
      * Best practice is to use this method together with `paywallsDidFullyLoad` listener.
      */
     @kotlin.jvm.JvmStatic
-    fun paywalls() :List<ApphudPaywall> {
-        return ApphudInternal.getPaywalls()
-    }
+    suspend fun paywalls(): List<ApphudPaywall> =
+        suspendCancellableCoroutine { continuation ->
+            ApphudInternal.performWhenOfferingsPrepared {
+                if (!continuation.isCompleted) {  continuation.resume(ApphudInternal.getPaywalls()) }
+            }
+        }
 
     /**
      * Use this method when your paywall screen is displayed to the user.
@@ -133,26 +165,6 @@ object Apphud {
     @kotlin.jvm.JvmStatic
     fun paywallClosed(paywall: ApphudPaywall) {
         ApphudInternal.paywallClosed(paywall)
-    }
-
-    /**
-     * Returns `ApphudPlacement` configured in Apphud Dashboard > Product Hub > Placements.
-     * Each Placement contains `ApphudPaywall` object that you use for purchase.
-     * Method returns immediately if placements are already loaded.
-     */
-    @kotlin.jvm.JvmStatic
-    fun placements(): List<ApphudPlacement>? {
-        return  ApphudInternal.placements
-    }
-
-    /**
-     * Returns `ApphudPlacement` by its identifier configured in Apphud Dashboard > Product Hub > Placements.
-     * Each Placement contains `ApphudPaywall` object that you use for purchase.
-     * Method returns immediately if placements are already loaded.
-     */
-    @kotlin.jvm.JvmStatic
-    fun placement(identifier: String): ApphudPlacement? {
-        return  ApphudInternal.placements?.firstOrNull { it.identifier == identifier }
     }
 
     /**

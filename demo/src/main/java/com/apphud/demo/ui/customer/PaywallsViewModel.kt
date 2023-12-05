@@ -14,7 +14,7 @@ class AdapterItem(
 class PaywallsViewModel : ViewModel() {
     var items = mutableListOf<Any>()
     var showPlacements: Boolean = false
-    fun updateData(){
+    suspend fun updateData() {
         if (showPlacements) {
             items.clear()
             val placements = Apphud.placements()

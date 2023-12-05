@@ -46,6 +46,8 @@ internal object ApphudInternal {
     internal var paywalls = mutableListOf<ApphudPaywall>()
     internal var placements: List<ApphudPlacement>? = null
 
+    internal var didLoadOfferings = false
+
     private val handler: Handler = Handler(Looper.getMainLooper())
     private val pendingUserProperties = mutableMapOf<String, ApphudUserProperty>()
     private val userPropertiesRunnable = Runnable {
@@ -84,7 +86,7 @@ internal object ApphudInternal {
 
 
     private var customProductsFetchedBlock: ((List<ProductDetails>) -> Unit)? = null
-    private var paywallsFetchedBlock: ((List<ApphudPaywall>) -> Unit)? = null
+    private var offeringsPreparedCallbacks = mutableListOf <(() -> Unit)>()
     private var userRegisteredBlock: ((ApphudUser) -> Unit)? = null
     private var lifecycleEventObserver = LifecycleEventObserver { _, event ->
         when (event) {
@@ -240,9 +242,10 @@ internal object ApphudInternal {
                     block.invoke(it)
                 }
                 this.userRegisteredBlock = null
-            }
-            if (it.isTemporary == false && !fallbackMode){
-                didRegisterCustomerAtThisLaunch = true
+
+                if (it.isTemporary == false && !fallbackMode){
+                    didRegisterCustomerAtThisLaunch = true
+                }
             }
 
             if(!fromFallback && fallbackMode){
@@ -255,10 +258,12 @@ internal object ApphudInternal {
         if(paywallsPrepared && currentUser != null && paywalls.isNotEmpty() && productDetails.isNotEmpty() && notifyFullyLoaded){
             notifyFullyLoaded = false
             apphudListener?.paywallsDidFullyLoad(paywalls)
-            placements?.let {
-                apphudListener?.placementsDidFullyLoad(it)
+            placements?.let { apphudListener?.placementsDidFullyLoad(it) }
+            if (!didLoadOfferings) {
+                didLoadOfferings = true
+                offeringsPreparedCallbacks.forEach { it.invoke() }
+                offeringsPreparedCallbacks.clear()
             }
-            paywallsFetchedBlock?.invoke(paywalls)
         }
     }
 
@@ -320,18 +325,21 @@ internal object ApphudInternal {
     }
 
     internal fun productsFetchCallback(callback: (List<ProductDetails>) -> Unit) {
-        customProductsFetchedBlock = callback
         if (productDetails.isNotEmpty()) {
-            customProductsFetchedBlock?.invoke(productDetails)
+            callback?.invoke(productDetails)
+        } else {
+            customProductsFetchedBlock = callback
         }
     }
 
-    internal fun paywallsFetchCallback(callback: (List<ApphudPaywall>) -> Unit) {
-        paywallsFetchedBlock = callback
-        if (paywalls.isNotEmpty() && productDetails.isNotEmpty()) {
-            paywallsFetchedBlock?.invoke(paywalls)
+    internal fun performWhenOfferingsPrepared(callback: () -> Unit) {
+        if (didLoadOfferings) {
+            callback.invoke()
+        } else {
+            offeringsPreparedCallbacks.add(callback)
         }
     }
+
     //endregion
 
     //region === User Properties ===
@@ -750,6 +758,7 @@ internal object ApphudInternal {
         generatedUUID = UUID.randomUUID().toString()
         productsLoaded.set(0)
         customProductsFetchedBlock = null
+        offeringsPreparedCallbacks.clear()
         storage.clean()
         prevPurchases.clear()
         productDetails.clear()
@@ -838,8 +847,8 @@ internal object ApphudInternal {
                     val paywall = placement.paywall
                     paywall?.placementId = placement.id
                     paywall?.products?.forEach { product ->
-                        product.paywallId = placement.paywall?.id
-                        product.paywallIdentifier = placement.paywall?.identifier
+                        product.paywallId = placement.paywall.id
+                        product.paywallIdentifier = placement.paywall.identifier
                         product.placementId = placement.id
                         product.placementIdentifier = placement.identifier
                         product.productDetails = getProductDetailsByProductId(product.productId)

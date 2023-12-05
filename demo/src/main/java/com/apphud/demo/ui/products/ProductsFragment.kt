@@ -90,8 +90,10 @@ class ProductsFragment : Fragment() {
     }
 
     private fun updateData(paywallId: String?, placementId: String?){
-        productsViewModel.updateData(paywallId, placementId)
-        viewAdapter.notifyDataSetChanged()
+        suspend {
+            productsViewModel.updateData(paywallId, placementId)
+            viewAdapter.notifyDataSetChanged()
+        }
     }
 
     override fun onDestroyView() {
