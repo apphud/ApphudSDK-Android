@@ -41,7 +41,7 @@ class BillingFragment : Fragment() {
         viewAdapter.selectProduct = { product ->
             activity?.let { activity ->
                 val offers = product.subscriptionOfferDetails?.map { it.pricingPhases.pricingPhaseList[0].formattedPrice }
-                offers?.let { offers ->
+                offers?.let { _ ->
 
                     product.subscriptionOfferDetails?.let {
                         val fragment = OffersFragment()

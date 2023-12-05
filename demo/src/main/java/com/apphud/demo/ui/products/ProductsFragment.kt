@@ -59,7 +59,7 @@ class ProductsFragment : Fragment() {
                         } else {
                         if (product.productId == "com.apphud.demo.nonconsumable.premium")
                             {
-                                Apphud.purchase(activity = activity, apphudProduct = product, consumableInappProduct = false) { result ->
+                                Apphud.purchase(activity = activity, apphudProduct = product, consumableInAppProduct = false) { result ->
                                     result.error?.let { err ->
                                         Toast.makeText(activity, if (result.userCanceled()) "User Canceled" else err.message, Toast.LENGTH_SHORT).show()
                                     } ?: run {
@@ -67,7 +67,7 @@ class ProductsFragment : Fragment() {
                                     }
                                 }
                             } else {
-                            Apphud.purchase(activity = activity, apphudProduct = product, consumableInappProduct = true) { result ->
+                            Apphud.purchase(activity = activity, apphudProduct = product, consumableInAppProduct = true) { result ->
                                 result.error?.let { err ->
                                     Toast.makeText(activity, if (result.userCanceled()) "User Canceled" else err.message, Toast.LENGTH_SHORT).show()
                                 } ?: run {
