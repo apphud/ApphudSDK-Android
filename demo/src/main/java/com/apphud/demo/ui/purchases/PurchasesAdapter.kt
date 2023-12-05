@@ -63,13 +63,11 @@ class PurchasesAdapter(private val purchasesViewModel: PurchasesViewModel, priva
             purchasedAt.text = item.startedAt?.let { convertLongToTime(it) } ?: run { "" }
             expiresAt.text = convertLongToTime(item.expiresAt)
             status.text = item.status.name
-            if (item.status.name.equals("expired", true))
-                {
-                    status.setBackgroundResource(R.color.red)
-                } else
-                {
-                    status.setBackgroundResource(R.color.green)
-                }
+            if (item.status.name.equals("expired", true)) {
+                status.setBackgroundResource(R.color.red)
+            } else {
+                status.setBackgroundResource(R.color.green)
+            }
             itemView.setOnClickListener {
                 selectSubscription?.invoke(item)
             }

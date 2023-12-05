@@ -50,7 +50,7 @@ class GroupsFragment : Fragment() {
         return root
     }
 
-    private fun updateData()  {
+    private fun updateData() {
         groupsViewModel.updateData()
     }
 

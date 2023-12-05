@@ -49,13 +49,11 @@ class GroupsAdapter(private val groupsViewModel: GroupsViewModel, private val co
             productId.text = item.productId
 
             item.productDetails?.let { details ->
-                if (details.productType == BillingClient.ProductType.SUBS)
-                    {
-                        productPrice.text = details.subscriptionOfferDetails?.firstOrNull()?.pricingPhases?.pricingPhaseList?.firstOrNull()?.formattedPrice ?: ""
-                    } else
-                    {
-                        productPrice.text = details.oneTimePurchaseOfferDetails?.formattedPrice ?: ""
-                    }
+                if (details.productType == BillingClient.ProductType.SUBS) {
+                    productPrice.text = details.subscriptionOfferDetails?.firstOrNull()?.pricingPhases?.pricingPhaseList?.firstOrNull()?.formattedPrice ?: ""
+                } else {
+                    productPrice.text = details.oneTimePurchaseOfferDetails?.formattedPrice ?: ""
+                }
             } ?: run {
                 productPrice.text = ""
             }

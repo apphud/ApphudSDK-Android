@@ -39,12 +39,11 @@ import java.util.*
 import java.util.concurrent.TimeUnit
 import kotlin.coroutines.resume
 
-
 object RequestManager {
     private const val MUST_REGISTER_ERROR =
         " :You must call the Apphud.start method once when your application starts before calling any other methods."
 
-    val BILLING_VERSION :Int= 5
+    val BILLING_VERSION: Int = 5
     var currentUser: ApphudUser? = null
 
     val gson = GsonBuilder().serializeNulls().create()
@@ -56,7 +55,7 @@ object RequestManager {
     private val placementsMapper = PlacementsMapper(parser)
     private val customerMapper = CustomerMapper(SubscriptionMapper(), paywallsMapper, placementsMapper)
 
-    //TODO to be settled
+    // TODO to be settled
     private var apiKey: String? = null
     lateinit var userId: UserId
     lateinit var deviceId: DeviceId
@@ -78,7 +77,7 @@ object RequestManager {
         applicationContext: Context,
         userId: UserId,
         deviceId: DeviceId,
-        apiKey: String? = null
+        apiKey: String? = null,
     ) {
         this.applicationContext = applicationContext
         this.userId = userId
@@ -97,13 +96,16 @@ object RequestManager {
     }
 
     private fun canPerformRequest(): Boolean {
-        return ::applicationContext.isInitialized
-                && ::userId.isInitialized
-                && ::deviceId.isInitialized
-                && apiKey != null
+        return ::applicationContext.isInitialized &&
+            ::userId.isInitialized &&
+            ::deviceId.isInitialized &&
+            apiKey != null
     }
 
-    private fun getOkHttpClient(request: Request, retry: Boolean = true): OkHttpClient {
+    private fun getOkHttpClient(
+        request: Request,
+        retry: Boolean = true,
+    ): OkHttpClient {
         val retryInterceptor = HttpRetryInterceptor()
         val headersInterceptor = HeadersInterceptor(apiKey)
         /*val logging = HttpLoggingInterceptor {
@@ -129,18 +131,19 @@ object RequestManager {
             readTimeout = 30L
         }
 
-        var builder = OkHttpClient.Builder()
-            .readTimeout(readTimeout, TimeUnit.SECONDS)
-            .writeTimeout(10, TimeUnit.SECONDS)
-            .connectTimeout(10, TimeUnit.SECONDS)
+        var builder =
+            OkHttpClient.Builder()
+                .readTimeout(readTimeout, TimeUnit.SECONDS)
+                .writeTimeout(10, TimeUnit.SECONDS)
+                .connectTimeout(10, TimeUnit.SECONDS)
         if (retry) builder.addInterceptor(retryInterceptor)
         builder.addNetworkInterceptor(headersInterceptor)
-        //builder.addNetworkInterceptor(logging)
+        // builder.addNetworkInterceptor(logging)
 
         return builder.build()
     }
 
-    private fun logRequestStart(request: Request){
+    private fun logRequestStart(request: Request)  {
         try {
             var body: String? = ""
             request.body?.let {
@@ -163,35 +166,40 @@ object RequestManager {
                 }
             }
             ApphudLog.logI("Start " + request.method + " request " + request.url + " with params:" + body)
-        }catch (ex: Exception){
-            ApphudLog.logE(ex.message?:"")
+        } catch (ex: Exception) {
+            ApphudLog.logE(ex.message ?: "")
         }
     }
 
-    private fun logRequestFinish(request: Request, response: Response){
-        try{
+    private fun logRequestFinish(
+        request: Request,
+        response: Response,
+    )  {
+        try {
             val responseBody = response.body
             val source = responseBody?.source()
             source?.request(Long.MAX_VALUE)
 
             val buffer = source?.buffer?.clone()?.readString(Charset.forName("UTF-8"))
             var outputBody = ""
-            buffer?.let{
+            buffer?.let {
                 if (parser.isJson(buffer)) {
-                    outputBody = buildPrettyPrintedBy(it)?:""
+                    outputBody = buildPrettyPrintedBy(it) ?: ""
                 }
             }
 
-            ApphudLog.logI("Finished " + request.method + " request " + request.url + " with response: " + response.code + "\n" + outputBody)
-        }catch (ex: Exception){
-            ApphudLog.logE(ex.message?:"")
+            ApphudLog.logI(
+                "Finished " + request.method + " request " + request.url + " with response: " + response.code + "\n" + outputBody,
+            )
+        } catch (ex: Exception) {
+            ApphudLog.logE(ex.message ?: "")
         }
     }
 
     private fun performRequest(
         client: OkHttpClient,
         request: Request,
-        completionHandler: (String?, ApphudError?) -> Unit
+        completionHandler: (String?, ApphudError?) -> Unit,
     ) {
         try {
             if (HeadersInterceptor.isBlocked) {
@@ -200,7 +208,6 @@ object RequestManager {
                 ApphudLog.logE(message)
                 completionHandler(null, ApphudError(message))
             } else if (true) {
-
                 logRequestStart(request)
 
                 val start = Date()
@@ -209,7 +216,7 @@ object RequestManager {
                 val diff = (finish.time - start.time)
                 ApphudLog.logBenchmark(
                     request.url.encodedPath,
-                    diff
+                    diff,
                 )
 
                 logRequestFinish(request, response)
@@ -222,7 +229,8 @@ object RequestManager {
                     }
                 } else {
                     checkLock403(request, response)
-                    val message = "finish ${request.method} request ${request.url} " +
+                    val message =
+                        "finish ${request.method} request ${request.url} " +
                             "failed with code: ${response.code} response: ${
                                 buildPrettyPrintedBy(response.body.toString())
                             }"
@@ -244,7 +252,10 @@ object RequestManager {
     }
 
     @Throws(Exception::class)
-    fun performRequestSync(client: OkHttpClient, request: Request): String {
+    fun performRequestSync(
+        client: OkHttpClient,
+        request: Request,
+    ): String {
         if (HeadersInterceptor.isBlocked) {
             val message = "SDK networking is locked until application restart"
             ApphudLog.logE(message)
@@ -258,7 +269,7 @@ object RequestManager {
             val diff = (finish.time - start.time)
             ApphudLog.logBenchmark(
                 request.url.encodedPath,
-                diff
+                diff,
             )
 
             logRequestFinish(request, response)
@@ -268,7 +279,8 @@ object RequestManager {
                 return responseBody
             } else {
                 checkLock403(request, response)
-                val message = "finish ${request.method} request ${request.url} " +
+                val message =
+                    "finish ${request.method} request ${request.url} " +
                         "failed with code: ${response.code} response: ${
                             buildPrettyPrintedBy(responseBody)
                         }"
@@ -281,7 +293,10 @@ object RequestManager {
         }
     }
 
-    private fun checkLock403(request: Request, response: Response){
+    private fun checkLock403(
+        request: Request,
+        response: Response,
+    )  {
         if (response.code == 403 && request.method == "POST" && request.url.encodedPath.endsWith("/customers")) {
             HeadersInterceptor.isBlocked = true
         }
@@ -290,7 +305,7 @@ object RequestManager {
     private fun makeRequest(
         request: Request,
         retry: Boolean = true,
-        completionHandler: (String?, ApphudError?) -> Unit
+        completionHandler: (String?, ApphudError?) -> Unit,
     ) {
         val httpClient = getOkHttpClient(request, retry)
         performRequest(httpClient, request, completionHandler)
@@ -299,7 +314,7 @@ object RequestManager {
     private fun makeUserRegisteredRequest(
         request: Request,
         retry: Boolean = true,
-        completionHandler: (String?, ApphudError?) -> Unit
+        completionHandler: (String?, ApphudError?) -> Unit,
     ) {
         val httpClient = getOkHttpClient(request, retry)
         if (currentUser == null) {
@@ -317,7 +332,7 @@ object RequestManager {
 
     private fun buildPostRequest(
         url: URL,
-        params: Any
+        params: Any,
     ): Request {
         val json = parser.toJson(params)
         val mediaType = "application/json; charset=utf-8".toMediaType()
@@ -336,52 +351,68 @@ object RequestManager {
             .build()
     }
 
-    suspend fun registrationSync(needPaywalls: Boolean, isNew: Boolean, forceRegistration: Boolean = false) :ApphudUser? =
+    suspend fun registrationSync(
+        needPaywalls: Boolean,
+        isNew: Boolean,
+        forceRegistration: Boolean = false,
+    ): ApphudUser? =
         suspendCancellableCoroutine { continuation ->
-        if(!canPerformRequest()) {
-            ApphudLog.logE("registrationSync $MUST_REGISTER_ERROR")
-            if(continuation.isActive) {
-                continuation.resume(null)
-            }
-        }
-
-        if(currentUser == null || forceRegistration) {
-            registration(needPaywalls, isNew, forceRegistration) { customer, error ->
-                if(continuation.isActive) {
-                    continuation.resume(customer)
+            if (!canPerformRequest()) {
+                ApphudLog.logE("registrationSync $MUST_REGISTER_ERROR")
+                if (continuation.isActive) {
+                    continuation.resume(null)
                 }
             }
-        }else{
-            if(continuation.isActive) {
-                continuation.resume(currentUser)
-            }
+
+            if (currentUser == null || forceRegistration) {
+                registration(needPaywalls, isNew, forceRegistration) { customer, error ->
+                    if (continuation.isActive) {
+                        continuation.resume(customer)
+                    }
+                }
+            } else
+                {
+                    if (continuation.isActive) {
+                        continuation.resume(currentUser)
+                    }
+                }
         }
-    }
 
     @Synchronized
-    fun registration(needPaywalls: Boolean, isNew: Boolean,  forceRegistration: Boolean = false, completionHandler: (ApphudUser?, ApphudError?) -> Unit) {
-        if(!canPerformRequest()) {
+    fun registration(
+        needPaywalls: Boolean,
+        isNew: Boolean,
+        forceRegistration: Boolean = false,
+        completionHandler: (ApphudUser?, ApphudError?) -> Unit,
+    ) {
+        if (!canPerformRequest()) {
             ApphudLog.logE(::registration.name + MUST_REGISTER_ERROR)
             return
         }
 
-        if(currentUser == null || forceRegistration) {
-            val apphudUrl = ApphudUrl.Builder()
-                .host(HeadersInterceptor.HOST)
-                .version(ApphudVersion.V1)
-                .path("customers")
-                .build()
+        if (currentUser == null || forceRegistration) {
+            val apphudUrl =
+                ApphudUrl.Builder()
+                    .host(HeadersInterceptor.HOST)
+                    .version(ApphudVersion.V1)
+                    .path("customers")
+                    .build()
 
             val request = buildPostRequest(URL(apphudUrl.url), mkRegistrationBody(needPaywalls, isNew))
             val httpClient = getOkHttpClient(request, !fallbackMode)
             try {
                 val serverResponse = performRequestSync(httpClient, request)
-                val responseDto: ResponseDto<CustomerDto>? = parser.fromJson<ResponseDto<CustomerDto>>(serverResponse,object : TypeToken<ResponseDto<CustomerDto>>() {}.type)
+                val responseDto: ResponseDto<CustomerDto>? =
+                    parser.fromJson<ResponseDto<CustomerDto>>(
+                        serverResponse,
+                        object : TypeToken<ResponseDto<CustomerDto>>() {}.type,
+                    )
 
                 responseDto?.let { cDto ->
-                    currentUser = cDto.data.results?.let { customerObj ->
-                        customerMapper.map(customerObj)
-                    }
+                    currentUser =
+                        cDto.data.results?.let { customerObj ->
+                            customerMapper.map(customerObj)
+                        }
                     completionHandler(currentUser, null)
                 } ?: run {
                     completionHandler(null, ApphudError("Registration failed"))
@@ -391,71 +422,81 @@ object RequestManager {
                 val message = e.message ?: "Undefined error"
                 completionHandler(null, ApphudError(message, null, ApphudInternal.ERROR_TIMEOUT))
             } catch (ex: Exception) {
-                val message = ex.message?:"Undefined error"
-                completionHandler(null,  ApphudError(message))
+                val message = ex.message ?: "Undefined error"
+                completionHandler(null, ApphudError(message))
             }
-        }else{
-            completionHandler(currentUser, null)
-        }
+        } else
+            {
+                completionHandler(currentUser, null)
+            }
     }
 
-    suspend fun allProducts() : List<ApphudGroup>? =
-    suspendCancellableCoroutine { continuation ->
-        val apphudUrl = ApphudUrl.Builder()
-            .host(HeadersInterceptor.HOST)
-            .version(ApphudVersion.V2)
-            .path("products")
-            .build()
+    suspend fun allProducts(): List<ApphudGroup>? =
+        suspendCancellableCoroutine { continuation ->
+            val apphudUrl =
+                ApphudUrl.Builder()
+                    .host(HeadersInterceptor.HOST)
+                    .version(ApphudVersion.V2)
+                    .path("products")
+                    .build()
 
-        val request = buildGetRequest(URL(apphudUrl.url))
+            val request = buildGetRequest(URL(apphudUrl.url))
 
-        makeRequest(request) { serverResponse, error ->
-            serverResponse?.let {
-                val responseDto: ResponseDto<List<ApphudGroupDto>>? =
-                    parser.fromJson<ResponseDto<List<ApphudGroupDto>>>(serverResponse, object: TypeToken<ResponseDto<List<ApphudGroupDto>>>(){}.type)
-                responseDto?.let{ response ->
-                    val productsList = response.data.results?.let { it1 -> productMapper.map(it1) }
-                    if(continuation.isActive) {
-                        continuation.resume(productsList)
+            makeRequest(request) { serverResponse, error ->
+                serverResponse?.let {
+                    val responseDto: ResponseDto<List<ApphudGroupDto>>? =
+                        parser.fromJson<ResponseDto<List<ApphudGroupDto>>>(serverResponse, object : TypeToken<ResponseDto<List<ApphudGroupDto>>>() {}.type)
+                    responseDto?.let { response ->
+                        val productsList = response.data.results?.let { it1 -> productMapper.map(it1) }
+                        if (continuation.isActive) {
+                            continuation.resume(productsList)
+                        }
+                    } ?: run {
+                        ApphudLog.logE("Failed to load products")
+                        if (continuation.isActive) {
+                            continuation.resume(null)
+                        }
                     }
-                }?: run{
-                    ApphudLog.logE("Failed to load products")
-                    if(continuation.isActive) {
+                } ?: run {
+                    if (error != null) {
+                        ApphudLog.logE(error.message)
+                    }
+                    if (continuation.isActive) {
                         continuation.resume(null)
                     }
                 }
-            } ?: run {
-                if (error != null) {
-                    ApphudLog.logE(error.message)
-                }
-                if(continuation.isActive) {
-                    continuation.resume(null)
-                }
             }
         }
-    }
 
-    fun purchased(purchase: Purchase,
-                  apphudProduct: ApphudProduct?,
-                  offerToken: String?,
-                  oldToken: String?,
-                  completionHandler: (ApphudUser?, ApphudError?) -> Unit) {
-        if(!canPerformRequest()) {
+    fun purchased(
+        purchase: Purchase,
+        apphudProduct: ApphudProduct?,
+        offerToken: String?,
+        oldToken: String?,
+        completionHandler: (ApphudUser?, ApphudError?) -> Unit,
+    ) {
+        if (!canPerformRequest()) {
             ApphudLog.logE(::purchased.name + MUST_REGISTER_ERROR)
             return
         }
 
-        val apphudUrl = ApphudUrl.Builder()
-            .host(HeadersInterceptor.HOST)
-            .version(ApphudVersion.V1)
-            .path("subscriptions")
-            .build()
+        val apphudUrl =
+            ApphudUrl.Builder()
+                .host(HeadersInterceptor.HOST)
+                .version(ApphudVersion.V1)
+                .path("subscriptions")
+                .build()
 
-        val purchaseBody = apphudProduct?.let {
-            makePurchaseBody(purchase, it.productDetails, it.paywallId, it.placementId, it.id, offerToken, oldToken)
-        }
+        val purchaseBody =
+            apphudProduct?.let {
+                makePurchaseBody(purchase, it.productDetails, it.paywallId, it.placementId, it.id, offerToken, oldToken)
+            }
         if (purchaseBody == null) {
-            val message = "ProductsDetails and ApphudProduct can not be null at the same time" + apphudProduct?.let{ " [Apphud product ID: " + it.id + "]"}
+            val message =
+                "ProductsDetails and ApphudProduct can not be null at the same time" +
+                    apphudProduct?.let {
+                        " [Apphud product ID: " + it.id + "]"
+                    }
             ApphudLog.logE(message = message)
             completionHandler.invoke(null, ApphudError(message))
             return
@@ -468,12 +509,13 @@ object RequestManager {
                 val responseDto: ResponseDto<CustomerDto>? =
                     parser.fromJson<ResponseDto<CustomerDto>>(
                         serverResponse,
-                        object : TypeToken<ResponseDto<CustomerDto>>() {}.type
+                        object : TypeToken<ResponseDto<CustomerDto>>() {}.type,
                     )
                 responseDto?.let { cDto ->
-                    currentUser = cDto.data.results?.let { customerObj ->
-                        customerMapper.map(customerObj)
-                    }
+                    currentUser =
+                        cDto.data.results?.let { customerObj ->
+                            customerMapper.map(customerObj)
+                        }
                     completionHandler(currentUser, null)
                 } ?: run {
                     completionHandler(null, ApphudError("Purchase failed"))
@@ -490,7 +532,7 @@ object RequestManager {
         purchase: Purchase?,
         productDetails: ProductDetails?,
         offerIdToken: String?,
-        observerMode: Boolean
+        observerMode: Boolean,
     ): ApphudUser? =
         suspendCancellableCoroutine { continuation ->
             if (!canPerformRequest()) {
@@ -500,41 +542,48 @@ object RequestManager {
                 }
             }
 
-            val apphudUrl = ApphudUrl.Builder()
-                .host(HeadersInterceptor.HOST)
-                .version(ApphudVersion.V1)
-                .path("subscriptions")
-                .build()
+            val apphudUrl =
+                ApphudUrl.Builder()
+                    .host(HeadersInterceptor.HOST)
+                    .version(ApphudVersion.V1)
+                    .path("subscriptions")
+                    .build()
 
-            val purchaseBody = if(purchaseRecordDetailsSet != null){
-                makeRestorePurchasesBody(
-                    apphudProduct,
-                    purchaseRecordDetailsSet,
-                    observerMode
-                )
-            }else if(purchase != null && productDetails != null){
-                makeTrackPurchasesBody(
-                    apphudProduct,
-                    purchase,
-                    productDetails,
-                    offerIdToken,
-                    observerMode
-                )
-            } else null
+            val purchaseBody =
+                if (purchaseRecordDetailsSet != null)
+                    {
+                        makeRestorePurchasesBody(
+                            apphudProduct,
+                            purchaseRecordDetailsSet,
+                            observerMode,
+                        )
+                    } else if (purchase != null && productDetails != null)
+                    {
+                        makeTrackPurchasesBody(
+                            apphudProduct,
+                            purchase,
+                            productDetails,
+                            offerIdToken,
+                            observerMode,
+                        )
+                    } else {
+                    null
+                }
 
-            purchaseBody?.let{
+            purchaseBody?.let {
                 val request = buildPostRequest(URL(apphudUrl.url), it)
                 makeUserRegisteredRequest(request, !fallbackMode) { serverResponse, error ->
                     serverResponse?.let {
                         val responseDto: ResponseDto<CustomerDto>? =
                             parser.fromJson<ResponseDto<CustomerDto>>(
                                 serverResponse,
-                                object : TypeToken<ResponseDto<CustomerDto>>() {}.type
+                                object : TypeToken<ResponseDto<CustomerDto>>() {}.type,
                             )
                         responseDto?.let { cDto ->
-                            currentUser = cDto.data.results?.let { customerObj ->
-                                customerMapper.map(customerObj)
-                            }
+                            currentUser =
+                                cDto.data.results?.let { customerObj ->
+                                    customerMapper.map(customerObj)
+                                }
                             if (continuation.isActive) {
                                 continuation.resume(currentUser)
                             }
@@ -549,24 +598,28 @@ object RequestManager {
                         }
                     }
                 }
-            }?: run{
+            } ?: run {
                 if (continuation.isActive) {
                     continuation.resume(null)
                 }
             }
         }
 
-    fun send(attributionBody: AttributionBody,  completionHandler: (Attribution?, ApphudError?) -> Unit){
-        if(!canPerformRequest()) {
+    fun send(
+        attributionBody: AttributionBody,
+        completionHandler: (Attribution?, ApphudError?) -> Unit,
+    )  {
+        if (!canPerformRequest()) {
             ApphudLog.logE(::send.name + MUST_REGISTER_ERROR)
             return
         }
 
-        val apphudUrl = ApphudUrl.Builder()
-            .host(HeadersInterceptor.HOST)
-            .version(ApphudVersion.V1)
-            .path("customers/attribution")
-            .build()
+        val apphudUrl =
+            ApphudUrl.Builder()
+                .host(HeadersInterceptor.HOST)
+                .version(ApphudVersion.V1)
+                .path("customers/attribution")
+                .build()
 
         val request = buildPostRequest(URL(apphudUrl.url), attributionBody)
 
@@ -575,12 +628,12 @@ object RequestManager {
                 val responseDto: ResponseDto<AttributionDto>? =
                     parser.fromJson<ResponseDto<AttributionDto>>(
                         serverResponse,
-                        object : TypeToken<ResponseDto<AttributionDto>>() {}.type
+                        object : TypeToken<ResponseDto<AttributionDto>>() {}.type,
                     )
-                responseDto?.let{ response ->
+                responseDto?.let { response ->
                     val attribution = response.data.results?.let { it1 -> attributionMapper.map(it1) }
                     completionHandler(attribution, null)
-                }?: run {
+                } ?: run {
                     completionHandler(null, ApphudError("Failed to send attribution"))
                 }
             } ?: run {
@@ -589,17 +642,21 @@ object RequestManager {
         }
     }
 
-    fun userProperties(userPropertiesBody: UserPropertiesBody, completionHandler: (Attribution?, ApphudError?) -> Unit){
-        if(!canPerformRequest()) {
+    fun userProperties(
+        userPropertiesBody: UserPropertiesBody,
+        completionHandler: (Attribution?, ApphudError?) -> Unit,
+    )  {
+        if (!canPerformRequest()) {
             ApphudLog.logE(::userProperties.name + MUST_REGISTER_ERROR)
             return
         }
 
-        val apphudUrl = ApphudUrl.Builder()
-            .host(HeadersInterceptor.HOST)
-            .version(ApphudVersion.V1)
-            .path("customers/properties")
-            .build()
+        val apphudUrl =
+            ApphudUrl.Builder()
+                .host(HeadersInterceptor.HOST)
+                .version(ApphudVersion.V1)
+                .path("customers/properties")
+                .build()
 
         val request = buildPostRequest(URL(apphudUrl.url), userPropertiesBody)
 
@@ -608,12 +665,12 @@ object RequestManager {
                 val responseDto: ResponseDto<AttributionDto>? =
                     parser.fromJson<ResponseDto<AttributionDto>>(
                         serverResponse,
-                        object : TypeToken<ResponseDto<AttributionDto>>() {}.type
+                        object : TypeToken<ResponseDto<AttributionDto>>() {}.type,
                     )
-                responseDto?.let{ response ->
+                responseDto?.let { response ->
                     val attribution = response.data.results?.let { it1 -> attributionMapper.map(it1) }
                     completionHandler(attribution, null)
-                }?: run {
+                } ?: run {
                     completionHandler(null, ApphudError("Failed to send properties"))
                 }
             } ?: run {
@@ -622,17 +679,23 @@ object RequestManager {
         }
     }
 
-    fun grantPromotional(daysCount: Int, productId: String?, permissionGroup: ApphudGroup?, completionHandler: (ApphudUser?, ApphudError?) -> Unit) {
-        if(!canPerformRequest()) {
+    fun grantPromotional(
+        daysCount: Int,
+        productId: String?,
+        permissionGroup: ApphudGroup?,
+        completionHandler: (ApphudUser?, ApphudError?) -> Unit,
+    ) {
+        if (!canPerformRequest()) {
             ApphudLog.logE(::grantPromotional.name + MUST_REGISTER_ERROR)
             return
         }
 
-        val apphudUrl = ApphudUrl.Builder()
-            .host(HeadersInterceptor.HOST)
-            .version(ApphudVersion.V1)
-            .path("promotions")
-            .build()
+        val apphudUrl =
+            ApphudUrl.Builder()
+                .host(HeadersInterceptor.HOST)
+                .version(ApphudVersion.V1)
+                .path("promotions")
+                .build()
 
         val request = buildPostRequest(URL(apphudUrl.url), grantPromotionalBody(daysCount, productId, permissionGroup))
         val httpClient = getOkHttpClient(request)
@@ -641,20 +704,21 @@ object RequestManager {
             val responseDto: ResponseDto<CustomerDto>? =
                 parser.fromJson<ResponseDto<CustomerDto>>(
                     serverResponse,
-                    object : TypeToken<ResponseDto<CustomerDto>>() {}.type
+                    object : TypeToken<ResponseDto<CustomerDto>>() {}.type,
                 )
 
             responseDto?.let { cDto ->
-                currentUser = cDto.data.results?.let { customerObj ->
-                    customerMapper.map(customerObj)
-                }
+                currentUser =
+                    cDto.data.results?.let { customerObj ->
+                        customerMapper.map(customerObj)
+                    }
                 completionHandler(currentUser, null)
             } ?: run {
                 completionHandler(null, ApphudError("Promotional request failed"))
             }
         } catch (ex: Exception) {
-            val message = ex.message?:"Undefined error"
-            completionHandler(null,  ApphudError(message))
+            val message = ex.message ?: "Undefined error"
+            completionHandler(null, ApphudError(message))
         }
     }
 
@@ -663,8 +727,8 @@ object RequestManager {
             makePaywallEventBody(
                 name = "paywall_shown",
                 paywall_id = paywall.id,
-                placement_id = paywall.placementId
-            )
+                placement_id = paywall.placementId,
+            ),
         )
     }
 
@@ -673,107 +737,123 @@ object RequestManager {
             makePaywallEventBody(
                 name = "paywall_closed",
                 paywall_id = paywall.id,
-                placement_id = paywall.placementId
-            )
+                placement_id = paywall.placementId,
+            ),
         )
     }
 
-    fun paywallCheckoutInitiated(paywall_id: String?, placement_id: String?, product_id: String?) {
+    fun paywallCheckoutInitiated(
+        paywall_id: String?,
+        placement_id: String?,
+        product_id: String?,
+    ) {
         trackPaywallEvent(
             makePaywallEventBody(
                 name = "paywall_checkout_initiated",
                 paywall_id = paywall_id,
                 placement_id = placement_id,
-                product_id = product_id
-            )
+                product_id = product_id,
+            ),
         )
     }
 
-    fun paywallPaymentCancelled(paywall_id: String?, placement_id: String?, product_id: String?) {
+    fun paywallPaymentCancelled(
+        paywall_id: String?,
+        placement_id: String?,
+        product_id: String?,
+    ) {
         trackPaywallEvent(
             makePaywallEventBody(
                 name = "paywall_payment_cancelled",
                 paywall_id = paywall_id,
                 placement_id = placement_id,
-                product_id = product_id
-            )
+                product_id = product_id,
+            ),
         )
     }
 
-    fun paywallPaymentError(paywall_id: String?, placement_id: String?, product_id: String?, error_code: String?) {
+    fun paywallPaymentError(
+        paywall_id: String?,
+        placement_id: String?,
+        product_id: String?,
+        error_code: String?,
+    ) {
         trackPaywallEvent(
             makePaywallEventBody(
                 name = "paywall_payment_error",
                 paywall_id = paywall_id,
                 placement_id = placement_id,
                 product_id = product_id,
-                error_code = error_code
-            )
+                error_code = error_code,
+            ),
         )
     }
 
     private fun trackPaywallEvent(body: PaywallEventBody) {
-        if(!canPerformRequest()) {
+        if (!canPerformRequest()) {
             ApphudLog.logE(::trackPaywallEvent.name + MUST_REGISTER_ERROR)
             return
         }
 
-        val apphudUrl = ApphudUrl.Builder()
-            .host(HeadersInterceptor.HOST)
-            .version(ApphudVersion.V1)
-            .path("events")
-            .build()
+        val apphudUrl =
+            ApphudUrl.Builder()
+                .host(HeadersInterceptor.HOST)
+                .version(ApphudVersion.V1)
+                .path("events")
+                .build()
 
         val request = buildPostRequest(URL(apphudUrl.url), body)
 
         makeUserRegisteredRequest(request) { serverResponse, error ->
             serverResponse?.let {
-                    ApphudLog.logI("Paywall Event log was send successfully")
-                }?: run {
-                    ApphudLog.logI("Failed to send paywall event")
-                }
+                ApphudLog.logI("Paywall Event log was send successfully")
+            } ?: run {
+                ApphudLog.logI("Failed to send paywall event")
+            }
             error?.let {
                 ApphudLog.logE("Paywall Event log was not send")
             }
         }
     }
 
-    fun sendErrorLogs(message: String){
-        if(!canPerformRequest()) {
+    fun sendErrorLogs(message: String)  {
+        if (!canPerformRequest()) {
             ApphudLog.logE(::sendErrorLogs.name + MUST_REGISTER_ERROR)
             return
         }
 
         val body = makeErrorLogsBody(message, ApphudUtils.packageName)
 
-        val apphudUrl = ApphudUrl.Builder()
-            .host(HeadersInterceptor.HOST)
-            .version(ApphudVersion.V1)
-            .path("logs")
-            .build()
+        val apphudUrl =
+            ApphudUrl.Builder()
+                .host(HeadersInterceptor.HOST)
+                .version(ApphudVersion.V1)
+                .path("logs")
+                .build()
 
         val request = buildPostRequest(URL(apphudUrl.url), body)
 
         makeRequest(request, false) { _, error ->
             error?.let {
                 ApphudLog.logE("Error logs was not send")
-            }?:run{
+            } ?: run {
                 ApphudLog.logI("Error logs was send successfully")
             }
         }
     }
 
-    fun sendBenchmarkLogs(body: BenchmarkBody){
-        if(!canPerformRequest()) {
+    fun sendBenchmarkLogs(body: BenchmarkBody)  {
+        if (!canPerformRequest()) {
             ApphudLog.logE(::sendErrorLogs.name + MUST_REGISTER_ERROR)
             return
         }
 
-        val apphudUrl = ApphudUrl.Builder()
-            .host(HeadersInterceptor.HOST)
-            .version(ApphudVersion.V2)
-            .path("logs")
-            .build()
+        val apphudUrl =
+            ApphudUrl.Builder()
+                .host(HeadersInterceptor.HOST)
+                .version(ApphudVersion.V2)
+                .path("logs")
+                .build()
 
         val request = buildPostRequest(URL(apphudUrl.url), body)
 
@@ -810,7 +890,13 @@ object RequestManager {
         return false
     }
 
-    private fun makePaywallEventBody(name: String, paywall_id: String?, placement_id: String?, product_id: String? = null, error_code: String? = null): PaywallEventBody {
+    private fun makePaywallEventBody(
+        name: String,
+        paywall_id: String?,
+        placement_id: String?,
+        product_id: String? = null,
+        error_code: String? = null,
+    ): PaywallEventBody {
         val properties = mutableMapOf<String, Any>()
         paywall_id?.let { properties.put("paywall_id", it) }
         product_id?.let { properties.put("product_id", it) }
@@ -823,41 +909,43 @@ object RequestManager {
             device_id = deviceId,
             environment = if (applicationContext.isDebuggable()) "sandbox" else "production",
             timestamp = System.currentTimeMillis(),
-            properties = properties.ifEmpty { null }
+            properties = properties.ifEmpty { null },
         )
     }
 
-    private fun mkRegistrationBody(needPaywalls: Boolean, isNew: Boolean) =
-        RegistrationBody(
-            locale = Locale.getDefault().toString(),
-            sdk_version = BuildConfig.VERSION_NAME,
-            app_version =  this.applicationContext.buildAppVersion(),
-            device_family = Build.MANUFACTURER,
-            platform = "Android",
-            device_type =  if (ApphudUtils.optOutOfTracking) "Restricted" else Build.MODEL,
-            os_version = Build.VERSION.RELEASE,
-            start_app_version = this.applicationContext.buildAppVersion(),
-            idfv = if (ApphudUtils.optOutOfTracking) null else appSetId,
-            idfa = if (!ApphudUtils.optOutOfTracking && !advertisingId.isNullOrEmpty()) advertisingId else null,
-            android_id = if (ApphudUtils.optOutOfTracking) null else androidId,
-            user_id = userId,
-            device_id = deviceId,
-            time_zone = TimeZone.getDefault().id,
-            is_sandbox = this.applicationContext.isDebuggable(),
-            is_new = isNew,
-            need_paywalls = needPaywalls,
-            need_placements = needPaywalls,
-            first_seen = getInstallationDate()
-        )
+    private fun mkRegistrationBody(
+        needPaywalls: Boolean,
+        isNew: Boolean,
+    ) = RegistrationBody(
+        locale = Locale.getDefault().toString(),
+        sdk_version = BuildConfig.VERSION_NAME,
+        app_version = this.applicationContext.buildAppVersion(),
+        device_family = Build.MANUFACTURER,
+        platform = "Android",
+        device_type = if (ApphudUtils.optOutOfTracking) "Restricted" else Build.MODEL,
+        os_version = Build.VERSION.RELEASE,
+        start_app_version = this.applicationContext.buildAppVersion(),
+        idfv = if (ApphudUtils.optOutOfTracking) null else appSetId,
+        idfa = if (!ApphudUtils.optOutOfTracking && !advertisingId.isNullOrEmpty()) advertisingId else null,
+        android_id = if (ApphudUtils.optOutOfTracking) null else androidId,
+        user_id = userId,
+        device_id = deviceId,
+        time_zone = TimeZone.getDefault().id,
+        is_sandbox = this.applicationContext.isDebuggable(),
+        is_new = isNew,
+        need_paywalls = needPaywalls,
+        need_placements = needPaywalls,
+        first_seen = getInstallationDate(),
+    )
 
-    private fun getInstallationDate() :Long?{
-        var dateInSecond :Long? = null
-        try{
-            this.applicationContext.packageManager?.let{ manager ->
-                dateInSecond = manager.getPackageInfo(this.applicationContext.packageName, 0).firstInstallTime/1000L
+    private fun getInstallationDate(): Long?  {
+        var dateInSecond: Long? = null
+        try {
+            this.applicationContext.packageManager?.let { manager ->
+                dateInSecond = manager.getPackageInfo(this.applicationContext.packageName, 0).firstInstallTime / 1000L
             }
-        }catch(ex: Exception){
-            ex.message?.let{
+        } catch (ex: Exception) {
+            ex.message?.let {
                 ApphudLog.logE(it)
             }
         }
@@ -871,59 +959,76 @@ object RequestManager {
         placement_id: String?,
         apphud_product_id: String?,
         offerIdToken: String?,
-        oldToken: String?
-    ):PurchaseBody {
+        oldToken: String?,
+    ): PurchaseBody {
         return PurchaseBody(
             device_id = deviceId,
-            purchases = listOf(
-                PurchaseItemBody(
-                    order_id = purchase.orderId,
-                    product_id = productDetails?.let { productDetails.productId } ?: purchase.products.first(),
-                    purchase_token = purchase.purchaseToken,
-                    price_currency_code = productDetails?.priceCurrencyCode(),
-                    price_amount_micros = productDetails?.priceAmountMicros(),
-                    subscription_period = productDetails?.subscriptionPeriod(),
-                    paywall_id = paywall_id,
-                    placement_id = placement_id,
-                    product_bundle_id = apphud_product_id,
-                    observer_mode = false,
-                    billing_version = BILLING_VERSION,
-                    purchase_time = purchase.purchaseTime,
-                    product_info = productDetails?.let{ProductInfo(productDetails, offerIdToken)},
-                    product_type = productDetails?.productType
-                )
-            )
+            purchases =
+                listOf(
+                    PurchaseItemBody(
+                        order_id = purchase.orderId,
+                        product_id = productDetails?.let { productDetails.productId } ?: purchase.products.first(),
+                        purchase_token = purchase.purchaseToken,
+                        price_currency_code = productDetails?.priceCurrencyCode(),
+                        price_amount_micros = productDetails?.priceAmountMicros(),
+                        subscription_period = productDetails?.subscriptionPeriod(),
+                        paywall_id = paywall_id,
+                        placement_id = placement_id,
+                        product_bundle_id = apphud_product_id,
+                        observer_mode = false,
+                        billing_version = BILLING_VERSION,
+                        purchase_time = purchase.purchaseTime,
+                        product_info = productDetails?.let { ProductInfo(productDetails, offerIdToken) },
+                        product_type = productDetails?.productType,
+                    ),
+                ),
         )
     }
 
     private val ONE_HOUR = 3600_000L
-    private fun makeRestorePurchasesBody(apphudProduct: ApphudProduct? = null, purchases: List<PurchaseRecordDetails>, observerMode: Boolean) =
-        PurchaseBody(
-            device_id = deviceId,
-            purchases = purchases.map { purchase ->
+
+    private fun makeRestorePurchasesBody(
+        apphudProduct: ApphudProduct? = null,
+        purchases: List<PurchaseRecordDetails>,
+        observerMode: Boolean,
+    ) = PurchaseBody(
+        device_id = deviceId,
+        purchases =
+            purchases.map { purchase ->
                 PurchaseItemBody(
                     order_id = null,
                     product_id = purchase.details.productId,
                     purchase_token = purchase.record.purchaseToken,
                     price_currency_code = purchase.details.priceCurrencyCode(),
-                    price_amount_micros =  if((System.currentTimeMillis() - purchase.record.purchaseTime) < ONE_HOUR) {purchase.details.priceAmountMicros()} else null,
+                    price_amount_micros =
+                        if ((System.currentTimeMillis() - purchase.record.purchaseTime) < ONE_HOUR) {
+                            purchase.details.priceAmountMicros()
+                        } else {
+                            null
+                        },
                     subscription_period = purchase.details.subscriptionPeriod(),
-                    paywall_id = if(apphudProduct?.productDetails?.productId == purchase.details.productId) apphudProduct.paywallId else null,
-                    placement_id = if(apphudProduct?.productDetails?.productId == purchase.details.productId) apphudProduct.placementId else null,
-                    product_bundle_id = if(apphudProduct?.productDetails?.productId == purchase.details.productId) apphudProduct.id else null,
+                    paywall_id = if (apphudProduct?.productDetails?.productId == purchase.details.productId) apphudProduct.paywallId else null,
+                    placement_id = if (apphudProduct?.productDetails?.productId == purchase.details.productId) apphudProduct.placementId else null,
+                    product_bundle_id = if (apphudProduct?.productDetails?.productId == purchase.details.productId) apphudProduct.id else null,
                     observer_mode = observerMode,
                     billing_version = BILLING_VERSION,
                     purchase_time = purchase.record.purchaseTime,
                     product_info = null,
-                    product_type = purchase.details.productType
+                    product_type = purchase.details.productType,
                 )
-            }.sortedByDescending { it.purchase_time }
-        )
+            }.sortedByDescending { it.purchase_time },
+    )
 
-    private fun makeTrackPurchasesBody(apphudProduct: ApphudProduct? = null, purchase: Purchase, productDetails: ProductDetails, offerIdToken: String?, observerMode: Boolean) =
-        PurchaseBody(
-            device_id = deviceId,
-            purchases = listOf(
+    private fun makeTrackPurchasesBody(
+        apphudProduct: ApphudProduct? = null,
+        purchase: Purchase,
+        productDetails: ProductDetails,
+        offerIdToken: String?,
+        observerMode: Boolean,
+    ) = PurchaseBody(
+        device_id = deviceId,
+        purchases =
+            listOf(
                 PurchaseItemBody(
                     order_id = purchase.orderId,
                     product_id = purchase.products.first(),
@@ -931,35 +1036,41 @@ object RequestManager {
                     price_currency_code = productDetails.priceCurrencyCode(),
                     price_amount_micros = productDetails.priceAmountMicros(),
                     subscription_period = productDetails.subscriptionPeriod(),
-                    paywall_id = if(apphudProduct?.productDetails?.productId == purchase.products.first()) apphudProduct?.paywallId else null,
-                    placement_id = if(apphudProduct?.productDetails?.productId == purchase.products.first()) apphudProduct?.placementId else null,
-                    product_bundle_id = if(apphudProduct?.productDetails?.productId == purchase.products.first()) apphudProduct?.id else null,
+                    paywall_id = if (apphudProduct?.productDetails?.productId == purchase.products.first()) apphudProduct?.paywallId else null,
+                    placement_id = if (apphudProduct?.productDetails?.productId == purchase.products.first()) apphudProduct?.placementId else null,
+                    product_bundle_id = if (apphudProduct?.productDetails?.productId == purchase.products.first()) apphudProduct?.id else null,
                     observer_mode = observerMode,
                     billing_version = BILLING_VERSION,
                     purchase_time = purchase.purchaseTime,
                     product_info = ProductInfo(productDetails, offerIdToken),
-                    product_type = productDetails.productType
-                )
-            )
-        )
+                    product_type = productDetails.productType,
+                ),
+            ),
+    )
 
-    internal fun makeErrorLogsBody(message: String, apphud_product_id: String? = null) =
-        ErrorLogsBody(
-            message = message,
-            bundle_id = apphud_product_id,
-            user_id = userId,
-            device_id = deviceId,
-            environment = if (applicationContext.isDebuggable()) "sandbox" else "production",
-            timestamp = System.currentTimeMillis()
-        )
+    internal fun makeErrorLogsBody(
+        message: String,
+        apphud_product_id: String? = null,
+    ) = ErrorLogsBody(
+        message = message,
+        bundle_id = apphud_product_id,
+        user_id = userId,
+        device_id = deviceId,
+        environment = if (applicationContext.isDebuggable()) "sandbox" else "production",
+        timestamp = System.currentTimeMillis(),
+    )
 
-    internal fun grantPromotionalBody(daysCount: Int, productId: String? = null, permissionGroup: ApphudGroup? = null): GrantPromotionalBody {
+    internal fun grantPromotionalBody(
+        daysCount: Int,
+        productId: String? = null,
+        permissionGroup: ApphudGroup? = null,
+    ): GrantPromotionalBody {
         return GrantPromotionalBody(
             duration = daysCount,
             user_id = userId,
             device_id = deviceId,
             product_id = productId,
-            product_group_id = permissionGroup?.id
+            product_group_id = permissionGroup?.id,
         )
     }
 
@@ -980,20 +1091,21 @@ object RequestManager {
 
     suspend fun fetchAdvertisingId(): String? =
         suspendCancellableCoroutine { continuation ->
-            if(hasPermission("com.google.android.gms.permission.AD_ID")){
-                var advId :String? = null
-                try {
-                    val adInfo: AdInfo = AdvertisingIdManager.getAdvertisingIdInfo(applicationContext)
-                    advId = adInfo.id
-                } catch (e: java.lang.Exception) {
-                    ApphudLog.logE("Finish load advertisingId: $e")
-                }
+            if (hasPermission("com.google.android.gms.permission.AD_ID"))
+                {
+                    var advId: String? = null
+                    try {
+                        val adInfo: AdInfo = AdvertisingIdManager.getAdvertisingIdInfo(applicationContext)
+                        advId = adInfo.id
+                    } catch (e: java.lang.Exception) {
+                        ApphudLog.logE("Finish load advertisingId: $e")
+                    }
 
-                if(continuation.isActive) {
-                    continuation.resume(advId)
-                }
-            } else {
-                if(continuation.isActive) {
+                    if (continuation.isActive) {
+                        continuation.resume(advId)
+                    }
+                } else {
+                if (continuation.isActive) {
                     continuation.resume(null)
                 }
             }
@@ -1001,11 +1113,15 @@ object RequestManager {
 
     private fun hasPermission(permission: String): Boolean {
         try {
-            var pInfo = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-                applicationContext.packageManager.getPackageInfo(ApphudUtils.packageName, PackageInfoFlags.of(PackageManager.GET_PERMISSIONS.toLong()))
-            } else {
-                applicationContext.packageManager.getPackageInfo(ApphudUtils.packageName, PackageManager.GET_PERMISSIONS)
-            }
+            var pInfo =
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                    applicationContext.packageManager.getPackageInfo(
+                        ApphudUtils.packageName,
+                        PackageInfoFlags.of(PackageManager.GET_PERMISSIONS.toLong()),
+                    )
+                } else {
+                    applicationContext.packageManager.getPackageInfo(ApphudUtils.packageName, PackageManager.GET_PERMISSIONS)
+                }
 
             if (pInfo.requestedPermissions != null) {
                 for (p in pInfo.requestedPermissions) {
@@ -1021,12 +1137,13 @@ object RequestManager {
     }
 }
 
-fun ProductDetails.priceCurrencyCode(): String?{
-    val res :String? = if(this.productType == BillingClient.ProductType.SUBS) {
-        this.subscriptionOfferDetails?.firstOrNull()?.pricingPhases?.pricingPhaseList?.firstOrNull()?.priceCurrencyCode
-    } else {
-        this.oneTimePurchaseOfferDetails?.priceCurrencyCode
-    }
+fun ProductDetails.priceCurrencyCode(): String?  {
+    val res: String? =
+        if (this.productType == BillingClient.ProductType.SUBS) {
+            this.subscriptionOfferDetails?.firstOrNull()?.pricingPhases?.pricingPhaseList?.firstOrNull()?.priceCurrencyCode
+        } else {
+            this.oneTimePurchaseOfferDetails?.priceCurrencyCode
+        }
     return res
 }
 
@@ -1038,15 +1155,16 @@ fun ProductDetails.priceAmountMicros(): Long? {
     }
 }
 
-fun ProductDetails.subscriptionPeriod(): String?{
-    val res: String? = if(this.productType == BillingClient.ProductType.SUBS) {
-        if(this.subscriptionOfferDetails?.size == 1 && this.subscriptionOfferDetails?.firstOrNull()?.pricingPhases?.pricingPhaseList?.size == 1) {
-            this.subscriptionOfferDetails?.firstOrNull()?.pricingPhases?.pricingPhaseList?.firstOrNull()?.billingPeriod
+fun ProductDetails.subscriptionPeriod(): String?  {
+    val res: String? =
+        if (this.productType == BillingClient.ProductType.SUBS) {
+            if (this.subscriptionOfferDetails?.size == 1 && this.subscriptionOfferDetails?.firstOrNull()?.pricingPhases?.pricingPhaseList?.size == 1) {
+                this.subscriptionOfferDetails?.firstOrNull()?.pricingPhases?.pricingPhaseList?.firstOrNull()?.billingPeriod
+            } else {
+                null
+            }
         } else {
             null
         }
-    } else {
-        null
-    }
     return res
 }

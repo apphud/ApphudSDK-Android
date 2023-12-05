@@ -8,29 +8,33 @@ import com.apphud.sdk.domain.ApphudUser
 class CustomerMapper(
     private val mapper: SubscriptionMapper,
     private val paywallsMapper: PaywallsMapper,
-    private var placementsMapper: PlacementsMapper
+    private var placementsMapper: PlacementsMapper,
 ) {
-
-    fun map(customer: CustomerDto) = ApphudUser(
-        userId = customer.user_id,
-        currencyCode = customer.currency?.code,
-        countryCode = customer.currency?.country_code,
-        subscriptions = customer.subscriptions
-            .filter { it.kind == ApphudKind.AUTORENEWABLE.source }
-            .mapNotNull { mapper.mapRenewable(it) }
-            .sortedByDescending { it.expiresAt }.toMutableList(),
-        purchases = customer.subscriptions
-            .filter { it.kind == ApphudKind.NONRENEWABLE.source }
-            .mapNotNull { mapper.mapNonRenewable(it) }
-            .sortedByDescending { it.purchasedAt }.toMutableList(),
-        paywalls = customer.paywalls?.let{ paywallsList ->
-            paywallsList.map {paywallsMapper.map(it)}
-        }?: run{
-            mutableListOf<ApphudPaywall>()
-        },
-        placements = customer.placements?.let { placementsList ->
-            placementsList.map { placementsMapper.map(it) }
-        },
-        isTemporary = false
-    )
+    fun map(customer: CustomerDto) =
+        ApphudUser(
+            userId = customer.user_id,
+            currencyCode = customer.currency?.code,
+            countryCode = customer.currency?.country_code,
+            subscriptions =
+                customer.subscriptions
+                    .filter { it.kind == ApphudKind.AUTORENEWABLE.source }
+                    .mapNotNull { mapper.mapRenewable(it) }
+                    .sortedByDescending { it.expiresAt }.toMutableList(),
+            purchases =
+                customer.subscriptions
+                    .filter { it.kind == ApphudKind.NONRENEWABLE.source }
+                    .mapNotNull { mapper.mapNonRenewable(it) }
+                    .sortedByDescending { it.purchasedAt }.toMutableList(),
+            paywalls =
+                customer.paywalls?.let { paywallsList ->
+                    paywallsList.map { paywallsMapper.map(it) }
+                } ?: run {
+                    mutableListOf<ApphudPaywall>()
+                },
+            placements =
+                customer.placements?.let { placementsList ->
+                    placementsList.map { placementsMapper.map(it) }
+                },
+            isTemporary = false,
+        )
 }

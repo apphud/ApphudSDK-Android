@@ -14,8 +14,10 @@ object ApphudFlutter {
      * Pass `Paywall Identifier` to be able to use A/B tests in Observer Mode. See docs.apphud.com for details.
      */
     @kotlin.jvm.JvmStatic
-    fun syncPurchases(paywallIdentifier: String? = null, placementIdentifier: String? = null) =
-        ApphudInternal.syncPurchases(paywallIdentifier, placementIdentifier)
+    fun syncPurchases(
+        paywallIdentifier: String? = null,
+        placementIdentifier: String? = null,
+    ) = ApphudInternal.syncPurchases(paywallIdentifier, placementIdentifier)
 
     /**
      * Purchase product by id and automatically submit Google Play purchase token to Apphud
@@ -30,13 +32,13 @@ object ApphudFlutter {
      * @param block: Optional. Returns `ApphudPurchaseResult` object.
      */
     @kotlin.jvm.JvmStatic
-    fun purchase(activity: Activity,
-                 productId: String,
-                 offerIdToken: String? = null,
-                 oldToken: String? = null,
-                 replacementMode: Int? = null,
-                 consumableInappProduct:Boolean = false,
-                 block: ((ApphudPurchaseResult) -> Unit)?) =
-        ApphudInternal.purchase(activity, null, productId, offerIdToken, oldToken, replacementMode, consumableInappProduct,  block)
-
+    fun purchase(
+        activity: Activity,
+        productId: String,
+        offerIdToken: String? = null,
+        oldToken: String? = null,
+        replacementMode: Int? = null,
+        consumableInappProduct: Boolean = false,
+        block: ((ApphudPurchaseResult) -> Unit)?,
+    ) = ApphudInternal.purchase(activity, null, productId, offerIdToken, oldToken, replacementMode, consumableInappProduct, block)
 }

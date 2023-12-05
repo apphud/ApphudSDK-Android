@@ -1,11 +1,11 @@
 package com.apphud.demo.ui.products
 
 import android.os.Bundle
-import androidx.fragment.app.Fragment
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import android.widget.Toast
+import androidx.fragment.app.Fragment
 import androidx.lifecycle.ViewModelProvider
 import androidx.navigation.fragment.navArgs
 import androidx.recyclerview.widget.GridLayoutManager
@@ -16,9 +16,7 @@ import com.apphud.demo.databinding.FragmentProductsBinding
 import com.apphud.demo.ui.utils.OffersFragment
 import com.apphud.sdk.Apphud
 
-
 class ProductsFragment : Fragment() {
-
     val args: ProductsFragmentArgs by navArgs()
     private var _binding: FragmentProductsBinding? = null
     private val binding get() = _binding!!
@@ -27,8 +25,9 @@ class ProductsFragment : Fragment() {
     private lateinit var viewAdapter: ProductsAdapter
 
     override fun onCreateView(
-        inflater: LayoutInflater, container: ViewGroup?,
-        savedInstanceState: Bundle?
+        inflater: LayoutInflater,
+        container: ViewGroup?,
+        savedInstanceState: Bundle?,
     ): View? {
         productsViewModel = ViewModelProvider(this)[ProductsViewModel::class.java]
         _binding = FragmentProductsBinding.inflate(inflater, container, false)
@@ -36,40 +35,42 @@ class ProductsFragment : Fragment() {
 
         viewAdapter = ProductsAdapter(productsViewModel, context)
         viewAdapter.selectProduct = { product ->
-            activity?.let{ activity ->
+            activity?.let { activity ->
                 product.productDetails?.let { details ->
-                    //Use Apphud purchases flow
-                    if(details.productType == BillingClient.ProductType.SUBS){
-                        product.productDetails?.subscriptionOfferDetails?.let {
-                            val fragment = OffersFragment()
-                            fragment.offers = it
-                            fragment.offerSelected = { offer ->
-                                Apphud.purchase(activity, product, offer.offerToken){ result ->
-                                    result.error?.let{ err->
-                                        Toast.makeText(activity, if (result.userCanceled()) "User Canceled" else err.message, Toast.LENGTH_SHORT).show()
-                                    }?: run{
-                                        Toast.makeText(activity, R.string.success, Toast.LENGTH_SHORT).show()
+                    // Use Apphud purchases flow
+                    if (details.productType == BillingClient.ProductType.SUBS)
+                        {
+                            product.productDetails?.subscriptionOfferDetails?.let {
+                                val fragment = OffersFragment()
+                                fragment.offers = it
+                                fragment.offerSelected = { offer ->
+                                    Apphud.purchase(activity, product, offer.offerToken) { result ->
+                                        result.error?.let { err ->
+                                            Toast.makeText(activity, if (result.userCanceled()) "User Canceled" else err.message, Toast.LENGTH_SHORT).show()
+                                        } ?: run {
+                                            Toast.makeText(activity, R.string.success, Toast.LENGTH_SHORT).show()
+                                        }
                                     }
                                 }
-                            }
-                            fragment.apply {
-                                show(activity.supportFragmentManager, tag)
-                            }
-                        }
-                    } else {
-                        if(product.productId == "com.apphud.demo.nonconsumable.premium"){
-                            Apphud.purchase(activity = activity, apphudProduct = product, consumableInappProduct = false){ result ->
-                                result.error?.let{ err->
-                                    Toast.makeText(activity, if (result.userCanceled()) "User Canceled" else err.message, Toast.LENGTH_SHORT).show()
-                                }?: run{
-                                    Toast.makeText(activity, R.string.success, Toast.LENGTH_SHORT).show()
+                                fragment.apply {
+                                    show(activity.supportFragmentManager, tag)
                                 }
                             }
                         } else {
-                            Apphud.purchase(activity = activity, apphudProduct = product, consumableInappProduct = true){ result ->
-                                result.error?.let{ err->
+                        if (product.productId == "com.apphud.demo.nonconsumable.premium")
+                            {
+                                Apphud.purchase(activity = activity, apphudProduct = product, consumableInappProduct = false) { result ->
+                                    result.error?.let { err ->
+                                        Toast.makeText(activity, if (result.userCanceled()) "User Canceled" else err.message, Toast.LENGTH_SHORT).show()
+                                    } ?: run {
+                                        Toast.makeText(activity, R.string.success, Toast.LENGTH_SHORT).show()
+                                    }
+                                }
+                            } else {
+                            Apphud.purchase(activity = activity, apphudProduct = product, consumableInappProduct = true) { result ->
+                                result.error?.let { err ->
                                     Toast.makeText(activity, if (result.userCanceled()) "User Canceled" else err.message, Toast.LENGTH_SHORT).show()
-                                }?: run{
+                                } ?: run {
                                     Toast.makeText(activity, R.string.success, Toast.LENGTH_SHORT).show()
                                 }
                             }
@@ -80,7 +81,7 @@ class ProductsFragment : Fragment() {
         }
 
         val recyclerView: RecyclerView = binding.productsList
-        recyclerView.layoutManager = GridLayoutManager(activity,1)
+        recyclerView.layoutManager = GridLayoutManager(activity, 1)
         recyclerView.apply {
             adapter = viewAdapter
         }
@@ -89,7 +90,10 @@ class ProductsFragment : Fragment() {
         return root
     }
 
-    private fun updateData(paywallId: String?, placementId: String?){
+    private fun updateData(
+        paywallId: String?,
+        placementId: String?,
+    )  {
         suspend {
             productsViewModel.updateData(paywallId, placementId)
             viewAdapter.notifyDataSetChanged()

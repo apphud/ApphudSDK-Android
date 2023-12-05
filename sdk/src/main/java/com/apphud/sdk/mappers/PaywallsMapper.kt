@@ -6,20 +6,22 @@ import com.apphud.sdk.domain.ApphudProduct
 import com.apphud.sdk.parser.Parser
 
 class PaywallsMapper(
-    private val parser: Parser
-){
+    private val parser: Parser,
+) {
 
-    fun map(dto: List<ApphudPaywallDto>): List<ApphudPaywall> = dto.map { paywallDto -> map (paywallDto) }
+    fun map(dto: List<ApphudPaywallDto>): List<ApphudPaywall> = dto.map { paywallDto -> map(paywallDto) }
 
-    fun map(paywallDto: ApphudPaywallDto) = ApphudPaywall(
-                id = paywallDto.id, //paywall id
-                name = paywallDto.name,
-                identifier = paywallDto.identifier,
-                default = paywallDto.default,
-                json = parser.fromJson<Map<String, Any>>(paywallDto.json, Map::class.java),
-                products = paywallDto.items.map { item ->
+    fun map(paywallDto: ApphudPaywallDto) =
+        ApphudPaywall(
+            id = paywallDto.id, // paywall id
+            name = paywallDto.name,
+            identifier = paywallDto.identifier,
+            default = paywallDto.default,
+            json = parser.fromJson<Map<String, Any>>(paywallDto.json, Map::class.java),
+            products =
+                paywallDto.items.map { item ->
                     ApphudProduct(
-                        id = item.id,//product bundle id
+                        id = item.id, // product bundle id
                         productId = item.product_id,
                         name = item.name,
                         store = item.store,
@@ -28,10 +30,10 @@ class PaywallsMapper(
                         paywallId = paywallDto.id,
                         paywallIdentifier = paywallDto.identifier,
                         placementId = null,
-                        placementIdentifier = null
+                        placementIdentifier = null,
                     )
                 },
-                experimentName = paywallDto.experiment_name,
-                placementId = null
-            )
+            experimentName = paywallDto.experiment_name,
+            placementId = null,
+        )
 }

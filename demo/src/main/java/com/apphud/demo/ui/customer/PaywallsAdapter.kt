@@ -9,12 +9,15 @@ import android.widget.LinearLayout
 import android.widget.TextView
 import androidx.recyclerview.widget.RecyclerView
 import com.apphud.demo.R
-import com.apphud.sdk.domain.ApphudPaywall
 
 class PaywallsAdapter(private val paywallsViewModel: PaywallsViewModel, private val context: Context?) : RecyclerView.Adapter<PaywallsAdapter.BaseViewHolder<*>>() {
-    var selectItem: ((item: AdapterItem)->Unit)? = null
+    var selectItem: ((item: AdapterItem) -> Unit)? = null
+
     abstract class BaseViewHolder<T>(itemView: View) : RecyclerView.ViewHolder(itemView) {
-        abstract fun bind(item: T, position: Int)
+        abstract fun bind(
+            item: T,
+            position: Int,
+        )
     }
 
     inner class PaywallViewHolder(itemView: View) : BaseViewHolder<AdapterItem>(itemView) {
@@ -26,23 +29,31 @@ class PaywallsAdapter(private val paywallsViewModel: PaywallsViewModel, private 
         private val paywallJson: TextView = itemView.findViewById(R.id.paywallJson)
         private val layoutHolder: LinearLayout = itemView.findViewById(R.id.layoutHolder)
 
-        override fun bind(item: AdapterItem, position: Int) {
+        override fun bind(
+            item: AdapterItem,
+            position: Int,
+        ) {
             val paywall = item.paywall ?: item.placement?.paywall
 
             val experimentName = item.placement?.experimentName ?: paywall?.experimentName
 
-            paywallName.text = if (item.placement != null) { "${item.placement.identifier} -> ${paywall?.name}" } else {paywall?.name}
+            paywallName.text =
+                if (item.placement != null) {
+                    "${item.placement.identifier} -> ${paywall?.name}"
+                } else {
+                    paywall?.name
+                }
             paywallIdentifier.text = "Paywall ID: " + (paywall?.identifier ?: "N/A")
             paywallDefault.text = paywall?.default.toString()
-            paywallExperiment.text = item.placement?.experimentName ?: paywall?.experimentName?: "N/A"
+            paywallExperiment.text = item.placement?.experimentName ?: paywall?.experimentName ?: "N/A"
             paywallVariation.text = "N/A"
-            paywallJson.text = if(paywall?.json != null) "true" else "false"
-            experimentName?.let{
+            paywallJson.text = if (paywall?.json != null) "true" else "false"
+            experimentName?.let {
                 layoutHolder.setBackgroundResource(R.color.teal_200)
                 paywallDefault.setTextColor(Color.WHITE)
                 paywallExperiment.setTextColor(Color.WHITE)
                 paywallVariation.setTextColor(Color.WHITE)
-            }?:run{
+            } ?: run {
                 layoutHolder.setBackgroundResource(R.color.transparent)
                 paywallDefault.setTextColor(Color.GRAY)
                 paywallExperiment.setTextColor(Color.GRAY)
@@ -61,18 +72,25 @@ class PaywallsAdapter(private val paywallsViewModel: PaywallsViewModel, private 
         private const val TYPE_PAYWALL = 0
     }
 
-    override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): BaseViewHolder<*> {
+    override fun onCreateViewHolder(
+        parent: ViewGroup,
+        viewType: Int,
+    ): BaseViewHolder<*> {
         return when (viewType) {
             TYPE_PAYWALL -> {
-                val view = LayoutInflater.from(parent.context)
-                    .inflate(R.layout.list_item_paywall, parent, false)
+                val view =
+                    LayoutInflater.from(parent.context)
+                        .inflate(R.layout.list_item_paywall, parent, false)
                 PaywallViewHolder(view)
             }
             else -> throw IllegalArgumentException("Invalid view type")
         }
     }
 
-    override fun onBindViewHolder(holder: BaseViewHolder<*>, position: Int) {
+    override fun onBindViewHolder(
+        holder: BaseViewHolder<*>,
+        position: Int,
+    ) {
         val element = paywallsViewModel.items[position]
         when (holder) {
             is PaywallViewHolder -> holder.bind(element as AdapterItem, position)

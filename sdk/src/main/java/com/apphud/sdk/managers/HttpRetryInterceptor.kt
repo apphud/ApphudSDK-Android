@@ -28,18 +28,16 @@ class HttpRetryInterceptor : Interceptor {
                 response = chain.proceed(request)
                 isSuccess = response.isSuccessful
 
-                if (!isSuccess)
-                    {
-                        ApphudLog.logE(
-                            "Request (${request.url.encodedPath}) failed with code (${response.code}). Will retry in ${STEP / 1000} seconds ($tryCount).",
-                        )
+                if (!isSuccess) {
+                    ApphudLog.logE(
+                        "Request (${request.url.encodedPath}) failed with code (${response.code}). Will retry in ${STEP / 1000} seconds ($tryCount).",
+                    )
 
-                        if (response.code in FALLBACK_ERRORS)
-                            {
-                                ApphudInternal.processFallbackError(request)
-                            }
-                        Thread.sleep(STEP)
+                    if (response.code in FALLBACK_ERRORS) {
+                        ApphudInternal.processFallbackError(request)
                     }
+                    Thread.sleep(STEP)
+                }
             } catch (e: SocketTimeoutException) {
                 ApphudInternal.processFallbackError(request)
                 ApphudLog.logE(
@@ -58,10 +56,9 @@ class HttpRetryInterceptor : Interceptor {
                 tryCount++
             }
         }
-        if (!isSuccess)
-            {
-                ApphudLog.logE("Reached max number (${MAX_COUNT}) of (${request.url.encodedPath}) request retries. Exiting..")
-            }
+        if (!isSuccess) {
+            ApphudLog.logE("Reached max number (${MAX_COUNT}) of (${request.url.encodedPath}) request retries. Exiting..")
+        }
         return response ?: chain.proceed(request)
     }
 }

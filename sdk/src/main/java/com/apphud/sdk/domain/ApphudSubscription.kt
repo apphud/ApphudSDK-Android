@@ -80,16 +80,15 @@ data class ApphudSubscription(
             ApphudSubscriptionStatus.REGULAR,
             ApphudSubscriptionStatus.GRACE,
             ->
-                if (isTemporary)
-                    {
-                        !isTemporaryExpired()
-                    } else {
+                if (isTemporary) {
+                    !isTemporaryExpired()
+                } else {
                     true
                 }
             else -> false
         }
 
-    private fun isTemporaryExpired(): Boolean  {
+    private fun isTemporaryExpired(): Boolean {
         return System.currentTimeMillis() > expiresAt
     }
 }

@@ -5,15 +5,15 @@ import com.apphud.sdk.Apphud
 import com.apphud.sdk.domain.ApphudPaywall
 import com.apphud.sdk.domain.ApphudPlacement
 
-
 class AdapterItem(
     val paywall: ApphudPaywall?,
-    val placement: ApphudPlacement?
+    val placement: ApphudPlacement?,
 )
 
 class PaywallsViewModel : ViewModel() {
     var items = mutableListOf<Any>()
     var showPlacements: Boolean = false
+
     suspend fun updateData() {
         if (showPlacements) {
             items.clear()

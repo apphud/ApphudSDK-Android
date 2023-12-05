@@ -22,29 +22,24 @@ internal class FlowWrapper(private val billing: BillingClient) {
         obfuscatedAccountId =
             deviceId?.let {
                 val regex = Regex("[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}")
-                if (regex.matches(input = it))
-                    {
-                        it
-                    } else {
+                if (regex.matches(input = it)) {
+                    it
+                } else {
                     null
                 }
             }
 
         try {
             val params: BillingFlowParams =
-                if (offerToken != null)
-                    {
-                        if (oldToken != null)
-                            {
-                                upDowngradeBillingFlowParamsBuilder(details, offerToken, oldToken, replacementMode)
-                            } else
-                            {
-                                billingFlowParamsBuilder(details, offerToken)
-                            }
-                    } else
-                    {
-                        billingFlowParamsBuilder(details)
+                if (offerToken != null) {
+                    if (oldToken != null) {
+                        upDowngradeBillingFlowParamsBuilder(details, offerToken, oldToken, replacementMode)
+                    } else {
+                        billingFlowParamsBuilder(details, offerToken)
                     }
+                } else {
+                    billingFlowParamsBuilder(details)
+                }
 
             billing.launchBillingFlow(activity, params)
                 .also {
@@ -129,7 +124,7 @@ internal class FlowWrapper(private val billing: BillingClient) {
      *
      * @return [BillingFlowParams].
      */
-    private fun billingFlowParamsBuilder(productDetails: ProductDetails): BillingFlowParams  {
+    private fun billingFlowParamsBuilder(productDetails: ProductDetails): BillingFlowParams {
         return BillingFlowParams.newBuilder().setProductDetailsParamsList(
             listOf(
                 BillingFlowParams.ProductDetailsParams.newBuilder()

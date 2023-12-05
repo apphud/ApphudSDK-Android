@@ -19,11 +19,12 @@ internal fun ApphudInternal.restorePurchases(callback: ApphudPurchasesRestoreCal
 }
 
 private val mutexSync = Mutex()
+
 internal fun ApphudInternal.syncPurchases(
     paywallIdentifier: String? = null,
     placementIdentifier: String? = null,
     observerMode: Boolean = true,
-    callback: ApphudPurchasesRestoreCallback? = null
+    callback: ApphudPurchasesRestoreCallback? = null,
 ) {
     ApphudLog.log("SyncPurchases()")
     checkRegistration { error ->
@@ -98,7 +99,7 @@ internal fun ApphudInternal.syncPurchases(
                                 null,
                                 null,
                                 callback,
-                                observerMode
+                                observerMode,
                             )
                         }
                     }
@@ -117,21 +118,32 @@ internal suspend fun ApphudInternal.sendPurchasesToApphud(
     productDetails: ProductDetails?,
     offerIdToken: String?,
     callback: ApphudPurchasesRestoreCallback? = null,
-    observerMode: Boolean
-){
-    val apphudProduct: ApphudProduct? = findJustPurchasedProduct(paywallIdentifier, placementIdentifier, productDetails, tempPurchaseRecordDetails)
+    observerMode: Boolean,
+)  {
+    val apphudProduct: ApphudProduct? =
+        findJustPurchasedProduct(paywallIdentifier, placementIdentifier, productDetails, tempPurchaseRecordDetails)
 
-    val customer = RequestManager.restorePurchasesSync(apphudProduct, tempPurchaseRecordDetails, purchase, productDetails, offerIdToken, observerMode)
-    customer?.let{
-        tempPurchaseRecordDetails?.let{ records ->
-            if(records.isNotEmpty() && (it.subscriptions.size + it.purchases.size) == 0) {
-                val message = "Unable to completely validate all purchases. " +
+    val customer =
+        RequestManager.restorePurchasesSync(
+            apphudProduct,
+            tempPurchaseRecordDetails,
+            purchase,
+            productDetails,
+            offerIdToken,
+            observerMode,
+        )
+    customer?.let {
+        tempPurchaseRecordDetails?.let { records ->
+            if (records.isNotEmpty() && (it.subscriptions.size + it.purchases.size) == 0) {
+                val message =
+                    "Unable to completely validate all purchases. " +
                         "Ensure Google Service Credentials are correct and have necessary permissions. " +
                         "Check https://docs.apphud.com/getting-started/creating-app#google-play-service-credentials or contact support."
                 ApphudLog.logE(message = message)
-            }else{
-                ApphudLog.log("SyncPurchases: customer was successfully updated $customer")
-            }
+            } else
+                {
+                    ApphudLog.log("SyncPurchases: customer was successfully updated $customer")
+                }
 
             storage.isNeedSync = false
             prevPurchases.addAll(records)
@@ -144,7 +156,7 @@ internal suspend fun ApphudInternal.sendPurchasesToApphud(
             notifyLoadingCompleted(it)
             callback?.invoke(it.subscriptions, it.purchases, null)
         }
-    }?: run{
+    } ?: run {
         val message = "Failed to restore purchases"
         ApphudLog.logE(message = message)
         mainScope.launch {
@@ -153,44 +165,55 @@ internal suspend fun ApphudInternal.sendPurchasesToApphud(
     }
 }
 
-private fun processHistoryCallbackStatus(result: PurchaseHistoryCallbackStatus): List<PurchaseHistoryRecord>{
-    when (result){
-        is PurchaseHistoryCallbackStatus.Error ->{
-            val type = if(result.type() == BillingClient.ProductType.SUBS) "subscriptions" else "in-app products"
-            ApphudLog.log("Failed to load history for $type with error: ("
-                    + "${result.result?.responseCode})"
-                    + "${result.result?.debugMessage})")
+private fun processHistoryCallbackStatus(result: PurchaseHistoryCallbackStatus): List<PurchaseHistoryRecord>  {
+    when (result) {
+        is PurchaseHistoryCallbackStatus.Error -> {
+            val type = if (result.type() == BillingClient.ProductType.SUBS) "subscriptions" else "in-app products"
+            ApphudLog.log(
+                "Failed to load history for $type with error: (" +
+                    "${result.result?.responseCode})" +
+                    "${result.result?.debugMessage})",
+            )
         }
-        is PurchaseHistoryCallbackStatus.Success ->{
+        is PurchaseHistoryCallbackStatus.Success -> {
             return result.purchases
         }
     }
     return emptyList()
 }
 
-private fun processRestoreCallbackStatus(result: PurchaseRestoredCallbackStatus): List<PurchaseRecordDetails>{
-    when (result){
-        is PurchaseRestoredCallbackStatus.Error ->{
-            val type = if(result.type() == BillingClient.ProductType.SUBS) "subscriptions" else "in-app products"
-            val error = ApphudError(message = "Restore Purchases is failed for $type",
+private fun processRestoreCallbackStatus(result: PurchaseRestoredCallbackStatus): List<PurchaseRecordDetails>  {
+    when (result) {
+        is PurchaseRestoredCallbackStatus.Error -> {
+            val type = if (result.type() == BillingClient.ProductType.SUBS) "subscriptions" else "in-app products"
+            val error =
+                ApphudError(
+                    message = "Restore Purchases is failed for $type",
                     secondErrorMessage = result.message,
-                    errorCode = result.result?.responseCode)
+                    errorCode = result.result?.responseCode,
+                )
             ApphudLog.log(message = error.toString(), sendLogToServer = true)
         }
-        is PurchaseRestoredCallbackStatus.Success ->{
+        is PurchaseRestoredCallbackStatus.Success -> {
             return result.purchases
         }
     }
     return emptyList()
 }
 
-private fun ApphudInternal.findJustPurchasedProduct(paywallIdentifier: String?, placementIdentifier: String?, productDetails: ProductDetails?, tempPurchaseRecordDetails: List<PurchaseRecordDetails>?): ApphudProduct? {
+private fun ApphudInternal.findJustPurchasedProduct(
+    paywallIdentifier: String?,
+    placementIdentifier: String?,
+    productDetails: ProductDetails?,
+    tempPurchaseRecordDetails: List<PurchaseRecordDetails>?,
+): ApphudProduct? {
     try {
-        val targetPaywall = if (placementIdentifier != null) {
-            placements?.firstOrNull { it.identifier == placementIdentifier }?.paywall
-        } else {
-            getPaywalls().firstOrNull { it.identifier == paywallIdentifier }
-        }
+        val targetPaywall =
+            if (placementIdentifier != null) {
+                placements?.firstOrNull { it.identifier == placementIdentifier }?.paywall
+            } else {
+                getPaywalls().firstOrNull { it.identifier == paywallIdentifier }
+            }
 
         productDetails?.let { details ->
             return targetPaywall?.products?.find { it.productDetails?.productId == details.productId }
@@ -203,9 +226,8 @@ private fun ApphudInternal.findJustPurchasedProduct(paywallIdentifier: String?, 
                 return targetPaywall?.products?.find { it.productId == rec.details.productId }
             }
         }
-
-    }catch (ex: Exception){
-        ex.message?.let{
+    } catch (ex: Exception) {
+        ex.message?.let {
             ApphudLog.logE(message = it)
         }
     }

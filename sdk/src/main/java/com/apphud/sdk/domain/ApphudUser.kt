@@ -10,5 +10,5 @@ data class ApphudUser(
     val purchases: MutableList<ApphudNonRenewingPurchase>,
     val paywalls: List<ApphudPaywall>,
     val placements: List<ApphudPlacement>?,
-    val isTemporary :Boolean?
+    val isTemporary: Boolean?,
 )

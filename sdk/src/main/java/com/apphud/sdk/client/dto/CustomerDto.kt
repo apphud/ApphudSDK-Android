@@ -5,5 +5,5 @@ data class CustomerDto(
     val subscriptions: List<SubscriptionDto>,
     val currency: CurrencyDto?,
     val paywalls: List<ApphudPaywallDto>?,
-    val placements: List<ApphudPlacementDto>?
+    val placements: List<ApphudPlacementDto>?,
 )
