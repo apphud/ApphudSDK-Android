@@ -8,7 +8,7 @@ import okhttp3.Response
 import java.io.IOException
 
 class HeadersInterceptor(private val apiKey: String?) : Interceptor {
-    companion object Shared{
+    companion object Shared {
         var X_SDK_VERSION: String = BuildConfig.VERSION_NAME
         var X_SDK: String = "Kotlin"
         var HOST: String = ApiClient.host
@@ -17,16 +17,17 @@ class HeadersInterceptor(private val apiKey: String?) : Interceptor {
 
     @Throws(IOException::class)
     override fun intercept(chain: Interceptor.Chain): Response {
-        val userAgentRequest: Request = chain.request()
-            .newBuilder()
-            .header("User-Agent", "Apphud Android ($X_SDK $X_SDK_VERSION)")
-            .header("Authorization", "Bearer $apiKey")
-            .header("Accept", "application/json; utf-8")
-            .header("Content-Type", "application/json; charset=utf-8")
-            .header("X-Platform", "android")
-            .header("X-SDK", X_SDK)
-            .header("X-SDK-VERSION", X_SDK_VERSION)
-            .build()
+        val userAgentRequest: Request =
+            chain.request()
+                .newBuilder()
+                .header("User-Agent", "Apphud Android ($X_SDK $X_SDK_VERSION)")
+                .header("Authorization", "Bearer $apiKey")
+                .header("Accept", "application/json; utf-8")
+                .header("Content-Type", "application/json; charset=utf-8")
+                .header("X-Platform", "android")
+                .header("X-SDK", X_SDK)
+                .header("X-SDK-VERSION", X_SDK_VERSION)
+                .build()
 
         return chain.proceed(userAgentRequest)
     }

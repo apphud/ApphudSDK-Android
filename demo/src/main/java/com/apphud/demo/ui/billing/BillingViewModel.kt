@@ -13,7 +13,6 @@ import com.apphud.demo.ApphudApplication
 import com.apphud.sdk.Apphud
 
 class BillingViewModel : ViewModel() {
-
     companion object {
         private const val TAG: String = "BillingViewModel"
         private const val MAX_CURRENT_PURCHASES_ALLOWED = 1
@@ -30,9 +29,9 @@ class BillingViewModel : ViewModel() {
 
     var items = mutableListOf<Any>()
 
-    fun updateData(){
+    fun updateData()  {
         items.clear()
-        for (item in billingClient.productWithProductDetails){
+        for (item in billingClient.productWithProductDetails) {
             items.add(item.value)
         }
     }
@@ -48,7 +47,7 @@ class BillingViewModel : ViewModel() {
      */
     private fun retrieveEligibleOffers(
         offerDetails: MutableList<ProductDetails.SubscriptionOfferDetails>,
-        tag: String
+        tag: String,
     ): List<ProductDetails.SubscriptionOfferDetails> {
         val eligibleOffers = emptyList<ProductDetails.SubscriptionOfferDetails>().toMutableList()
         offerDetails.forEach { offerDetail ->
@@ -70,9 +69,7 @@ class BillingViewModel : ViewModel() {
      *
      * @return the offer id token of the lowest priced offer.
      */
-    private fun leastPricedOfferToken(
-        offerDetails: List<ProductDetails.SubscriptionOfferDetails>
-    ): String {
+    private fun leastPricedOfferToken(offerDetails: List<ProductDetails.SubscriptionOfferDetails>): String {
         var offerToken = String()
         var leastPricedOffer: ProductDetails.SubscriptionOfferDetails
         var lowestPrice = Int.MAX_VALUE
@@ -104,22 +101,22 @@ class BillingViewModel : ViewModel() {
     private fun upDowngradeBillingFlowParamsBuilder(
         productDetails: ProductDetails,
         offerToken: String,
-        oldToken: String
+        oldToken: String,
     ): BillingFlowParams {
         return BillingFlowParams.newBuilder().setProductDetailsParamsList(
             listOf(
                 BillingFlowParams.ProductDetailsParams.newBuilder()
                     .setProductDetails(productDetails)
                     .setOfferToken(offerToken)
-                    .build()
-            )
+                    .build(),
+            ),
         ).setSubscriptionUpdateParams(
             BillingFlowParams.SubscriptionUpdateParams.newBuilder()
                 .setOldPurchaseToken(oldToken)
                 .setReplaceProrationMode(
-                    BillingFlowParams.ProrationMode.IMMEDIATE_AND_CHARGE_FULL_PRICE
+                    BillingFlowParams.ProrationMode.IMMEDIATE_AND_CHARGE_FULL_PRICE,
                 )
-                .build()
+                .build(),
         ).build()
     }
 
@@ -134,24 +131,24 @@ class BillingViewModel : ViewModel() {
      */
     private fun billingFlowParamsBuilder(
         productDetails: ProductDetails,
-        offerToken: String?
+        offerToken: String?,
     ): BillingFlowParams.Builder {
-        offerToken?.let{
+        offerToken?.let {
             return BillingFlowParams.newBuilder().setProductDetailsParamsList(
                 listOf(
                     BillingFlowParams.ProductDetailsParams.newBuilder()
                         .setProductDetails(productDetails)
                         .setOfferToken(it)
-                        .build()
-                )
+                        .build(),
+                ),
             )
-        }?: run{
+        } ?: run {
             return BillingFlowParams.newBuilder().setProductDetailsParamsList(
                 listOf(
                     BillingFlowParams.ProductDetailsParams.newBuilder()
                         .setProductDetails(productDetails)
-                        .build()
-                )
+                        .build(),
+                ),
             )
         }
     }
@@ -169,25 +166,28 @@ class BillingViewModel : ViewModel() {
         productDetails: ProductDetails,
         currentPurchases: List<Purchase>?,
         activity: Activity,
-        offerIdToken: String?
+        offerIdToken: String?,
     ) {
         val oldPurchaseToken: String
 
         billingClient.purchaseSuccessListener = { purchase, billingResult ->
-            if (billingResult.responseCode == BillingClient.BillingResponseCode.OK){
-                purchase?.let{ p ->
-                    if(p.purchaseState == Purchase.PurchaseState.PURCHASED) {
-                        Log.d(TAG, "Purchase SUCCESS notify Apphud")
-                        Apphud.trackPurchase(p,  productDetails, offerIdToken)
-                    } else{
-                        Log.e(TAG, "Purchase SUCCESS but purchase state is " + p.purchaseState)
+            if (billingResult.responseCode == BillingClient.BillingResponseCode.OK)
+                {
+                    purchase?.let { p ->
+                        if (p.purchaseState == Purchase.PurchaseState.PURCHASED) {
+                            Log.d(TAG, "Purchase SUCCESS notify Apphud")
+                            Apphud.trackPurchase(p, productDetails, offerIdToken)
+                        } else
+                            {
+                                Log.e(TAG, "Purchase SUCCESS but purchase state is " + p.purchaseState)
+                            }
+                    } ?: run {
+                        Log.e(TAG, "Purchase SUCCESS but purchase is null")
                     }
-                }?: run {
-                    Log.e(TAG, "Purchase SUCCESS but purchase is null")
+                } else
+                {
+                    Log.e(TAG, "Purchase ERROR: code=" + billingResult.responseCode)
                 }
-            }else{
-                Log.e(TAG, "Purchase ERROR: code=" +billingResult.responseCode)
-            }
         }
 
         // Get current purchase. In this app, a user can only have one current purchase at
@@ -199,35 +199,36 @@ class BillingViewModel : ViewModel() {
             // Get the token from current purchase.
             oldPurchaseToken = currentPurchase.purchaseToken
 
-            val billingParams = offerIdToken?.let {
-                upDowngradeBillingFlowParamsBuilder(
-                    productDetails = productDetails,
-                    offerToken = it,
-                    oldToken = oldPurchaseToken
-                )
-            }
+            val billingParams =
+                offerIdToken?.let {
+                    upDowngradeBillingFlowParamsBuilder(
+                        productDetails = productDetails,
+                        offerToken = it,
+                        oldToken = oldPurchaseToken,
+                    )
+                }
 
             if (billingParams != null) {
                 billingClient.launchBillingFlow(
                     activity,
-                    billingParams
+                    billingParams,
                 )
             }
         } else if (currentPurchases == null) {
             // This is a normal purchase.
-            val billingParams = billingFlowParamsBuilder(
+            val billingParams =
+                billingFlowParamsBuilder(
                     productDetails = productDetails,
-                    offerToken = offerIdToken
+                    offerToken = offerIdToken,
                 )
 
             billingClient.launchBillingFlow(
                 activity,
-                billingParams.build()
+                billingParams.build(),
             )
-
         } else if (!currentPurchases.isNullOrEmpty() && currentPurchases.size > MAX_CURRENT_PURCHASES_ALLOWED) {
             // The developer has allowed users  to have more than 1 purchase, so they need to
-            /// implement a logic to find which one to use.
+            // / implement a logic to find which one to use.
             Log.d(TAG, "User has more than 1 current purchase.")
         }
     }

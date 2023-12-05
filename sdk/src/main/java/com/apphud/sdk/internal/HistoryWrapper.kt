@@ -13,35 +13,39 @@ import kotlin.coroutines.resume
 typealias PurchaseHistoryListener = (PurchaseHistoryCallbackStatus) -> Unit
 
 internal class HistoryWrapper(
-    private val billing: BillingClient
+    private val billing: BillingClient,
 ) : Closeable {
-
     var callback: PurchaseHistoryListener? = null
 
-    fun queryPurchaseHistory(@BillingClient.ProductType type: ProductType) {
-        val params = QueryPurchaseHistoryParams.newBuilder()
-            .setProductType(type)
-            .build()
+    fun queryPurchaseHistory(
+        @BillingClient.ProductType type: ProductType,
+    ) {
+        val params =
+            QueryPurchaseHistoryParams.newBuilder()
+                .setProductType(type)
+                .build()
 
         billing.queryPurchaseHistoryAsync(params) { result, purchases ->
             result.response(
                 message = "Failed restore purchases",
                 error = { callback?.invoke(PurchaseHistoryCallbackStatus.Error(type, result)) },
-                success = { callback?.invoke(PurchaseHistoryCallbackStatus.Success(type, purchases ?: emptyList()) ) }
+                success = { callback?.invoke(PurchaseHistoryCallbackStatus.Success(type, purchases ?: emptyList())) },
             )
         }
     }
 
-    suspend fun queryPurchaseHistorySync(@BillingClient.ProductType type: ProductType): PurchaseHistoryCallbackStatus =
+    suspend fun queryPurchaseHistorySync(
+        @BillingClient.ProductType type: ProductType,
+    ): PurchaseHistoryCallbackStatus =
         suspendCancellableCoroutine { continuation ->
             var resumed = false
             thread(start = true, name = "queryAsync+$type") {
+                val params =
+                    QueryPurchaseHistoryParams.newBuilder()
+                        .setProductType(type)
+                        .build()
 
-                val params = QueryPurchaseHistoryParams.newBuilder()
-                    .setProductType(type)
-                    .build()
-
-                billing. queryPurchaseHistoryAsync(params) { result, purchases ->
+                billing.queryPurchaseHistoryAsync(params) { result, purchases ->
                     result.response(
                         message = "Failed restore purchases",
                         error = {
@@ -57,7 +61,7 @@ internal class HistoryWrapper(
                                 resumed = true
                                 continuation.resume(PurchaseHistoryCallbackStatus.Success(type, purchases ?: emptyList()))
                             }
-                        }
+                        },
                     )
                 }
             }

@@ -4,18 +4,15 @@ import com.apphud.sdk.ApphudInternal
 import com.apphud.sdk.GroupId
 
 data class ApphudGroup(
-
     internal val id: GroupId,
-
     /**
      * Name of permission group configured in Apphud dashboard.
      */
     val name: String,
-
     /**
      * Products that belong to this permission group.
      */
-    val products: List<ApphudProduct>?
+    val products: List<ApphudProduct>?,
 ) {
     /**
      * Returns `true` if this permission group has active subscription.
