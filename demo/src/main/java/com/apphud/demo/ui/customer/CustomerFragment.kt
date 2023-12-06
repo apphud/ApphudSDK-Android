@@ -89,7 +89,10 @@ class CustomerFragment : Fragment() {
                     // TODO handle User ID changed event
                 }
 
-                override fun userDidLoad() {
+                override fun userDidLoad(
+                    rawPaywalls: List<ApphudPaywall>,
+                    rawPlacements: List<ApphudPlacement>
+                ) {
                     Log.d("Apphud", "userDidLoad()")
                     // TODO handle user registered event
                     updateData()

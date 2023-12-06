@@ -42,8 +42,8 @@ internal object ApphudInternal {
     internal val storage by lazy { SharedPreferencesStorage.getInstance(context) }
     internal var prevPurchases = mutableSetOf<PurchaseRecordDetails>()
     internal var productDetails = mutableListOf<ProductDetails>()
-    internal var paywalls = mutableListOf<ApphudPaywall>()
-    internal var placements: List<ApphudPlacement>? = null
+    internal var paywalls = listOf<ApphudPaywall>()
+    internal var placements = listOf<ApphudPlacement>()
 
     internal var didLoadOfferings = false
 
@@ -148,7 +148,6 @@ internal object ApphudInternal {
         allowIdentifyUser = false
         ApphudLog.log("Start initialize with saved userId=${this.userId}, saved deviceId=${this.deviceId}")
 
-        // Restore from cache
         this.currentUser = storage.apphudUser
         RequestManager.currentUser = this.currentUser
         this.productGroups = readGroupsFromCache()
@@ -251,7 +250,7 @@ internal object ApphudInternal {
             apphudListener?.apphudSubscriptionsUpdated(currentUser!!.subscriptions)
 
             if (!didRegisterCustomerAtThisLaunch) {
-                apphudListener?.userDidLoad()
+                apphudListener?.userDidLoad(getPaywalls(), placements)
                 this.userRegisteredBlock?.invoke(it)
                 this.userRegisteredBlock = null
 
@@ -864,12 +863,12 @@ internal object ApphudInternal {
         return storage.paywalls?.toMutableList() ?: mutableListOf()
     }
 
-    private fun cachePlacements(placements: List<ApphudPlacement>?) {
+    private fun cachePlacements(placements: List<ApphudPlacement>) {
         storage.placements = placements
     }
 
-    private fun readPlacementsFromCache(): List<ApphudPlacement>? {
-        return storage.placements
+    private fun readPlacementsFromCache(): List<ApphudPlacement> {
+        return storage.placements ?: listOf()
     }
 
     private fun updatePaywallsAndPlacements() {

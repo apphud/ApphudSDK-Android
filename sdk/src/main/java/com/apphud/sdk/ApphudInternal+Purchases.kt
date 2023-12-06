@@ -66,7 +66,7 @@ internal fun ApphudInternal.purchase(
         }
     } ?: run {
         val id = productId ?: apphudProduct?.productId ?: ""
-        callback?.invoke(ApphudPurchaseResult(null, null, null, ApphudError("Appphud product not found: $id")))
+        callback?.invoke(ApphudPurchaseResult(null, null, null, ApphudError("Apphud product not found: $id")))
     }
 }
 
@@ -340,24 +340,32 @@ internal fun ApphudInternal.addTempPurchase(
         (ApphudPurchaseResult) -> Unit
     )?,
 )  {
-    var newSubscriptions: ApphudSubscription? = null
-    var newPurchases: ApphudNonRenewingPurchase? = null
+    var newSubscription: ApphudSubscription? = null
+    var newPurchase: ApphudNonRenewingPurchase? = null
     when (type) {
         BillingClient.ProductType.SUBS -> {
-            newSubscriptions = ApphudSubscription.createTemporary(productId)
-            currentUser?.subscriptions?.add(newSubscriptions)
-            ApphudLog.log("Fallback: created temp SUBS purchase: $productId")
+            newSubscription = ApphudSubscription.createTemporary(productId)
+            val mutableSubs = currentUser?.subscriptions?.toMutableList() ?: mutableListOf()
+            newSubscription.let {
+                mutableSubs.add(it)
+                currentUser?.subscriptions = mutableSubs
+                ApphudLog.log("Fallback: created temp SUBS purchase: $productId")
+            }
         }
         BillingClient.ProductType.INAPP -> {
-            newPurchases = ApphudNonRenewingPurchase.createTemporary(productId)
-            currentUser?.purchases?.add(newPurchases)
-            ApphudLog.log("Fallback: created temp INAPP purchase: $productId")
+            newPurchase = ApphudNonRenewingPurchase.createTemporary(productId)
+            val mutablePurchs = currentUser?.purchases?.toMutableList() ?: mutableListOf()
+            newPurchase.let {
+                mutablePurchs.add(it)
+                currentUser?.purchases = mutablePurchs
+                ApphudLog.log("Fallback: created temp INAPP purchase: $productId")
+            }
         }
         else -> {
             // nothing
         }
     }
-    notifyAboutSuccess(apphudUser, purchase, newSubscriptions, newPurchases, true, callback)
+    notifyAboutSuccess(apphudUser, purchase, newSubscription, newPurchase, true, callback)
 }
 
 private fun notifyAboutSuccess(

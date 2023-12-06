@@ -33,12 +33,15 @@ interface ApphudListener {
     fun apphudDidChangeUserID(userId: String)
 
     /**
-     Called when user is registered in Apphud [or used from cache].
-     After this method is called, paywalls() and placements() will begin to return values,
-     however their `ProductDetails` may still be nil at the moment.
-     If using A/B testing, you can fetch `experimentName` from your paywalls or placements.
+     * Called when user is registered in Apphud [or used from cache].
+     * This method is called once per app lifecycle.
+     * Keep in mind that `rawPaywalls` and `rawPlacements` arrays may not yet
+     * have Google Play Products, however they will appear later in runtime.
+     * `rawPlacements` array is nil if developer didn't yet set up placements in Apphud Product > Placements.
+     *
+     * __Note__: When Google Play products are loaded, they will appear in the same instances.
      */
-    fun userDidLoad()
+    fun userDidLoad(rawPaywalls: List<ApphudPaywall>, rawPlacements: List<ApphudPlacement>)
 
     /**
      Called when paywalls are fully loaded with their ProductDetails.
@@ -46,7 +49,7 @@ interface ApphudListener {
     fun paywallsDidFullyLoad(paywalls: List<ApphudPaywall>)
 
     /**
-     * Called when placements are fully loaded with their ApphudPaywalls and ProductDetails products.
+     * Called when placements are fully loaded with their ApphudPaywalls and inner ProductDetails.
      * Not called if no placements added in Apphud.
      */
     fun placementsDidFullyLoad(placements: List<ApphudPlacement>)

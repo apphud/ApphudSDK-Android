@@ -30,6 +30,11 @@ class ApphudApplication : Application() {
         Apphud.enableDebugLogs()
         // Apphud.optOutOfTracking()
 
+
+        /**
+         * test performWhenOfferingsPrepared - called multiple times
+         * ApphudUser restore from cache not working
+         */
         if (BuildConfig.DEBUG) {
             ApiClient.host = "https://api.apphudstage.com"
             API_KEY = "app_oBcXz2z9j8spKPL2T7sZwQaQN5Jzme"

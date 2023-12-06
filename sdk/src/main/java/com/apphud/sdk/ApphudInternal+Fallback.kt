@@ -48,8 +48,8 @@ private fun ApphudInternal.processFallbackData() {
                                 {
                                     currentUser =
                                         ApphudUser(
-                                            userId, "", "", mutableListOf(), mutableListOf(), listOf(),
-                                            null, true,
+                                            userId, "", "", listOf(), listOf(), listOf(),
+                                            listOf(), true,
                                         )
                                     ApphudLog.log("Fallback: user created: $userId")
                                 }

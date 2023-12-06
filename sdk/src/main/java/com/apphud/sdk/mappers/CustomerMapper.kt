@@ -19,21 +19,23 @@ class CustomerMapper(
                 customer.subscriptions
                     .filter { it.kind == ApphudKind.AUTORENEWABLE.source }
                     .mapNotNull { mapper.mapRenewable(it) }
-                    .sortedByDescending { it.expiresAt }.toMutableList(),
+                    .sortedByDescending { it.expiresAt },
             purchases =
                 customer.subscriptions
                     .filter { it.kind == ApphudKind.NONRENEWABLE.source }
                     .mapNotNull { mapper.mapNonRenewable(it) }
-                    .sortedByDescending { it.purchasedAt }.toMutableList(),
+                    .sortedByDescending { it.purchasedAt },
             paywalls =
                 customer.paywalls?.let { paywallsList ->
                     paywallsList.map { paywallsMapper.map(it) }
                 } ?: run {
-                    mutableListOf<ApphudPaywall>()
+                    listOf()
                 },
             placements =
                 customer.placements?.let { placementsList ->
                     placementsList.map { placementsMapper.map(it) }
+                } ?: run {
+                    listOf()
                 },
             isTemporary = false,
         )

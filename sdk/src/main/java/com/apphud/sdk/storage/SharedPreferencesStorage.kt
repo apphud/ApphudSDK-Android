@@ -14,12 +14,12 @@ import com.google.gson.GsonBuilder
 import com.google.gson.reflect.TypeToken
 
 object SharedPreferencesStorage : Storage {
-    var cacheTimeout: Long = 90000L
+    private var cacheTimeout: Long = 90000L
 
     fun getInstance(applicationContext: Context): SharedPreferencesStorage {
         this.applicationContext = applicationContext
         preferences = SharedPreferencesStorage.applicationContext.getSharedPreferences(NAME, Context.MODE_PRIVATE)
-        cacheTimeout = if (SharedPreferencesStorage.applicationContext.isDebuggable()) 30L else 90000L // 25 hours
+        this.cacheTimeout = if (SharedPreferencesStorage.applicationContext.isDebuggable()) 30L else 90000L // 25 hours
         return this
     }
 
@@ -29,7 +29,7 @@ object SharedPreferencesStorage : Storage {
     private const val NAME = "apphud_storage"
 
     private const val USER_ID_KEY = "userIdKey"
-    private const val CUSTOMER_KEY = "customerKey"
+    private const val APPHUD_USER_KEY = "APPHUD_USER_KEY"
     private const val DEVICE_ID_KEY = "deviceIdKey"
     private const val ADVERTISING_DI_KEY = "advertisingIdKey"
     private const val NEED_RESTART_KEY = "needRestartKey"
@@ -47,8 +47,6 @@ object SharedPreferencesStorage : Storage {
     private const val SKU_KEY = "skuKey"
     private const val SKU_TIMESTAMP_KEY = "skuTimestampKey"
     private const val LAST_REGISTRATION_KEY = "lastRegistrationKey"
-    private const val TEMP_SUBSCRIPTIONS = "temp_subscriptions"
-    private const val TEMP_PURCHASES = "temp_purchases"
 
     private val gson =
         GsonBuilder()
@@ -66,14 +64,14 @@ object SharedPreferencesStorage : Storage {
 
     override var apphudUser: ApphudUser?
         get() {
-            val source = preferences.getString(CUSTOMER_KEY, null)
+            val source = preferences.getString(APPHUD_USER_KEY, null)
             val type = object : TypeToken<ApphudUser>() {}.type
             return parser.fromJson<ApphudUser>(source, type)
         }
         set(value) {
             val source = parser.toJson(value)
             val editor = preferences.edit()
-            editor.putString(CUSTOMER_KEY, source)
+            editor.putString(APPHUD_USER_KEY, source)
             editor.apply()
         }
 
