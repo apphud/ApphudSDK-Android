@@ -94,6 +94,7 @@ internal fun ApphudInternal.disableFallback() {
                 loadProducts()
             }
         ApphudLog.log("Fallback: syncPurchases()")
-        syncPurchases()
+        // no need
+//        syncPurchases()
     }
 }

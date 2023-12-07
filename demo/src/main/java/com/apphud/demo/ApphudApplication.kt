@@ -2,8 +2,13 @@ package com.apphud.demo
 
 import android.app.Application
 import android.content.Context
+import android.os.Handler
+import android.os.Looper
+import android.util.Log
 import com.apphud.sdk.Apphud
+import com.apphud.sdk.ApphudUtils
 import com.apphud.sdk.client.ApiClient
+import kotlin.math.log
 
 class ApphudApplication : Application() {
     var API_KEY = "app_4sY9cLggXpMDDQMmvc5wXUPGReMp8G"
@@ -30,15 +35,6 @@ class ApphudApplication : Application() {
         Apphud.enableDebugLogs()
         // Apphud.optOutOfTracking()
 
-
-        /**
-         * test performWhenOfferingsPrepared - called multiple times
-         * ApphudUser restore from cache not working
-         */
-        if (BuildConfig.DEBUG) {
-            ApiClient.host = "https://api.apphudstage.com"
-            API_KEY = "app_oBcXz2z9j8spKPL2T7sZwQaQN5Jzme"
-        }
         Apphud.start(this, API_KEY)
         Apphud.collectDeviceIdentifiers()
     }

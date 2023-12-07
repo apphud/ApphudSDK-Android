@@ -18,7 +18,7 @@ class PaywallsViewModel : ViewModel() {
         if (showPlacements) {
             items.clear()
             val placements = Apphud.placements()
-            placements?.forEach {
+            placements.forEach {
                 items.add(AdapterItem(null, it))
             }
         } else {

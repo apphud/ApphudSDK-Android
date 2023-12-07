@@ -19,7 +19,7 @@ object SharedPreferencesStorage : Storage {
     fun getInstance(applicationContext: Context): SharedPreferencesStorage {
         this.applicationContext = applicationContext
         preferences = SharedPreferencesStorage.applicationContext.getSharedPreferences(NAME, Context.MODE_PRIVATE)
-        this.cacheTimeout = if (SharedPreferencesStorage.applicationContext.isDebuggable()) 30L else 90000L // 25 hours
+        this.cacheTimeout = if (SharedPreferencesStorage.applicationContext.isDebuggable()) 60L else 90000L // 25 hours
         return this
     }
 
@@ -31,15 +31,15 @@ object SharedPreferencesStorage : Storage {
     private const val USER_ID_KEY = "userIdKey"
     private const val APPHUD_USER_KEY = "APPHUD_USER_KEY"
     private const val DEVICE_ID_KEY = "deviceIdKey"
-    private const val ADVERTISING_DI_KEY = "advertisingIdKey"
+    private const val DEVICE_IDENTIFIERS_KEY = "DEVICE_IDENTIFIERS_KEY"
     private const val NEED_RESTART_KEY = "needRestartKey"
     private const val PROPERTIES_KEY = "propertiesKey"
     private const val FACEBOOK_KEY = "facebookKey"
     private const val FIREBASE_KEY = "firebaseKey"
     private const val APPSFLYER_KEY = "appsflyerKey"
     private const val ADJUST_KEY = "adjustKey"
-    private const val PAYWALLS_KEY = "payWallsKey"
-    private const val PAYWALLS_TIMESTAMP_KEY = "payWallsTimestampKey"
+    private const val PAYWALLS_KEY = "PAYWALLS_KEY"
+    private const val PAYWALLS_TIMESTAMP_KEY = "PAYWALLS_TIMESTAMP_KEY"
     private const val PLACEMENTS_KEY = "PLACEMENTS_KEY"
     private const val PLACEMENTS_TIMESTAMP_KEY = "PLACEMENTS_TIMESTAMP_KEY"
     private const val GROUP_KEY = "apphudGroupKey"
@@ -83,11 +83,18 @@ object SharedPreferencesStorage : Storage {
             editor.apply()
         }
 
-    override var advertisingId: String?
-        get() = preferences.getString(ADVERTISING_DI_KEY, null)
+    override var deviceIdentifiers: Array<String>
+        get() {
+            val string = preferences.getString(DEVICE_IDENTIFIERS_KEY, null)
+            val ids = string?.split("|")
+            return if (ids?.count() == 3) ids.toTypedArray() else arrayOf("", "", "")
+        }
         set(value) {
             val editor = preferences.edit()
-            editor.putString(ADVERTISING_DI_KEY, value)
+
+            val idsString = value?.joinToString("|") ?: ""
+
+            editor.putString(DEVICE_IDENTIFIERS_KEY, idsString)
             editor.apply()
         }
 
@@ -175,7 +182,8 @@ object SharedPreferencesStorage : Storage {
                 val type = object : TypeToken<List<ApphudPaywall>>() {}.type
                 parser.fromJson<List<ApphudPaywall>>(source, type)
             } else {
-                null
+                ApphudLog.log("Paywalls Cache Expired")
+                return null
             }
         }
         set(value) {
@@ -195,6 +203,7 @@ object SharedPreferencesStorage : Storage {
                 val type = object : TypeToken<List<ApphudPlacement>>() {}.type
                 parser.fromJson<List<ApphudPlacement>>(source, type)
             } else {
+                ApphudLog.log("Placements Cache Expired")
                 null
             }
         }
@@ -260,7 +269,7 @@ object SharedPreferencesStorage : Storage {
         apphudUser = null
         userId = null
         deviceId = null
-        advertisingId = null
+        deviceIdentifiers = arrayOf("", "", "")
         isNeedSync = false
         facebook = null
         firebase = null

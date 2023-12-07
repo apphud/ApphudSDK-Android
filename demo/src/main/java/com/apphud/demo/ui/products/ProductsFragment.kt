@@ -7,6 +7,7 @@ import android.view.ViewGroup
 import android.widget.Toast
 import androidx.fragment.app.Fragment
 import androidx.lifecycle.ViewModelProvider
+import androidx.lifecycle.lifecycleScope
 import androidx.navigation.fragment.navArgs
 import androidx.recyclerview.widget.GridLayoutManager
 import androidx.recyclerview.widget.RecyclerView
@@ -15,6 +16,9 @@ import com.apphud.demo.R
 import com.apphud.demo.databinding.FragmentProductsBinding
 import com.apphud.demo.ui.utils.OffersFragment
 import com.apphud.sdk.Apphud
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 class ProductsFragment : Fragment() {
     val args: ProductsFragmentArgs by navArgs()
@@ -94,9 +98,11 @@ class ProductsFragment : Fragment() {
         paywallId: String?,
         placementId: String?,
     )  {
-        suspend {
+        lifecycleScope.launch {
             productsViewModel.updateData(paywallId, placementId)
-            viewAdapter.notifyDataSetChanged()
+            withContext(Dispatchers.Main) {
+                viewAdapter.notifyDataSetChanged()
+            }
         }
     }
 

@@ -8,6 +8,7 @@ import android.view.ViewGroup
 import android.widget.TextView
 import androidx.fragment.app.Fragment
 import androidx.lifecycle.ViewModelProvider
+import androidx.lifecycle.lifecycleScope
 import androidx.navigation.fragment.findNavController
 import androidx.recyclerview.widget.DividerItemDecoration
 import androidx.recyclerview.widget.RecyclerView
@@ -21,6 +22,9 @@ import com.apphud.sdk.domain.ApphudPaywall
 import com.apphud.sdk.domain.ApphudPlacement
 import com.apphud.sdk.domain.ApphudSubscription
 import com.apphud.sdk.managers.HeadersInterceptor
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 class CustomerFragment : Fragment() {
     private var _binding: FragmentCustomerBinding? = null
@@ -116,9 +120,12 @@ class CustomerFragment : Fragment() {
     }
 
     private fun updateData() {
-        suspend {
+        lifecycleScope.launch {
             paywallsViewModel.updateData()
-            viewAdapter.notifyDataSetChanged()
+            withContext(Dispatchers.Main) {
+                viewAdapter.notifyDataSetChanged()
+            }
+
         }
     }
 

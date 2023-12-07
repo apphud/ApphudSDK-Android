@@ -1,5 +1,7 @@
 package com.apphud.sdk.domain
 
+import com.apphud.sdk.Apphud
+import com.apphud.sdk.ApphudInternal
 import com.apphud.sdk.UserId
 
 data class ApphudUser(
@@ -30,20 +32,35 @@ data class ApphudUser(
      */
     var purchases: List<ApphudNonRenewingPurchase>,
 
+    /**
+     * There properties are for internal usage, to get paywalls and placements
+     * use paywalls() and placements() functions below
+     */
+    internal val paywalls: List<ApphudPaywall>,
+    internal val placements: List<ApphudPlacement>,
+    internal val isTemporary: Boolean?
+) {
     /** Returns:
      * List<ApphudPaywall>: A list of paywalls, potentially altered based
      * on the user's involvement in A/B testing, if any.
+     *
+     * __Note__: This function doesn't suspend until inner `ProductDetails`
+     * are loaded from Google Play.
+     *
+     * To get paywalls with inner Google Play products, use
+     * Apphud.paywalls() or Apphud.paywallsDidLoadCallback(...) functions.
      */
-    val paywalls: List<ApphudPaywall>,
+    fun paywalls(): List<ApphudPaywall> = ApphudInternal.paywalls
 
     /** Returns:
      * List<ApphudPlacement>: A list of placements, potentially altered based
      * on the user's involvement in A/B testing, if any.
+     *
+     * __Note__: This function doesn't suspend until inner `ProductDetails`
+     * are loaded from Google Play.
+     *
+     * To get placements with inner Google Play products, use
+     * Apphud.placements() or Apphud.placementsDidLoadCallback(...) functions.
      */
-    val placements: List<ApphudPlacement>,
-
-    /**
-     * For internal usage
-     */
-    internal val isTemporary: Boolean?,
-)
+    fun placements(): List<ApphudPlacement> = ApphudInternal.placements
+}

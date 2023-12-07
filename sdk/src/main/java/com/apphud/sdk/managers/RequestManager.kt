@@ -44,7 +44,8 @@ object RequestManager {
         " :You must call the Apphud.start method once when your application starts before calling any other methods."
 
     val BILLING_VERSION: Int = 5
-    var currentUser: ApphudUser? = null
+    val currentUser: ApphudUser?
+        get() = ApphudInternal.currentUser
 
     val gson = GsonBuilder().serializeNulls().create()
     val parser: Parser = GsonParser(gson)
@@ -61,17 +62,6 @@ object RequestManager {
     lateinit var deviceId: DeviceId
     lateinit var applicationContext: Context
     lateinit var storage: SharedPreferencesStorage
-    var appSetId: String? = null
-    var androidId: String? = null
-
-    var advertisingId: String? = null
-        get() = storage.advertisingId
-        set(value) {
-            field = value
-            if (storage.advertisingId != value) {
-                storage.advertisingId = value
-            }
-        }
 
     fun setParams(
         applicationContext: Context,
@@ -86,12 +76,9 @@ object RequestManager {
             this.apiKey = it
         }
         this.storage = SharedPreferencesStorage
-        currentUser = null
     }
 
     fun cleanRegistration() {
-        currentUser = null
-        advertisingId = null
         apiKey = null
     }
 
@@ -131,7 +118,7 @@ object RequestManager {
             readTimeout = 30L
         }
 
-        var builder =
+        val builder =
             OkHttpClient.Builder()
                 .readTimeout(readTimeout, TimeUnit.SECONDS)
                 .writeTimeout(10, TimeUnit.SECONDS)
@@ -146,23 +133,25 @@ object RequestManager {
     private fun logRequestStart(request: Request)  {
         try {
             var body: String? = ""
-            request.body?.let {
-                val buffer = Buffer()
-                it.writeTo(buffer)
+            if (ApphudUtils.httpLogging) {
+                request.body?.let {
+                    val buffer = Buffer()
+                    it.writeTo(buffer)
 
-                body = buffer.readString(Charset.forName("UTF-8"))
-                body?.let {
-                    if (parser.isJson(it)) {
-                        body = buildPrettyPrintedBy(it)
+                    body = buffer.readString(Charset.forName("UTF-8"))
+                    body?.let {
+                        if (parser.isJson(it)) {
+                            body = buildPrettyPrintedBy(it)
+                        }
                     }
-                }
 
-                body?.let {
-                    if (it.isNotEmpty()) {
-                        body = "\n" + it
+                    body?.let {
+                        if (it.isNotEmpty()) {
+                            body = "\n" + it
+                        }
+                    } ?: {
+                        body = ""
                     }
-                } ?: {
-                    body = ""
                 }
             }
             ApphudLog.logI("Start " + request.method + " request " + request.url + " with params:" + body)
@@ -180,11 +169,14 @@ object RequestManager {
             val source = responseBody?.source()
             source?.request(Long.MAX_VALUE)
 
-            val buffer = source?.buffer?.clone()?.readString(Charset.forName("UTF-8"))
             var outputBody = ""
-            buffer?.let {
-                if (parser.isJson(buffer)) {
-                    outputBody = buildPrettyPrintedBy(it) ?: ""
+            if (ApphudUtils.httpLogging) {
+                val buffer = source?.buffer?.clone()
+                    ?.readString(Charset.forName("UTF-8"))
+                buffer?.let {
+                    if (parser.isJson(buffer)) {
+                        outputBody = buildPrettyPrintedBy(it) ?: ""
+                    }
                 }
             }
 
@@ -409,7 +401,7 @@ object RequestManager {
                     )
 
                 responseDto?.let { cDto ->
-                    currentUser =
+                    val currentUser =
                         cDto.data.results?.let { customerObj ->
                             customerMapper.map(customerObj)
                         }
@@ -493,10 +485,7 @@ object RequestManager {
             }
         if (purchaseBody == null) {
             val message =
-                "ProductsDetails and ApphudProduct can not be null at the same time" +
-                    apphudProduct?.let {
-                        " [Apphud product ID: " + it.id + "]"
-                    }
+                "ProductsDetails and ApphudProduct can not be null at the same time"
             ApphudLog.logE(message = message)
             completionHandler.invoke(null, ApphudError(message))
             return
@@ -512,7 +501,7 @@ object RequestManager {
                         object : TypeToken<ResponseDto<CustomerDto>>() {}.type,
                     )
                 responseDto?.let { cDto ->
-                    currentUser =
+                    val currentUser =
                         cDto.data.results?.let { customerObj ->
                             customerMapper.map(customerObj)
                         }
@@ -572,7 +561,7 @@ object RequestManager {
 
             purchaseBody?.let {
                 val request = buildPostRequest(URL(apphudUrl.url), it)
-                makeUserRegisteredRequest(request, !fallbackMode) { serverResponse, error ->
+                makeUserRegisteredRequest(request, !fallbackMode) { serverResponse, _ ->
                     serverResponse?.let {
                         val responseDto: ResponseDto<CustomerDto>? =
                             parser.fromJson<ResponseDto<CustomerDto>>(
@@ -580,7 +569,7 @@ object RequestManager {
                                 object : TypeToken<ResponseDto<CustomerDto>>() {}.type,
                             )
                         responseDto?.let { cDto ->
-                            currentUser =
+                            val currentUser =
                                 cDto.data.results?.let { customerObj ->
                                     customerMapper.map(customerObj)
                                 }
@@ -708,7 +697,7 @@ object RequestManager {
                 )
 
             responseDto?.let { cDto ->
-                currentUser =
+                val currentUser =
                     cDto.data.results?.let { customerObj ->
                         customerMapper.map(customerObj)
                     }
@@ -726,8 +715,8 @@ object RequestManager {
         trackPaywallEvent(
             makePaywallEventBody(
                 name = "paywall_shown",
-                paywall_id = paywall.id,
-                placement_id = paywall.placementId,
+                paywallId = paywall.id,
+                placementId = paywall.placementId,
             ),
         )
     }
@@ -736,55 +725,55 @@ object RequestManager {
         trackPaywallEvent(
             makePaywallEventBody(
                 name = "paywall_closed",
-                paywall_id = paywall.id,
-                placement_id = paywall.placementId,
+                paywallId = paywall.id,
+                placementId = paywall.placementId,
             ),
         )
     }
 
     fun paywallCheckoutInitiated(
-        paywall_id: String?,
-        placement_id: String?,
-        product_id: String?,
+        paywallId: String?,
+        placementId: String?,
+        productId: String?,
     ) {
         trackPaywallEvent(
             makePaywallEventBody(
                 name = "paywall_checkout_initiated",
-                paywall_id = paywall_id,
-                placement_id = placement_id,
-                product_id = product_id,
+                paywallId = paywallId,
+                placementId = placementId,
+                productId = productId,
             ),
         )
     }
 
     fun paywallPaymentCancelled(
-        paywall_id: String?,
-        placement_id: String?,
-        product_id: String?,
+        paywallId: String?,
+        placementId: String?,
+        productId: String?,
     ) {
         trackPaywallEvent(
             makePaywallEventBody(
                 name = "paywall_payment_cancelled",
-                paywall_id = paywall_id,
-                placement_id = placement_id,
-                product_id = product_id,
+                paywallId = paywallId,
+                placementId = placementId,
+                productId = productId,
             ),
         )
     }
 
     fun paywallPaymentError(
-        paywall_id: String?,
-        placement_id: String?,
-        product_id: String?,
-        error_code: String?,
+        paywallId: String?,
+        placementId: String?,
+        productId: String?,
+        errorMessage: String?,
     ) {
         trackPaywallEvent(
             makePaywallEventBody(
                 name = "paywall_payment_error",
-                paywall_id = paywall_id,
-                placement_id = placement_id,
-                product_id = product_id,
-                error_code = error_code,
+                paywallId = paywallId,
+                placementId = placementId,
+                productId = productId,
+                errorMessage = errorMessage,
             ),
         )
     }
@@ -892,16 +881,16 @@ object RequestManager {
 
     private fun makePaywallEventBody(
         name: String,
-        paywall_id: String?,
-        placement_id: String?,
-        product_id: String? = null,
-        error_code: String? = null,
+        paywallId: String?,
+        placementId: String?,
+        productId: String? = null,
+        errorMessage: String? = null,
     ): PaywallEventBody {
         val properties = mutableMapOf<String, Any>()
-        paywall_id?.let { properties.put("paywall_id", it) }
-        product_id?.let { properties.put("product_id", it) }
-        placement_id?.let { properties.put("placement_id", it) }
-        error_code?.let { properties.put("error_code", it) }
+        paywallId?.let { properties.put("paywall_id", it) }
+        productId?.let { properties.put("product_id", it) }
+        placementId?.let { properties.put("placement_id", it) }
+        errorMessage?.let { properties.put("error_message", it) }
 
         return PaywallEventBody(
             name = name,
@@ -916,27 +905,34 @@ object RequestManager {
     private fun mkRegistrationBody(
         needPaywalls: Boolean,
         isNew: Boolean,
-    ) = RegistrationBody(
-        locale = Locale.getDefault().toString(),
-        sdk_version = BuildConfig.VERSION_NAME,
-        app_version = this.applicationContext.buildAppVersion(),
-        device_family = Build.MANUFACTURER,
-        platform = "Android",
-        device_type = if (ApphudUtils.optOutOfTracking) "Restricted" else Build.MODEL,
-        os_version = Build.VERSION.RELEASE,
-        start_app_version = this.applicationContext.buildAppVersion(),
-        idfv = if (ApphudUtils.optOutOfTracking) null else appSetId,
-        idfa = if (!ApphudUtils.optOutOfTracking && !advertisingId.isNullOrEmpty()) advertisingId else null,
-        android_id = if (ApphudUtils.optOutOfTracking) null else androidId,
-        user_id = userId,
-        device_id = deviceId,
-        time_zone = TimeZone.getDefault().id,
-        is_sandbox = this.applicationContext.isDebuggable(),
-        is_new = isNew,
-        need_paywalls = needPaywalls,
-        need_placements = needPaywalls,
-        first_seen = getInstallationDate(),
-    )
+    ): RegistrationBody {
+        val deviceIds = storage.deviceIdentifiers
+        val idfa = deviceIds[0]
+        val appSetId = deviceIds[1]
+        val androidId = deviceIds[2]
+
+        return RegistrationBody(
+            locale = Locale.getDefault().toString(),
+            sdk_version = BuildConfig.VERSION_NAME,
+            app_version = this.applicationContext.buildAppVersion(),
+            device_family = Build.MANUFACTURER,
+            platform = "Android",
+            device_type = if (ApphudUtils.optOutOfTracking) "Restricted" else Build.MODEL,
+            os_version = Build.VERSION.RELEASE,
+            start_app_version = this.applicationContext.buildAppVersion(),
+            idfv = if (ApphudUtils.optOutOfTracking || appSetId.isEmpty()) null else appSetId,
+            idfa = if (ApphudUtils.optOutOfTracking || idfa.isEmpty()) null else idfa,
+            android_id = if (ApphudUtils.optOutOfTracking || androidId.isEmpty()) null else androidId,
+            user_id = userId,
+            device_id = deviceId,
+            time_zone = TimeZone.getDefault().id,
+            is_sandbox = this.applicationContext.isDebuggable(),
+            is_new = isNew,
+            need_paywalls = needPaywalls,
+            need_placements = needPaywalls,
+            first_seen = getInstallationDate(),
+        )
+    }
 
     private fun getInstallationDate(): Long?  {
         var dateInSecond: Long? = null

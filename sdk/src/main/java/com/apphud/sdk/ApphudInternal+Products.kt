@@ -66,10 +66,6 @@ internal suspend fun ApphudInternal.fetchDetails(ids: List<String>): Boolean {
         subs.await()?.let {
             synchronized(productDetails) {
                 productDetails.addAll(it)
-
-                for (item in productDetails) {
-                    ApphudLog.log(item.zza())
-                }
             }
             isSubsLoaded = true
         } ?: run {
@@ -79,9 +75,6 @@ internal suspend fun ApphudInternal.fetchDetails(ids: List<String>): Boolean {
         inap.await()?.let {
             synchronized(productDetails) {
                 productDetails.addAll(it)
-                for (item in productDetails) {
-                    ApphudLog.log(item.name + ":  " + item.toString())
-                }
             }
             isInapLoaded = true
         } ?: run {

@@ -8,7 +8,7 @@ interface Storage {
     var userId: String?
     var deviceId: String?
     var apphudUser: ApphudUser?
-    var advertisingId: String?
+    var deviceIdentifiers: Array<String>
     var isNeedSync: Boolean
     var facebook: FacebookInfo?
     var firebase: String?

@@ -184,8 +184,7 @@ private fun ApphudInternal.purchaseInternal(
                         apphudProduct.productDetails?.let {
                             "Unable to buy product with given product id: ${it.productId} "
                         } ?: run {
-                            paywallPaymentCancelled(apphudProduct.paywallId, apphudProduct.placementId, apphudProduct.productId, purchasesResult.result.responseCode)
-                            "Unable to buy product with given product id: ${apphudProduct.productDetails?.productId} "
+                            "Unable to buy product with given product id: ${apphudProduct.productId} "
                         }
 
                     message += " [Apphud product ID: " + apphudProduct.id + "]"
@@ -196,6 +195,13 @@ private fun ApphudInternal.purchaseInternal(
                             secondErrorMessage = purchasesResult.result.debugMessage,
                             errorCode = purchasesResult.result.responseCode,
                         )
+
+                    paywallPaymentCancelled(
+                        apphudProduct.paywallId,
+                        apphudProduct.placementId,
+                        apphudProduct.productId,
+                        purchasesResult.result.responseCode)
+
                     ApphudLog.log(message = error.toString())
                     callback?.invoke(ApphudPurchaseResult(null, null, null, error))
                     processPurchaseError(purchasesResult)
@@ -279,7 +285,7 @@ private fun ApphudInternal.sendCheckToApphud(
     oldToken: String?,
     callback: ((ApphudPurchaseResult) -> Unit)?,
 ) {
-    checkRegistration { error ->
+    performWhenUserRegistered { error ->
         error?.let {
             ApphudLog.logE(it.message)
             if (fallbackMode)
@@ -399,7 +405,7 @@ internal fun ApphudInternal.trackPurchase(
     paywallIdentifier: String? = null,
     placementIdentifier: String? = null,
 ) {
-    checkRegistration { error ->
+    performWhenUserRegistered { error ->
         error?.let {
             ApphudLog.logE(it.message)
         } ?: run {

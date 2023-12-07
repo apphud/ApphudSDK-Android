@@ -26,10 +26,9 @@ internal fun ApphudInternal.syncPurchases(
     observerMode: Boolean = true,
     callback: ApphudPurchasesRestoreCallback? = null,
 ) {
-    ApphudLog.log("SyncPurchases()")
-    checkRegistration { error ->
+   performWhenUserRegistered { error ->
         error?.let {
-            ApphudLog.log("SyncPurchases: checkRegistration fail")
+            ApphudLog.log("SyncPurchases: performWhenUserRegistered fail")
             callback?.invoke(null, null, error)
         } ?: run {
             coroutineScope.launch(errorHandler) {
@@ -51,7 +50,7 @@ internal fun ApphudInternal.syncPurchases(
                             }
                         }
                     } else {
-                        ApphudLog.log("SyncPurchases: Products to restore: $purchases")
+                        ApphudLog.log("SyncPurchases: Products to restore: ${purchases.map { it.products.firstOrNull() ?: ""}} ")
 
                         val restoredPurchases = mutableListOf<PurchaseRecordDetails>()
                         val purchasesToLoadDetails = mutableListOf<PurchaseHistoryRecord>()
@@ -69,7 +68,7 @@ internal fun ApphudInternal.syncPurchases(
                         }
 
                         if (purchasesToLoadDetails.isNotEmpty()) {
-                            ApphudLog.log("SyncPurchases: Load product details for: $purchasesToLoadDetails")
+                            ApphudLog.log("SyncPurchases: Load product details for: ${purchasesToLoadDetails.map { it.products.firstOrNull() ?: "" }  }")
                             val subsRestored = billing.restoreSync(BillingClient.ProductType.SUBS, purchasesToLoadDetails)
                             val inapsRestored = billing.restoreSync(BillingClient.ProductType.INAPP, purchasesToLoadDetails)
 
@@ -79,9 +78,7 @@ internal fun ApphudInternal.syncPurchases(
                             ApphudLog.log("SyncPurchases: All products details already loaded.")
                         }
 
-                        ApphudLog.log("SyncPurchases: Products restored: $restoredPurchases")
-
-                        ApphudLog.log("SyncPurchases: observerMode = $observerMode")
+                        ApphudLog.log("SyncPurchases: Products restored: ${restoredPurchases.map { it.details.productId }  }")
 
                         if (observerMode && prevPurchases.containsAll(restoredPurchases)) {
                             ApphudLog.log("SyncPurchases: Don't send equal purchases from prev state")
@@ -90,7 +87,6 @@ internal fun ApphudInternal.syncPurchases(
                                 refreshEntitlements(true)
                             }
                         } else {
-                            ApphudLog.log("SyncPurchases: call syncPurchasesWithApphud()")
                             sendPurchasesToApphud(
                                 paywallIdentifier,
                                 placementIdentifier,
@@ -103,7 +99,6 @@ internal fun ApphudInternal.syncPurchases(
                             )
                         }
                     }
-                    ApphudLog.log("SyncPurchases: finish")
                 }
             }
         }
@@ -210,9 +205,9 @@ private fun ApphudInternal.findJustPurchasedProduct(
     try {
         val targetPaywall =
             if (placementIdentifier != null) {
-                placements?.firstOrNull { it.identifier == placementIdentifier }?.paywall
+                placements.firstOrNull { it.identifier == placementIdentifier }?.paywall
             } else {
-                getPaywalls().firstOrNull { it.identifier == paywallIdentifier }
+                paywalls.firstOrNull { it.identifier == paywallIdentifier }
             }
 
         productDetails?.let { details ->
