@@ -130,7 +130,7 @@ object RequestManager {
         return builder.build()
     }
 
-    private fun logRequestStart(request: Request)  {
+    private fun logRequestStart(request: Request) {
         try {
             var body: String? = ""
             if (ApphudUtils.httpLogging) {
@@ -163,7 +163,7 @@ object RequestManager {
     private fun logRequestFinish(
         request: Request,
         response: Response,
-    )  {
+    ) {
         try {
             val responseBody = response.body
             val source = responseBody?.source()
@@ -171,8 +171,9 @@ object RequestManager {
 
             var outputBody = ""
             if (ApphudUtils.httpLogging) {
-                val buffer = source?.buffer?.clone()
-                    ?.readString(Charset.forName("UTF-8"))
+                val buffer =
+                    source?.buffer?.clone()
+                        ?.readString(Charset.forName("UTF-8"))
                 buffer?.let {
                     if (parser.isJson(buffer)) {
                         outputBody = buildPrettyPrintedBy(it) ?: ""
@@ -288,7 +289,7 @@ object RequestManager {
     private fun checkLock403(
         request: Request,
         response: Response,
-    )  {
+    ) {
         if (response.code == 403 && request.method == "POST" && request.url.encodedPath.endsWith("/customers")) {
             HeadersInterceptor.isBlocked = true
         }
@@ -362,12 +363,11 @@ object RequestManager {
                         continuation.resume(customer)
                     }
                 }
-            } else
-                {
-                    if (continuation.isActive) {
-                        continuation.resume(currentUser)
-                    }
+            } else {
+                if (continuation.isActive) {
+                    continuation.resume(currentUser)
                 }
+            }
         }
 
     @Synchronized
@@ -417,10 +417,9 @@ object RequestManager {
                 val message = ex.message ?: "Undefined error"
                 completionHandler(null, ApphudError(message))
             }
-        } else
-            {
-                completionHandler(currentUser, null)
-            }
+        } else {
+            completionHandler(currentUser, null)
+        }
     }
 
     suspend fun allProducts(): List<ApphudGroup>? =
@@ -539,23 +538,21 @@ object RequestManager {
                     .build()
 
             val purchaseBody =
-                if (purchaseRecordDetailsSet != null)
-                    {
-                        makeRestorePurchasesBody(
-                            apphudProduct,
-                            purchaseRecordDetailsSet,
-                            observerMode,
-                        )
-                    } else if (purchase != null && productDetails != null)
-                    {
-                        makeTrackPurchasesBody(
-                            apphudProduct,
-                            purchase,
-                            productDetails,
-                            offerIdToken,
-                            observerMode,
-                        )
-                    } else {
+                if (purchaseRecordDetailsSet != null) {
+                    makeRestorePurchasesBody(
+                        apphudProduct,
+                        purchaseRecordDetailsSet,
+                        observerMode,
+                    )
+                } else if (purchase != null && productDetails != null) {
+                    makeTrackPurchasesBody(
+                        apphudProduct,
+                        purchase,
+                        productDetails,
+                        offerIdToken,
+                        observerMode,
+                    )
+                } else {
                     null
                 }
 
@@ -597,7 +594,7 @@ object RequestManager {
     fun send(
         attributionBody: AttributionBody,
         completionHandler: (Attribution?, ApphudError?) -> Unit,
-    )  {
+    ) {
         if (!canPerformRequest()) {
             ApphudLog.logE(::send.name + MUST_REGISTER_ERROR)
             return
@@ -634,7 +631,7 @@ object RequestManager {
     fun userProperties(
         userPropertiesBody: UserPropertiesBody,
         completionHandler: (Attribution?, ApphudError?) -> Unit,
-    )  {
+    ) {
         if (!canPerformRequest()) {
             ApphudLog.logE(::userProperties.name + MUST_REGISTER_ERROR)
             return
@@ -805,7 +802,7 @@ object RequestManager {
         }
     }
 
-    fun sendErrorLogs(message: String)  {
+    fun sendErrorLogs(message: String) {
         if (!canPerformRequest()) {
             ApphudLog.logE(::sendErrorLogs.name + MUST_REGISTER_ERROR)
             return
@@ -831,7 +828,7 @@ object RequestManager {
         }
     }
 
-    fun sendBenchmarkLogs(body: BenchmarkBody)  {
+    fun sendBenchmarkLogs(body: BenchmarkBody) {
         if (!canPerformRequest()) {
             ApphudLog.logE(::sendErrorLogs.name + MUST_REGISTER_ERROR)
             return
@@ -934,7 +931,7 @@ object RequestManager {
         )
     }
 
-    private fun getInstallationDate(): Long?  {
+    private fun getInstallationDate(): Long? {
         var dateInSecond: Long? = null
         try {
             this.applicationContext.packageManager?.let { manager ->
@@ -1087,20 +1084,19 @@ object RequestManager {
 
     suspend fun fetchAdvertisingId(): String? =
         suspendCancellableCoroutine { continuation ->
-            if (hasPermission("com.google.android.gms.permission.AD_ID"))
-                {
-                    var advId: String? = null
-                    try {
-                        val adInfo: AdInfo = AdvertisingIdManager.getAdvertisingIdInfo(applicationContext)
-                        advId = adInfo.id
-                    } catch (e: java.lang.Exception) {
-                        ApphudLog.logE("Finish load advertisingId: $e")
-                    }
+            if (hasPermission("com.google.android.gms.permission.AD_ID")) {
+                var advId: String? = null
+                try {
+                    val adInfo: AdInfo = AdvertisingIdManager.getAdvertisingIdInfo(applicationContext)
+                    advId = adInfo.id
+                } catch (e: java.lang.Exception) {
+                    ApphudLog.logE("Finish load advertisingId: $e")
+                }
 
-                    if (continuation.isActive) {
-                        continuation.resume(advId)
-                    }
-                } else {
+                if (continuation.isActive) {
+                    continuation.resume(advId)
+                }
+            } else {
                 if (continuation.isActive) {
                     continuation.resume(null)
                 }
@@ -1133,7 +1129,7 @@ object RequestManager {
     }
 }
 
-fun ProductDetails.priceCurrencyCode(): String?  {
+fun ProductDetails.priceCurrencyCode(): String? {
     val res: String? =
         if (this.productType == BillingClient.ProductType.SUBS) {
             this.subscriptionOfferDetails?.firstOrNull()?.pricingPhases?.pricingPhaseList?.firstOrNull()?.priceCurrencyCode
@@ -1151,7 +1147,7 @@ fun ProductDetails.priceAmountMicros(): Long? {
     }
 }
 
-fun ProductDetails.subscriptionPeriod(): String?  {
+fun ProductDetails.subscriptionPeriod(): String? {
     val res: String? =
         if (this.productType == BillingClient.ProductType.SUBS) {
             if (this.subscriptionOfferDetails?.size == 1 && this.subscriptionOfferDetails?.firstOrNull()?.pricingPhases?.pricingPhaseList?.size == 1) {

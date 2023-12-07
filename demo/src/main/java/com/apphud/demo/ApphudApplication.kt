@@ -2,13 +2,7 @@ package com.apphud.demo
 
 import android.app.Application
 import android.content.Context
-import android.os.Handler
-import android.os.Looper
-import android.util.Log
 import com.apphud.sdk.Apphud
-import com.apphud.sdk.ApphudUtils
-import com.apphud.sdk.client.ApiClient
-import kotlin.math.log
 
 class ApphudApplication : Application() {
     var API_KEY = "app_4sY9cLggXpMDDQMmvc5wXUPGReMp8G"

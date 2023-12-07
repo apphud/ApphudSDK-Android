@@ -12,7 +12,7 @@ import java.util.concurrent.atomic.AtomicInteger
 internal var productsLoaded = AtomicInteger(0) // to know that products already loaded by another thread
 private val mutexProducts = Mutex()
 
-internal fun ApphudInternal.loadProducts()  {
+internal fun ApphudInternal.loadProducts() {
     coroutineScope.launch(errorHandler) {
         mutexProducts.withLock {
             async {
@@ -36,19 +36,17 @@ internal fun ApphudInternal.loadProducts()  {
 
 private suspend fun ApphudInternal.fetchProducts(): Boolean {
     val cachedGroups = storage.productGroups
-    if (cachedGroups == null || storage.needUpdateProductGroups())
-        {
-            val groupsList = RequestManager.allProducts()
-            groupsList?.let { groups ->
-                cacheGroups(groups)
-                val ids = groups.map { it -> it.products?.map { it.productId }!! }.flatten()
-                return fetchDetails(ids)
-            }
-        } else
-        {
-            val ids = cachedGroups.map { it -> it.products?.map { it.productId }!! }.flatten()
+    if (cachedGroups == null || storage.needUpdateProductGroups()) {
+        val groupsList = RequestManager.allProducts()
+        groupsList?.let { groups ->
+            cacheGroups(groups)
+            val ids = groups.map { it -> it.products?.map { it.productId }!! }.flatten()
             return fetchDetails(ids)
         }
+    } else {
+        val ids = cachedGroups.map { it -> it.products?.map { it.productId }!! }.flatten()
+        return fetchDetails(ids)
+    }
     return false
 }
 

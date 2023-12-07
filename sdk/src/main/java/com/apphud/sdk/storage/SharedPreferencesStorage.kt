@@ -246,13 +246,12 @@ object SharedPreferencesStorage : Storage {
     fun updateCustomer(
         apphudUser: ApphudUser,
         apphudListener: ApphudListener?,
-    )  {
+    ) {
         var userIdChanged = false
         this.apphudUser?.let {
-            if (it.userId != apphudUser.userId)
-                {
-                    userIdChanged = true
-                }
+            if (it.userId != apphudUser.userId) {
+                userIdChanged = true
+            }
         }
         this.apphudUser = apphudUser
         this.userId = apphudUser.userId
@@ -285,21 +284,18 @@ object SharedPreferencesStorage : Storage {
         val timestamp = lastRegistration + (cacheTimeout * 1000)
         val currentTime = System.currentTimeMillis()
 
-        return if (customerWithPurchases())
-            {
-                ApphudLog.logI("User with purchases: perform registration")
-                true
-            } else {
+        return if (customerWithPurchases()) {
+            ApphudLog.logI("User with purchases: perform registration")
+            true
+        } else {
             val result = currentTime > timestamp
-            if (result)
-                {
-                    ApphudLog.logI("User without purchases: perform registration")
-                } else
-                {
-                    val minutes = (timestamp - currentTime) / 60_000L
-                    val seconds = (timestamp - currentTime - minutes * 60_000L) / 1_000L
-                    ApphudLog.logI("User without purchases: registration will available after ${minutes}min. ${seconds}sec.")
-                }
+            if (result) {
+                ApphudLog.logI("User without purchases: perform registration")
+            } else {
+                val minutes = (timestamp - currentTime) / 60_000L
+                val seconds = (timestamp - currentTime - minutes * 60_000L) / 1_000L
+                ApphudLog.logI("User without purchases: registration will available after ${minutes}min. ${seconds}sec.")
+            }
             return result
         }
     }
@@ -329,44 +325,39 @@ object SharedPreferencesStorage : Storage {
             editor.apply()
         }
 
-    fun needSendProperty(property: ApphudUserProperty): Boolean  {
-        if (properties == null)
-            {
-                properties = hashMapOf()
-            }
+    fun needSendProperty(property: ApphudUserProperty): Boolean {
+        if (properties == null) {
+            properties = hashMapOf()
+        }
         properties?.let {
-            if (property.value == null)
-                {
-                    // clean property
+            if (property.value == null) {
+                // clean property
+                if (it.containsKey(property.key)) {
+                    it.remove(property.key)
+                    properties = it
+                }
+                return true
+            }
+
+            if (it.containsKey(property.key)) {
+                if (it[property.key]?.setOnce == true) {
+                    val message = "Sending a property with key '${property.key}' is skipped. The property was previously specified as not updatable"
+                    ApphudLog.logI(message)
+                    return false
+                }
+                if (property.increment) {
+                    // clean property to allow to set any value after increment
                     if (it.containsKey(property.key)) {
                         it.remove(property.key)
                         properties = it
                     }
                     return true
                 }
-
-            if (it.containsKey(property.key)) {
-                if (it[property.key]?.setOnce == true)
-                    {
-                        val message = "Sending a property with key '${property.key}' is skipped. The property was previously specified as not updatable"
-                        ApphudLog.logI(message)
-                        return false
-                    }
-                if (property.increment)
-                    {
-                        // clean property to allow to set any value after increment
-                        if (it.containsKey(property.key)) {
-                            it.remove(property.key)
-                            properties = it
-                        }
-                        return true
-                    }
-                if (it[property.key]?.getValue() == property.getValue() && !property.setOnce)
-                    {
-                        val message = "Sending a property with key '${property.key}' is skipped. Property value was not changed"
-                        ApphudLog.logI(message)
-                        return false
-                    }
+                if (it[property.key]?.getValue() == property.getValue() && !property.setOnce) {
+                    val message = "Sending a property with key '${property.key}' is skipped. Property value was not changed"
+                    ApphudLog.logI(message)
+                    return false
+                }
             }
         }
 

@@ -41,7 +41,10 @@ interface ApphudListener {
      *
      * __Note__: When Google Play products are loaded, they will appear in the same instances.
      */
-    fun userDidLoad(rawPaywalls: List<ApphudPaywall>, rawPlacements: List<ApphudPlacement>)
+    fun userDidLoad(
+        rawPaywalls: List<ApphudPaywall>,
+        rawPlacements: List<ApphudPlacement>,
+    )
 
     /**
      Called when paywalls are fully loaded with their ProductDetails.

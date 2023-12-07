@@ -42,35 +42,33 @@ class ProductsFragment : Fragment() {
             activity?.let { activity ->
                 product.productDetails?.let { details ->
                     // Use Apphud purchases flow
-                    if (details.productType == BillingClient.ProductType.SUBS)
-                        {
-                            product.productDetails?.subscriptionOfferDetails?.let {
-                                val fragment = OffersFragment()
-                                fragment.offers = it
-                                fragment.offerSelected = { offer ->
-                                    Apphud.purchase(activity, product, offer.offerToken) { result ->
-                                        result.error?.let { err ->
-                                            Toast.makeText(activity, if (result.userCanceled()) "User Canceled" else err.message, Toast.LENGTH_SHORT).show()
-                                        } ?: run {
-                                            Toast.makeText(activity, R.string.success, Toast.LENGTH_SHORT).show()
-                                        }
-                                    }
-                                }
-                                fragment.apply {
-                                    show(activity.supportFragmentManager, tag)
-                                }
-                            }
-                        } else {
-                        if (product.productId == "com.apphud.demo.nonconsumable.premium")
-                            {
-                                Apphud.purchase(activity = activity, apphudProduct = product, consumableInAppProduct = false) { result ->
+                    if (details.productType == BillingClient.ProductType.SUBS) {
+                        product.productDetails?.subscriptionOfferDetails?.let {
+                            val fragment = OffersFragment()
+                            fragment.offers = it
+                            fragment.offerSelected = { offer ->
+                                Apphud.purchase(activity, product, offer.offerToken) { result ->
                                     result.error?.let { err ->
                                         Toast.makeText(activity, if (result.userCanceled()) "User Canceled" else err.message, Toast.LENGTH_SHORT).show()
                                     } ?: run {
                                         Toast.makeText(activity, R.string.success, Toast.LENGTH_SHORT).show()
                                     }
                                 }
-                            } else {
+                            }
+                            fragment.apply {
+                                show(activity.supportFragmentManager, tag)
+                            }
+                        }
+                    } else {
+                        if (product.productId == "com.apphud.demo.nonconsumable.premium") {
+                            Apphud.purchase(activity = activity, apphudProduct = product, consumableInAppProduct = false) { result ->
+                                result.error?.let { err ->
+                                    Toast.makeText(activity, if (result.userCanceled()) "User Canceled" else err.message, Toast.LENGTH_SHORT).show()
+                                } ?: run {
+                                    Toast.makeText(activity, R.string.success, Toast.LENGTH_SHORT).show()
+                                }
+                            }
+                        } else {
                             Apphud.purchase(activity = activity, apphudProduct = product, consumableInAppProduct = true) { result ->
                                 result.error?.let { err ->
                                     Toast.makeText(activity, if (result.userCanceled()) "User Canceled" else err.message, Toast.LENGTH_SHORT).show()
@@ -97,7 +95,7 @@ class ProductsFragment : Fragment() {
     private fun updateData(
         paywallId: String?,
         placementId: String?,
-    )  {
+    ) {
         lifecycleScope.launch {
             productsViewModel.updateData(paywallId, placementId)
             withContext(Dispatchers.Main) {

@@ -26,7 +26,7 @@ internal fun ApphudInternal.syncPurchases(
     observerMode: Boolean = true,
     callback: ApphudPurchasesRestoreCallback? = null,
 ) {
-   performWhenUserRegistered { error ->
+    performWhenUserRegistered { error ->
         error?.let {
             ApphudLog.log("SyncPurchases: performWhenUserRegistered fail")
             callback?.invoke(null, null, error)
@@ -68,7 +68,7 @@ internal fun ApphudInternal.syncPurchases(
                         }
 
                         if (purchasesToLoadDetails.isNotEmpty()) {
-                            ApphudLog.log("SyncPurchases: Load product details for: ${purchasesToLoadDetails.map { it.products.firstOrNull() ?: "" }  }")
+                            ApphudLog.log("SyncPurchases: Load product details for: ${purchasesToLoadDetails.map { it.products.firstOrNull() ?: "" } }")
                             val subsRestored = billing.restoreSync(BillingClient.ProductType.SUBS, purchasesToLoadDetails)
                             val inapsRestored = billing.restoreSync(BillingClient.ProductType.INAPP, purchasesToLoadDetails)
 
@@ -78,7 +78,7 @@ internal fun ApphudInternal.syncPurchases(
                             ApphudLog.log("SyncPurchases: All products details already loaded.")
                         }
 
-                        ApphudLog.log("SyncPurchases: Products restored: ${restoredPurchases.map { it.details.productId }  }")
+                        ApphudLog.log("SyncPurchases: Products restored: ${restoredPurchases.map { it.details.productId } }")
 
                         if (observerMode && prevPurchases.containsAll(restoredPurchases)) {
                             ApphudLog.log("SyncPurchases: Don't send equal purchases from prev state")
@@ -114,7 +114,7 @@ internal suspend fun ApphudInternal.sendPurchasesToApphud(
     offerIdToken: String?,
     callback: ApphudPurchasesRestoreCallback? = null,
     observerMode: Boolean,
-)  {
+) {
     val apphudProduct: ApphudProduct? =
         findJustPurchasedProduct(paywallIdentifier, placementIdentifier, productDetails, tempPurchaseRecordDetails)
 
@@ -135,10 +135,9 @@ internal suspend fun ApphudInternal.sendPurchasesToApphud(
                         "Ensure Google Service Credentials are correct and have necessary permissions. " +
                         "Check https://docs.apphud.com/getting-started/creating-app#google-play-service-credentials or contact support."
                 ApphudLog.logE(message = message)
-            } else
-                {
-                    ApphudLog.log("SyncPurchases: customer was successfully updated $customer")
-                }
+            } else {
+                ApphudLog.log("SyncPurchases: customer was successfully updated $customer")
+            }
 
             storage.isNeedSync = false
             prevPurchases.addAll(records)
@@ -160,7 +159,7 @@ internal suspend fun ApphudInternal.sendPurchasesToApphud(
     }
 }
 
-private fun processHistoryCallbackStatus(result: PurchaseHistoryCallbackStatus): List<PurchaseHistoryRecord>  {
+private fun processHistoryCallbackStatus(result: PurchaseHistoryCallbackStatus): List<PurchaseHistoryRecord> {
     when (result) {
         is PurchaseHistoryCallbackStatus.Error -> {
             val type = if (result.type() == BillingClient.ProductType.SUBS) "subscriptions" else "in-app products"
@@ -177,7 +176,7 @@ private fun processHistoryCallbackStatus(result: PurchaseHistoryCallbackStatus):
     return emptyList()
 }
 
-private fun processRestoreCallbackStatus(result: PurchaseRestoredCallbackStatus): List<PurchaseRecordDetails>  {
+private fun processRestoreCallbackStatus(result: PurchaseRestoredCallbackStatus): List<PurchaseRecordDetails> {
     when (result) {
         is PurchaseRestoredCallbackStatus.Error -> {
             val type = if (result.type() == BillingClient.ProductType.SUBS) "subscriptions" else "in-app products"

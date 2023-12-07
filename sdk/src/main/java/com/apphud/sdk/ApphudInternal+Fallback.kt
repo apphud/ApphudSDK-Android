@@ -18,13 +18,12 @@ private val parser: Parser = GsonParser(gson)
 private val paywallsMapper = PaywallsMapper(parser)
 
 internal fun ApphudInternal.processFallbackError(request: Request) {
-    if (request.url.encodedPath.endsWith("/customers") && storage.needProcessFallback() && !fallbackMode)
-        {
-            fallbackMode = true
-            didRegisterCustomerAtThisLaunch = false
-            processFallbackData()
-            ApphudLog.log("Fallback: ENABLED")
-        }
+    if (request.url.encodedPath.endsWith("/customers") && storage.needProcessFallback() && !fallbackMode) {
+        fallbackMode = true
+        didRegisterCustomerAtThisLaunch = false
+        processFallbackData()
+        ApphudLog.log("Fallback: ENABLED")
+    }
 }
 
 private fun ApphudInternal.processFallbackData() {
@@ -35,33 +34,30 @@ private fun ApphudInternal.processFallbackData() {
             val contentType = object : TypeToken<FallbackJsonObject>() {}.type
             val fallbackJson: FallbackJsonObject = gson.fromJson(jsonFileString, contentType)
 
-            if (paywalls.isEmpty() && fallbackJson.data.results.isNotEmpty())
-                {
-                    val paywallToParse = paywallsMapper.map(fallbackJson.data.results)
-                    val ids = paywallToParse.map { it.products?.map { it.productId } ?: listOf() }.flatten()
-                    if (ids.isNotEmpty())
-                        {
-                            fetchDetails(ids)
-                            cachePaywalls(paywallToParse)
+            if (paywalls.isEmpty() && fallbackJson.data.results.isNotEmpty()) {
+                val paywallToParse = paywallsMapper.map(fallbackJson.data.results)
+                val ids = paywallToParse.map { it.products?.map { it.productId } ?: listOf() }.flatten()
+                if (ids.isNotEmpty()) {
+                    fetchDetails(ids)
+                    cachePaywalls(paywallToParse)
 
-                            if (currentUser == null)
-                                {
-                                    currentUser =
-                                        ApphudUser(
-                                            userId, "", "", listOf(), listOf(), listOf(),
-                                            listOf(), true,
-                                        )
-                                    ApphudLog.log("Fallback: user created: $userId")
-                                }
-                            mainScope.launch {
-                                notifyLoadingCompleted(
-                                    customerLoaded = currentUser,
-                                    productDetailsLoaded = productDetails,
-                                    fromFallback = true,
-                                )
-                            }
-                        }
+                    if (currentUser == null) {
+                        currentUser =
+                            ApphudUser(
+                                userId, "", "", listOf(), listOf(), listOf(),
+                                listOf(), true,
+                            )
+                        ApphudLog.log("Fallback: user created: $userId")
+                    }
+                    mainScope.launch {
+                        notifyLoadingCompleted(
+                            customerLoaded = currentUser,
+                            productDetailsLoaded = productDetails,
+                            fromFallback = true,
+                        )
+                    }
                 }
+            }
         } catch (ex: Exception) {
             ApphudLog.logE("Fallback: ${ex.message}")
         }
@@ -88,11 +84,10 @@ internal fun ApphudInternal.disableFallback() {
 
     storage.isNeedSync = true
     coroutineScope.launch(errorHandler) {
-        if (productGroups.isEmpty())
-            { // if fallback raised on start, there no product groups, so reload products and details
-                ApphudLog.log("Fallback: reload products")
-                loadProducts()
-            }
+        if (productGroups.isEmpty()) { // if fallback raised on start, there no product groups, so reload products and details
+            ApphudLog.log("Fallback: reload products")
+            loadProducts()
+        }
         ApphudLog.log("Fallback: syncPurchases()")
         // no need
 //        syncPurchases()

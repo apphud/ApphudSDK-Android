@@ -92,10 +92,9 @@ internal object ApphudInternal {
         LifecycleEventObserver { _, event ->
             when (event) {
                 Lifecycle.Event.ON_STOP -> {
-                    if (fallbackMode)
-                        {
-                            storage.isNeedSync = true
-                        }
+                    if (fallbackMode) {
+                        storage.isNeedSync = true
+                    }
                     ApphudLog.log("Application stopped [need sync ${storage.isNeedSync}]")
                 }
                 Lifecycle.Event.ON_START -> {
@@ -168,32 +167,29 @@ internal object ApphudInternal {
 
         if (needRegistration) {
             registration(this.userId, this.deviceId, true, null)
-        } else
-            {
-                mainScope.launch {
-                    notifyLoadingCompleted(storage.apphudUser, null, true)
-                }
+        } else {
+            mainScope.launch {
+                notifyLoadingCompleted(storage.apphudUser, null, true)
             }
+        }
     }
 
-    internal fun refreshEntitlements(forceRefresh: Boolean = false)  {
-        if (didRegisterCustomerAtThisLaunch || forceRefresh)
-            {
-                ApphudLog.log("RefreshEntitlements: didRegister:$didRegisterCustomerAtThisLaunch force:$forceRefresh")
-                registration(this.userId, this.deviceId, true, null)
-            }
+    internal fun refreshEntitlements(forceRefresh: Boolean = false) {
+        if (didRegisterCustomerAtThisLaunch || forceRefresh) {
+            ApphudLog.log("RefreshEntitlements: didRegister:$didRegisterCustomerAtThisLaunch force:$forceRefresh")
+            registration(this.userId, this.deviceId, true, null)
+        }
     }
     //endregion
 
     //region === Registration ===
-    private fun needRegistration(passedUserId: String?): Boolean  {
+    private fun needRegistration(passedUserId: String?): Boolean {
         passedUserId?.let {
-            if (!storage.userId.isNullOrEmpty())
-                {
-                    if (it != storage.userId) {
-                        return true
-                    }
+            if (!storage.userId.isNullOrEmpty()) {
+                if (it != storage.userId) {
+                    return true
                 }
+            }
         }
         if (storage.userId.isNullOrEmpty() ||
             storage.deviceId.isNullOrEmpty() ||
@@ -214,7 +210,7 @@ internal object ApphudInternal {
         productDetailsLoaded: List<ProductDetails>? = null,
         fromCache: Boolean = false,
         fromFallback: Boolean = false,
-    )  {
+    ) {
         var paywallsPrepared = true
 
         productDetailsLoaded?.let {
@@ -227,7 +223,6 @@ internal object ApphudInternal {
         }
 
         customerLoaded?.let {
-
             var updateOfferingsFromCustomer = false
 
             if (fromCache || fromFallback) {
@@ -269,7 +264,7 @@ internal object ApphudInternal {
                 this.userRegisteredBlock = null
 
                 if (it.isTemporary == false && !fallbackMode) {
-                        didRegisterCustomerAtThisLaunch = true
+                    didRegisterCustomerAtThisLaunch = true
                 }
             }
 
@@ -280,17 +275,16 @@ internal object ApphudInternal {
 
         updatePaywallsAndPlacements()
 
-        if (paywallsPrepared && currentUser != null && paywalls.isNotEmpty() && productDetails.isNotEmpty() && notifyFullyLoaded)
-            {
-                notifyFullyLoaded = false
-                if (!didLoadOfferings) {
-                    didLoadOfferings = true
-                    apphudListener?.paywallsDidFullyLoad(paywalls)
-                    apphudListener?.placementsDidFullyLoad(placements)
-                    offeringsPreparedCallbacks.forEach { it.invoke() }
-                    offeringsPreparedCallbacks.clear()
-                }
+        if (paywallsPrepared && currentUser != null && paywalls.isNotEmpty() && productDetails.isNotEmpty() && notifyFullyLoaded) {
+            notifyFullyLoaded = false
+            if (!didLoadOfferings) {
+                didLoadOfferings = true
+                apphudListener?.paywallsDidFullyLoad(paywalls)
+                apphudListener?.placementsDidFullyLoad(placements)
+                offeringsPreparedCallbacks.forEach { it.invoke() }
+                offeringsPreparedCallbacks.clear()
             }
+        }
     }
 
     private val mutex = Mutex()
@@ -339,17 +333,16 @@ internal object ApphudInternal {
                             }
                         }
                     }
-                } else
-                    {
-                        mainScope.launch {
-                            completionHandler?.invoke(currentUser, null)
-                        }
+                } else {
+                    mainScope.launch {
+                        completionHandler?.invoke(currentUser, null)
                     }
+                }
             }
         }
     }
 
-    private suspend fun repeatRegistrationSilent()  {
+    private suspend fun repeatRegistrationSilent() {
         val newUser = RequestManager.registrationSync(!didRegisterCustomerAtThisLaunch, is_new, true)
 
         newUser?.let {
@@ -406,10 +399,9 @@ internal object ApphudInternal {
                 type = typeString,
             )
 
-        if (!storage.needSendProperty(property))
-            {
-                return
-            }
+        if (!storage.needSendProperty(property)) {
+            return
+        }
 
         synchronized(pendingUserProperties) {
             pendingUserProperties.run {
@@ -629,17 +621,16 @@ internal object ApphudInternal {
         }
     }
 
-    internal fun performWhenUserRegistered(callback: (ApphudError?) -> Unit)  {
+    internal fun performWhenUserRegistered(callback: (ApphudError?) -> Unit) {
         if (!isInitialized()) {
             callback.invoke(ApphudError(MUST_REGISTER_ERROR))
             return
         }
 
         currentUser?.let {
-            if (it.isTemporary == false)
-                {
-                    callback.invoke(null)
-                } else {
+            if (it.isTemporary == false) {
+                callback.invoke(null)
+            } else {
                 registration(this.userId, this.deviceId) { _, error ->
                     callback.invoke(error)
                 }
@@ -671,7 +662,7 @@ internal object ApphudInternal {
         }
     }
 
-    private suspend fun fetchAdvertisingId(): String?  {
+    private suspend fun fetchAdvertisingId(): String? {
         return RequestManager.fetchAdvertisingId()
     }
 
@@ -762,12 +753,13 @@ internal object ApphudInternal {
             }
         }
     }
+
     //endregion//region === Secondary methods ===
-    internal fun getPackageName(): String  {
+    internal fun getPackageName(): String {
         return context.packageName
     }
 
-    private fun isInitialized(): Boolean  {
+    private fun isInitialized(): Boolean {
         return ::context.isInitialized &&
             ::userId.isInitialized &&
             ::deviceId.isInitialized &&
@@ -843,7 +835,7 @@ internal object ApphudInternal {
         storage.productGroups = groups
     }
 
-    private fun readGroupsFromCache(): MutableList<ApphudGroup>  {
+    private fun readGroupsFromCache(): MutableList<ApphudGroup> {
         return storage.productGroups?.toMutableList() ?: mutableListOf()
     }
 

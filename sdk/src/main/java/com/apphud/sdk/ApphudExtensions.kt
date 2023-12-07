@@ -25,7 +25,8 @@ enum class ApphudBillingResponseCodes(val code: Int) {
     ERROR(6),
     ITEM_ALREADY_OWNED(7),
     ITEM_NOT_OWNED(8),
-    NETWORK_ERROR(12);
+    NETWORK_ERROR(12),
+    ;
 
     companion object {
         fun getName(code: Int): String {

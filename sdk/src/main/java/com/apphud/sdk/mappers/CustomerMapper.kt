@@ -2,7 +2,6 @@ package com.apphud.sdk.mappers
 
 import com.apphud.sdk.client.dto.CustomerDto
 import com.apphud.sdk.domain.ApphudKind
-import com.apphud.sdk.domain.ApphudPaywall
 import com.apphud.sdk.domain.ApphudUser
 
 class CustomerMapper(

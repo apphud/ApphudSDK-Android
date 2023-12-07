@@ -31,13 +31,11 @@ class ProductsAdapter(private val productsViewModel: ProductsViewModel, private 
             productName.text = "Name: " + item.name + "\nProduct ID: " + item.productId + "\nBase Plan ID: " + item.basePlanId
 
             item.productDetails?.let { details ->
-                if (details.productType == BillingClient.ProductType.SUBS)
-                    {
-                        productPrice.text = item.subscriptionOffers()?.firstOrNull()?.pricingPhases?.pricingPhaseList?.firstOrNull()?.formattedPrice ?: ""
-                    } else
-                    {
-                        productPrice.text = details.oneTimePurchaseOfferDetails?.formattedPrice ?: ""
-                    }
+                if (details.productType == BillingClient.ProductType.SUBS) {
+                    productPrice.text = item.subscriptionOffers()?.firstOrNull()?.pricingPhases?.pricingPhaseList?.firstOrNull()?.formattedPrice ?: ""
+                } else {
+                    productPrice.text = details.oneTimePurchaseOfferDetails?.formattedPrice ?: ""
+                }
             } ?: run {
                 productPrice.text = ""
             }

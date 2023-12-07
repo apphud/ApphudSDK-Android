@@ -95,14 +95,14 @@ class CustomerFragment : Fragment() {
 
                 override fun userDidLoad(
                     rawPaywalls: List<ApphudPaywall>,
-                    rawPlacements: List<ApphudPlacement>
+                    rawPlacements: List<ApphudPlacement>,
                 ) {
                     Log.d("Apphud", "userDidLoad()")
                     // TODO handle user registered event
                     updateData()
                 }
 
-                override fun paywallsDidFullyLoad(paywalls: List<ApphudPaywall>)  {
+                override fun paywallsDidFullyLoad(paywalls: List<ApphudPaywall>) {
                     Log.d("Apphud", "paywallsDidFullyLoad()")
                     updateData()
                 }
@@ -125,7 +125,6 @@ class CustomerFragment : Fragment() {
             withContext(Dispatchers.Main) {
                 viewAdapter.notifyDataSetChanged()
             }
-
         }
     }
 
