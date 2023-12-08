@@ -20,7 +20,7 @@ class BillingClientWrapper(
     context: Context,
 ) : PurchasesUpdatedListener, ProductDetailsResponseListener {
     companion object {
-        private const val TAG = "BillingClient"
+        private const val TAG = "ApphudLogs"
 
         // List of subscription product offerings
         private const val BASIC_SUB = "com.apphud.demo.newsub"

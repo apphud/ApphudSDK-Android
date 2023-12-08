@@ -142,9 +142,7 @@ object Apphud {
     suspend fun placements(): List<ApphudPlacement> =
         suspendCancellableCoroutine { continuation ->
             ApphudInternal.performWhenOfferingsPrepared {
-                if (!continuation.isCompleted) {
-                    continuation.resume(ApphudInternal.placements)
-                }
+                continuation.resume(ApphudInternal.placements)
             }
         }
 
@@ -183,9 +181,7 @@ object Apphud {
     suspend fun paywalls(): List<ApphudPaywall> =
         suspendCancellableCoroutine { continuation ->
             ApphudInternal.performWhenOfferingsPrepared {
-                if (!continuation.isCompleted) {
-                    continuation.resume(ApphudInternal.paywalls)
-                }
+                continuation.resume(ApphudInternal.paywalls)
             }
         }
 

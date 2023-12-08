@@ -56,4 +56,8 @@ data class ApphudUser(
      * Apphud.placements() or Apphud.placementsDidLoadCallback(...) functions.
      */
     fun placements(): List<ApphudPlacement> = ApphudInternal.placements
+
+    fun hasPurchases(): Boolean {
+        return subscriptions.isNotEmpty() || purchases.isNotEmpty()
+    }
 }

@@ -9,7 +9,7 @@ import kotlin.math.pow
 import kotlin.math.roundToInt
 
 internal object ApphudLog {
-    private const val TAG = "Apphud"
+    private const val TAG = "ApphudLogs"
     val data = mutableListOf<Map<String, Any?>>()
 
     /**

@@ -14,7 +14,7 @@ import com.apphud.sdk.Apphud
 
 class BillingViewModel : ViewModel() {
     companion object {
-        private const val TAG: String = "BillingViewModel"
+        private const val TAG: String = "ApphudLogs"
         private const val MAX_CURRENT_PURCHASES_ALLOWED = 1
     }
 

@@ -1,5 +1,6 @@
 package com.apphud.demo.ui.products
 
+import android.annotation.SuppressLint
 import android.os.Bundle
 import android.view.LayoutInflater
 import android.view.View
@@ -16,6 +17,7 @@ import com.apphud.demo.R
 import com.apphud.demo.databinding.FragmentProductsBinding
 import com.apphud.demo.ui.utils.OffersFragment
 import com.apphud.sdk.Apphud
+import com.apphud.sdk.domain.ApphudPaywall
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -87,20 +89,34 @@ class ProductsFragment : Fragment() {
         recyclerView.apply {
             adapter = viewAdapter
         }
-        updateData(args.paywallId, args.placementId)
+
+        lifecycleScope.launch {
+            val p = findPaywall(args.paywallId, args.placementId)
+            p?.let { Apphud.paywallShown(it) }
+            updateData(p)
+        }
 
         return root
     }
 
-    private fun updateData(
+    suspend fun findPaywall(
         paywallId: String?,
         placementId: String?,
-    ) {
-        lifecycleScope.launch {
-            productsViewModel.updateData(paywallId, placementId)
-            withContext(Dispatchers.Main) {
-                viewAdapter.notifyDataSetChanged()
+    ): ApphudPaywall? {
+        val paywall =
+            if (placementId != null) {
+                Apphud.placements().firstOrNull { it.identifier == placementId }?.paywall
+            } else {
+                Apphud.paywalls().firstOrNull { it.identifier == paywallId }
             }
+        return paywall
+    }
+
+    @SuppressLint("NotifyDataSetChanged")
+    private suspend fun updateData(paywall: ApphudPaywall?) {
+        productsViewModel.updateData(paywall)
+        withContext(Dispatchers.Main) {
+            viewAdapter.notifyDataSetChanged()
         }
     }
 

@@ -19,7 +19,7 @@ object SharedPreferencesStorage : Storage {
     fun getInstance(applicationContext: Context): SharedPreferencesStorage {
         this.applicationContext = applicationContext
         preferences = SharedPreferencesStorage.applicationContext.getSharedPreferences(NAME, Context.MODE_PRIVATE)
-        this.cacheTimeout = if (SharedPreferencesStorage.applicationContext.isDebuggable()) 60L else 90000L // 25 hours
+        this.cacheTimeout = if (SharedPreferencesStorage.applicationContext.isDebuggable()) 300L else 90000L // 25 hours
         return this
     }
 
@@ -280,36 +280,19 @@ object SharedPreferencesStorage : Storage {
         adjust = null
     }
 
-    fun needRegistration(): Boolean {
+    fun cacheExpired(user: ApphudUser): Boolean {
         val timestamp = lastRegistration + (cacheTimeout * 1000)
         val currentTime = System.currentTimeMillis()
 
-        return if (customerWithPurchases()) {
-            ApphudLog.logI("User with purchases: perform registration")
-            true
+        val result = currentTime > timestamp
+        if (result) {
+            ApphudLog.logI("Cached ApphudUser found, but cache expired")
         } else {
-            val result = currentTime > timestamp
-            if (result) {
-                ApphudLog.logI("User without purchases: perform registration")
-            } else {
-                val minutes = (timestamp - currentTime) / 60_000L
-                val seconds = (timestamp - currentTime - minutes * 60_000L) / 1_000L
-                ApphudLog.logI("User without purchases: registration will available after ${minutes}min. ${seconds}sec.")
-            }
-            return result
+            val minutes = (timestamp - currentTime) / 60_000L
+            val seconds = (timestamp - currentTime - minutes * 60_000L) / 1_000L
+            ApphudLog.logI("Using cached ApphudUser")
         }
-    }
-
-    private fun customerWithPurchases(): Boolean {
-        return apphudUser?.let {
-            !(it.purchases.isEmpty() && it.subscriptions.isEmpty())
-        } ?: false
-    }
-
-    fun needProcessFallback(): Boolean {
-        return apphudUser?.let {
-            it.purchases.isEmpty() && it.subscriptions.isEmpty()
-        } ?: true
+        return result
     }
 
     override var properties: HashMap<String, ApphudUserProperty>?

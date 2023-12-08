@@ -18,11 +18,8 @@ private val parser: Parser = GsonParser(gson)
 private val paywallsMapper = PaywallsMapper(parser)
 
 internal fun ApphudInternal.processFallbackError(request: Request) {
-    if (request.url.encodedPath.endsWith("/customers") && storage.needProcessFallback() && !fallbackMode) {
-        fallbackMode = true
-        didRegisterCustomerAtThisLaunch = false
+    if (request.url.encodedPath.endsWith("/customers") && !fallbackMode) {
         processFallbackData()
-        ApphudLog.log("Fallback: ENABLED")
     }
 }
 
@@ -37,7 +34,10 @@ private fun ApphudInternal.processFallbackData() {
             if (paywalls.isEmpty() && fallbackJson.data.results.isNotEmpty()) {
                 val paywallToParse = paywallsMapper.map(fallbackJson.data.results)
                 val ids = paywallToParse.map { it.products?.map { it.productId } ?: listOf() }.flatten()
-                if (ids.isNotEmpty()) {
+                if (ids.isNotEmpty() && !fallbackMode) {
+                    fallbackMode = true
+                    didRegisterCustomerAtThisLaunch = false
+                    ApphudLog.log("Fallback: ENABLED")
                     fetchDetails(ids)
                     cachePaywalls(paywallToParse)
 

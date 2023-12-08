@@ -5,7 +5,6 @@ import android.content.Context
 import android.os.Handler
 import android.os.Looper
 import android.provider.Settings
-import android.util.Log
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.ProcessLifecycleOwner
@@ -71,14 +70,13 @@ internal object ApphudInternal {
         }
 
     private const val MUST_REGISTER_ERROR = " :You must call `Apphud.start` method before calling any other methods."
-    private var generatedUUID = UUID.randomUUID().toString()
     internal var productGroups: MutableList<ApphudGroup> = mutableListOf()
     private var allowIdentifyUser = true
     internal var didRegisterCustomerAtThisLaunch = false
     private var is_new = true
     private lateinit var apiKey: ApiKey
     lateinit var deviceId: DeviceId
-
+    private var notifyFullyLoaded = false
     internal var fallbackMode = false
     internal lateinit var userId: UserId
     internal lateinit var context: Context
@@ -112,8 +110,8 @@ internal object ApphudInternal {
     internal fun initialize(
         context: Context,
         apiKey: ApiKey,
-        userId: UserId?,
-        deviceId: DeviceId?,
+        inputUserId: UserId?,
+        inputDeviceId: DeviceId?,
         callback: ((ApphudUser) -> Unit)?,
     ) {
         if (!allowIdentifyUser) {
@@ -132,46 +130,86 @@ internal object ApphudInternal {
             ProcessLifecycleOwner.get().lifecycle.addObserver(lifecycleEventObserver)
         }
 
-        ApphudLog.log("Start initialization with userId=$userId, deviceId=$deviceId")
+        ApphudLog.log("Start initialization with userId=$inputUserId, deviceId=$inputDeviceId")
         if (apiKey.isEmpty()) throw Exception("ApiKey can't be empty")
 
         this.context = context
         this.apiKey = apiKey
-        billing = BillingWrapper(context)
 
-        val needRegistration = needRegistration(userId)
+        val cachedUser = storage.apphudUser
+        val cachedPaywalls = readPaywallsFromCache()
+        val cachedPlacements = readPlacementsFromCache()
+        val cachedGroups = readGroupsFromCache()
+        val cachedDeviceId = storage.deviceId
+        val cachedUserId = storage.userId
 
-        this.userId = updateUser(id = userId)
-        this.deviceId = updateDevice(id = deviceId)
-        RequestManager.setParams(this.context, this.userId, this.deviceId, this.apiKey)
+        val generatedUUID = UUID.randomUUID().toString()
 
-        allowIdentifyUser = false
-        ApphudLog.log("Start initialize with saved userId=${this.userId}, saved deviceId=${this.deviceId}")
+        val newUserId =
+            if (inputUserId.isNullOrBlank()) {
+                cachedUserId ?: generatedUUID
+            } else {
+                inputUserId
+            }
+        val newDeviceId =
+            if (inputDeviceId.isNullOrBlank()) {
+                cachedDeviceId ?: generatedUUID
+            } else {
+                inputDeviceId
+            }
 
-        this.currentUser = storage.apphudUser
-        this.productGroups = readGroupsFromCache()
+        val credentialsChanged = cachedUserId != newUserId || cachedDeviceId != newDeviceId
+
+        if (credentialsChanged) {
+            storage.userId = newUserId
+            storage.deviceId = newDeviceId
+        }
+
         /**
-         * We cannot get paywalls and placements from current user,
-         * because currentUser doesn't have cache timeout because it has
+         * We cannot get paywalls and placements from paying current user,
+         * because paying currentUser doesn't have cache timeout because it has
          * purchases history
          *
          * But paywalls and placements must have cache timeout
          */
-        this.paywalls = readPaywallsFromCache()
-        this.placements = readPlacementsFromCache()
-        this.userRegisteredBlock = callback
+        this.userId = newUserId
+        this.deviceId = newDeviceId
+        this.currentUser = cachedUser
+        this.productGroups = cachedGroups
+        this.paywalls = cachedPaywalls
+        this.placements = cachedPlacements
 
-        Log.d("Apphud", "Paywalls from cache: ${this.paywalls.count()}")
+        this.userRegisteredBlock = callback
+        billing = BillingWrapper(context)
+        RequestManager.setParams(this.context, this.userId, this.deviceId, this.apiKey)
+        allowIdentifyUser = false
 
         loadProducts()
+
+        val needRegistration = needRegistration(credentialsChanged, cachedPaywalls, cachedUser)
 
         if (needRegistration) {
             registration(this.userId, this.deviceId, true, null)
         } else {
             mainScope.launch {
-                notifyLoadingCompleted(storage.apphudUser, null, true)
+                notifyLoadingCompleted(cachedUser, null, true)
             }
         }
+    }
+
+    //endregion
+
+    //region === Registration ===
+    private fun needRegistration(
+        credentialsChanged: Boolean,
+        cachedPaywalls: List<ApphudPaywall>?,
+        cachedUser: ApphudUser?,
+    ): Boolean {
+        return credentialsChanged ||
+            cachedPaywalls == null ||
+            cachedUser == null ||
+            cachedUser.hasPurchases() ||
+            storage.cacheExpired(cachedUser)
     }
 
     internal fun refreshEntitlements(forceRefresh: Boolean = false) {
@@ -180,29 +218,6 @@ internal object ApphudInternal {
             registration(this.userId, this.deviceId, true, null)
         }
     }
-    //endregion
-
-    //region === Registration ===
-    private fun needRegistration(passedUserId: String?): Boolean {
-        passedUserId?.let {
-            if (!storage.userId.isNullOrEmpty()) {
-                if (it != storage.userId) {
-                    return true
-                }
-            }
-        }
-        if (storage.userId.isNullOrEmpty() ||
-            storage.deviceId.isNullOrEmpty() ||
-            storage.apphudUser == null ||
-            storage.paywalls == null ||
-            storage.needRegistration()
-        ) {
-            return true
-        }
-        return false
-    }
-
-    private var notifyFullyLoaded = false
 
     @Synchronized
     internal fun notifyLoadingCompleted(
@@ -283,7 +298,10 @@ internal object ApphudInternal {
                 apphudListener?.placementsDidFullyLoad(placements)
                 offeringsPreparedCallbacks.forEach { it.invoke() }
                 offeringsPreparedCallbacks.clear()
+                ApphudLog.log("Did Fully Load")
             }
+        } else {
+            ApphudLog.log("Not yet fully loaded")
         }
     }
 
@@ -472,14 +490,18 @@ internal object ApphudInternal {
     }
 
     internal fun updateUserId(userId: UserId) {
+        if (userId.isBlank()) {
+            ApphudLog.log("Invalid UserId=$userId")
+            return
+        }
         ApphudLog.log("Start updateUserId userId=$userId")
 
         performWhenUserRegistered { error ->
             error?.let {
                 ApphudLog.logE(it.message)
             } ?: run {
-                val id = updateUser(id = userId)
-                this.userId = id
+                this.userId = userId
+                storage.userId = userId
                 RequestManager.setParams(this.context, userId, this.deviceId, this.apiKey)
 
                 coroutineScope.launch(errorHandler) {
@@ -784,7 +806,6 @@ internal object ApphudInternal {
     private fun clear() {
         RequestManager.cleanRegistration()
         currentUser = null
-        generatedUUID = UUID.randomUUID().toString()
         productsLoaded.set(0)
         customProductsFetchedBlock = null
         offeringsPreparedCallbacks.clear()
@@ -797,36 +818,6 @@ internal object ApphudInternal {
         setNeedsToUpdateUserProperties = false
     }
 
-    private fun updateUser(id: UserId?): UserId {
-        val userId =
-            when {
-                id.isNullOrBlank() -> {
-                    storage.userId ?: generatedUUID
-                }
-                else -> {
-                    id
-                }
-            }
-        storage.userId = userId
-        return userId
-    }
-
-    private fun updateDevice(id: DeviceId?): DeviceId {
-        val deviceId =
-            when {
-                id.isNullOrBlank() -> {
-                    storage.deviceId?.let {
-                        is_new = false
-                        it
-                    } ?: generatedUUID
-                }
-                else -> {
-                    id
-                }
-            }
-        storage.deviceId = deviceId
-        return deviceId
-    }
     //endregion
 
     //region === Cache ===
@@ -850,11 +841,9 @@ internal object ApphudInternal {
     // Paywalls cache ======================================
     internal fun cachePaywalls(paywalls: List<ApphudPaywall>) {
         storage.paywalls = paywalls
-        Log.d("Apphud", "Did cache paywalls ${paywalls.count()}")
     }
 
     private fun readPaywallsFromCache(): List<ApphudPaywall> {
-        Log.d("Apphud", "Will read paywalls from cache")
         return storage.paywalls ?: listOf()
     }
 
