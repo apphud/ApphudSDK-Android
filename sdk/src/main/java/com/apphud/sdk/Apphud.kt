@@ -220,7 +220,7 @@ object Apphud {
      * @return A list of `ApphudGroup` objects representing permission groups.
      */
     fun permissionGroups(): List<ApphudGroup> {
-        return ApphudInternal.permissionGroups()
+        return ApphudInternal.getPermissionGroups()
     }
 
     /**
@@ -239,7 +239,7 @@ object Apphud {
         ReplaceWith("paywalls()"),
     )
     fun products(): List<ProductDetails> {
-        return ApphudInternal.getProductDetailsList()
+        return ApphudInternal.getProductDetails()
     }
 
     /**
@@ -309,7 +309,7 @@ object Apphud {
      *
      * @return The `ApphudSubscription` object if available, `null` otherwise.
      */
-    fun subscription(): ApphudSubscription? = ApphudInternal.subscriptions().firstOrNull()
+    fun subscription(): ApphudSubscription? = subscriptions().firstOrNull()
 
     /**
      * Retrieves all the subscription objects that the user has ever purchased.
@@ -317,7 +317,7 @@ object Apphud {
      *
      * @return A list of `ApphudSubscription` objects.
      */
-    fun subscriptions(): List<ApphudSubscription> = ApphudInternal.subscriptions()
+    fun subscriptions(): List<ApphudSubscription> = ApphudInternal.currentUser?.subscriptions ?: listOf()
 
     /**
      * Retrieves all non-renewing product purchases that the user has ever made.
@@ -325,7 +325,7 @@ object Apphud {
      *
      * @return A list of `ApphudNonRenewingPurchase` objects.
      */
-    fun nonRenewingPurchases(): List<ApphudNonRenewingPurchase> = ApphudInternal.purchases()
+    fun nonRenewingPurchases(): List<ApphudNonRenewingPurchase> = ApphudInternal.currentUser?.purchases ?: listOf()
 
     /**
      * Checks if the current user has purchased a specific in-app product.
@@ -336,8 +336,7 @@ object Apphud {
      * @return `true` if the product is active, `false` otherwise.
      */
     fun isNonRenewingPurchaseActive(productId: ProductId): Boolean =
-        ApphudInternal.currentUser?.purchases
-            ?.firstOrNull { it.productId == productId }?.isActive() ?: false
+        nonRenewingPurchases().firstOrNull { it.productId == productId }?.isActive() ?: false
 
     /**
      * Initiates the purchase process for a specified product and automatically submits the

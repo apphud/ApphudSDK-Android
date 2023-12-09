@@ -36,6 +36,8 @@ class ApphudApplication : Application() {
             this.API_KEY = "app_oBcXz2z9j8spKPL2T7sZwQaQN5Jzme"
         }
 
+      //  check again restore cache from previous sdk version
+
         Apphud.start(this, API_KEY)
         Apphud.collectDeviceIdentifiers()
     }

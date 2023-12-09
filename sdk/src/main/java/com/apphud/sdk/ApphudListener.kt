@@ -5,6 +5,7 @@ import com.apphud.sdk.domain.ApphudNonRenewingPurchase
 import com.apphud.sdk.domain.ApphudPaywall
 import com.apphud.sdk.domain.ApphudPlacement
 import com.apphud.sdk.domain.ApphudSubscription
+import com.apphud.sdk.domain.ApphudUser
 
 interface ApphudListener {
     /**
@@ -33,18 +34,18 @@ interface ApphudListener {
     fun apphudDidChangeUserID(userId: String)
 
     /**
-     * Called when user is registered in Apphud [or used from cache].
-     * This method is called once per app lifecycle.
-     * Keep in mind that `rawPaywalls` and `rawPlacements` arrays may not yet
-     * have Google Play Products, however they will appear later in runtime.
-     * `rawPlacements` array is nil if developer didn't yet set up placements in Apphud Product > Placements.
+     * This method is invoked when a user is registered in Apphud
+     * or retrieved from the cache. It is called once per app lifecycle.
      *
-     * __Note__: When Google Play products are loaded, they will appear in the same instances.
+     * The `ApphudUser` object passed as a parameter contains
+     * `paywalls` and `placements` lists.
+     * These lists may or may not have their inner Google Play products fully
+     * loaded at the time of this method's call.
+     *
+     * __Note__: Do not store `ApphudUser` instance in your own code,
+     * since it may change at runtime.
      */
-    fun userDidLoad(
-        rawPaywalls: List<ApphudPaywall>,
-        rawPlacements: List<ApphudPlacement>,
-    )
+    fun userDidLoad(user: ApphudUser)
 
     /**
      Called when paywalls are fully loaded with their ProductDetails.

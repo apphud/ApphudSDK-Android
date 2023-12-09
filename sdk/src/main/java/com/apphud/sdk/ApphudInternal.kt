@@ -232,9 +232,11 @@ internal object ApphudInternal {
             productGroups = readGroupsFromCache()
             updateGroupsWithProductDetails(productGroups)
 
-            // notify that productDetails are loaded
-            apphudListener?.apphudFetchProductDetails(getProductDetailsList())
-            customProductsFetchedBlock?.invoke(getProductDetailsList())
+            synchronized(productDetails) {
+                // notify that productDetails are loaded
+                apphudListener?.apphudFetchProductDetails(productDetails)
+                customProductsFetchedBlock?.invoke(productDetails)
+            }
         }
 
         customerLoaded?.let {
@@ -274,7 +276,7 @@ internal object ApphudInternal {
             apphudListener?.apphudSubscriptionsUpdated(currentUser!!.subscriptions)
 
             if (!didRegisterCustomerAtThisLaunch) {
-                apphudListener?.userDidLoad(paywalls, placements)
+                apphudListener?.userDidLoad(it)
                 this.userRegisteredBlock?.invoke(it)
                 this.userRegisteredBlock = null
 
@@ -521,14 +523,6 @@ internal object ApphudInternal {
     //endregion
 
     //region === Primary methods ===
-    fun permissionGroups(): List<ApphudGroup> {
-        var out: MutableList<ApphudGroup>
-        synchronized(this.productGroups) {
-            out = this.productGroups.toCollection(mutableListOf())
-        }
-        return out
-    }
-
     fun grantPromotional(
         daysCount: Int,
         productId: String?,
@@ -559,26 +553,6 @@ internal object ApphudInternal {
                 }
             }
         }
-    }
-
-    fun subscriptions(): List<ApphudSubscription> {
-        var subscriptions: MutableList<ApphudSubscription> = mutableListOf()
-        this.currentUser?.let { user ->
-            synchronized(user) {
-                subscriptions = user.subscriptions.toCollection(mutableListOf())
-            }
-        }
-        return subscriptions.filter { !it.isTemporary || it.isActive() }
-    }
-
-    fun purchases(): List<ApphudNonRenewingPurchase> {
-        var purchases: MutableList<ApphudNonRenewingPurchase> = mutableListOf()
-        this.currentUser?.let { user ->
-            synchronized(user) {
-                purchases = user.purchases.toCollection(mutableListOf())
-            }
-        }
-        return purchases.filter { !it.isTemporary || it.isActive() }
     }
 
     fun paywallShown(paywall: ApphudPaywall) {
@@ -664,14 +638,6 @@ internal object ApphudInternal {
         }
     }
 
-    internal fun getProductDetailsList(): List<ProductDetails> {
-        var out: MutableList<ProductDetails>
-        synchronized(this.productDetails) {
-            out = this.productDetails.toCollection(mutableListOf())
-        }
-        return out
-    }
-
     fun sendErrorLogs(message: String) {
         performWhenUserRegistered { error ->
             error?.let {
@@ -723,6 +689,19 @@ internal object ApphudInternal {
                 continuation.resume(androidId)
             }
         }
+
+    fun getProductDetails(): List<ProductDetails> {
+        synchronized(productDetails) {
+            return productDetails.toCollection(mutableListOf())
+        }
+    }
+    fun getPermissionGroups(): List<ApphudGroup> {
+        var out: MutableList<ApphudGroup>
+        synchronized(this.productGroups) {
+            out = this.productGroups.toCollection(mutableListOf())
+        }
+        return out
+    }
 
     @Synchronized
     fun collectDeviceIdentifiers() {
@@ -883,10 +862,7 @@ internal object ApphudInternal {
 
     // Find ProductDetails  ======================================
     internal fun getProductDetailsByProductId(productIdentifier: String): ProductDetails? {
-        var productDetail: ProductDetails?
-        synchronized(productDetails) {
-            productDetail = productDetails.let { productsList -> productsList.firstOrNull { it.productId == productIdentifier } }
-        }
+        var productDetail = productDetails?.firstOrNull { it.productId == productIdentifier }
         return productDetail
     }
     //endregion

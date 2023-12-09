@@ -21,6 +21,7 @@ import com.apphud.sdk.domain.ApphudNonRenewingPurchase
 import com.apphud.sdk.domain.ApphudPaywall
 import com.apphud.sdk.domain.ApphudPlacement
 import com.apphud.sdk.domain.ApphudSubscription
+import com.apphud.sdk.domain.ApphudUser
 import com.apphud.sdk.managers.HeadersInterceptor
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -93,10 +94,7 @@ class CustomerFragment : Fragment() {
                     // TODO handle User ID changed event
                 }
 
-                override fun userDidLoad(
-                    rawPaywalls: List<ApphudPaywall>,
-                    rawPlacements: List<ApphudPlacement>,
-                ) {
+                override fun userDidLoad(user: ApphudUser) {
                     Log.d("Apphud", "userDidLoad()")
                     // TODO handle user registered event
                     updateData()
