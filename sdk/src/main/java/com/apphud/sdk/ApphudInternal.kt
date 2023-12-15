@@ -31,7 +31,7 @@ internal object ApphudInternal {
     internal val mainScope = CoroutineScope(Dispatchers.Main)
     internal val coroutineScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     internal val errorHandler =
-        CoroutineExceptionHandler { context, error ->
+        CoroutineExceptionHandler { _, error ->
             error.message?.let { ApphudLog.logE(it) }
         }
 
@@ -659,9 +659,6 @@ internal object ApphudInternal {
             val client = AppSet.getClient(applicationContext)
             val task: Task<AppSetIdInfo> = client.appSetIdInfo
             task.addOnSuccessListener {
-                // Determine current scope of app set ID.
-                val scope: Int = it.scope
-
                 // Read app set ID value, which uses version 4 of the
                 // universally unique identifier (UUID) format.
                 val id: String = it.id
@@ -716,9 +713,8 @@ internal object ApphudInternal {
         }
 
         coroutineScope.launch(errorHandler) {
-            var repeatRegistration = false
-            var cachedIdentifiers = storage.deviceIdentifiers
-            var newIdentifiers = arrayOf("", "", "")
+            val cachedIdentifiers = storage.deviceIdentifiers
+            val newIdentifiers = arrayOf("", "", "")
             val threads =
                 listOf(
                     async {
@@ -785,7 +781,7 @@ internal object ApphudInternal {
     private fun clear() {
         RequestManager.cleanRegistration()
         currentUser = null
-        productsLoaded.set(0)
+        productsLoaded.set(false)
         customProductsFetchedBlock = null
         offeringsPreparedCallbacks.clear()
         storage.clean()
@@ -862,7 +858,7 @@ internal object ApphudInternal {
 
     // Find ProductDetails  ======================================
     internal fun getProductDetailsByProductId(productIdentifier: String): ProductDetails? {
-        var productDetail = productDetails?.firstOrNull { it.productId == productIdentifier }
+        val productDetail = productDetails.firstOrNull { it.productId == productIdentifier }
         return productDetail
     }
     //endregion

@@ -57,4 +57,8 @@ data class ApphudProduct(
             return productDetails?.subscriptionOfferDetails
         }
     }
+
+    override fun toString(): String {
+        return "ApphudProduct(id: ${id}, productId: ${productId}, name: ${name}, basePlanId: ${basePlanId}, productDetails: ${productDetails?.productId ?: "N/A"}, placementIdentifier: ${placementIdentifier}, paywallIdenfitier: ${paywallIdentifier}, placementId: ${placementId}, paywallId: ${paywallId})"
+    }
 }

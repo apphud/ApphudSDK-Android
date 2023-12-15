@@ -113,7 +113,7 @@ object RequestManager {
             logging.level = HttpLoggingInterceptor.Level.NONE
         }*/
 
-        var readTimeout: Long = 10L
+        var readTimeout: Long = ApiClient.readTimeout
         if (request.method == "POST" && request.url.toString().contains("subscriptions")) {
             readTimeout = 30L
         }

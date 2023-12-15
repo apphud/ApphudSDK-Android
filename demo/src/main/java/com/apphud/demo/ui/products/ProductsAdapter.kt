@@ -37,7 +37,7 @@ class ProductsAdapter(private val productsViewModel: ProductsViewModel, private 
                     productPrice.text = details.oneTimePurchaseOfferDetails?.formattedPrice ?: ""
                 }
             } ?: run {
-                productPrice.text = ""
+                productPrice.text = "ProductDetails N/A"
             }
 
             itemView.setOnClickListener {

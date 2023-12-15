@@ -112,30 +112,17 @@ object Apphud {
     //region === Placements, Paywalls and Products ===
 
     /**
-     * Returns the placements from Product Hub > Placements, potentially altered based on the
+     * Suspends the current coroutine until the placements from
+     * Product Hub > Placements are available, potentially altered based on the
      * user's involvement in A/B testing, if applicable.
+     * Method suspends until the inner `ProductDetails` are loaded from Google Play.
      *
-     * Each placement contains an `ApphudPaywall` object that can be used for purchases.
-     * This method suspends until the inner `ProductDetails` are loaded from Google Play.
+     * A placement is a specific location within a user's journey
+     * (such as onboarding, settings, etc.) where its internal paywall
+     * is intended to be displayed.
      *
-     * If you want to obtain placements without waiting for `ProductDetails` from Google Play,
-     * you can use the `ApphudListener`'s `userDidLoad` method.
-     *
-     * @param callback The callback function that is invoked with the list of `ApphudPlacement` objects.
-     */
-    fun placementsDidLoadCallback(callback: (List<ApphudPlacement>) -> Unit) {
-        ApphudInternal.performWhenOfferingsPrepared { callback(ApphudInternal.placements) }
-    }
-
-    /**
-     * Suspends the current coroutine until the placements from Product Hub > Placements are available,
-     * potentially altered based on the user's involvement in A/B testing, if applicable.
-     *
-     * Each placement contains an `ApphudPaywall` object that can be used for purchases.
-     * This method suspends until the inner `ProductDetails` are loaded from Google Play.
-     *
-     * If you want to obtain placements without waiting for `ProductDetails` from Google Play,
-     * you can use the `ApphudListener`'s `userDidLoad` method.
+     * If you want to obtain placements without waiting for `ProductDetails`
+     * from Google Play, you can use `rawPlacements()` method.
      *
      * @return The list of `ApphudPlacement` objects.
      */
@@ -147,43 +134,138 @@ object Apphud {
         }
 
     /**
-     * Returns the paywalls from Product Hub > Paywalls, potentially altered based on the
+     * Suspends the current coroutine until the specific placement by identifier
+     * is available, potentially altered based on the
      * user's involvement in A/B testing, if applicable.
+     * Method suspends until the inner `ProductDetails` are loaded from Google Play.
      *
-     * Each paywall contains an array of `ApphudProduct` objects that can be used for purchases.
-     * `ApphudProduct` is Apphud's wrapper around `ProductDetails`.
+     * A placement is a specific location within a user's journey
+     * (such as onboarding, settings, etc.) where its internal paywall
+     * is intended to be displayed.
      *
-     * This method suspends until the inner `ProductDetails` are loaded from Google Play.
+     * If you want to obtain placements without waiting for `ProductDetails`
+     * from Google Play, you can use `rawPlacements()` method.
      *
-     * If you want to obtain paywalls without waiting for `ProductDetails` from Google Play,
-     * you can use the `ApphudListener`'s `userDidLoad` method.
-     *
-     * @param callback The callback function that is invoked with the list of `ApphudPaywall` objects.
+     * @return The list of `ApphudPlacement` objects.
      */
-    fun paywallsDidLoadCallback(callback: (List<ApphudPaywall>) -> Unit) {
-        ApphudInternal.performWhenOfferingsPrepared { callback(ApphudInternal.paywalls) }
-    }
+    suspend fun placement(identifier: String): ApphudPlacement? =
+        placements().firstOrNull { it.identifier == identifier }
 
     /**
-     * Suspends the current coroutine until the paywalls from Product Hub > Paywalls are available,
-     * potentially altered based on the user's involvement in A/B testing, if applicable.
+     * Returns the placements from Product Hub > Placements, potentially altered
+     * based on the user's involvement in A/B testing, if applicable.
      *
-     * Each paywall contains an array of `ApphudProduct` objects that can be used for purchases.
+     * A placement is a specific location within a user's journey
+     * (such as onboarding, settings, etc.) where its internal paywall
+     * is intended to be displayed.
+     *
+     * If you want to obtain placements without waiting for `ProductDetails`
+     * from Google Play, you can use `rawPlacements()` method.
+     *
+     * @param callback The callback function that is invoked with the list of `ApphudPlacement` objects.
+     */
+    fun placementsDidLoadCallback(callback: (List<ApphudPlacement>) -> Unit) {
+        ApphudInternal.performWhenOfferingsPrepared { callback(ApphudInternal.placements) }
+    }
+
+    /** Returns:
+     * List<ApphudPlacement>: A list of placements, potentially altered based
+     * on the user's involvement in A/B testing, if any.
+     *
+     * __Note__: This function doesn't suspend until inner `ProductDetails`
+     * are loaded from Google Play. That means placements may or may not have
+     * inner Google Play products at the time you call this function.
+     *
+     * To get placements with awaiting for inner Google Play products, use
+     * `placements()` or `placementsDidLoadCallback(...)` functions.
+     */
+    fun rawPlacements(): List<ApphudPlacement> = ApphudInternal.placements
+
+    /**
+     * Suspends the current coroutine until the paywalls from
+     * Product Hub > Paywalls are available, potentially altered based on the
+     * user's involvement in A/B testing, if applicable.
+     *
+     * Each paywall contains an array of `ApphudProduct` objects that
+     * can be used for purchases.
      * `ApphudProduct` is Apphud's wrapper around `ProductDetails`.
      *
-     * This method suspends until the inner `ProductDetails` are loaded from Google Play.
+     * Method suspends until the inner `ProductDetails` are loaded from Google Play.
      *
-     * If you want to obtain paywalls without waiting for `ProductDetails` from Google Play,
-     * you can use the `ApphudListener`'s `userDidLoad` method.
+     * If you want to obtain paywalls without waiting for `ProductDetails` from
+     * Google Play, you can use `rawPaywalls()` method.
      *
      * @return The list of `ApphudPaywall` objects.
      */
+    @Deprecated(
+        "Deprecated in favor of Placements",
+        ReplaceWith("this.placements()"),
+    )
     suspend fun paywalls(): List<ApphudPaywall> =
         suspendCancellableCoroutine { continuation ->
             ApphudInternal.performWhenOfferingsPrepared {
                 continuation.resume(ApphudInternal.paywalls)
             }
         }
+
+    /**
+     * Suspends the current coroutine until the specific paywall by identifier
+     * is available, potentially altered based on the
+     * user's involvement in A/B testing, if applicable.
+     *
+     * Each paywall contains an array of `ApphudProduct` objects that
+     * can be used for purchases.
+     * `ApphudProduct` is Apphud's wrapper around `ProductDetails`.
+     *
+     * Method suspends until the inner `ProductDetails` are loaded from Google Play.
+     *
+     * If you want to obtain paywalls without waiting for `ProductDetails` from
+     * Google Play, you can use `rawPaywalls()` method.
+     *
+     * @return The list of `ApphudPaywall` objects.
+     */
+    @Deprecated(
+        "Deprecated in favor of Placements",
+        ReplaceWith("this.placement(identifier: String)"),
+    )
+    suspend fun paywall(identifier: String): ApphudPaywall? =
+        paywalls().firstOrNull { it.identifier == identifier }
+
+    /**
+     * Returns the paywalls from Product Hub > Paywalls, potentially altered
+     * based on the user's involvement in A/B testing, if applicable.
+     *
+     * Each paywall contains an array of `ApphudProduct` objects that
+     * can be used for purchases.
+     * `ApphudProduct` is Apphud's wrapper around `ProductDetails`.
+     *
+     * Method suspends until the inner `ProductDetails` are loaded from Google Play.
+     *
+     * If you want to obtain paywalls without waiting for `ProductDetails` from
+     * Google Play, you can use `rawPaywalls()` method.
+     *
+     * @param callback The callback function that is invoked with the list of `ApphudPaywall` objects.
+     */
+    @Deprecated(
+        "Deprecated in favor of Placements",
+        ReplaceWith("this.placementsDidLoadCallback(callback)"),
+    )
+    fun paywallsDidLoadCallback(callback: (List<ApphudPaywall>) -> Unit) {
+        ApphudInternal.performWhenOfferingsPrepared { callback(ApphudInternal.paywalls) }
+    }
+
+    /** Returns:
+     * List<ApphudPaywall>: A list of paywalls, potentially altered based
+     * on the user's involvement in A/B testing, if any.
+     *
+     * __Note__: This function doesn't suspend until inner `ProductDetails`
+     * are loaded from Google Play. That means paywalls may or may not have
+     * inner Google Play products at the time you call this function.
+     *
+     * To get paywalls with awaiting for inner Google Play products, use
+     * Apphud.paywalls() or Apphud.paywallsDidLoadCallback(...) functions.
+     */
+    fun rawPaywalls(): List<ApphudPaywall> = ApphudInternal.paywalls
 
     /**
      * Call this method when your paywall screen is displayed to the user.
@@ -236,7 +318,7 @@ object Apphud {
      */
     @Deprecated(
         "Use \"paywalls()\" method instead.",
-        ReplaceWith("paywalls()"),
+        ReplaceWith("this.paywalls()"),
     )
     fun products(): List<ProductDetails> {
         return ApphudInternal.getProductDetails()
@@ -252,7 +334,7 @@ object Apphud {
      */
     @Deprecated(
         "Use \"paywalls()\" method instead.",
-        ReplaceWith("paywalls()"),
+        ReplaceWith("this.paywalls()"),
     )
     fun productsFetchCallback(callback: (List<ProductDetails>) -> Unit) {
         ApphudInternal.productsFetchCallback(callback)
@@ -268,7 +350,7 @@ object Apphud {
      */
     @Deprecated(
         "Use \"paywalls()\" method instead.",
-        ReplaceWith("paywalls()"),
+        ReplaceWith("this.paywalls()"),
     )
     fun product(productIdentifier: String): ProductDetails? {
         return ApphudInternal.getProductDetailsByProductId(productIdentifier)

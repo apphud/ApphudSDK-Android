@@ -23,8 +23,7 @@ class PlacementsMapper(
         return ApphudPlacement(
             id = placementDto.id,
             identifier = placementDto.identifier,
-            paywall = paywallObject,
-            experimentName = placementDto.experiment_name,
+            paywall = paywallObject
         )
     }
 }

@@ -40,34 +40,30 @@ data class ApphudUser(
     internal val isTemporary: Boolean?,
 ) {
     /** Returns:
-     * List<ApphudPaywall>: A list of paywalls, potentially altered based
-     * on the user's involvement in A/B testing, if any.
-     *
-     * __Note__: This function doesn't suspend until inner `ProductDetails`
-     * are loaded from Google Play.
-     *
-     * That means paywalls may or may not have inner Google Play products
-     * at the time you call this function.
-     *
-     * To get paywalls with inner Google Play products, use
-     * Apphud.paywalls() or Apphud.paywallsDidLoadCallback(...) functions.
-     */
-    fun paywalls(): List<ApphudPaywall> = ApphudInternal.paywalls
-
-    /** Returns:
      * List<ApphudPlacement>: A list of placements, potentially altered based
      * on the user's involvement in A/B testing, if any.
      *
      * __Note__: This function doesn't suspend until inner `ProductDetails`
-     * are loaded from Google Play.
+     * are loaded from Google Play. That means placements may or may not have
+     * inner Google Play products at the time you call this function.
      *
-     * That means placements may or may not have inner Google Play products
-     * at the time you call this function.
-     *
-     * To get placements with inner Google Play products, use
+     * To get placements with awaiting for inner Google Play products, use
      * Apphud.placements() or Apphud.placementsDidLoadCallback(...) functions.
      */
-    fun placements(): List<ApphudPlacement> = ApphudInternal.placements
+    fun rawPlacements(): List<ApphudPlacement> = ApphudInternal.placements
+
+    /** Returns:
+     * List<ApphudPaywall>: A list of paywalls, potentially altered based
+     * on the user's involvement in A/B testing, if any.
+     *
+     * __Note__: This function doesn't suspend until inner `ProductDetails`
+     * are loaded from Google Play. That means paywalls may or may not have
+     * inner Google Play products at the time you call this function.
+     *
+     * To get paywalls with awaiting for inner Google Play products, use
+     * Apphud.paywalls() or Apphud.paywallsDidLoadCallback(...) functions.
+     */
+    fun rawPaywalls(): List<ApphudPaywall> = ApphudInternal.paywalls
 
     /**
      * Returns true if user has any subscriptions or non-renewing purchases.

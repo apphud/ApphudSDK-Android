@@ -77,36 +77,36 @@ class CustomerFragment : Fragment() {
         val listener =
             object : ApphudListener {
                 override fun apphudSubscriptionsUpdated(subscriptions: List<ApphudSubscription>) {
-                    Log.d("Apphud", "apphudSubscriptionsUpdated")
+                    Log.d("ApphudDemo", "apphudSubscriptionsUpdated")
                 }
 
                 override fun apphudNonRenewingPurchasesUpdated(purchases: List<ApphudNonRenewingPurchase>) {
-                    Log.d("Apphud", "apphudNonRenewingPurchasesUpdated")
+                    Log.d("ApphudDemo", "apphudNonRenewingPurchasesUpdated")
                 }
 
                 override fun apphudFetchProductDetails(details: List<ProductDetails>) {
-                    Log.d("Apphud", "apphudFetchProductDetails()")
+                    Log.d("ApphudDemo", "apphudFetchProductDetails()")
                     // TODO handle loaded sku details
                 }
 
                 override fun apphudDidChangeUserID(userId: String) {
-                    Log.d("Apphud", "apphudDidChangeUserID()")
+                    Log.d("ApphudDemo", "apphudDidChangeUserID()")
                     // TODO handle User ID changed event
                 }
 
                 override fun userDidLoad(user: ApphudUser) {
-                    Log.d("Apphud", "userDidLoad()")
+                    Log.d("ApphudDemo", "userDidLoad()")
                     // TODO handle user registered event
                     updateData()
                 }
 
                 override fun paywallsDidFullyLoad(paywalls: List<ApphudPaywall>) {
-                    Log.d("Apphud", "paywallsDidFullyLoad()")
+                    Log.d("ApphudDemo", "paywallsDidFullyLoad()")
                     updateData()
                 }
 
                 override fun placementsDidFullyLoad(placements: List<ApphudPlacement>) {
-                    Log.d("Apphud", "placementsDidFullyLoad()")
+                    Log.d("ApphudDemo", "placementsDidFullyLoad()")
                     updateData()
                 }
             }

@@ -2,8 +2,13 @@ package com.apphud.demo
 
 import android.app.Application
 import android.content.Context
+import android.util.Log
+import androidx.lifecycle.lifecycleScope
 import com.apphud.sdk.Apphud
+import com.apphud.sdk.ApphudUtils
 import com.apphud.sdk.client.ApiClient
+import kotlinx.coroutines.GlobalScope
+import kotlinx.coroutines.launch
 
 class ApphudApplication : Application() {
     var API_KEY = "app_4sY9cLggXpMDDQMmvc5wXUPGReMp8G"
@@ -31,9 +36,7 @@ class ApphudApplication : Application() {
         // Apphud.optOutOfTracking()
 
         if (BuildConfig.DEBUG) {
-//            ApphudUtils.enableAllLogs()
-            ApiClient.host = "https://api.apphudstage.com"
-            this.API_KEY = "app_oBcXz2z9j8spKPL2T7sZwQaQN5Jzme"
+            ApphudUtils.enableAllLogs()
         }
 
       //  check again restore cache from previous sdk version
