@@ -10,6 +10,7 @@ data class PurchaseItemBody(
     val price_amount_micros: Long?,
     val subscription_period: String?,
     val paywall_id: String?,
+    val placement_id: String?,
     val product_bundle_id: String?,
     val observer_mode: Boolean = false,
     val billing_version: Int,

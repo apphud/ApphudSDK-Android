@@ -22,13 +22,13 @@ private val mutexSync = Mutex()
 
 internal fun ApphudInternal.syncPurchases(
     paywallIdentifier: String? = null,
+    placementIdentifier: String? = null,
     observerMode: Boolean = true,
     callback: ApphudPurchasesRestoreCallback? = null,
 ) {
-    ApphudLog.log("SyncPurchases()")
-    checkRegistration { error ->
+    performWhenUserRegistered { error ->
         error?.let {
-            ApphudLog.log("SyncPurchases: checkRegistration fail")
+            ApphudLog.log("SyncPurchases: performWhenUserRegistered fail")
             callback?.invoke(null, null, error)
         } ?: run {
             coroutineScope.launch(errorHandler) {
@@ -50,7 +50,7 @@ internal fun ApphudInternal.syncPurchases(
                             }
                         }
                     } else {
-                        ApphudLog.log("SyncPurchases: Products to restore: $purchases")
+                        ApphudLog.log("SyncPurchases: Products to restore: ${purchases.map { it.products.firstOrNull() ?: ""}} ")
 
                         val restoredPurchases = mutableListOf<PurchaseRecordDetails>()
                         val purchasesToLoadDetails = mutableListOf<PurchaseHistoryRecord>()
@@ -68,7 +68,7 @@ internal fun ApphudInternal.syncPurchases(
                         }
 
                         if (purchasesToLoadDetails.isNotEmpty()) {
-                            ApphudLog.log("SyncPurchases: Load product details for: $purchasesToLoadDetails")
+                            ApphudLog.log("SyncPurchases: Load product details for: ${purchasesToLoadDetails.map { it.products.firstOrNull() ?: "" } }")
                             val subsRestored = billing.restoreSync(BillingClient.ProductType.SUBS, purchasesToLoadDetails)
                             val inapsRestored = billing.restoreSync(BillingClient.ProductType.INAPP, purchasesToLoadDetails)
 
@@ -78,9 +78,7 @@ internal fun ApphudInternal.syncPurchases(
                             ApphudLog.log("SyncPurchases: All products details already loaded.")
                         }
 
-                        ApphudLog.log("SyncPurchases: Products restored: $restoredPurchases")
-
-                        ApphudLog.log("SyncPurchases: observerMode = $observerMode")
+                        ApphudLog.log("SyncPurchases: Products restored: ${restoredPurchases.map { it.details.productId } }")
 
                         if (observerMode && prevPurchases.containsAll(restoredPurchases)) {
                             ApphudLog.log("SyncPurchases: Don't send equal purchases from prev state")
@@ -89,9 +87,9 @@ internal fun ApphudInternal.syncPurchases(
                                 refreshEntitlements(true)
                             }
                         } else {
-                            ApphudLog.log("SyncPurchases: call syncPurchasesWithApphud()")
                             sendPurchasesToApphud(
                                 paywallIdentifier,
+                                placementIdentifier,
                                 restoredPurchases,
                                 null,
                                 null,
@@ -101,7 +99,6 @@ internal fun ApphudInternal.syncPurchases(
                             )
                         }
                     }
-                    ApphudLog.log("SyncPurchases: finish")
                 }
             }
         }
@@ -110,19 +107,17 @@ internal fun ApphudInternal.syncPurchases(
 
 internal suspend fun ApphudInternal.sendPurchasesToApphud(
     paywallIdentifier: String? = null,
+    placementIdentifier: String? = null,
     tempPurchaseRecordDetails: List<PurchaseRecordDetails>?,
     purchase: Purchase?,
     productDetails: ProductDetails?,
     offerIdToken: String?,
     callback: ApphudPurchasesRestoreCallback? = null,
     observerMode: Boolean,
-)  {
+) {
     val apphudProduct: ApphudProduct? =
-        tempPurchaseRecordDetails?.let {
-            findJustPurchasedProduct(paywallIdentifier, it)
-        } ?: run {
-            findJustPurchasedProduct(paywallIdentifier, productDetails)
-        }
+        findJustPurchasedProduct(paywallIdentifier, placementIdentifier, productDetails, tempPurchaseRecordDetails)
+
     val customer =
         RequestManager.restorePurchasesSync(
             apphudProduct,
@@ -140,16 +135,15 @@ internal suspend fun ApphudInternal.sendPurchasesToApphud(
                         "Ensure Google Service Credentials are correct and have necessary permissions. " +
                         "Check https://docs.apphud.com/getting-started/creating-app#google-play-service-credentials or contact support."
                 ApphudLog.logE(message = message)
-            } else
-                {
-                    ApphudLog.log("SyncPurchases: customer was successfully updated $customer")
-                }
+            } else {
+                ApphudLog.log("SyncPurchases: customer was successfully updated $customer")
+            }
 
             storage.isNeedSync = false
             prevPurchases.addAll(records)
         }
 
-        userId = customer.user.userId
+        userId = customer.userId
 
         mainScope.launch {
             ApphudLog.log("SyncPurchases: success $customer")
@@ -165,7 +159,7 @@ internal suspend fun ApphudInternal.sendPurchasesToApphud(
     }
 }
 
-private fun processHistoryCallbackStatus(result: PurchaseHistoryCallbackStatus): List<PurchaseHistoryRecord>  {
+private fun processHistoryCallbackStatus(result: PurchaseHistoryCallbackStatus): List<PurchaseHistoryRecord> {
     when (result) {
         is PurchaseHistoryCallbackStatus.Error -> {
             val type = if (result.type() == BillingClient.ProductType.SUBS) "subscriptions" else "in-app products"
@@ -182,7 +176,7 @@ private fun processHistoryCallbackStatus(result: PurchaseHistoryCallbackStatus):
     return emptyList()
 }
 
-private fun processRestoreCallbackStatus(result: PurchaseRestoredCallbackStatus): List<PurchaseRecordDetails>  {
+private fun processRestoreCallbackStatus(result: PurchaseRestoredCallbackStatus): List<PurchaseRecordDetails> {
     when (result) {
         is PurchaseRestoredCallbackStatus.Error -> {
             val type = if (result.type() == BillingClient.ProductType.SUBS) "subscriptions" else "in-app products"
@@ -203,41 +197,28 @@ private fun processRestoreCallbackStatus(result: PurchaseRestoredCallbackStatus)
 
 private fun ApphudInternal.findJustPurchasedProduct(
     paywallIdentifier: String?,
-    tempPurchaseRecordDetails: List<PurchaseRecordDetails>,
-): ApphudProduct?  {
-    try {
-        paywallIdentifier?.let {
-            getPaywalls().firstOrNull { it.identifier == paywallIdentifier }
-                ?.let { currentPaywall ->
-                    val record = tempPurchaseRecordDetails.maxByOrNull { it.record.purchaseTime }
-                    record?.let { rec ->
-                        val offset = System.currentTimeMillis() - rec.record.purchaseTime
-                        if (offset < 300000L) { // 5 min
-                            return currentPaywall.products?.find { it.productDetails?.productId == rec.details.productId }
-                        }
-                    }
-                }
-        }
-    } catch (ex: Exception) {
-        ex.message?.let {
-            ApphudLog.logE(message = it)
-        }
-    }
-    return null
-}
-
-internal fun ApphudInternal.findJustPurchasedProduct(
-    paywallIdentifier: String?,
+    placementIdentifier: String?,
     productDetails: ProductDetails?,
-): ApphudProduct?  {
+    tempPurchaseRecordDetails: List<PurchaseRecordDetails>?,
+): ApphudProduct? {
     try {
-        paywallIdentifier?.let {
-            getPaywalls().firstOrNull { it.identifier == paywallIdentifier }
-                ?.let { currentPaywall ->
-                    productDetails?.let { details ->
-                        return currentPaywall.products?.find { it.productDetails?.productId == details.productId }
-                    }
-                }
+        val targetPaywall =
+            if (placementIdentifier != null) {
+                placements.firstOrNull { it.identifier == placementIdentifier }?.paywall
+            } else {
+                paywalls.firstOrNull { it.identifier == paywallIdentifier }
+            }
+
+        productDetails?.let { details ->
+            return targetPaywall?.products?.find { it.productDetails?.productId == details.productId }
+        }
+
+        val record = tempPurchaseRecordDetails?.maxByOrNull { it.record.purchaseTime }
+        record?.let { rec ->
+            val offset = System.currentTimeMillis() - rec.record.purchaseTime
+            if (offset < 300000L) { // 5 min
+                return targetPaywall?.products?.find { it.productId == rec.details.productId }
+            }
         }
     } catch (ex: Exception) {
         ex.message?.let {

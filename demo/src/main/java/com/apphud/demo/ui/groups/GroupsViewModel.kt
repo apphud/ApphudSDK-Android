@@ -6,7 +6,7 @@ import com.apphud.sdk.Apphud
 class GroupsViewModel : ViewModel() {
     var items = mutableListOf<Any>()
 
-    fun updateData()  {
+    fun updateData() {
         val list = Apphud.permissionGroups()
         items.clear()
 

@@ -8,7 +8,6 @@ import com.apphud.sdk.parser.Parser
 class PaywallsMapper(
     private val parser: Parser,
 ) {
-
     fun map(dto: List<ApphudPaywallDto>): List<ApphudPaywall> = dto.map { paywallDto -> map(paywallDto) }
 
     fun map(paywallDto: ApphudPaywallDto) =
@@ -22,15 +21,18 @@ class PaywallsMapper(
                 paywallDto.items.map { item ->
                     ApphudProduct(
                         id = item.id, // product bundle id
-                        product_id = item.product_id,
+                        productId = item.product_id,
                         name = item.name,
                         store = item.store,
                         basePlanId = item.base_plan_id,
                         productDetails = null,
-                        paywall_id = paywallDto.id,
-                        paywall_identifier = paywallDto.identifier,
+                        paywallId = paywallDto.id,
+                        paywallIdentifier = paywallDto.identifier,
+                        placementId = null,
+                        placementIdentifier = null,
                     )
                 },
             experimentName = paywallDto.experiment_name,
+            placementId = null,
         )
 }

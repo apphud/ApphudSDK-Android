@@ -28,18 +28,16 @@ class ProductsAdapter(private val productsViewModel: ProductsViewModel, private 
             item: ApphudProduct,
             position: Int,
         ) {
-            productName.text = "Name: " + item.name + "\nProduct ID: " + item.product_id + "\nBase Plan ID: " + item.basePlanId
+            productName.text = "Name: " + item.name + "\nProduct ID: " + item.productId + "\nBase Plan ID: " + item.basePlanId
 
             item.productDetails?.let { details ->
-                if (details.productType == BillingClient.ProductType.SUBS)
-                    {
-                        productPrice.text = item.subscriptionOffers()?.firstOrNull()?.pricingPhases?.pricingPhaseList?.firstOrNull()?.formattedPrice ?: ""
-                    } else
-                    {
-                        productPrice.text = details.oneTimePurchaseOfferDetails?.formattedPrice ?: ""
-                    }
+                if (details.productType == BillingClient.ProductType.SUBS) {
+                    productPrice.text = item.subscriptionOffers()?.firstOrNull()?.pricingPhases?.pricingPhaseList?.firstOrNull()?.formattedPrice ?: ""
+                } else {
+                    productPrice.text = details.oneTimePurchaseOfferDetails?.formattedPrice ?: ""
+                }
             } ?: run {
-                productPrice.text = ""
+                productPrice.text = "ProductDetails N/A"
             }
 
             itemView.setOnClickListener {

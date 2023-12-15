@@ -33,7 +33,7 @@ data class ApphudUserProperty(
         return jsonParamsString
     }
 
-    internal fun getValue(): Any  {
+    internal fun getValue(): Any {
         try {
             when (type) {
                 "string" -> {

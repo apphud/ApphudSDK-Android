@@ -132,16 +132,13 @@
 
     </androidx.constraintlayout.widget.ConstraintLayout>
 
-    <TextView
-        android:id="@+id/txtPaywallsTitle"
-        android:layout_width="wrap_content"
+    <ToggleButton
+        android:id="@+id/toggleButton"
+        android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:text="@string/menu_paywalls"
-        android:ellipsize="end"
-        android:textColor="@color/branding_blue_1"
-        android:textStyle="bold"
-        android:textSize="20sp"
-        android:layout_marginTop="16dp"/>
+        android:text="ToggleButton"
+        android:textOff="Show Placements"
+        android:textOn="Show Paywalls" />
 
     <androidx.swiperefreshlayout.widget.SwipeRefreshLayout
         android:id="@+id/swipeRefresh"

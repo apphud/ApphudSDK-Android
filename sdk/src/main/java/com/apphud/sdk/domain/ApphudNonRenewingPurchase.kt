@@ -36,14 +36,13 @@ data class ApphudNonRenewingPurchase(
      * Returns `true` if purchase is not refunded.
      */
     fun isActive() =
-        if (isTemporary)
-            {
-                !isTemporaryExpired()
-            } else {
+        if (isTemporary) {
+            !isTemporaryExpired()
+        } else {
             canceledAt == null
         }
 
-    private fun isTemporaryExpired(): Boolean  {
+    private fun isTemporaryExpired(): Boolean {
         return System.currentTimeMillis() > (canceledAt ?: 0L)
     }
 }

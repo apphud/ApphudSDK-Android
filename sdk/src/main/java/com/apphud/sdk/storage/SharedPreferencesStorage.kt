@@ -14,12 +14,12 @@ import com.google.gson.GsonBuilder
 import com.google.gson.reflect.TypeToken
 
 object SharedPreferencesStorage : Storage {
-    var cacheTimeout: Long = 90000L
+    private var cacheTimeout: Long = 90000L
 
     fun getInstance(applicationContext: Context): SharedPreferencesStorage {
         this.applicationContext = applicationContext
         preferences = SharedPreferencesStorage.applicationContext.getSharedPreferences(NAME, Context.MODE_PRIVATE)
-        cacheTimeout = if (SharedPreferencesStorage.applicationContext.isDebuggable()) 30L else 90000L // 25 hours
+        this.cacheTimeout = if (SharedPreferencesStorage.applicationContext.isDebuggable()) 120L else 90000L // 25 hours
         return this
     }
 
@@ -29,24 +29,24 @@ object SharedPreferencesStorage : Storage {
     private const val NAME = "apphud_storage"
 
     private const val USER_ID_KEY = "userIdKey"
-    private const val CUSTOMER_KEY = "customerKey"
+    private const val APPHUD_USER_KEY = "APPHUD_USER_KEY"
     private const val DEVICE_ID_KEY = "deviceIdKey"
-    private const val ADVERTISING_DI_KEY = "advertisingIdKey"
+    private const val DEVICE_IDENTIFIERS_KEY = "DEVICE_IDENTIFIERS_KEY"
     private const val NEED_RESTART_KEY = "needRestartKey"
     private const val PROPERTIES_KEY = "propertiesKey"
     private const val FACEBOOK_KEY = "facebookKey"
     private const val FIREBASE_KEY = "firebaseKey"
     private const val APPSFLYER_KEY = "appsflyerKey"
     private const val ADJUST_KEY = "adjustKey"
-    private const val PAYWALLS_KEY = "payWallsKey"
-    private const val PAYWALLS_TIMESTAMP_KEY = "payWallsTimestampKey"
+    private const val PAYWALLS_KEY = "PAYWALLS_KEY"
+    private const val PAYWALLS_TIMESTAMP_KEY = "PAYWALLS_TIMESTAMP_KEY"
+    private const val PLACEMENTS_KEY = "PLACEMENTS_KEY"
+    private const val PLACEMENTS_TIMESTAMP_KEY = "PLACEMENTS_TIMESTAMP_KEY"
     private const val GROUP_KEY = "apphudGroupKey"
     private const val GROUP_TIMESTAMP_KEY = "apphudGroupTimestampKey"
     private const val SKU_KEY = "skuKey"
     private const val SKU_TIMESTAMP_KEY = "skuTimestampKey"
     private const val LAST_REGISTRATION_KEY = "lastRegistrationKey"
-    private const val TEMP_SUBSCRIPTIONS = "temp_subscriptions"
-    private const val TEMP_PURCHASES = "temp_purchases"
 
     private val gson =
         GsonBuilder()
@@ -62,16 +62,16 @@ object SharedPreferencesStorage : Storage {
             editor.apply()
         }
 
-    override var customer: Customer?
+    override var apphudUser: ApphudUser?
         get() {
-            val source = preferences.getString(CUSTOMER_KEY, null)
-            val type = object : TypeToken<Customer>() {}.type
-            return parser.fromJson<Customer>(source, type)
+            val source = preferences.getString(APPHUD_USER_KEY, null)
+            val type = object : TypeToken<ApphudUser>() {}.type
+            return parser.fromJson<ApphudUser>(source, type)
         }
         set(value) {
             val source = parser.toJson(value)
             val editor = preferences.edit()
-            editor.putString(CUSTOMER_KEY, source)
+            editor.putString(APPHUD_USER_KEY, source)
             editor.apply()
         }
 
@@ -83,11 +83,18 @@ object SharedPreferencesStorage : Storage {
             editor.apply()
         }
 
-    override var advertisingId: String?
-        get() = preferences.getString(ADVERTISING_DI_KEY, null)
+    override var deviceIdentifiers: Array<String>
+        get() {
+            val string = preferences.getString(DEVICE_IDENTIFIERS_KEY, null)
+            val ids = string?.split("|")
+            return if (ids?.count() == 3) ids.toTypedArray() else arrayOf("", "", "")
+        }
         set(value) {
             val editor = preferences.edit()
-            editor.putString(ADVERTISING_DI_KEY, value)
+
+            val idsString = value?.joinToString("|") ?: ""
+
+            editor.putString(DEVICE_IDENTIFIERS_KEY, idsString)
             editor.apply()
         }
 
@@ -175,7 +182,8 @@ object SharedPreferencesStorage : Storage {
                 val type = object : TypeToken<List<ApphudPaywall>>() {}.type
                 parser.fromJson<List<ApphudPaywall>>(source, type)
             } else {
-                null
+                ApphudLog.log("Paywalls Cache Expired")
+                return null
             }
         }
         set(value) {
@@ -183,6 +191,27 @@ object SharedPreferencesStorage : Storage {
             val editor = preferences.edit()
             editor.putLong(PAYWALLS_TIMESTAMP_KEY, System.currentTimeMillis())
             editor.putString(PAYWALLS_KEY, source)
+            editor.apply()
+        }
+
+    override var placements: List<ApphudPlacement>?
+        get() {
+            val timestamp = preferences.getLong(PLACEMENTS_TIMESTAMP_KEY, -1L) + (cacheTimeout * 1000)
+            val currentTime = System.currentTimeMillis()
+            return if ((currentTime < timestamp) || ApphudInternal.fallbackMode) {
+                val source = preferences.getString(PLACEMENTS_KEY, null)
+                val type = object : TypeToken<List<ApphudPlacement>>() {}.type
+                parser.fromJson<List<ApphudPlacement>>(source, type)
+            } else {
+                ApphudLog.log("Placements Cache Expired")
+                null
+            }
+        }
+        set(value) {
+            val source = parser.toJson(value)
+            val editor = preferences.edit()
+            editor.putLong(PLACEMENTS_TIMESTAMP_KEY, System.currentTimeMillis())
+            editor.putString(PLACEMENTS_KEY, source)
             editor.apply()
         }
 
@@ -215,32 +244,31 @@ object SharedPreferencesStorage : Storage {
         }
 
     fun updateCustomer(
-        customer: Customer,
+        apphudUser: ApphudUser,
         apphudListener: ApphudListener?,
-    )  {
+    ) {
         var userIdChanged = false
-        this.customer?.let {
-            if (it.user.userId != customer.user.userId)
-                {
-                    userIdChanged = true
-                }
+        this.apphudUser?.let {
+            if (it.userId != apphudUser.userId) {
+                userIdChanged = true
+            }
         }
-        this.customer = customer
-        this.userId = customer.user.userId
+        this.apphudUser = apphudUser
+        this.userId = apphudUser.userId
 
         if (userIdChanged) {
             apphudListener?.let {
-                apphudListener.apphudDidChangeUserID(customer.user.userId)
+                apphudListener.apphudDidChangeUserID(apphudUser.userId)
             }
         }
     }
 
     fun clean() {
         lastRegistration = 0L
-        customer = null
+        apphudUser = null
         userId = null
         deviceId = null
-        advertisingId = null
+        deviceIdentifiers = arrayOf("", "", "")
         isNeedSync = false
         facebook = null
         firebase = null
@@ -252,39 +280,19 @@ object SharedPreferencesStorage : Storage {
         adjust = null
     }
 
-    fun needRegistration(): Boolean {
+    fun cacheExpired(user: ApphudUser): Boolean {
         val timestamp = lastRegistration + (cacheTimeout * 1000)
         val currentTime = System.currentTimeMillis()
 
-        return if (customerWithPurchases())
-            {
-                ApphudLog.logI("User with purchases: perform registration")
-                true
-            } else {
-            val result = currentTime > timestamp
-            if (result)
-                {
-                    ApphudLog.logI("User without purchases: perform registration")
-                } else
-                {
-                    val minutes = (timestamp - currentTime) / 60_000L
-                    val seconds = (timestamp - currentTime - minutes * 60_000L) / 1_000L
-                    ApphudLog.logI("User without purchases: registration will available after ${minutes}min. ${seconds}sec.")
-                }
-            return result
+        val result = currentTime > timestamp
+        if (result) {
+            ApphudLog.logI("Cached ApphudUser found, but cache expired")
+        } else {
+            val minutes = (timestamp - currentTime) / 60_000L
+            val seconds = (timestamp - currentTime - minutes * 60_000L) / 1_000L
+            ApphudLog.logI("Using cached ApphudUser")
         }
-    }
-
-    private fun customerWithPurchases(): Boolean {
-        return customer?.let {
-            !(it.purchases.isEmpty() && it.subscriptions.isEmpty())
-        } ?: false
-    }
-
-    fun needProcessFallback(): Boolean {
-        return customer?.let {
-            it.purchases.isEmpty() && it.subscriptions.isEmpty()
-        } ?: true
+        return result
     }
 
     override var properties: HashMap<String, ApphudUserProperty>?
@@ -300,44 +308,39 @@ object SharedPreferencesStorage : Storage {
             editor.apply()
         }
 
-    fun needSendProperty(property: ApphudUserProperty): Boolean  {
-        if (properties == null)
-            {
-                properties = hashMapOf()
-            }
+    fun needSendProperty(property: ApphudUserProperty): Boolean {
+        if (properties == null) {
+            properties = hashMapOf()
+        }
         properties?.let {
-            if (property.value == null)
-                {
-                    // clean property
+            if (property.value == null) {
+                // clean property
+                if (it.containsKey(property.key)) {
+                    it.remove(property.key)
+                    properties = it
+                }
+                return true
+            }
+
+            if (it.containsKey(property.key)) {
+                if (it[property.key]?.setOnce == true) {
+                    val message = "Sending a property with key '${property.key}' is skipped. The property was previously specified as not updatable"
+                    ApphudLog.logI(message)
+                    return false
+                }
+                if (property.increment) {
+                    // clean property to allow to set any value after increment
                     if (it.containsKey(property.key)) {
                         it.remove(property.key)
                         properties = it
                     }
                     return true
                 }
-
-            if (it.containsKey(property.key)) {
-                if (it[property.key]?.setOnce == true)
-                    {
-                        val message = "Sending a property with key '${property.key}' is skipped. The property was previously specified as not updatable"
-                        ApphudLog.logI(message)
-                        return false
-                    }
-                if (property.increment)
-                    {
-                        // clean property to allow to set any value after increment
-                        if (it.containsKey(property.key)) {
-                            it.remove(property.key)
-                            properties = it
-                        }
-                        return true
-                    }
-                if (it[property.key]?.getValue() == property.getValue() && !property.setOnce)
-                    {
-                        val message = "Sending a property with key '${property.key}' is skipped. Property value was not changed"
-                        ApphudLog.logI(message)
-                        return false
-                    }
+                if (it[property.key]?.getValue() == property.getValue() && !property.setOnce) {
+                    val message = "Sending a property with key '${property.key}' is skipped. Property value was not changed"
+                    ApphudLog.logI(message)
+                    return false
+                }
             }
         }
 

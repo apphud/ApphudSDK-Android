@@ -9,10 +9,9 @@ import android.widget.LinearLayout
 import android.widget.TextView
 import androidx.recyclerview.widget.RecyclerView
 import com.apphud.demo.R
-import com.apphud.sdk.domain.ApphudPaywall
 
 class PaywallsAdapter(private val paywallsViewModel: PaywallsViewModel, private val context: Context?) : RecyclerView.Adapter<PaywallsAdapter.BaseViewHolder<*>>() {
-    var selectPaywall: ((account: ApphudPaywall) -> Unit)? = null
+    var selectItem: ((item: AdapterItem) -> Unit)? = null
 
     abstract class BaseViewHolder<T>(itemView: View) : RecyclerView.ViewHolder(itemView) {
         abstract fun bind(
@@ -21,8 +20,9 @@ class PaywallsAdapter(private val paywallsViewModel: PaywallsViewModel, private 
         )
     }
 
-    inner class PaywallViewHolder(itemView: View) : BaseViewHolder<ApphudPaywall>(itemView) {
+    inner class PaywallViewHolder(itemView: View) : BaseViewHolder<AdapterItem>(itemView) {
         private val paywallName: TextView = itemView.findViewById(R.id.paywallName)
+        private val paywallIdentifier: TextView = itemView.findViewById(R.id.paywallIdentifier)
         private val paywallDefault: TextView = itemView.findViewById(R.id.paywallDefault)
         private val paywallExperiment: TextView = itemView.findViewById(R.id.paywallExperiment)
         private val paywallVariation: TextView = itemView.findViewById(R.id.paywallVariation)
@@ -30,15 +30,25 @@ class PaywallsAdapter(private val paywallsViewModel: PaywallsViewModel, private 
         private val layoutHolder: LinearLayout = itemView.findViewById(R.id.layoutHolder)
 
         override fun bind(
-            item: ApphudPaywall,
+            item: AdapterItem,
             position: Int,
         ) {
-            paywallName.text = item.name
-            paywallDefault.text = item.default.toString()
-            paywallExperiment.text = item.experimentName ?: "-"
+            val paywall = item.paywall ?: item.placement?.paywall
+
+            val experimentName = item.placement?.experimentName ?: paywall?.experimentName
+
+            paywallName.text =
+                if (item.placement != null) {
+                    "${item.placement.identifier} -> ${paywall?.name}"
+                } else {
+                    paywall?.name
+                }
+            paywallIdentifier.text = "Paywall ID: " + (paywall?.identifier ?: "N/A")
+            paywallDefault.text = paywall?.default.toString()
+            paywallExperiment.text = item.placement?.experimentName ?: paywall?.experimentName ?: "N/A"
             paywallVariation.text = "N/A"
-            paywallJson.text = if (item.json != null) "true" else "false"
-            item.experimentName?.let {
+            paywallJson.text = if (paywall?.json != null) "true" else "false"
+            experimentName?.let {
                 layoutHolder.setBackgroundResource(R.color.teal_200)
                 paywallDefault.setTextColor(Color.WHITE)
                 paywallExperiment.setTextColor(Color.WHITE)
@@ -51,7 +61,9 @@ class PaywallsAdapter(private val paywallsViewModel: PaywallsViewModel, private 
             }
 
             itemView.setOnClickListener {
-                selectPaywall?.invoke(item)
+                paywall?.let { paywall ->
+                    selectItem?.invoke(item)
+                }
             }
         }
     }
@@ -81,14 +93,14 @@ class PaywallsAdapter(private val paywallsViewModel: PaywallsViewModel, private 
     ) {
         val element = paywallsViewModel.items[position]
         when (holder) {
-            is PaywallViewHolder -> holder.bind(element as ApphudPaywall, position)
+            is PaywallViewHolder -> holder.bind(element as AdapterItem, position)
             else -> throw IllegalArgumentException()
         }
     }
 
     override fun getItemViewType(position: Int): Int {
         return when (paywallsViewModel.items[position]) {
-            is ApphudPaywall -> TYPE_PAYWALL
+            is AdapterItem -> TYPE_PAYWALL
             else -> throw IllegalArgumentException("Invalid type of data " + position)
         }
     }

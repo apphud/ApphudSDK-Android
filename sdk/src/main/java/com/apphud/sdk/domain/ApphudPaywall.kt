@@ -29,4 +29,8 @@ data class ApphudPaywall(
      You can use it for additional analytics.
      */
     val experimentName: String?,
+    /**
+     * For internal usage
+     */
+    internal var placementId: String?,
 )

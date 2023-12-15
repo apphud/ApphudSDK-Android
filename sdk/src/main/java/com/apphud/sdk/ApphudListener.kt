@@ -3,7 +3,9 @@ package com.apphud.sdk
 import com.android.billingclient.api.ProductDetails
 import com.apphud.sdk.domain.ApphudNonRenewingPurchase
 import com.apphud.sdk.domain.ApphudPaywall
+import com.apphud.sdk.domain.ApphudPlacement
 import com.apphud.sdk.domain.ApphudSubscription
+import com.apphud.sdk.domain.ApphudUser
 
 interface ApphudListener {
     /**
@@ -32,18 +34,28 @@ interface ApphudListener {
     fun apphudDidChangeUserID(userId: String)
 
     /**
-     Called when user is registered in Apphud [or used from cache].
-     After this method is called, Apphud.paywalls() will begin to return values,
-     however their ProductDetails may still be nil at the moment.
-
-     You should only use this method in two cases:
-     1) If using A/B testing, to fetch `experimentName` from your paywalls.
-     2) To update User ID via Apphud.updateUserId method which should be placed inside.
+     * This method is invoked when a user is registered in Apphud
+     * or retrieved from the cache. It is called once per app lifecycle.
+     *
+     * The `ApphudUser` object passed as a parameter contains a record of
+     * all purchases tracked by Apphud and associated raw placements and
+     * paywalls for that user.
+     * These lists may or may not have their inner Google Play products fully
+     * loaded at the time of this method's call.
+     *
+     * __Note__: Do not store `ApphudUser` instance in your own code,
+     * since it may change at runtime.
      */
-    fun userDidLoad()
+    fun userDidLoad(user: ApphudUser)
 
     /**
-     Called when paywalls are fully loaded with their ProductDetails.
+     Called when paywalls are fully loaded with their inner ProductDetails.
      */
     fun paywallsDidFullyLoad(paywalls: List<ApphudPaywall>)
+
+    /**
+     * Called when placements are fully loaded with their ApphudPaywalls and
+     * inner ProductDetails.
+     */
+    fun placementsDidFullyLoad(placements: List<ApphudPlacement>)
 }

@@ -33,7 +33,8 @@
             android:textAlignment="viewStart"
             android:textColor="@android:color/black"
             android:textSize="12sp"
-            tools:text="In Kotlin, internal is a visibility modifier that restricts the visibility of a class, function, property, or constructor to " />
+            tools:text="In Kotlin, internal is a visibility modifier that restricts the visibility of a class, function, property, or constructor to "
+            tools:ignore="RtlCompat" />
 
         <TextView
             android:id="@+id/productPrice"

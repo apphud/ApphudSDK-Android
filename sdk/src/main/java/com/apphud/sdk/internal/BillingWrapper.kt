@@ -37,18 +37,17 @@ internal class BillingWrapper(context: Context) : Closeable {
         mutex.withLock {
             if (billing.isReady) {
                 result = true
-            } else
-                {
-                    try {
-                        while (!billing.connect()) {
-                            Thread.sleep(300)
-                        }
-                        result = true
-                    } catch (ex: java.lang.Exception) {
-                        ApphudLog.log("Connect to Billing failed: ${ex.message ?: "error"}")
-                        result = false
+            } else {
+                try {
+                    while (!billing.connect()) {
+                        Thread.sleep(300)
                     }
+                    result = true
+                } catch (ex: java.lang.Exception) {
+                    ApphudLog.log("Connect to Billing failed: ${ex.message ?: "error"}")
+                    result = false
                 }
+            }
         }
         return result
     }

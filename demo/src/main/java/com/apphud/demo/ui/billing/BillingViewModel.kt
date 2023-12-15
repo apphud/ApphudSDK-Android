@@ -14,7 +14,7 @@ import com.apphud.sdk.Apphud
 
 class BillingViewModel : ViewModel() {
     companion object {
-        private const val TAG: String = "BillingViewModel"
+        private const val TAG: String = "ApphudLogs"
         private const val MAX_CURRENT_PURCHASES_ALLOWED = 1
     }
 
@@ -29,7 +29,7 @@ class BillingViewModel : ViewModel() {
 
     var items = mutableListOf<Any>()
 
-    fun updateData()  {
+    fun updateData() {
         items.clear()
         for (item in billingClient.productWithProductDetails) {
             items.add(item.value)
@@ -171,23 +171,20 @@ class BillingViewModel : ViewModel() {
         val oldPurchaseToken: String
 
         billingClient.purchaseSuccessListener = { purchase, billingResult ->
-            if (billingResult.responseCode == BillingClient.BillingResponseCode.OK)
-                {
-                    purchase?.let { p ->
-                        if (p.purchaseState == Purchase.PurchaseState.PURCHASED) {
-                            Log.d(TAG, "Purchase SUCCESS notify Apphud")
-                            Apphud.trackPurchase(p, productDetails, offerIdToken)
-                        } else
-                            {
-                                Log.e(TAG, "Purchase SUCCESS but purchase state is " + p.purchaseState)
-                            }
-                    } ?: run {
-                        Log.e(TAG, "Purchase SUCCESS but purchase is null")
+            if (billingResult.responseCode == BillingClient.BillingResponseCode.OK) {
+                purchase?.let { p ->
+                    if (p.purchaseState == Purchase.PurchaseState.PURCHASED) {
+                        Log.d(TAG, "Purchase SUCCESS notify Apphud")
+                        Apphud.trackPurchase(p, productDetails, offerIdToken)
+                    } else {
+                        Log.e(TAG, "Purchase SUCCESS but purchase state is " + p.purchaseState)
                     }
-                } else
-                {
-                    Log.e(TAG, "Purchase ERROR: code=" + billingResult.responseCode)
+                } ?: run {
+                    Log.e(TAG, "Purchase SUCCESS but purchase is null")
                 }
+            } else {
+                Log.e(TAG, "Purchase ERROR: code=" + billingResult.responseCode)
+            }
         }
 
         // Get current purchase. In this app, a user can only have one current purchase at

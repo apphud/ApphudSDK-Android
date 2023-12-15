@@ -63,19 +63,18 @@ class MainActivity : AppCompatActivity() {
         if (binding.drawerLayout.isDrawerOpen(GravityCompat.START)) {
             binding.drawerLayout.closeDrawer(GravityCompat.START)
         } else {
-            if (!findNavController(R.id.nav_host_fragment_content_main).navigateUp())
-                {
-                    if (backPress + 2000 > System.currentTimeMillis()) {
-                        super.onBackPressed()
-                    } else {
-                        Toast.makeText(
-                            baseContext,
-                            "Please press again to exit!",
-                            Toast.LENGTH_SHORT,
-                        ).show()
-                        backPress = System.currentTimeMillis()
-                    }
+            if (!findNavController(R.id.nav_host_fragment_content_main).navigateUp()) {
+                if (backPress + 2000 > System.currentTimeMillis()) {
+                    super.onBackPressed()
+                } else {
+                    Toast.makeText(
+                        baseContext,
+                        "Please press again to exit!",
+                        Toast.LENGTH_SHORT,
+                    ).show()
+                    backPress = System.currentTimeMillis()
                 }
+            }
         }
     }
 }

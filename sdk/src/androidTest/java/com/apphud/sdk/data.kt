@@ -21,4 +21,8 @@ internal fun mkRegistrationBody(
     time_zone = "UTF",
     is_sandbox = true,
     is_new = true,
+    need_paywalls = true,
+    need_placements = true,
+    android_id = "",
+    first_seen = null,
 )

@@ -9,7 +9,7 @@ import kotlin.math.pow
 import kotlin.math.roundToInt
 
 internal object ApphudLog {
-    private const val TAG = "Apphud"
+    private const val TAG = "ApphudLogs"
     val data = mutableListOf<Map<String, Any?>>()
 
     /**
@@ -22,10 +22,9 @@ internal object ApphudLog {
         if (ApphudUtils.logging) {
             Log.d(TAG, message)
         }
-        if (sendLogToServer)
-            {
-                sendErrorLogs(message)
-            }
+        if (sendLogToServer) {
+            sendErrorLogs(message)
+        }
     }
 
     /**
@@ -38,10 +37,9 @@ internal object ApphudLog {
         if (ApphudUtils.logging) {
             Log.i(TAG, message)
         }
-        if (sendLogToServer)
-            {
-                sendErrorLogs(message)
-            }
+        if (sendLogToServer) {
+            sendErrorLogs(message)
+        }
     }
 
     /**
@@ -53,10 +51,9 @@ internal object ApphudLog {
     ) {
         Log.e(TAG, message)
 
-        if (sendLogToServer)
-            {
-                sendErrorLogs(message)
-            }
+        if (sendLogToServer) {
+            sendErrorLogs(message)
+        }
     }
 
     /**
@@ -77,9 +74,8 @@ internal object ApphudLog {
             path == "/v2/products" ||
             path == "/v2/paywall_configs" ||
             path == "/v1/subscriptions"
-        )
-            {
-                logI("Benchmark: " + path + ": " + time + "ms")
+        ) {
+            logI("Benchmark: " + path + ": " + time + "ms")
             /*val seconds: Double = time / 1000.0
             synchronized(data){
                 val logItem: MutableMap<String, Any?> = mutableMapOf(
@@ -89,7 +85,7 @@ internal object ApphudLog {
                 data.add(logItem)
             }
             startTimer()*/
-            }
+        }
     }
 
     fun Double.roundTo(numFractionDigits: Int): Double {
@@ -99,35 +95,32 @@ internal object ApphudLog {
 
     var timer: Timer? = null
 
-    fun startTimer()  {
-        if (timer == null)
-            {
-                timer =
-                    fixedRateTimer(name = "benchmark_timer", initialDelay = 5000, period = 5000) {
-                        if (data.isNotEmpty())
-                            {
-                                var body: BenchmarkBody?
-                                synchronized(data) {
-                                    val listToSend = mutableListOf<Map<String, Any?>>()
-                                    listToSend.addAll(data)
-                                    body =
-                                        BenchmarkBody(
-                                            device_id = ApphudInternal.deviceId,
-                                            user_id = ApphudInternal.userId,
-                                            bundle_id = ApphudInternal.getPackageName(),
-                                            data = listToSend,
-                                        )
-                                    data.clear()
-                                }
-                                body?.let {
-                                    RequestManager.sendBenchmarkLogs(it)
-                                }
-                            } else
-                            {
-                                timer?.cancel()
-                                timer = null
-                            }
+    fun startTimer() {
+        if (timer == null) {
+            timer =
+                fixedRateTimer(name = "benchmark_timer", initialDelay = 5000, period = 5000) {
+                    if (data.isNotEmpty()) {
+                        var body: BenchmarkBody?
+                        synchronized(data) {
+                            val listToSend = mutableListOf<Map<String, Any?>>()
+                            listToSend.addAll(data)
+                            body =
+                                BenchmarkBody(
+                                    device_id = ApphudInternal.deviceId,
+                                    user_id = ApphudInternal.userId,
+                                    bundle_id = ApphudInternal.getPackageName(),
+                                    data = listToSend,
+                                )
+                            data.clear()
+                        }
+                        body?.let {
+                            RequestManager.sendBenchmarkLogs(it)
+                        }
+                    } else {
+                        timer?.cancel()
+                        timer = null
                     }
-            }
+                }
+        }
     }
 }

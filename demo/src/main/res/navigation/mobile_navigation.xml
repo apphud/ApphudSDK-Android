@@ -34,7 +34,12 @@
         tools:layout="@layout/fragment_products" >
         <argument
             android:name="paywallId"
-            app:argType="string" />
+            app:argType="string"
+            app:nullable="true" />
+        <argument
+            android:name="placementId"
+            app:argType="string"
+            app:nullable="true" />
     </fragment>
 
     <fragment

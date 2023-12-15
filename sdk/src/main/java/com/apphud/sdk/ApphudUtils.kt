@@ -3,11 +3,14 @@ package com.apphud.sdk
 /**
  * This class will contain some utils, more will be added in the future.
  */
-internal object ApphudUtils {
+object ApphudUtils {
     var packageName: String = ""
         private set
 
     var logging: Boolean = false
+        private set
+
+    var httpLogging: Boolean = false
         private set
 
     var optOutOfTracking: Boolean = false
@@ -19,7 +22,12 @@ internal object ApphudUtils {
         logging = true
     }
 
-    fun setPackageName(packageName: String) {
+    fun enableAllLogs() {
+        logging = true
+        httpLogging = true
+    }
+
+    internal fun setPackageName(packageName: String) {
         this.packageName = packageName
     }
 }

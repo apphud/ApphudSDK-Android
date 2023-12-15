@@ -50,7 +50,7 @@ class PurchasesFragment : Fragment() {
         return root
     }
 
-    private fun updateData()  {
+    private fun updateData() {
         purchasesViewModel.updateData()
         viewAdapter.notifyDataSetChanged()
     }

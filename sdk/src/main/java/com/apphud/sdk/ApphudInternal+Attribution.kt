@@ -90,7 +90,7 @@ internal fun ApphudInternal.addAttribution(
         }
     }
 
-    checkRegistration { error ->
+    performWhenUserRegistered { error ->
         error?.let {
             ApphudLog.logE(it.message)
         } ?: run {

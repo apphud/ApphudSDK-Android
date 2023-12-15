@@ -2,10 +2,16 @@ package com.apphud.demo
 
 import android.app.Application
 import android.content.Context
+import android.util.Log
+import androidx.lifecycle.lifecycleScope
 import com.apphud.sdk.Apphud
+import com.apphud.sdk.ApphudUtils
+import com.apphud.sdk.client.ApiClient
+import kotlinx.coroutines.GlobalScope
+import kotlinx.coroutines.launch
 
 class ApphudApplication : Application() {
-    val API_KEY = "app_4sY9cLggXpMDDQMmvc5wXUPGReMp8G"
+    var API_KEY = "app_4sY9cLggXpMDDQMmvc5wXUPGReMp8G"
 
     companion object {
         private lateinit var instance: ApphudApplication
@@ -28,6 +34,13 @@ class ApphudApplication : Application() {
 
         Apphud.enableDebugLogs()
         // Apphud.optOutOfTracking()
+
+        if (BuildConfig.DEBUG) {
+            ApphudUtils.enableAllLogs()
+        }
+
+      //  check again restore cache from previous sdk version
+
         Apphud.start(this, API_KEY)
         Apphud.collectDeviceIdentifiers()
     }
