@@ -1,16 +1,18 @@
 package com.apphud.sdk.internal
 
-import com.android.billingclient.api.*
 import com.apphud.sdk.*
 import com.apphud.sdk.ApphudLog
 import com.apphud.sdk.domain.PurchaseRecordDetails
 import com.apphud.sdk.internal.callback_status.PurchaseRestoredCallbackStatus
+import com.xiaomi.billingclient.api.BillingClient
+import com.xiaomi.billingclient.api.Purchase
+import com.xiaomi.billingclient.api.SkuDetails
 import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlin.concurrent.thread
 import kotlin.coroutines.resume
 
 typealias ProductType = String
-typealias ApphudProductDetailsCallback = (List<ProductDetails>) -> Unit
+typealias ApphudProductDetailsCallback = (List<SkuDetails>) -> Unit
 typealias ApphudProductDetailsRestoreCallback = (PurchaseRestoredCallbackStatus) -> Unit
 
 internal class ProductDetailsWrapper(
@@ -20,11 +22,11 @@ internal class ProductDetailsWrapper(
     var restoreCallback: ApphudProductDetailsRestoreCallback? = null
 
     fun restoreAsync(
-        @BillingClient.ProductType type: ProductType,
-        recordsToResore: List<PurchaseHistoryRecord>?,
+        @BillingClient.SkuType type: ProductType,
+        recordsToRestore: List<Purchase>?,
     ) {
-        recordsToResore?.let {
-            val products = recordsToResore.map { it.products }.flatten()
+        recordsToRestore?.let {
+            val products = recordsToRestore.map { it.skus }.flatten()
             val productList =
                 products.map {
                     QueryProductDetailsParams.Product.newBuilder()
@@ -39,19 +41,19 @@ internal class ProductDetailsWrapper(
                     .build()
 
             thread(start = true, name = "restoreAsync+$type") {
-                billing.queryProductDetailsAsync(params) { result, details ->
+                billing.querySkuDetailsAsync(params) { result, details ->
                     when (result.isSuccess()) {
                         true -> {
                             val values = details ?: emptyList()
 
                             val purchases = mutableListOf<PurchaseRecordDetails>()
-                            for (productDetails in values) {
-                                val record = recordsToResore.firstOrNull { it.products.contains(productDetails.productId) }
+                            for (skuDetails in values) {
+                                val record = recordsToRestore.firstOrNull { it.skus.contains(skuDetails.sku) }
                                 record?.let {
                                     purchases.add(
                                         PurchaseRecordDetails(
                                             record = it,
-                                            details = productDetails,
+                                            details = skuDetails,
                                         ),
                                     )
                                 }
@@ -59,7 +61,7 @@ internal class ProductDetailsWrapper(
 
                             when (purchases.isEmpty()) {
                                 true -> {
-                                    val message = "ProductsDetails return empty list for $type and records: $recordsToResore"
+                                    val message = "ProductsDetails return empty list for $type and records: $recordsToRestore"
                                     ApphudLog.log(message)
                                     restoreCallback?.invoke(PurchaseRestoredCallbackStatus.Error(type = type, result = null, message = message))
                                 }
