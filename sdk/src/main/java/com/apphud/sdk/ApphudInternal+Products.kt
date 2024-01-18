@@ -1,15 +1,14 @@
 package com.apphud.sdk
 
-import com.android.billingclient.api.BillingClient
-import com.android.billingclient.api.ProductDetails
 import com.apphud.sdk.managers.RequestManager
+import com.xiaomi.billingclient.api.BillingClient
+import com.xiaomi.billingclient.api.SkuDetails
 import kotlinx.coroutines.async
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import java.util.concurrent.atomic.AtomicBoolean
-import java.util.concurrent.atomic.AtomicInteger
 
 internal var productsLoaded = AtomicBoolean(false)
 private val mutexProducts = Mutex()
@@ -25,7 +24,7 @@ internal fun ApphudInternal.loadProducts() {
                     productsLoaded.set(true)
 
                     mainScope.launch {
-                        notifyLoadingCompleted(null, productDetails)
+                        notifyLoadingCompleted(null, skuDetails)
                     }
                 }
             }
@@ -50,12 +49,12 @@ private suspend fun ApphudInternal.fetchProducts(): Boolean {
 }
 
 internal suspend fun ApphudInternal.fetchDetails(ids: List<String>): Boolean {
-    var subsDetails: List<ProductDetails>? = null
-    var inAppDetails: List<ProductDetails>? = null
+    var subsDetails: List<SkuDetails>? = null
+    var inAppDetails: List<SkuDetails>? = null
 
     coroutineScope {
-        val subs = async { billing.detailsEx(BillingClient.ProductType.SUBS, ids) }
-        val inApp = async { billing.detailsEx(BillingClient.ProductType.INAPP, ids) }
+        val subs = async { billing.detailsEx(BillingClient.SkuType.SUBS, ids) }
+        val inApp = async { billing.detailsEx(BillingClient.SkuType.INAPP, ids) }
 
         subs.await()?.let {
             subsDetails = it
@@ -70,13 +69,13 @@ internal suspend fun ApphudInternal.fetchDetails(ids: List<String>): Boolean {
         }
     }
 
-    synchronized(productDetails) {
-        productDetails.clear()
+    synchronized(skuDetails) {
+        skuDetails.clear()
         subsDetails?.let {
-            productDetails.addAll(it)
+            skuDetails.addAll(it)
         }
         inAppDetails?.let {
-            productDetails.addAll(it)
+            skuDetails.addAll(it)
         }
     }
 

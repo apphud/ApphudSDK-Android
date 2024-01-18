@@ -1,7 +1,8 @@
 package com.apphud.sdk
 
-import com.android.billingclient.api.BillingClient
-import com.android.billingclient.api.BillingResult
+import com.xiaomi.billingclient.api.BillingClient
+import com.xiaomi.billingclient.api.BillingResult
+
 
 fun BillingResult.isSuccess() = responseCode == BillingClient.BillingResponseCode.OK
 

@@ -1,11 +1,11 @@
 package com.apphud.sdk
 
-import com.android.billingclient.api.ProductDetails
 import com.apphud.sdk.domain.ApphudNonRenewingPurchase
 import com.apphud.sdk.domain.ApphudPaywall
 import com.apphud.sdk.domain.ApphudPlacement
 import com.apphud.sdk.domain.ApphudSubscription
 import com.apphud.sdk.domain.ApphudUser
+import com.xiaomi.billingclient.api.SkuDetails
 
 interface ApphudListener {
     /**
@@ -23,10 +23,10 @@ interface ApphudListener {
     fun apphudNonRenewingPurchasesUpdated(purchases: List<ApphudNonRenewingPurchase>) = Unit
 
     /**
-     Returns array of `ProductDetails` objects after they are fetched from Billing.
+     Returns array of `SkuDetails` objects after they are fetched from Billing.
      Note that you have to add all product identifiers in Apphud.
      */
-    fun apphudFetchProductDetails(details: List<ProductDetails>)
+    fun apphudFetchSkuDetails(details: List<SkuDetails>)
 
     /**
      Called when user identifier was changed
@@ -49,13 +49,13 @@ interface ApphudListener {
     fun userDidLoad(user: ApphudUser)
 
     /**
-     Called when paywalls are fully loaded with their inner ProductDetails.
+     Called when paywalls are fully loaded with their inner SkuDetails.
      */
     fun paywallsDidFullyLoad(paywalls: List<ApphudPaywall>)
 
     /**
      * Called when placements are fully loaded with their ApphudPaywalls and
-     * inner ProductDetails.
+     * inner SkuDetails.
      */
     fun placementsDidFullyLoad(placements: List<ApphudPlacement>)
 }

@@ -1,5 +1,6 @@
 package com.apphud.sdk.domain
 
+
 data class ApphudPaywall(
     internal val id: String,
     /**

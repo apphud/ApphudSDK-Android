@@ -1,11 +1,10 @@
 package com.apphud.sdk.domain
 
-import com.android.billingclient.api.ProductDetails
+import com.xiaomi.billingclient.api.SkuDetails
 
-class ProductInfo(productDetails: ProductDetails, offerTokenId: String?) {
-    val product_id: String = productDetails.productId
-    val type: String = productDetails.productType
-    val title: String = productDetails.title
-    val name: String = productDetails.name
-    val offer: Offer? = offerTokenId?.let { Offer(productDetails, offerTokenId) }
+class ProductInfo(skuDetails: SkuDetails) {
+    val product_id: String = skuDetails.sku
+    val type: String = skuDetails.type
+    val title: String = skuDetails.title
+    val name: String = skuDetails.title //TODO changes
 }

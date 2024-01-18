@@ -1,10 +1,9 @@
 package com.apphud.sdk.internal
 
-import com.android.billingclient.api.BillingClient
-import com.android.billingclient.api.ConsumeParams
-import com.android.billingclient.api.Purchase
 import com.apphud.sdk.internal.callback_status.PurchaseCallbackStatus
 import com.apphud.sdk.response
+import com.xiaomi.billingclient.api.BillingClient
+import com.xiaomi.billingclient.api.Purchase
 import java.io.Closeable
 
 typealias ConsumeCallback = (PurchaseCallbackStatus, Purchase) -> Unit
@@ -15,13 +14,7 @@ internal class ConsumeWrapper(
     var callBack: ConsumeCallback? = null
 
     fun purchase(purchase: Purchase) {
-        val token = purchase.purchaseToken
-
-        val params =
-            ConsumeParams.newBuilder()
-                .setPurchaseToken(token)
-                .build()
-        billing.consumeAsync(params) { result, value ->
+        billing.consumeAsync(purchase.purchaseToken) { result, value ->
             result.response(
                 message = "failed response with value: $value",
                 error = { callBack?.invoke(PurchaseCallbackStatus.Error(value), purchase) },

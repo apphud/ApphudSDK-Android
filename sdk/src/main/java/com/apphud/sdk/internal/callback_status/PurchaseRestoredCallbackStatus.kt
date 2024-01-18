@@ -1,8 +1,8 @@
 package com.apphud.sdk.internal.callback_status
 
-import com.android.billingclient.api.BillingResult
 import com.apphud.sdk.domain.PurchaseRecordDetails
 import com.apphud.sdk.internal.ProductType
+import com.xiaomi.billingclient.api.BillingResult
 
 sealed class PurchaseRestoredCallbackStatus() {
     class Success(val type: ProductType, val purchases: List<PurchaseRecordDetails>) : PurchaseRestoredCallbackStatus()

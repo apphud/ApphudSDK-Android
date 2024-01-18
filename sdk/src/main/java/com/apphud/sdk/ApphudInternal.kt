@@ -8,8 +8,6 @@ import android.provider.Settings
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.ProcessLifecycleOwner
-import com.android.billingclient.api.BillingClient
-import com.android.billingclient.api.ProductDetails
 import com.apphud.sdk.body.*
 import com.apphud.sdk.domain.*
 import com.apphud.sdk.internal.BillingWrapper
@@ -19,6 +17,8 @@ import com.apphud.sdk.storage.SharedPreferencesStorage
 import com.google.android.gms.appset.AppSet
 import com.google.android.gms.appset.AppSetIdInfo
 import com.google.android.gms.tasks.Task
+import com.xiaomi.billingclient.api.BillingClient
+import com.xiaomi.billingclient.api.SkuDetails
 import kotlinx.coroutines.*
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
@@ -41,7 +41,7 @@ internal object ApphudInternal {
     internal lateinit var billing: BillingWrapper
     internal val storage by lazy { SharedPreferencesStorage.getInstance(context) }
     internal var prevPurchases = mutableSetOf<PurchaseRecordDetails>()
-    internal var productDetails = mutableListOf<ProductDetails>()
+    internal var skuDetails = mutableListOf<SkuDetails>()
     internal var paywalls = listOf<ApphudPaywall>()
     internal var placements = listOf<ApphudPlacement>()
 
@@ -83,7 +83,7 @@ internal object ApphudInternal {
     internal var currentUser: ApphudUser? = null
     internal var apphudListener: ApphudListener? = null
 
-    private var customProductsFetchedBlock: ((List<ProductDetails>) -> Unit)? = null
+    private var customProductsFetchedBlock: ((List<SkuDetails>) -> Unit)? = null
     private var offeringsPreparedCallbacks = mutableListOf<(() -> Unit)>()
     private var userRegisteredBlock: ((ApphudUser) -> Unit)? = null
     private var lifecycleEventObserver =
@@ -222,20 +222,20 @@ internal object ApphudInternal {
     @Synchronized
     internal fun notifyLoadingCompleted(
         customerLoaded: ApphudUser? = null,
-        productDetailsLoaded: List<ProductDetails>? = null,
+        skuDetailsLoaded: List<SkuDetails>? = null,
         fromCache: Boolean = false,
         fromFallback: Boolean = false,
     ) {
         var paywallsPrepared = true
 
-        productDetailsLoaded?.let {
+        skuDetailsLoaded?.let {
             productGroups = readGroupsFromCache()
-            updateGroupsWithProductDetails(productGroups)
+            updateGroupsWithSkuDetails(productGroups)
 
-            synchronized(productDetails) {
+            synchronized(skuDetails) {
                 // notify that productDetails are loaded
-                apphudListener?.apphudFetchProductDetails(productDetails)
-                customProductsFetchedBlock?.invoke(productDetails)
+                apphudListener?.apphudFetchSkuDetails(skuDetails)
+                customProductsFetchedBlock?.invoke(skuDetails)
             }
         }
 
@@ -292,7 +292,7 @@ internal object ApphudInternal {
 
         updatePaywallsAndPlacements()
 
-        if (paywallsPrepared && currentUser != null && paywalls.isNotEmpty() && productDetails.isNotEmpty() && notifyFullyLoaded) {
+        if (paywallsPrepared && currentUser != null && paywalls.isNotEmpty() && skuDetails.isNotEmpty() && notifyFullyLoaded) {
             notifyFullyLoaded = false
             if (!didLoadOfferings) {
                 didLoadOfferings = true
@@ -371,9 +371,9 @@ internal object ApphudInternal {
         }
     }
 
-    internal fun productsFetchCallback(callback: (List<ProductDetails>) -> Unit) {
-        if (productDetails.isNotEmpty()) {
-            callback.invoke(productDetails)
+    internal fun productsFetchCallback(callback: (List<SkuDetails>) -> Unit) {
+        if (skuDetails.isNotEmpty()) {
+            callback.invoke(skuDetails)
         } else {
             customProductsFetchedBlock = callback
         }
@@ -687,9 +687,9 @@ internal object ApphudInternal {
             }
         }
 
-    fun getProductDetails(): List<ProductDetails> {
-        synchronized(productDetails) {
-            return productDetails.toCollection(mutableListOf())
+    fun getSkuDetails(): List<SkuDetails> {
+        synchronized(skuDetails) {
+            return skuDetails.toCollection(mutableListOf())
         }
     }
     fun getPermissionGroups(): List<ApphudGroup> {
@@ -786,7 +786,7 @@ internal object ApphudInternal {
         offeringsPreparedCallbacks.clear()
         storage.clean()
         prevPurchases.clear()
-        productDetails.clear()
+        skuDetails.clear()
         pendingUserProperties.clear()
         allowIdentifyUser = true
         didRegisterCustomerAtThisLaunch = false
@@ -805,10 +805,10 @@ internal object ApphudInternal {
         return storage.productGroups?.toMutableList() ?: mutableListOf()
     }
 
-    private fun updateGroupsWithProductDetails(productGroups: List<ApphudGroup>) {
+    private fun updateGroupsWithSkuDetails(productGroups: List<ApphudGroup>) {
         productGroups.forEach { group ->
             group.products?.forEach { product ->
-                product.productDetails = getProductDetailsByProductId(product.productId)
+                product.skuDetails = getSkuDetailsByProductId(product.productId)
             }
         }
     }
@@ -836,7 +836,7 @@ internal object ApphudInternal {
                 paywall.products?.forEach { product ->
                     product.paywallId = paywall.id
                     product.paywallIdentifier = paywall.identifier
-                    product.productDetails = getProductDetailsByProductId(product.productId)
+                    product.skuDetails = getSkuDetailsByProductId(product.productId)
                 }
             }
         }
@@ -850,15 +850,15 @@ internal object ApphudInternal {
                     product.paywallIdentifier = placement.paywall.identifier
                     product.placementId = placement.id
                     product.placementIdentifier = placement.identifier
-                    product.productDetails = getProductDetailsByProductId(product.productId)
+                    product.skuDetails = getSkuDetailsByProductId(product.productId)
                 }
             }
         }
     }
 
-    // Find ProductDetails  ======================================
-    internal fun getProductDetailsByProductId(productIdentifier: String): ProductDetails? {
-        val productDetail = productDetails.firstOrNull { it.productId == productIdentifier }
+    // Find SkuDetails  ======================================
+    internal fun getSkuDetailsByProductId(productIdentifier: String): SkuDetails? {
+        val productDetail = skuDetails.firstOrNull { it.sku == productIdentifier }
         return productDetail
     }
     //endregion

@@ -7,14 +7,14 @@ data class PurchaseItemBody(
     val product_id: String,
     val purchase_token: String,
     val price_currency_code: String?,
-    val price_amount_micros: Long?,
+    val price_amount_micros: String?, //TODO changes
     val subscription_period: String?,
     val paywall_id: String?,
     val placement_id: String?,
     val product_bundle_id: String?,
     val observer_mode: Boolean = false,
     val billing_version: Int,
-    val purchase_time: Long,
+    val purchase_time: String, //TODO changes
     val product_info: ProductInfo?,
     val product_type: String?,
 )

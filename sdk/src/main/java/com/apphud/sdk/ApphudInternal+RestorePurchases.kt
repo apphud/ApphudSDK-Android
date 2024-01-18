@@ -1,14 +1,14 @@
 package com.apphud.sdk
 
-import com.android.billingclient.api.BillingClient
-import com.android.billingclient.api.ProductDetails
-import com.android.billingclient.api.Purchase
-import com.android.billingclient.api.PurchaseHistoryRecord
 import com.apphud.sdk.domain.ApphudProduct
 import com.apphud.sdk.domain.PurchaseRecordDetails
 import com.apphud.sdk.internal.callback_status.PurchaseHistoryCallbackStatus
 import com.apphud.sdk.internal.callback_status.PurchaseRestoredCallbackStatus
 import com.apphud.sdk.managers.RequestManager
+import com.apphud.sdk.managers.purchaseTimeLong
+import com.xiaomi.billingclient.api.BillingClient
+import com.xiaomi.billingclient.api.Purchase
+import com.xiaomi.billingclient.api.SkuDetails
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
@@ -34,10 +34,10 @@ internal fun ApphudInternal.syncPurchases(
             coroutineScope.launch(errorHandler) {
                 mutexSync.withLock {
                     ApphudLog.log("SyncPurchases: start")
-                    val subsResult = billing.queryPurchaseHistorySync(BillingClient.ProductType.SUBS)
-                    val inapsResult = billing.queryPurchaseHistorySync(BillingClient.ProductType.INAPP)
+                    val subsResult = billing.queryPurchaseHistorySync(BillingClient.SkuType.SUBS)
+                    val inapsResult = billing.queryPurchaseHistorySync(BillingClient.SkuType.INAPP)
 
-                    var purchases = mutableListOf<PurchaseHistoryRecord>()
+                    var purchases = mutableListOf<Purchase>()
                     purchases.addAll(processHistoryCallbackStatus(subsResult))
                     purchases.addAll(processHistoryCallbackStatus(inapsResult))
 
@@ -50,15 +50,15 @@ internal fun ApphudInternal.syncPurchases(
                             }
                         }
                     } else {
-                        ApphudLog.log("SyncPurchases: Products to restore: ${purchases.map { it.products.firstOrNull() ?: ""}} ")
+                        ApphudLog.log("SyncPurchases: Products to restore: ${purchases.map { it.skus.firstOrNull() ?: ""}} ")
 
                         val restoredPurchases = mutableListOf<PurchaseRecordDetails>()
-                        val purchasesToLoadDetails = mutableListOf<PurchaseHistoryRecord>()
+                        val purchasesToLoadDetails = mutableListOf<Purchase>()
 
-                        val loadedProductIds = productDetails.map { it.productId }
+                        val loadedProductIds = skuDetails.map { it.sku }
                         for (purchase in purchases) {
-                            if (loadedProductIds.containsAll(purchase.products)) {
-                                val details = productDetails.find { it.productId == purchase.products[0] }
+                            if (loadedProductIds.containsAll(purchase.skus)) {
+                                val details = skuDetails.find { it.sku == purchase.skus[0] }
                                 details?.let {
                                     restoredPurchases.add(PurchaseRecordDetails(purchase, it))
                                 }
@@ -68,9 +68,9 @@ internal fun ApphudInternal.syncPurchases(
                         }
 
                         if (purchasesToLoadDetails.isNotEmpty()) {
-                            ApphudLog.log("SyncPurchases: Load product details for: ${purchasesToLoadDetails.map { it.products.firstOrNull() ?: "" } }")
-                            val subsRestored = billing.restoreSync(BillingClient.ProductType.SUBS, purchasesToLoadDetails)
-                            val inapsRestored = billing.restoreSync(BillingClient.ProductType.INAPP, purchasesToLoadDetails)
+                            ApphudLog.log("SyncPurchases: Load product details for: ${purchasesToLoadDetails.map { it.skus.firstOrNull() ?: "" } }")
+                            val subsRestored = billing.restoreSync(BillingClient.SkuType.SUBS, purchasesToLoadDetails)
+                            val inapsRestored = billing.restoreSync(BillingClient.SkuType.INAPP, purchasesToLoadDetails)
 
                             restoredPurchases.addAll(processRestoreCallbackStatus(subsRestored))
                             restoredPurchases.addAll(processRestoreCallbackStatus(inapsRestored))
@@ -78,7 +78,7 @@ internal fun ApphudInternal.syncPurchases(
                             ApphudLog.log("SyncPurchases: All products details already loaded.")
                         }
 
-                        ApphudLog.log("SyncPurchases: Products restored: ${restoredPurchases.map { it.details.productId } }")
+                        ApphudLog.log("SyncPurchases: Products restored: ${restoredPurchases.map { it.details.sku } }")
 
                         if (observerMode && prevPurchases.containsAll(restoredPurchases)) {
                             ApphudLog.log("SyncPurchases: Don't send equal purchases from prev state")
@@ -91,7 +91,6 @@ internal fun ApphudInternal.syncPurchases(
                                 paywallIdentifier,
                                 placementIdentifier,
                                 restoredPurchases,
-                                null,
                                 null,
                                 null,
                                 callback,
@@ -110,21 +109,19 @@ internal suspend fun ApphudInternal.sendPurchasesToApphud(
     placementIdentifier: String? = null,
     tempPurchaseRecordDetails: List<PurchaseRecordDetails>?,
     purchase: Purchase?,
-    productDetails: ProductDetails?,
-    offerIdToken: String?,
+    skuDetails: SkuDetails?,
     callback: ApphudPurchasesRestoreCallback? = null,
     observerMode: Boolean,
 ) {
     val apphudProduct: ApphudProduct? =
-        findJustPurchasedProduct(paywallIdentifier, placementIdentifier, productDetails, tempPurchaseRecordDetails)
+        findJustPurchasedProduct(paywallIdentifier, placementIdentifier, skuDetails, tempPurchaseRecordDetails)
 
     val customer =
         RequestManager.restorePurchasesSync(
             apphudProduct,
             tempPurchaseRecordDetails,
             purchase,
-            productDetails,
-            offerIdToken,
+            skuDetails,
             observerMode,
         )
     customer?.let {
@@ -159,10 +156,10 @@ internal suspend fun ApphudInternal.sendPurchasesToApphud(
     }
 }
 
-private fun processHistoryCallbackStatus(result: PurchaseHistoryCallbackStatus): List<PurchaseHistoryRecord> {
+private fun processHistoryCallbackStatus(result: PurchaseHistoryCallbackStatus): List<Purchase> {
     when (result) {
         is PurchaseHistoryCallbackStatus.Error -> {
-            val type = if (result.type() == BillingClient.ProductType.SUBS) "subscriptions" else "in-app products"
+            val type = if (result.type() == BillingClient.SkuType.SUBS) "subscriptions" else "in-app products"
             ApphudLog.log(
                 "Failed to load history for $type with error: (" +
                     "${result.result?.responseCode})" +
@@ -179,7 +176,7 @@ private fun processHistoryCallbackStatus(result: PurchaseHistoryCallbackStatus):
 private fun processRestoreCallbackStatus(result: PurchaseRestoredCallbackStatus): List<PurchaseRecordDetails> {
     when (result) {
         is PurchaseRestoredCallbackStatus.Error -> {
-            val type = if (result.type() == BillingClient.ProductType.SUBS) "subscriptions" else "in-app products"
+            val type = if (result.type() == BillingClient.SkuType.SUBS) "subscriptions" else "in-app products"
             val error =
                 ApphudError(
                     message = "Restore Purchases is failed for $type",
@@ -198,7 +195,7 @@ private fun processRestoreCallbackStatus(result: PurchaseRestoredCallbackStatus)
 private fun ApphudInternal.findJustPurchasedProduct(
     paywallIdentifier: String?,
     placementIdentifier: String?,
-    productDetails: ProductDetails?,
+    productDetails: SkuDetails?,
     tempPurchaseRecordDetails: List<PurchaseRecordDetails>?,
 ): ApphudProduct? {
     try {
@@ -210,14 +207,14 @@ private fun ApphudInternal.findJustPurchasedProduct(
             }
 
         productDetails?.let { details ->
-            return targetPaywall?.products?.find { it.productDetails?.productId == details.productId }
+            return targetPaywall?.products?.find { it.skuDetails?.sku == details.sku }
         }
 
         val record = tempPurchaseRecordDetails?.maxByOrNull { it.record.purchaseTime }
         record?.let { rec ->
-            val offset = System.currentTimeMillis() - rec.record.purchaseTime
+            val offset = System.currentTimeMillis() - rec.record.purchaseTimeLong()
             if (offset < 300000L) { // 5 min
-                return targetPaywall?.products?.find { it.productId == rec.details.productId }
+                return targetPaywall?.products?.find { it.productId == rec.details.sku }
             }
         }
     } catch (ex: Exception) {

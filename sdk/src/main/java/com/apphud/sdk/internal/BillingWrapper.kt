@@ -2,29 +2,27 @@ package com.apphud.sdk.internal
 
 import android.app.Activity
 import android.content.Context
-import com.android.billingclient.api.*
 import com.apphud.sdk.ApphudLog
 import com.apphud.sdk.ProductId
 import com.apphud.sdk.internal.callback_status.PurchaseHistoryCallbackStatus
 import com.apphud.sdk.internal.callback_status.PurchaseRestoredCallbackStatus
+import com.xiaomi.billingclient.api.BillingClient
+import com.xiaomi.billingclient.api.BillingClientStateListener
+import com.xiaomi.billingclient.api.BillingResult
+import com.xiaomi.billingclient.api.Purchase
+import com.xiaomi.billingclient.api.SkuDetails
 import kotlinx.coroutines.*
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import java.io.Closeable
 import kotlin.coroutines.resume
 
-/**
- * Обертка над платежной системой Google
- */
 internal class BillingWrapper(context: Context) : Closeable {
-    private val builder =
-        BillingClient
-            .newBuilder(context)
-            .enablePendingPurchases()
+    private val builder = BillingClient.newBuilder(context)
     private val purchases = PurchasesUpdated(builder)
 
     private val billing = builder.build()
-    private val prod = ProductDetailsWrapper(billing)
+    private val prod = SkuDetailsWrapper(billing)
     private val flow = FlowWrapper(billing)
     private val consume = ConsumeWrapper(billing)
     private val history = HistoryWrapper(billing)
@@ -97,7 +95,7 @@ internal class BillingWrapper(context: Context) : Closeable {
         }
 
     suspend fun queryPurchaseHistorySync(
-        @BillingClient.ProductType type: ProductType,
+        @BillingClient.SkuType type: ProductType,
     ): PurchaseHistoryCallbackStatus {
         val connectIfNeeded = connectIfNeeded()
         if (!connectIfNeeded) return PurchaseHistoryCallbackStatus.Error(type, null)
@@ -105,9 +103,9 @@ internal class BillingWrapper(context: Context) : Closeable {
     }
 
     suspend fun detailsEx(
-        @BillingClient.ProductType type: ProductType,
+        @BillingClient.SkuType type: ProductType,
         products: List<ProductId>,
-    ): List<ProductDetails>? {
+    ): List<SkuDetails>? {
         val connectIfNeeded = connectIfNeeded()
         if (!connectIfNeeded) return null
 
@@ -115,8 +113,8 @@ internal class BillingWrapper(context: Context) : Closeable {
     }
 
     suspend fun restoreSync(
-        @BillingClient.ProductType type: ProductType,
-        products: List<PurchaseHistoryRecord>,
+        @BillingClient.SkuType type: ProductType,
+        products: List<Purchase>,
     ): PurchaseRestoredCallbackStatus {
         val connectIfNeeded = connectIfNeeded()
         if (!connectIfNeeded) return PurchaseRestoredCallbackStatus.Error(type)
@@ -125,16 +123,13 @@ internal class BillingWrapper(context: Context) : Closeable {
 
     fun purchase(
         activity: Activity,
-        details: ProductDetails,
-        offerToken: String?,
-        oldToken: String?,
-        replacementMode: Int?,
+        details: SkuDetails,
         deviceId: String? = null,
     ) {
         GlobalScope.launch {
             val connectIfNeeded = connectIfNeeded()
             if (!connectIfNeeded) return@launch
-            return@launch flow.purchases(activity, details, offerToken, oldToken, replacementMode, deviceId)
+            return@launch flow.purchases(activity, details, deviceId)
         }
     }
 

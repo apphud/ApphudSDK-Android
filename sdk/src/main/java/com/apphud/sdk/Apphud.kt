@@ -2,9 +2,9 @@ package com.apphud.sdk
 
 import android.app.Activity
 import android.content.Context
-import com.android.billingclient.api.ProductDetails
-import com.android.billingclient.api.Purchase
 import com.apphud.sdk.domain.*
+import com.xiaomi.billingclient.api.Purchase
+import com.xiaomi.billingclient.api.SkuDetails
 import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlin.coroutines.resume
 
@@ -115,13 +115,13 @@ object Apphud {
      * Suspends the current coroutine until the placements from
      * Product Hub > Placements are available, potentially altered based on the
      * user's involvement in A/B testing, if applicable.
-     * Method suspends until the inner `ProductDetails` are loaded from Google Play.
+     * Method suspends until the inner `SkuDetails` are loaded from Google Play.
      *
      * A placement is a specific location within a user's journey
      * (such as onboarding, settings, etc.) where its internal paywall
      * is intended to be displayed.
      *
-     * If you want to obtain placements without waiting for `ProductDetails`
+     * If you want to obtain placements without waiting for `SkuDetails`
      * from Google Play, you can use `rawPlacements()` method.
      *
      * @return The list of `ApphudPlacement` objects.
@@ -137,13 +137,13 @@ object Apphud {
      * Suspends the current coroutine until the specific placement by identifier
      * is available, potentially altered based on the
      * user's involvement in A/B testing, if applicable.
-     * Method suspends until the inner `ProductDetails` are loaded from Google Play.
+     * Method suspends until the inner `SkuDetails` are loaded from Google Play.
      *
      * A placement is a specific location within a user's journey
      * (such as onboarding, settings, etc.) where its internal paywall
      * is intended to be displayed.
      *
-     * If you want to obtain placements without waiting for `ProductDetails`
+     * If you want to obtain placements without waiting for `SkuDetails`
      * from Google Play, you can use `rawPlacements()` method.
      *
      * @return The list of `ApphudPlacement` objects.
@@ -159,7 +159,7 @@ object Apphud {
      * (such as onboarding, settings, etc.) where its internal paywall
      * is intended to be displayed.
      *
-     * If you want to obtain placements without waiting for `ProductDetails`
+     * If you want to obtain placements without waiting for `SkuDetails`
      * from Google Play, you can use `rawPlacements()` method.
      *
      * @param callback The callback function that is invoked with the list of `ApphudPlacement` objects.
@@ -172,7 +172,7 @@ object Apphud {
      * List<ApphudPlacement>: A list of placements, potentially altered based
      * on the user's involvement in A/B testing, if any.
      *
-     * __Note__: This function doesn't suspend until inner `ProductDetails`
+     * __Note__: This function doesn't suspend until inner `SkuDetails`
      * are loaded from Google Play. That means placements may or may not have
      * inner Google Play products at the time you call this function.
      *
@@ -188,11 +188,11 @@ object Apphud {
      *
      * Each paywall contains an array of `ApphudProduct` objects that
      * can be used for purchases.
-     * `ApphudProduct` is Apphud's wrapper around `ProductDetails`.
+     * `ApphudProduct` is Apphud's wrapper around `SkuDetails`.
      *
-     * Method suspends until the inner `ProductDetails` are loaded from Google Play.
+     * Method suspends until the inner `SkuDetails` are loaded from Google Play.
      *
-     * If you want to obtain paywalls without waiting for `ProductDetails` from
+     * If you want to obtain paywalls without waiting for `SkuDetails` from
      * Google Play, you can use `rawPaywalls()` method.
      *
      * @return The list of `ApphudPaywall` objects.
@@ -215,11 +215,11 @@ object Apphud {
      *
      * Each paywall contains an array of `ApphudProduct` objects that
      * can be used for purchases.
-     * `ApphudProduct` is Apphud's wrapper around `ProductDetails`.
+     * `ApphudProduct` is Apphud's wrapper around `SkuDetails`.
      *
-     * Method suspends until the inner `ProductDetails` are loaded from Google Play.
+     * Method suspends until the inner `SkuDetails` are loaded from Google Play.
      *
-     * If you want to obtain paywalls without waiting for `ProductDetails` from
+     * If you want to obtain paywalls without waiting for `SkuDetails` from
      * Google Play, you can use `rawPaywalls()` method.
      *
      * @return The list of `ApphudPaywall` objects.
@@ -237,11 +237,11 @@ object Apphud {
      *
      * Each paywall contains an array of `ApphudProduct` objects that
      * can be used for purchases.
-     * `ApphudProduct` is Apphud's wrapper around `ProductDetails`.
+     * `ApphudProduct` is Apphud's wrapper around `SkuDetails`.
      *
-     * Method suspends until the inner `ProductDetails` are loaded from Google Play.
+     * Method suspends until the inner `SkuDetails` are loaded from Google Play.
      *
-     * If you want to obtain paywalls without waiting for `ProductDetails` from
+     * If you want to obtain paywalls without waiting for `SkuDetails` from
      * Google Play, you can use `rawPaywalls()` method.
      *
      * @param callback The callback function that is invoked with the list of `ApphudPaywall` objects.
@@ -258,7 +258,7 @@ object Apphud {
      * List<ApphudPaywall>: A list of paywalls, potentially altered based
      * on the user's involvement in A/B testing, if any.
      *
-     * __Note__: This function doesn't suspend until inner `ProductDetails`
+     * __Note__: This function doesn't suspend until inner `SkuDetails`
      * are loaded from Google Play. That means paywalls may or may not have
      * inner Google Play products at the time you call this function.
      *
@@ -290,11 +290,11 @@ object Apphud {
     /**
      * Returns permission groups configured in the Apphud dashboard under Product Hub > Products.
      * These groups are cached on the device.
-     * Note that this method returns an empty array if `ProductDetails` are not yet fetched from Google Play.
+     * Note that this method returns an empty array if `SkuDetails` are not yet fetched from Google Play.
      *
      * To get notified when `permissionGroups` are ready to use, you can use ApphudListener's
      * `apphudFetchProductsDetailsProducts` or `paywallsDidFullyLoad` methods, or `productsFetchCallback`.
-     * When any of these methods is called, it indicates that `ProductDetails` are loaded and
+     * When any of these methods is called, it indicates that `SkuDetails` are loaded and
      * the `permissionGroups` method is ready to use.
      *
      * Best practice is not to use this method directly but to use `paywalls()` instead.
@@ -306,54 +306,54 @@ object Apphud {
     }
 
     /**
-     * Returns an array of `ProductDetails` objects, whose identifiers you added in Apphud > Product Hub > Products.
+     * Returns an array of `SkuDetails` objects, whose identifiers you added in Apphud > Product Hub > Products.
      * Note that this method will return empty array if products are not yet fetched.
      * To get notified when `products` are ready to use, implement `ApphudListener`'s
      * `apphudFetchProductsDetails` or `paywallsDidFullyLoad` methods, or use `productsFetchCallback`.
-     * When any of these methods is called, it indicates that `ProductDetails` are loaded and
+     * When any of these methods is called, it indicates that `SkuDetails` are loaded and
      * the `products` method is ready to use.
      * It is recommended not to use this method directly, but to use `paywalls()` instead.
      *
-     * @return A list of `ProductDetails` objects, or null if not yet available.
+     * @return A list of `SkuDetails` objects, or null if not yet available.
      */
     @Deprecated(
         "Use \"paywalls()\" method instead.",
         ReplaceWith("this.paywalls()"),
     )
-    fun products(): List<ProductDetails> {
-        return ApphudInternal.getProductDetails()
+    fun products(): List<SkuDetails> {
+        return ApphudInternal.getSkuDetails()
     }
 
     /**
-     * This callback is triggered when `ProductDetails` are fetched from Google Play Billing.
+     * This callback is triggered when `SkuDetails` are fetched from Google Play Billing.
      * Ensure that all product identifiers are added in Apphud > Product Hub > Products.
      * You can use this callback or implement `ApphudListener`'s `apphudFetchProductsDetails`
      * method, based on your preference.
      *
-     * @param callback The callback function to be invoked with the list of `ProductDetails`.
+     * @param callback The callback function to be invoked with the list of `SkuDetails`.
      */
     @Deprecated(
         "Use \"paywalls()\" method instead.",
         ReplaceWith("this.paywalls()"),
     )
-    fun productsFetchCallback(callback: (List<ProductDetails>) -> Unit) {
+    fun productsFetchCallback(callback: (List<SkuDetails>) -> Unit) {
         ApphudInternal.productsFetchCallback(callback)
     }
 
     /**
-     * Returns the `ProductDetails` object for a specific product identifier.
+     * Returns the `SkuDetails` object for a specific product identifier.
      * Ensure the product identifier is added in Apphud > Product Hub > Products.
      * The method will return `null` if the product is not yet fetched from Google Play.
      *
      * @param productIdentifier The identifier of the product.
-     * @return The `ProductDetails` object for the specified product, or null if not available.
+     * @return The `SkuDetails` object for the specified product, or null if not available.
      */
     @Deprecated(
         "Use \"paywalls()\" method instead.",
         ReplaceWith("this.paywalls()"),
     )
-    fun product(productIdentifier: String): ProductDetails? {
-        return ApphudInternal.getProductDetailsByProductId(productIdentifier)
+    fun product(productIdentifier: String): SkuDetails? {
+        return ApphudInternal.getSkuDetailsByProductId(productIdentifier)
     }
 
     //endregion
@@ -425,10 +425,6 @@ object Apphud {
      * Google Play purchase token to Apphud.
      *
      * @param activity The current Activity context.
-     * @param apphudProduct The `ApphudProduct` object representing the product to be purchased.
-     * @param offerIdToken (Required for Subscriptions) The identifier of the offer for initiating the purchase. Developer should retrieve it from SubscriptionOfferDetails object.
-     * @param oldToken (Optional) The Google Play Billing purchase token that the user is
-     *                 upgrading or downgrading from.
      * @param replacementMode (Optional) The replacement mode for the subscription update.
      * @param consumableInAppProduct (Optional) Set to true for consumable products. Otherwise purchase will be treated as non-consumable and acknowledged.
      * @param block (Optional) A callback that returns an `ApphudPurchaseResult` object.
@@ -436,18 +432,12 @@ object Apphud {
     fun purchase(
         activity: Activity,
         apphudProduct: ApphudProduct,
-        offerIdToken: String? = null,
-        oldToken: String? = null,
-        replacementMode: Int? = null,
         consumableInAppProduct: Boolean = false,
         block: ((ApphudPurchaseResult) -> Unit)?,
     ) = ApphudInternal.purchase(
         activity = activity,
         apphudProduct = apphudProduct,
         productId = null,
-        offerIdToken = offerIdToken,
-        oldToken = oldToken,
-        replacementMode = replacementMode,
         consumableInappProduct = consumableInAppProduct,
         callback = block,
     )
@@ -458,51 +448,38 @@ object Apphud {
      *
      * @param activity The current Activity context.
      * @param productId The Google Play product ID of the item to purchase.
-     * @param offerIdToken (Required for Subscriptions) The identifier of the offer for initiating the purchase. Developer should retrieve it from SubscriptionOfferDetails object.
-     * @param oldToken (Optional) The Google Play Billing purchase token that the user is
-     *                 upgrading or downgrading from.
-     * @param replacementMode (Optional) The replacement mode for the subscription update.
      * @param consumableInAppProduct (Optional) Set to true for consumable products. Otherwise purchase will be treated as non-consumable and acknowledged.
      * @param block (Optional) A callback that returns an `ApphudPurchaseResult` object.
      */
     fun purchase(
         activity: Activity,
         productId: String,
-        offerIdToken: String? = null,
-        oldToken: String? = null,
-        replacementMode: Int? = null,
         consumableInAppProduct: Boolean = false,
         block: ((ApphudPurchaseResult) -> Unit)?,
     ) = ApphudInternal.purchase(
         activity = activity,
         apphudProduct = null,
         productId = productId,
-        offerIdToken = offerIdToken,
-        oldToken = oldToken,
-        replacementMode = replacementMode,
         consumableInappProduct = consumableInAppProduct,
         callback = block,
     )
 
     /**
      * Only for use in Observer Mode: call this method after every successful purchase.
-     * Note: Passing the offerIdToken is mandatory for subscriptions!
      * This method submits the successful purchase information to Apphud.
      * Pass `paywallIdentifier` and `placementIdentifier` for A/B test analysis in Observer Mode.
      *
      * @param purchase The `Purchase` object representing the successful purchase.
-     * @param productDetails The `ProductDetails` object associated with the purchase.
-     * @param offerIdToken The identifier of the subscription's offer token.
+     * @param skuDetails The `SkuDetails` object associated with the purchase.
      * @param paywallIdentifier (Optional) The identifier of the paywall.
      * @param placementIdentifier (Optional) The identifier of the placement.
      */
     fun trackPurchase(
         purchase: Purchase,
-        productDetails: ProductDetails,
-        offerIdToken: String?,
+        skuDetails: SkuDetails,
         paywallIdentifier: String? = null,
         placementIdentifier: String? = null,
-    ) = ApphudInternal.trackPurchase(purchase, productDetails, offerIdToken, paywallIdentifier, placementIdentifier)
+    ) = ApphudInternal.trackPurchase(purchase, skuDetails, paywallIdentifier, placementIdentifier)
 
     /**
      * Implements the 'Restore Purchases' mechanism. This method sends the current Play Market

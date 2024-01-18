@@ -1,7 +1,6 @@
 package com.apphud.sdk.domain
 
-import com.android.billingclient.api.ProductDetails
-import com.android.billingclient.api.ProductDetails.SubscriptionOfferDetails
+import com.xiaomi.billingclient.api.SkuDetails
 
 data class ApphudProduct(
     /**
@@ -29,7 +28,7 @@ data class ApphudProduct(
      getPaywalls method will return callback only when Google Play products are fetched and mapped with Apphud products.
      May be `null` if product identifier is invalid, or product is not available in Google Play.
      */
-    var productDetails: ProductDetails?,
+    var skuDetails: SkuDetails?,
     /**
      * Placement Identifier, if any.
      */
@@ -47,18 +46,8 @@ data class ApphudProduct(
      */
     internal var paywallId: String?,
 ) {
-    /**
-     * @returns – Array of subscription offers with given Base Plan Id, or all offers.
-     */
-    fun subscriptionOffers(): List<SubscriptionOfferDetails>? {
-        if (basePlanId != null) {
-            return productDetails?.subscriptionOfferDetails?.filter { it.basePlanId == basePlanId }
-        } else {
-            return productDetails?.subscriptionOfferDetails
-        }
-    }
 
     override fun toString(): String {
-        return "ApphudProduct(id: ${id}, productId: ${productId}, name: ${name}, basePlanId: ${basePlanId}, productDetails: ${productDetails?.productId ?: "N/A"}, placementIdentifier: ${placementIdentifier}, paywallIdenfitier: ${paywallIdentifier}, placementId: ${placementId}, paywallId: ${paywallId})"
+        return "ApphudProduct(id: ${id}, productId: ${productId}, name: ${name}, basePlanId: ${basePlanId}, productDetails: ${skuDetails?.sku ?: "N/A"}, placementIdentifier: ${placementIdentifier}, paywallIdenfitier: ${paywallIdentifier}, placementId: ${placementId}, paywallId: ${paywallId})"
     }
 }

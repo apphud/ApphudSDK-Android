@@ -1,10 +1,10 @@
 package com.apphud.sdk.internal
 
-import com.android.billingclient.api.BillingClient
-import com.android.billingclient.api.BillingResult
 import com.apphud.sdk.internal.callback_status.PurchaseUpdatedCallbackStatus
 import com.apphud.sdk.isSuccess
 import com.apphud.sdk.logMessage
+import com.xiaomi.billingclient.api.BillingClient
+import com.xiaomi.billingclient.api.BillingResult
 import java.io.Closeable
 
 typealias PurchasesUpdatedCallback = (PurchaseUpdatedCallbackStatus) -> Unit

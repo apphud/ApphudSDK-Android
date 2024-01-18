@@ -25,7 +25,7 @@ class PaywallsMapper(
                         name = item.name,
                         store = item.store,
                         basePlanId = item.base_plan_id,
-                        productDetails = null,
+                        skuDetails = null,
                         paywallId = paywallDto.id,
                         paywallIdentifier = paywallDto.identifier,
                         placementId = null,

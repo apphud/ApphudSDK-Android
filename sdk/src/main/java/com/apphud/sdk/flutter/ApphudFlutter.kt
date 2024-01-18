@@ -40,5 +40,5 @@ object ApphudFlutter {
         replacementMode: Int? = null,
         consumableInappProduct: Boolean = false,
         block: ((ApphudPurchaseResult) -> Unit)?,
-    ) = ApphudInternal.purchase(activity, null, productId, offerIdToken, oldToken, replacementMode, consumableInappProduct, block)
+    ) = ApphudInternal.purchase(activity, null, productId, consumableInappProduct, block)
 }

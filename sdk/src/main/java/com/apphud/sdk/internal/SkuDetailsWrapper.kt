@@ -1,25 +1,26 @@
 package com.apphud.sdk.internal
 
 import com.apphud.sdk.*
-import com.apphud.sdk.ApphudLog
 import com.apphud.sdk.domain.PurchaseRecordDetails
 import com.apphud.sdk.internal.callback_status.PurchaseRestoredCallbackStatus
 import com.xiaomi.billingclient.api.BillingClient
 import com.xiaomi.billingclient.api.Purchase
 import com.xiaomi.billingclient.api.SkuDetails
+import com.xiaomi.billingclient.api.SkuDetailsParams
 import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlin.concurrent.thread
 import kotlin.coroutines.resume
 
-typealias ProductType = String
-typealias ApphudProductDetailsCallback = (List<SkuDetails>) -> Unit
-typealias ApphudProductDetailsRestoreCallback = (PurchaseRestoredCallbackStatus) -> Unit
 
-internal class ProductDetailsWrapper(
+typealias ProductType = String
+typealias ApphudSkuDetailsCallback = (List<SkuDetails>) -> Unit
+typealias ApphudSkuDetailsRestoreCallback = (PurchaseRestoredCallbackStatus) -> Unit
+
+internal class SkuDetailsWrapper(
     private val billing: BillingClient,
 ) : BaseAsyncWrapper() {
-    var detailsCallback: ApphudProductDetailsCallback? = null
-    var restoreCallback: ApphudProductDetailsRestoreCallback? = null
+    var detailsCallback: ApphudSkuDetailsCallback? = null
+    var restoreCallback: ApphudSkuDetailsRestoreCallback? = null
 
     fun restoreAsync(
         @BillingClient.SkuType type: ProductType,
@@ -27,18 +28,7 @@ internal class ProductDetailsWrapper(
     ) {
         recordsToRestore?.let {
             val products = recordsToRestore.map { it.skus }.flatten()
-            val productList =
-                products.map {
-                    QueryProductDetailsParams.Product.newBuilder()
-                        .setProductId(it)
-                        .setProductType(type)
-                        .build()
-                }
-
-            val params =
-                QueryProductDetailsParams.newBuilder()
-                    .setProductList(productList)
-                    .build()
+            val params = SkuDetailsParams.newBuilder().setSkusList(products).setType(type).build()
 
             thread(start = true, name = "restoreAsync+$type") {
                 billing.querySkuDetailsAsync(params) { result, details ->
@@ -84,39 +74,28 @@ internal class ProductDetailsWrapper(
     }
 
     suspend fun restoreSync(
-        @BillingClient.ProductType type: ProductType,
-        records: List<PurchaseHistoryRecord>,
+        @BillingClient.SkuType type: ProductType,
+        records: List<Purchase>,
     ): PurchaseRestoredCallbackStatus =
         suspendCancellableCoroutine { continuation ->
             var resumed = false
-            val products = records.map { it.products }.flatten().distinct()
-            val productList =
-                products.map {
-                    QueryProductDetailsParams.Product.newBuilder()
-                        .setProductId(it)
-                        .setProductType(type)
-                        .build()
-                }
-
-            val params =
-                QueryProductDetailsParams.newBuilder()
-                    .setProductList(productList)
-                    .build()
+            val products = records.map { it.skus }.flatten().distinct()
+            val params = SkuDetailsParams.newBuilder().setSkusList(products).setType(type).build()
 
             thread(start = true, name = "restoreAsync+$type") {
-                billing.queryProductDetailsAsync(params) { result, details ->
+                billing.querySkuDetailsAsync(params) { result, details ->
                     when (result.isSuccess()) {
                         true -> {
                             val values = details ?: emptyList()
 
                             val purchases = mutableListOf<PurchaseRecordDetails>()
-                            for (productDetails in values) {
-                                val record = records.firstOrNull { it.products.contains(productDetails.productId) }
+                            for (skuDetails in values) {
+                                val record = records.firstOrNull { it.skus.contains(skuDetails.sku) }
                                 record?.let {
                                     purchases.add(
                                         PurchaseRecordDetails(
                                             record = it,
-                                            details = productDetails,
+                                            details = skuDetails,
                                         ),
                                     )
                                 }
@@ -158,29 +137,19 @@ internal class ProductDetailsWrapper(
      * If manualCallback was defined then the result will be moved to this callback, otherwise detailsCallback will be used
      * */
     fun queryAsync(
-        @BillingClient.ProductType type: ProductType,
+        @BillingClient.SkuType type: ProductType,
         products: List<ProductId>,
-        manualCallback: ApphudProductDetailsCallback? = null,
+        manualCallback: ApphudSkuDetailsCallback? = null,
     ) {
-        val productList =
-            products.map {
-                QueryProductDetailsParams.Product.newBuilder()
-                    .setProductId(it)
-                    .setProductType(type)
-                    .build()
-            }
-
-        val params =
-            QueryProductDetailsParams.newBuilder()
-                .setProductList(productList)
-                .build()
+        val params = SkuDetailsParams.newBuilder().setSkusList(products).setType(type).build()
 
         thread(start = true, name = "queryAsync+$type") {
-            billing.queryProductDetailsAsync(params) { result, details ->
+            billing.querySkuDetailsAsync(params) { result, details ->
+                val detailsList = details?: emptyList()
                 when (result.isSuccess()) {
                     true -> {
-                        manualCallback?.let { manualCallback.invoke(details) }
-                            ?: detailsCallback?.invoke(details)
+                        manualCallback?.let { manualCallback.invoke(detailsList) }
+                            ?: detailsCallback?.invoke(detailsList)
                     }
                     else -> result.logMessage("Query ProductsDetails Async type: $type products: $products")
                 }
@@ -189,36 +158,25 @@ internal class ProductDetailsWrapper(
     }
 
     suspend fun querySync(
-        @BillingClient.ProductType type: ProductType,
+        @BillingClient.SkuType type: ProductType,
         products: List<ProductId>,
-    ): List<ProductDetails>? =
+    ): List<SkuDetails>? =
         suspendCancellableCoroutine { continuation ->
             var resumed = false
-            val productList =
-                products.map {
-                    QueryProductDetailsParams.Product.newBuilder()
-                        .setProductId(it)
-                        .setProductType(type)
-                        .build()
-                }
-
-            val params =
-                QueryProductDetailsParams.newBuilder()
-                    .setProductList(productList)
-                    .build()
+            val params = SkuDetailsParams.newBuilder().setSkusList(products).setType(type).build()
 
             thread(start = true, name = "queryAsync+$type") {
-                billing.queryProductDetailsAsync(params) { result, details ->
+                billing.querySkuDetailsAsync(params) { result, details ->
                     when (result.isSuccess()) {
                         true -> {
-                            ApphudLog.logI("Query ProductDetails success $type")
+                            ApphudLog.logI("Query SkuDetails success $type")
                             if (continuation.isActive && !resumed) {
                                 resumed = true
                                 continuation.resume(details.orEmpty())
                             }
                         }
                         else -> {
-                            result.logMessage("Query ProductDetails Async type: $type products: $products")
+                            result.logMessage("Query SkuDetails Async type: $type products: $products")
                             if (continuation.isActive && !resumed) {
                                 resumed = true
                                 continuation.resume(null)

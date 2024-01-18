@@ -1,5 +1,6 @@
 package com.apphud.demo.ui.customer
 
+import android.content.pm.PackageManager
 import android.os.Bundle
 import android.util.Log
 import android.view.LayoutInflater
@@ -12,7 +13,6 @@ import androidx.lifecycle.lifecycleScope
 import androidx.navigation.fragment.findNavController
 import androidx.recyclerview.widget.DividerItemDecoration
 import androidx.recyclerview.widget.RecyclerView
-import com.android.billingclient.api.ProductDetails
 import com.apphud.demo.BuildConfig
 import com.apphud.demo.databinding.FragmentCustomerBinding
 import com.apphud.sdk.Apphud
@@ -23,9 +23,11 @@ import com.apphud.sdk.domain.ApphudPlacement
 import com.apphud.sdk.domain.ApphudSubscription
 import com.apphud.sdk.domain.ApphudUser
 import com.apphud.sdk.managers.HeadersInterceptor
+import com.xiaomi.billingclient.api.SkuDetails
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+
 
 class CustomerFragment : Fragment() {
     private var _binding: FragmentCustomerBinding? = null
@@ -45,7 +47,16 @@ class CustomerFragment : Fragment() {
         customerId.text = Apphud.userId()
 
         binding.sdk.text = "v." + HeadersInterceptor.X_SDK_VERSION
-        binding.appVersion.text = BuildConfig.VERSION_NAME + " (" + BuildConfig.VERSION_CODE + ")"
+
+        try {
+            context?.let{
+                val pInfo = it.packageManager.getPackageInfo( it.packageName, 0)
+                binding.appVersion.text = pInfo.versionName + " (" + pInfo.versionCode + ")"
+            }
+        } catch (e: PackageManager.NameNotFoundException) {
+            e.printStackTrace()
+            binding.appVersion.text = ""
+        }
 
         binding.btnSync.setOnClickListener {
             Apphud.restorePurchases { subscriptions, purchases, error ->
@@ -84,8 +95,8 @@ class CustomerFragment : Fragment() {
                     Log.d("ApphudDemo", "apphudNonRenewingPurchasesUpdated")
                 }
 
-                override fun apphudFetchProductDetails(details: List<ProductDetails>) {
-                    Log.d("ApphudDemo", "apphudFetchProductDetails()")
+                override fun apphudFetchSkuDetails(details: List<SkuDetails>) {
+                    Log.d("ApphudDemo", "apphudFetchSkuDetails()")
                     // TODO handle loaded sku details
                 }
 

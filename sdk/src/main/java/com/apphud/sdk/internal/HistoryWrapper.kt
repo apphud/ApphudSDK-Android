@@ -1,10 +1,9 @@
 package com.apphud.sdk.internal
 
-import com.android.billingclient.api.BillingClient
-import com.android.billingclient.api.QueryPurchaseHistoryParams
 import com.apphud.sdk.ApphudLog
 import com.apphud.sdk.internal.callback_status.PurchaseHistoryCallbackStatus
 import com.apphud.sdk.response
+import com.xiaomi.billingclient.api.BillingClient
 import kotlinx.coroutines.suspendCancellableCoroutine
 import java.io.Closeable
 import kotlin.concurrent.thread
@@ -18,14 +17,9 @@ internal class HistoryWrapper(
     var callback: PurchaseHistoryListener? = null
 
     fun queryPurchaseHistory(
-        @BillingClient.ProductType type: ProductType,
+        @BillingClient.SkuType type: ProductType,
     ) {
-        val params =
-            QueryPurchaseHistoryParams.newBuilder()
-                .setProductType(type)
-                .build()
-
-        billing.queryPurchaseHistoryAsync(params) { result, purchases ->
+        billing.queryPurchasesAsync(type) { result, purchases ->
             result.response(
                 message = "Failed restore purchases",
                 error = { callback?.invoke(PurchaseHistoryCallbackStatus.Error(type, result)) },
@@ -35,17 +29,12 @@ internal class HistoryWrapper(
     }
 
     suspend fun queryPurchaseHistorySync(
-        @BillingClient.ProductType type: ProductType,
+        @BillingClient.SkuType type: ProductType,
     ): PurchaseHistoryCallbackStatus =
         suspendCancellableCoroutine { continuation ->
             var resumed = false
             thread(start = true, name = "queryAsync+$type") {
-                val params =
-                    QueryPurchaseHistoryParams.newBuilder()
-                        .setProductType(type)
-                        .build()
-
-                billing.queryPurchaseHistoryAsync(params) { result, purchases ->
+                billing.queryPurchasesAsync(type) { result, purchases ->
                     result.response(
                         message = "Failed restore purchases",
                         error = {

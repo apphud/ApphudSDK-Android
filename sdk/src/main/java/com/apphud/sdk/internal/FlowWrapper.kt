@@ -1,22 +1,19 @@
 package com.apphud.sdk.internal
 
 import android.app.Activity
-import com.android.billingclient.api.BillingClient
-import com.android.billingclient.api.BillingFlowParams
-import com.android.billingclient.api.ProductDetails
 import com.apphud.sdk.ApphudLog
 import com.apphud.sdk.isSuccess
 import com.apphud.sdk.logMessage
+import com.xiaomi.billingclient.api.BillingClient
+import com.xiaomi.billingclient.api.BillingFlowParams
+import com.xiaomi.billingclient.api.SkuDetails
 
 internal class FlowWrapper(private val billing: BillingClient) {
     var obfuscatedAccountId: String? = null
 
     fun purchases(
         activity: Activity,
-        details: ProductDetails,
-        offerToken: String? = null,
-        oldToken: String? = null,
-        replacementMode: Int?,
+        details: SkuDetails,
         deviceId: String? = null,
     ) {
         obfuscatedAccountId =
@@ -30,16 +27,12 @@ internal class FlowWrapper(private val billing: BillingClient) {
             }
 
         try {
-            val params: BillingFlowParams =
-                if (offerToken != null) {
-                    if (oldToken != null) {
-                        upDowngradeBillingFlowParamsBuilder(details, offerToken, oldToken, replacementMode)
-                    } else {
-                        billingFlowParamsBuilder(details, offerToken)
-                    }
-                } else {
-                    billingFlowParamsBuilder(details)
-                }
+
+            val params = BillingFlowParams.newBuilder().setSkuDetails(details)
+                //.setObfuscatedAccountId("xxx") //TODO changes
+                //.setObfuscatedProfileId("yyy")
+                //.setWebHookUrl("https://")
+                .build()
 
             billing.launchBillingFlow(activity, params)
                 .also {
@@ -56,83 +49,5 @@ internal class FlowWrapper(private val billing: BillingClient) {
         } catch (ex: Exception) {
             ex.message?.let { ApphudLog.logE(it) }
         }
-    }
-
-    /**
-     * BillingFlowParams Builder for upgrades and downgrades.
-     *
-     * @param productDetails ProductDetails object returned by the library.
-     * @param offerToken offer id token
-     * @param oldToken the purchase token of the subscription purchase being upgraded or downgraded.
-     *
-     * @return [BillingFlowParams].
-     */
-    private fun upDowngradeBillingFlowParamsBuilder(
-        productDetails: ProductDetails,
-        offerToken: String,
-        oldToken: String,
-        replacementMode: Int?,
-    ): BillingFlowParams {
-        val pMode = replacementMode ?: BillingFlowParams.ProrationMode.IMMEDIATE_AND_CHARGE_FULL_PRICE
-        return BillingFlowParams.newBuilder().setProductDetailsParamsList(
-            listOf(
-                BillingFlowParams.ProductDetailsParams.newBuilder()
-                    .setProductDetails(productDetails)
-                    .setOfferToken(offerToken)
-                    .build(),
-            ),
-        ).setSubscriptionUpdateParams(
-            BillingFlowParams.SubscriptionUpdateParams.newBuilder()
-                .setOldPurchaseToken(oldToken)
-                .setReplaceProrationMode(
-                    pMode,
-                )
-                .build(),
-        )
-            .apply { obfuscatedAccountId?.let { setObfuscatedAccountId(it) } }
-            .build()
-    }
-
-    /**
-     * BillingFlowParams Builder for normal purchases.
-     *
-     * @param productDetails ProductDetails object returned by the library.
-     * @param offerToken  offer id token
-     *
-     * @return [BillingFlowParams].
-     */
-    private fun billingFlowParamsBuilder(
-        productDetails: ProductDetails,
-        offerToken: String,
-    ): BillingFlowParams {
-        return BillingFlowParams.newBuilder().setProductDetailsParamsList(
-            listOf(
-                BillingFlowParams.ProductDetailsParams.newBuilder()
-                    .setProductDetails(productDetails)
-                    .setOfferToken(offerToken)
-                    .build(),
-            ),
-        )
-            .apply { obfuscatedAccountId?.let { setObfuscatedAccountId(it) } }
-            .build()
-    }
-
-    /**
-     * BillingFlowParams Builder for normal purchases.
-     *
-     * @param productDetails ProductDetails object returned by the library.
-     *
-     * @return [BillingFlowParams].
-     */
-    private fun billingFlowParamsBuilder(productDetails: ProductDetails): BillingFlowParams {
-        return BillingFlowParams.newBuilder().setProductDetailsParamsList(
-            listOf(
-                BillingFlowParams.ProductDetailsParams.newBuilder()
-                    .setProductDetails(productDetails)
-                    .build(),
-            ),
-        )
-            .apply { obfuscatedAccountId?.let { setObfuscatedAccountId(it) } }
-            .build()
     }
 }

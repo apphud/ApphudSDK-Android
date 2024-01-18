@@ -12,10 +12,8 @@ import androidx.lifecycle.lifecycleScope
 import androidx.navigation.fragment.navArgs
 import androidx.recyclerview.widget.GridLayoutManager
 import androidx.recyclerview.widget.RecyclerView
-import com.android.billingclient.api.BillingClient
 import com.apphud.demo.R
 import com.apphud.demo.databinding.FragmentProductsBinding
-import com.apphud.demo.ui.utils.OffersFragment
 import com.apphud.sdk.Apphud
 import com.apphud.sdk.domain.ApphudPaywall
 import kotlinx.coroutines.Dispatchers
@@ -42,41 +40,21 @@ class ProductsFragment : Fragment() {
         viewAdapter = ProductsAdapter(productsViewModel, context)
         viewAdapter.selectProduct = { product ->
             activity?.let { activity ->
-                product.productDetails?.let { details ->
-                    // Use Apphud purchases flow
-                    if (details.productType == BillingClient.ProductType.SUBS) {
-                        product.productDetails?.subscriptionOfferDetails?.let {
-                            val fragment = OffersFragment()
-                            fragment.offers = it
-                            fragment.offerSelected = { offer ->
-                                Apphud.purchase(activity, product, offer.offerToken) { result ->
-                                    result.error?.let { err ->
-                                        Toast.makeText(activity, if (result.userCanceled()) "User Canceled" else err.message, Toast.LENGTH_SHORT).show()
-                                    } ?: run {
-                                        Toast.makeText(activity, R.string.success, Toast.LENGTH_SHORT).show()
-                                    }
-                                }
-                            }
-                            fragment.apply {
-                                show(activity.supportFragmentManager, tag)
+                product.skuDetails?.let { details ->
+                    if (product.productId == "com.apphud.demo.nonconsumable.premium") { //TODO need changes
+                        Apphud.purchase(activity = activity, apphudProduct = product, consumableInAppProduct = false) { result ->
+                            result.error?.let { err ->
+                                Toast.makeText(activity, if (result.userCanceled()) "User Canceled" else err.message, Toast.LENGTH_SHORT).show()
+                            } ?: run {
+                                Toast.makeText(activity, R.string.success, Toast.LENGTH_SHORT).show()
                             }
                         }
                     } else {
-                        if (product.productId == "com.apphud.demo.nonconsumable.premium") {
-                            Apphud.purchase(activity = activity, apphudProduct = product, consumableInAppProduct = false) { result ->
-                                result.error?.let { err ->
-                                    Toast.makeText(activity, if (result.userCanceled()) "User Canceled" else err.message, Toast.LENGTH_SHORT).show()
-                                } ?: run {
-                                    Toast.makeText(activity, R.string.success, Toast.LENGTH_SHORT).show()
-                                }
-                            }
-                        } else {
-                            Apphud.purchase(activity = activity, apphudProduct = product, consumableInAppProduct = true) { result ->
-                                result.error?.let { err ->
-                                    Toast.makeText(activity, if (result.userCanceled()) "User Canceled" else err.message, Toast.LENGTH_SHORT).show()
-                                } ?: run {
-                                    Toast.makeText(activity, R.string.success, Toast.LENGTH_SHORT).show()
-                                }
+                        Apphud.purchase(activity = activity, apphudProduct = product, consumableInAppProduct = true) { result ->
+                            result.error?.let { err ->
+                                Toast.makeText(activity, if (result.userCanceled()) "User Canceled" else err.message, Toast.LENGTH_SHORT).show()
+                            } ?: run {
+                                Toast.makeText(activity, R.string.success, Toast.LENGTH_SHORT).show()
                             }
                         }
                     }

@@ -6,7 +6,6 @@ import android.view.View
 import android.view.ViewGroup
 import android.widget.TextView
 import androidx.recyclerview.widget.RecyclerView
-import com.android.billingclient.api.BillingClient
 import com.apphud.demo.R
 import com.apphud.sdk.domain.ApphudProduct
 
@@ -30,12 +29,8 @@ class ProductsAdapter(private val productsViewModel: ProductsViewModel, private 
         ) {
             productName.text = "Name: " + item.name + "\nProduct ID: " + item.productId + "\nBase Plan ID: " + item.basePlanId
 
-            item.productDetails?.let { details ->
-                if (details.productType == BillingClient.ProductType.SUBS) {
-                    productPrice.text = item.subscriptionOffers()?.firstOrNull()?.pricingPhases?.pricingPhaseList?.firstOrNull()?.formattedPrice ?: ""
-                } else {
-                    productPrice.text = details.oneTimePurchaseOfferDetails?.formattedPrice ?: ""
-                }
+            item.skuDetails?.let { details ->
+                productPrice.text = details.originalPrice
             } ?: run {
                 productPrice.text = "ProductDetails N/A"
             }

@@ -6,9 +6,6 @@ import android.content.pm.PackageManager.PackageInfoFlags
 import android.net.ConnectivityManager
 import android.net.NetworkCapabilities
 import android.os.Build
-import com.android.billingclient.api.BillingClient
-import com.android.billingclient.api.ProductDetails
-import com.android.billingclient.api.Purchase
 import com.apphud.sdk.*
 import com.apphud.sdk.ApphudInternal.fallbackMode
 import com.apphud.sdk.body.*
@@ -22,6 +19,8 @@ import com.apphud.sdk.parser.Parser
 import com.apphud.sdk.storage.SharedPreferencesStorage
 import com.google.gson.GsonBuilder
 import com.google.gson.reflect.TypeToken
+import com.xiaomi.billingclient.api.Purchase
+import com.xiaomi.billingclient.api.SkuDetails
 import kotlinx.coroutines.suspendCancellableCoroutine
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
@@ -462,8 +461,6 @@ object RequestManager {
     fun purchased(
         purchase: Purchase,
         apphudProduct: ApphudProduct?,
-        offerToken: String?,
-        oldToken: String?,
         completionHandler: (ApphudUser?, ApphudError?) -> Unit,
     ) {
         if (!canPerformRequest()) {
@@ -480,7 +477,7 @@ object RequestManager {
 
         val purchaseBody =
             apphudProduct?.let {
-                makePurchaseBody(purchase, it.productDetails, it.paywallId, it.placementId, it.id, offerToken, oldToken)
+                makePurchaseBody(purchase, it.skuDetails, it.paywallId, it.placementId, it.id)
             }
         if (purchaseBody == null) {
             val message =
@@ -518,8 +515,7 @@ object RequestManager {
         apphudProduct: ApphudProduct? = null,
         purchaseRecordDetailsSet: List<PurchaseRecordDetails>?,
         purchase: Purchase?,
-        productDetails: ProductDetails?,
-        offerIdToken: String?,
+        skuDetails: SkuDetails?,
         observerMode: Boolean,
     ): ApphudUser? =
         suspendCancellableCoroutine { continuation ->
@@ -544,12 +540,11 @@ object RequestManager {
                         purchaseRecordDetailsSet,
                         observerMode,
                     )
-                } else if (purchase != null && productDetails != null) {
+                } else if (purchase != null && skuDetails != null) {
                     makeTrackPurchasesBody(
                         apphudProduct,
                         purchase,
-                        productDetails,
-                        offerIdToken,
+                        skuDetails,
                         observerMode,
                     )
                 } else {
@@ -947,12 +942,10 @@ object RequestManager {
 
     private fun makePurchaseBody(
         purchase: Purchase,
-        productDetails: ProductDetails?,
+        skuDetails: SkuDetails?,
         paywall_id: String?,
         placement_id: String?,
-        apphud_product_id: String?,
-        offerIdToken: String?,
-        oldToken: String?,
+        apphud_product_id: String?
     ): PurchaseBody {
         return PurchaseBody(
             device_id = deviceId,
@@ -960,19 +953,19 @@ object RequestManager {
                 listOf(
                     PurchaseItemBody(
                         order_id = purchase.orderId,
-                        product_id = productDetails?.let { productDetails.productId } ?: purchase.products.first(),
+                        product_id = skuDetails?.let { skuDetails.sku } ?: purchase.skus.first(),
                         purchase_token = purchase.purchaseToken,
-                        price_currency_code = productDetails?.priceCurrencyCode(),
-                        price_amount_micros = productDetails?.priceAmountMicros(),
-                        subscription_period = productDetails?.subscriptionPeriod(),
+                        price_currency_code = skuDetails?.priceCurrencyCode,
+                        price_amount_micros = skuDetails?.priceAmountMicros,
+                        subscription_period = null, //TODO changes
                         paywall_id = paywall_id,
                         placement_id = placement_id,
                         product_bundle_id = apphud_product_id,
                         observer_mode = false,
                         billing_version = BILLING_VERSION,
                         purchase_time = purchase.purchaseTime,
-                        product_info = productDetails?.let { ProductInfo(productDetails, offerIdToken) },
-                        product_type = productDetails?.productType,
+                        product_info = skuDetails?.let { ProductInfo(skuDetails) },
+                        product_type = skuDetails?.type,
                     ),
                 ),
         )
@@ -990,24 +983,24 @@ object RequestManager {
             purchases.map { purchase ->
                 PurchaseItemBody(
                     order_id = null,
-                    product_id = purchase.details.productId,
+                    product_id = purchase.details.sku,
                     purchase_token = purchase.record.purchaseToken,
-                    price_currency_code = purchase.details.priceCurrencyCode(),
+                    price_currency_code = purchase.details.priceCurrencyCode,
                     price_amount_micros =
-                        if ((System.currentTimeMillis() - purchase.record.purchaseTime) < ONE_HOUR) {
-                            purchase.details.priceAmountMicros()
+                        if ((System.currentTimeMillis() - purchase.record.purchaseTimeLong()) < ONE_HOUR) {
+                            purchase.details.priceAmountMicros
                         } else {
                             null
                         },
-                    subscription_period = purchase.details.subscriptionPeriod(),
-                    paywall_id = if (apphudProduct?.productDetails?.productId == purchase.details.productId) apphudProduct.paywallId else null,
-                    placement_id = if (apphudProduct?.productDetails?.productId == purchase.details.productId) apphudProduct.placementId else null,
-                    product_bundle_id = if (apphudProduct?.productDetails?.productId == purchase.details.productId) apphudProduct.id else null,
+                    subscription_period = null, //TODO changes
+                    paywall_id = if (apphudProduct?.skuDetails?.sku == purchase.details.sku) apphudProduct?.paywallId else null,
+                    placement_id = if (apphudProduct?.skuDetails?.sku == purchase.details.sku) apphudProduct?.placementId else null,
+                    product_bundle_id = if (apphudProduct?.skuDetails?.sku == purchase.details.sku) apphudProduct?.id else null,
                     observer_mode = observerMode,
                     billing_version = BILLING_VERSION,
                     purchase_time = purchase.record.purchaseTime,
                     product_info = null,
-                    product_type = purchase.details.productType,
+                    product_type = purchase.details.type,
                 )
             }.sortedByDescending { it.purchase_time },
     )
@@ -1015,8 +1008,7 @@ object RequestManager {
     private fun makeTrackPurchasesBody(
         apphudProduct: ApphudProduct? = null,
         purchase: Purchase,
-        productDetails: ProductDetails,
-        offerIdToken: String?,
+        skuDetails: SkuDetails,
         observerMode: Boolean,
     ) = PurchaseBody(
         device_id = deviceId,
@@ -1024,19 +1016,19 @@ object RequestManager {
             listOf(
                 PurchaseItemBody(
                     order_id = purchase.orderId,
-                    product_id = purchase.products.first(),
+                    product_id = purchase.skus.first(),
                     purchase_token = purchase.purchaseToken,
-                    price_currency_code = productDetails.priceCurrencyCode(),
-                    price_amount_micros = productDetails.priceAmountMicros(),
-                    subscription_period = productDetails.subscriptionPeriod(),
-                    paywall_id = if (apphudProduct?.productDetails?.productId == purchase.products.first()) apphudProduct?.paywallId else null,
-                    placement_id = if (apphudProduct?.productDetails?.productId == purchase.products.first()) apphudProduct?.placementId else null,
-                    product_bundle_id = if (apphudProduct?.productDetails?.productId == purchase.products.first()) apphudProduct?.id else null,
+                    price_currency_code = skuDetails.priceCurrencyCode,
+                    price_amount_micros = skuDetails.priceAmountMicros,
+                    subscription_period =  null, //TODO changes
+                    paywall_id = if (apphudProduct?.skuDetails?.sku == purchase.skus.first()) apphudProduct?.paywallId else null,
+                    placement_id = if (apphudProduct?.skuDetails?.sku == purchase.skus.first()) apphudProduct?.placementId else null,
+                    product_bundle_id = if (apphudProduct?.skuDetails?.sku == purchase.skus.first()) apphudProduct?.id else null,
                     observer_mode = observerMode,
                     billing_version = BILLING_VERSION,
                     purchase_time = purchase.purchaseTime,
-                    product_info = ProductInfo(productDetails, offerIdToken),
-                    product_type = productDetails.productType,
+                    product_info = ProductInfo(skuDetails),
+                    product_type = skuDetails.type,
                 ),
             ),
     )
@@ -1129,34 +1121,11 @@ object RequestManager {
     }
 }
 
-fun ProductDetails.priceCurrencyCode(): String? {
-    val res: String? =
-        if (this.productType == BillingClient.ProductType.SUBS) {
-            this.subscriptionOfferDetails?.firstOrNull()?.pricingPhases?.pricingPhaseList?.firstOrNull()?.priceCurrencyCode
-        } else {
-            this.oneTimePurchaseOfferDetails?.priceCurrencyCode
-        }
-    return res
-}
-
-fun ProductDetails.priceAmountMicros(): Long? {
-    if (this.productType == BillingClient.ProductType.SUBS) {
-        return null
-    } else {
-        return this.oneTimePurchaseOfferDetails?.priceAmountMicros
-    }
-}
-
-fun ProductDetails.subscriptionPeriod(): String? {
-    val res: String? =
-        if (this.productType == BillingClient.ProductType.SUBS) {
-            if (this.subscriptionOfferDetails?.size == 1 && this.subscriptionOfferDetails?.firstOrNull()?.pricingPhases?.pricingPhaseList?.size == 1) {
-                this.subscriptionOfferDetails?.firstOrNull()?.pricingPhases?.pricingPhaseList?.firstOrNull()?.billingPeriod
-            } else {
-                null
-            }
-        } else {
-            null
+fun Purchase.purchaseTimeLong(): Long {
+    var res = try {
+            this.purchaseTime.toLong()
+        } catch (ex: Exception){
+            0L
         }
     return res
 }

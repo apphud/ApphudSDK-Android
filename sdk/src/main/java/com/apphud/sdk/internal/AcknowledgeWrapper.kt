@@ -1,11 +1,10 @@
 package com.apphud.sdk.internal
 
-import com.android.billingclient.api.AcknowledgePurchaseParams
-import com.android.billingclient.api.BillingClient
-import com.android.billingclient.api.BillingResult
-import com.android.billingclient.api.Purchase
 import com.apphud.sdk.internal.callback_status.PurchaseCallbackStatus
 import com.apphud.sdk.response
+import com.xiaomi.billingclient.api.BillingClient
+import com.xiaomi.billingclient.api.BillingResult
+import com.xiaomi.billingclient.api.Purchase
 import java.io.Closeable
 
 typealias AcknowledgeCallback = (PurchaseCallbackStatus, Purchase) -> Unit
@@ -26,11 +25,7 @@ internal class AcknowledgeWrapper(
             throw IllegalArgumentException("Token empty or blank")
         }
 
-        val params =
-            AcknowledgePurchaseParams.newBuilder()
-                .setPurchaseToken(token)
-                .build()
-        billing.acknowledgePurchase(params) { result: BillingResult ->
+        billing.acknowledgePurchase(purchase.purchaseToken) { result: BillingResult ->
             result.response(
                 MESSAGE,
                 { callBack?.invoke(PurchaseCallbackStatus.Error(result.responseCode.toString()), purchase) },
