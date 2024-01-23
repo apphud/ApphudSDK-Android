@@ -43,6 +43,7 @@ internal fun ApphudInternal.syncPurchases(
 
                     if (purchases.isEmpty()) {
                         ApphudLog.log(message = "SyncPurchases: Nothing to restore", sendLogToServer = false)
+                        storage.isNeedSync = false
                         mainScope.launch {
                             refreshEntitlements(true)
                             currentUser?.let {
