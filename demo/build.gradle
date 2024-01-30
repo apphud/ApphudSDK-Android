@@ -6,10 +6,13 @@ apply plugin: 'androidx.navigation.safeargs'
 android {
 
     defaultConfig {
-        applicationId "com.apphud.demo"
+        applicationId "com.apphud.demo.mi"
         minSdkVersion 26
         compileSdk 34
         targetSdk 34
+
+        versionName "1.0.0_mitest"
+        versionCode 1
 
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
     }
@@ -33,7 +36,7 @@ android {
     kotlinOptions {
         jvmTarget = '17'
     }
-    namespace 'com.apphud.demo'
+    namespace 'com.apphud.demo.mi'
 }
 
 dependencies {
@@ -57,7 +60,7 @@ dependencies {
     //To use from jitpack
     //implementation "com.github.apphud:ApphudSDK-Android:2.2.3"
 
-    implementation 'com.xiaomi.billingclient:billing:1.0.9'
+    implementation 'com.xiaomi.billingclient:billing:1.1.2'
 
     testImplementation 'junit:junit:4.13.2'
     androidTestImplementation 'androidx.test.ext:junit:1.1.5'

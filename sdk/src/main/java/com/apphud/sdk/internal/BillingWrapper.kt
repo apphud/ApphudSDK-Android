@@ -2,6 +2,7 @@ package com.apphud.sdk.internal
 
 import android.app.Activity
 import android.content.Context
+import android.util.Log
 import com.apphud.sdk.ApphudLog
 import com.apphud.sdk.ProductId
 import com.apphud.sdk.internal.callback_status.PurchaseHistoryCallbackStatus
@@ -17,28 +18,42 @@ import kotlinx.coroutines.sync.withLock
 import java.io.Closeable
 import kotlin.coroutines.resume
 
-internal class BillingWrapper(context: Context) : Closeable {
-    private val builder = BillingClient.newBuilder(context)
+internal class BillingWrapper(activity: Activity) : Closeable {
+    private val builder = BillingClient.newBuilder(activity)
     private val purchases = PurchasesUpdated(builder)
 
-    private val billing = builder.build()
-    private val prod = SkuDetailsWrapper(billing)
-    private val flow = FlowWrapper(billing)
-    private val consume = ConsumeWrapper(billing)
-    private val history = HistoryWrapper(billing)
-    private val acknowledge = AcknowledgeWrapper(billing)
+    private var billing: BillingClient
+    private var prod :SkuDetailsWrapper
+    private var flow :FlowWrapper
+    private var consume :ConsumeWrapper
+    private var history :HistoryWrapper
+    private var acknowledge :AcknowledgeWrapper
 
     private val mutex = Mutex()
 
+    init{
+        billing = BillingClient.newBuilder(activity).build()
+        billing.enableFloatView(activity)
+
+        prod = SkuDetailsWrapper(billing)
+        flow = FlowWrapper(billing)
+        consume = ConsumeWrapper(billing)
+        history = HistoryWrapper(billing)
+        acknowledge = AcknowledgeWrapper(billing)
+    }
+
+
+    private var isBillingReady = false
     private suspend fun connectIfNeeded(): Boolean {
         var result: Boolean
         mutex.withLock {
-            if (billing.isReady) {
+            if (isBillingReady) {
                 result = true
             } else {
                 try {
                     while (!billing.connect()) {
-                        Thread.sleep(300)
+                        ApphudLog.log("WAITING for connection")
+                        Thread.sleep(500)
                     }
                     result = true
                 } catch (ex: java.lang.Exception) {
@@ -50,19 +65,24 @@ internal class BillingWrapper(context: Context) : Closeable {
         return result
     }
 
-    suspend fun BillingClient.connect(): Boolean {
+    private suspend fun BillingClient.connect(): Boolean {
         var resumed = false
         return suspendCancellableCoroutine { continuation ->
+
             startConnection(
                 object : BillingClientStateListener {
                     override fun onBillingSetupFinished(billingResult: BillingResult) {
                         if (billingResult.responseCode == BillingClient.BillingResponseCode.OK) {
                             if (continuation.isActive && !resumed) {
+                                ApphudLog.log("CONNECTED")
+                                isBillingReady = true
                                 resumed = true
                                 continuation.resume(true)
                             }
                         } else {
                             if (continuation.isActive && !resumed) {
+                                isBillingReady = false
+                                ApphudLog.log("DISCONNECTED")
                                 resumed = true
                                 continuation.resume(false)
                             }
@@ -124,12 +144,15 @@ internal class BillingWrapper(context: Context) : Closeable {
     fun purchase(
         activity: Activity,
         details: SkuDetails,
+        offerToken: String?,
+        oldToken: String?,
+        replacementMode: Int?,
         deviceId: String? = null,
     ) {
         GlobalScope.launch {
             val connectIfNeeded = connectIfNeeded()
             if (!connectIfNeeded) return@launch
-            return@launch flow.purchases(activity, details, deviceId)
+            return@launch flow.purchases(activity, details, offerToken, oldToken, replacementMode, deviceId)
         }
     }
 

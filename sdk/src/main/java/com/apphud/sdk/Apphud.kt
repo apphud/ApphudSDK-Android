@@ -22,10 +22,10 @@ object Apphud {
      *                 instance in your own code, since it may change at runtime.
      */
     fun start(
-        context: Context,
+        activity: Activity,
         apiKey: ApiKey,
         callback: ((ApphudUser) -> Unit)? = null,
-    ) = start(context, apiKey, null, null, callback)
+    ) = start(activity, apiKey, null, null, callback)
 
     /**
      * Initializes Apphud SDK. You should call it during app launch.
@@ -40,11 +40,11 @@ object Apphud {
      *                 instance in your own code, since it may change at runtime.
      */
     fun start(
-        context: Context,
+        activity: Activity,
         apiKey: ApiKey,
         userId: UserId? = null,
         callback: ((ApphudUser) -> Unit)? = null,
-    ) = start(context, apiKey, userId, null, callback)
+    ) = start(activity, apiKey, userId, null, callback)
 
     /**
      * Initializes the Apphud SDK. This method should be called during the app launch.
@@ -64,14 +64,14 @@ object Apphud {
      *                 instance in your own code, since it may change at runtime.
      */
     fun start(
-        context: Context,
+        activity: Activity,
         apiKey: ApiKey,
         userId: UserId? = null,
         deviceId: DeviceId? = null,
         callback: ((ApphudUser) -> Unit)? = null,
     ) {
-        ApphudUtils.setPackageName(context.packageName)
-        ApphudInternal.initialize(context, apiKey, userId, deviceId, callback)
+        ApphudUtils.setPackageName(activity.packageName)
+        ApphudInternal.initialize(activity, apiKey, userId, deviceId, callback)
     }
 
     /**
@@ -425,6 +425,10 @@ object Apphud {
      * Google Play purchase token to Apphud.
      *
      * @param activity The current Activity context.
+     * @param apphudProduct The `ApphudProduct` object representing the product to be purchased.
+     * @param offerIdToken (Required for Subscriptions) The identifier of the offer for initiating the purchase. Developer should retrieve it from SubscriptionOfferDetails object.
+     * @param oldToken (Optional) The Google Play Billing purchase token that the user is
+     *                 upgrading or downgrading from.
      * @param replacementMode (Optional) The replacement mode for the subscription update.
      * @param consumableInAppProduct (Optional) Set to true for consumable products. Otherwise purchase will be treated as non-consumable and acknowledged.
      * @param block (Optional) A callback that returns an `ApphudPurchaseResult` object.
@@ -432,12 +436,18 @@ object Apphud {
     fun purchase(
         activity: Activity,
         apphudProduct: ApphudProduct,
+        offerIdToken: String? = null,
+        oldToken: String? = null,
+        replacementMode: Int? = null,
         consumableInAppProduct: Boolean = false,
         block: ((ApphudPurchaseResult) -> Unit)?,
     ) = ApphudInternal.purchase(
         activity = activity,
         apphudProduct = apphudProduct,
         productId = null,
+        offerIdToken = offerIdToken,
+        oldToken = oldToken,
+        replacementMode = replacementMode,
         consumableInappProduct = consumableInAppProduct,
         callback = block,
     )
@@ -448,38 +458,52 @@ object Apphud {
      *
      * @param activity The current Activity context.
      * @param productId The Google Play product ID of the item to purchase.
+     * @param offerIdToken (Required for Subscriptions) The identifier of the offer for initiating the purchase. Developer should retrieve it from SubscriptionOfferDetails object.
+     * @param oldToken (Optional) The Google Play Billing purchase token that the user is
+     *                 upgrading or downgrading from.
+     * @param replacementMode (Optional) The replacement mode for the subscription update.
+     *
      * @param consumableInAppProduct (Optional) Set to true for consumable products. Otherwise purchase will be treated as non-consumable and acknowledged.
      * @param block (Optional) A callback that returns an `ApphudPurchaseResult` object.
      */
     fun purchase(
         activity: Activity,
         productId: String,
+        offerIdToken: String? = null,
+        oldToken: String? = null,
+        replacementMode: Int? = null,
         consumableInAppProduct: Boolean = false,
         block: ((ApphudPurchaseResult) -> Unit)?,
     ) = ApphudInternal.purchase(
         activity = activity,
         apphudProduct = null,
         productId = productId,
+        offerIdToken = offerIdToken,
+        oldToken = oldToken,
+        replacementMode = replacementMode,
         consumableInappProduct = consumableInAppProduct,
         callback = block,
     )
 
     /**
      * Only for use in Observer Mode: call this method after every successful purchase.
+     * Note: Passing the offerIdToken is mandatory for subscriptions!
      * This method submits the successful purchase information to Apphud.
      * Pass `paywallIdentifier` and `placementIdentifier` for A/B test analysis in Observer Mode.
      *
      * @param purchase The `Purchase` object representing the successful purchase.
      * @param skuDetails The `SkuDetails` object associated with the purchase.
+     * @param offerIdToken The identifier of the subscription's offer token.
      * @param paywallIdentifier (Optional) The identifier of the paywall.
      * @param placementIdentifier (Optional) The identifier of the placement.
      */
     fun trackPurchase(
         purchase: Purchase,
         skuDetails: SkuDetails,
+        offerIdToken: String?,
         paywallIdentifier: String? = null,
         placementIdentifier: String? = null,
-    ) = ApphudInternal.trackPurchase(purchase, skuDetails, paywallIdentifier, placementIdentifier)
+    ) = ApphudInternal.trackPurchase(purchase, skuDetails, offerIdToken, paywallIdentifier, placementIdentifier)
 
     /**
      * Implements the 'Restore Purchases' mechanism. This method sends the current Play Market

@@ -6,6 +6,7 @@ import com.apphud.sdk.isSuccess
 import com.apphud.sdk.logMessage
 import com.xiaomi.billingclient.api.BillingClient
 import com.xiaomi.billingclient.api.BillingFlowParams
+import com.xiaomi.billingclient.api.Purchase
 import com.xiaomi.billingclient.api.SkuDetails
 
 internal class FlowWrapper(private val billing: BillingClient) {
@@ -14,6 +15,9 @@ internal class FlowWrapper(private val billing: BillingClient) {
     fun purchases(
         activity: Activity,
         details: SkuDetails,
+        offerToken: String? = null,
+        oldToken: String? = null,
+        replacementMode: Int?,
         deviceId: String? = null,
     ) {
         obfuscatedAccountId =
@@ -28,11 +32,16 @@ internal class FlowWrapper(private val billing: BillingClient) {
 
         try {
 
-            val params = BillingFlowParams.newBuilder().setSkuDetails(details)
-                //.setObfuscatedAccountId("xxx") //TODO changes
-                //.setObfuscatedProfileId("yyy")
-                //.setWebHookUrl("https://")
-                .build()
+            val params: BillingFlowParams =
+                if (offerToken != null) {
+                    if (oldToken != null) {
+                        upDowngradeBillingFlowParamsBuilder(details, offerToken, oldToken, replacementMode)
+                    } else {
+                        billingFlowParamsBuilder(details, offerToken).build()
+                    }
+                } else {
+                    billingFlowParamsBuilder(details).build()
+                }
 
             billing.launchBillingFlow(activity, params)
                 .also {
@@ -48,6 +57,58 @@ internal class FlowWrapper(private val billing: BillingClient) {
                 }
         } catch (ex: Exception) {
             ex.message?.let { ApphudLog.logE(it) }
+        }
+    }
+
+    /**
+     * BillingFlowParams Builder for upgrades and downgrades.
+     *
+     * @param skuDetails SkuDetails object returned by the library.
+     * @param offerToken the least priced offer's offer id token returned by
+     * [leastPricedOfferToken].
+     * @param oldToken the purchase token of the subscription purchase being upgraded or downgraded.
+     *
+     * @return [BillingFlowParams] builder.
+     */
+    private fun upDowngradeBillingFlowParamsBuilder(
+        skuDetails: SkuDetails,
+        offerToken: String,
+        oldToken: String,
+        replacementMode: Int?
+    ): BillingFlowParams {
+        return  BillingFlowParams.newBuilder()
+            .setSkuDetails(skuDetails)
+            .setOfferToken(offerToken)
+            //.setObfuscatedAccountId("")
+            //.setObfuscatedProfileId("")
+            //.setWebHookUrl(")
+            .setSubscriptionUpdateParams(BillingFlowParams.SubscriptionUpdateParams.newBuilder()
+                .setOldPurchaseToken(oldToken)
+                .setSubscriptionReplacementMode(replacementMode?: BillingFlowParams.SubscriptionUpdateParams.ReplacementMode.IMMEDIATE_AND_CHARGE_FULL_PRICE)
+                .build()
+            ).build()
+    }
+
+    /**
+     * BillingFlowParams Builder for normal purchases.
+     *
+     * @param skuDetails SkuDetails object returned by the library.
+     * @param offerToken the least priced offer's offer id token returned by
+     * [leastPricedOfferToken].
+     *
+     * @return [BillingFlowParams] builder.
+     */
+    private fun billingFlowParamsBuilder(
+        skuDetails: SkuDetails,
+        offerToken: String? = null
+    ): BillingFlowParams.Builder {
+        offerToken?.let {
+            return BillingFlowParams.newBuilder()
+                .setSkuDetails(skuDetails)
+                .setOfferToken(offerToken)
+        } ?: run {
+            return BillingFlowParams.newBuilder()
+                .setSkuDetails(skuDetails)
         }
     }
 }

@@ -43,6 +43,7 @@ internal fun ApphudInternal.syncPurchases(
 
                     if (purchases.isEmpty()) {
                         ApphudLog.log(message = "SyncPurchases: Nothing to restore", sendLogToServer = false)
+                        storage.isNeedSync = false
                         mainScope.launch {
                             refreshEntitlements(true)
                             currentUser?.let {
@@ -93,6 +94,7 @@ internal fun ApphudInternal.syncPurchases(
                                 restoredPurchases,
                                 null,
                                 null,
+                                null,
                                 callback,
                                 observerMode,
                             )
@@ -110,6 +112,7 @@ internal suspend fun ApphudInternal.sendPurchasesToApphud(
     tempPurchaseRecordDetails: List<PurchaseRecordDetails>?,
     purchase: Purchase?,
     skuDetails: SkuDetails?,
+    offerIdToken: String?,
     callback: ApphudPurchasesRestoreCallback? = null,
     observerMode: Boolean,
 ) {
@@ -122,6 +125,7 @@ internal suspend fun ApphudInternal.sendPurchasesToApphud(
             tempPurchaseRecordDetails,
             purchase,
             skuDetails,
+            offerIdToken,
             observerMode,
         )
     customer?.let {

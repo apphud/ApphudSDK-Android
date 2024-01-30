@@ -68,7 +68,7 @@ afterEvaluate {
 dependencies {
     implementation fileTree(dir: "libs", include: ["*.jar"])
     implementation "org.jetbrains.kotlin:kotlin-stdlib:$kotlin_version"
-    implementation 'com.xiaomi.billingclient:billing:1.0.9'
+    implementation 'com.xiaomi.billingclient:billing:1.1.2'
     implementation "com.google.code.gson:gson:2.10.1"
 
     implementation 'com.squareup.okhttp3:okhttp:4.11.0'

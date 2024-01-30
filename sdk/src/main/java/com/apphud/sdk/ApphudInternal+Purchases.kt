@@ -20,6 +20,9 @@ internal fun ApphudInternal.purchase(
     activity: Activity,
     apphudProduct: ApphudProduct?,
     productId: String?,
+    offerIdToken: String?,
+    oldToken: String?,
+    replacementMode: Int?,
     consumableInappProduct: Boolean,
     callback: ((ApphudPurchaseResult) -> Unit)?,
 ) {
@@ -42,10 +45,18 @@ internal fun ApphudInternal.purchase(
         }
 
         details?.let {
-            purchaseInternal(activity, product, consumableInappProduct, callback)
+            if (details.type == BillingClient.SkuType.SUBS) {
+                offerIdToken?.let {
+                    purchaseInternal(activity, product, offerIdToken, oldToken, replacementMode, consumableInappProduct, callback)
+                } ?: run {
+                    callback?.invoke(ApphudPurchaseResult(null, null, null, ApphudError("OfferToken required")))
+                }
+            } else {
+                purchaseInternal(activity, product, offerIdToken, oldToken, replacementMode, consumableInappProduct, callback)
+            }
         } ?: run {
             coroutineScope.launch(errorHandler) {
-                fetchDetails(activity, product, consumableInappProduct, callback)
+                fetchDetails(activity, product, offerIdToken, oldToken, replacementMode, consumableInappProduct, callback)
             }
         }
     } ?: run {
@@ -57,6 +68,9 @@ internal fun ApphudInternal.purchase(
 private suspend fun ApphudInternal.fetchDetails(
     activity: Activity,
     apphudProduct: ApphudProduct,
+    offerIdToken: String?,
+    oldToken: String?,
+    prorationMode: Int?,
     consumableInappProduct: Boolean,
     callback: ((ApphudPurchaseResult) -> Unit)?,
 ) {
@@ -65,7 +79,7 @@ private suspend fun ApphudInternal.fetchDetails(
         getSkuDetailsByProductId(productName)?.let { details ->
             mainScope.launch {
                 apphudProduct.skuDetails = details
-                purchaseInternal(activity, apphudProduct, consumableInappProduct, callback)
+                purchaseInternal(activity, apphudProduct, offerIdToken, oldToken, prorationMode, consumableInappProduct, callback)
             }
         }
     } else {
@@ -116,6 +130,9 @@ private suspend fun ApphudInternal.loadDetails(
 private fun ApphudInternal.purchaseInternal(
     activity: Activity,
     apphudProduct: ApphudProduct,
+    offerIdToken: String?,
+    oldToken: String?,
+    replacementMode: Int?,
     consumableInappProduct: Boolean,
     callback: ((ApphudPurchaseResult) -> Unit)?,
 ) {
@@ -130,7 +147,7 @@ private fun ApphudInternal.purchaseInternal(
                 }
                 is PurchaseCallbackStatus.Success -> {
                     ApphudLog.log("Purchase successfully acknowledged")
-                    sendCheckToApphud(purchase, apphudProduct, callback)
+                    sendCheckToApphud(purchase, apphudProduct,  offerIdToken, oldToken, callback)
                 }
             }
         }
@@ -146,7 +163,7 @@ private fun ApphudInternal.purchaseInternal(
                 }
                 is PurchaseCallbackStatus.Success -> {
                     ApphudLog.log("Purchase successfully consumed: ${status.message}")
-                    sendCheckToApphud(purchase, apphudProduct, callback)
+                    sendCheckToApphud(purchase, apphudProduct,  offerIdToken, oldToken, callback)
                 }
             }
         }
@@ -232,7 +249,7 @@ private fun ApphudInternal.purchaseInternal(
     apphudProduct.skuDetails?.let {
         paywallCheckoutInitiated(apphudProduct.paywallId, apphudProduct.placementId, apphudProduct.productId)
         billing.purchase(
-            activity, it,
+            activity, it, offerIdToken, oldToken, replacementMode,
             deviceId,
         )
     } ?: run {
@@ -257,6 +274,8 @@ private fun ApphudInternal.processPurchaseError(status: PurchaseUpdatedCallbackS
 private fun ApphudInternal.sendCheckToApphud(
     purchase: Purchase,
     apphudProduct: ApphudProduct,
+    offerIdToken: String?,
+    oldToken: String?,
     callback: ((ApphudPurchaseResult) -> Unit)?,
 ) {
     performWhenUserRegistered { error ->
@@ -277,7 +296,7 @@ private fun ApphudInternal.sendCheckToApphud(
             }
         } ?: run {
             coroutineScope.launch(errorHandler) {
-                RequestManager.purchased(purchase, apphudProduct) { customer, error ->
+                RequestManager.purchased(purchase, apphudProduct, offerIdToken, oldToken) { customer, error ->
                     mainScope.launch {
                         customer?.let {
                             val newSubscriptions = customer.subscriptions.firstOrNull { it.productId == purchase.skus.first() }
@@ -372,6 +391,7 @@ private fun notifyAboutSuccess(
 internal fun ApphudInternal.trackPurchase(
     purchase: Purchase,
     productDetails: SkuDetails,
+    offerIdToken: String?,
     paywallIdentifier: String? = null,
     placementIdentifier: String? = null,
 ) {
@@ -387,6 +407,7 @@ internal fun ApphudInternal.trackPurchase(
                     null,
                     purchase,
                     productDetails,
+                    offerIdToken,
                     null,
                     true,
                 )

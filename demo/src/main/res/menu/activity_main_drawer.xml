@@ -13,6 +13,10 @@
             android:icon="@drawable/ic_baseline_store_24"
             android:title="@string/menu_billing" />
         <item
+            android:id="@+id/nav_billing_purchases"
+            android:icon="@drawable/ic_baseline_store_24"
+            android:title="@string/menu_billing_purchases" />
+        <item
             android:id="@+id/nav_groups"
             android:icon="@drawable/ic_baseline_apps_24"
             android:title="@string/menu_groups" />

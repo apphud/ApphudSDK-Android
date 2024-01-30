@@ -56,14 +56,18 @@ internal suspend fun ApphudInternal.fetchDetails(ids: List<String>): Boolean {
         val subs = async { billing.detailsEx(BillingClient.SkuType.SUBS, ids) }
         val inApp = async { billing.detailsEx(BillingClient.SkuType.INAPP, ids) }
 
+        ApphudLog.log("Load details for:  ${ids}", false)
+
         subs.await()?.let {
             subsDetails = it
+            ApphudLog.log("Loaded SUBS details ${it.size}", false)
         } ?: run {
             ApphudLog.logE("Unable to load SUBS details", false)
         }
 
-         inApp.await()?.let {
+        inApp.await()?.let {
             inAppDetails = it
+            ApphudLog.log("Loaded INAP details ${it.size}", false)
         } ?: run {
             ApphudLog.logE("Unable to load INAP details", false)
         }
@@ -79,5 +83,6 @@ internal suspend fun ApphudInternal.fetchDetails(ids: List<String>): Boolean {
         }
     }
 
+    ApphudLog.log("Loaded skuDetails ${skuDetails.size} result:${subsDetails != null && inAppDetails != null}", false)
     return subsDetails != null && inAppDetails != null
 }

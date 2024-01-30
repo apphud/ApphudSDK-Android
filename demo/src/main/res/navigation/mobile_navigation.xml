@@ -7,7 +7,7 @@
 
     <fragment
         android:id="@+id/nav_customer"
-        android:name="com.apphud.demo.ui.customer.CustomerFragment"
+        android:name="com.apphud.demo.mi.ui.customer.CustomerFragment"
         android:label="@string/menu_customer"
         tools:layout="@layout/fragment_customer" >
         <action
@@ -17,19 +17,19 @@
 
     <fragment
         android:id="@+id/nav_groups"
-        android:name="com.apphud.demo.ui.groups.GroupsFragment"
+        android:name="com.apphud.demo.mi.ui.groups.GroupsFragment"
         android:label="@string/menu_groups"
         tools:layout="@layout/fragment_groups" />
 
     <fragment
         android:id="@+id/nav_purchases"
-        android:name="com.apphud.demo.ui.purchases.PurchasesFragment"
+        android:name="com.apphud.demo.mi.ui.purchases.PurchasesFragment"
         android:label="@string/menu_purchases"
         tools:layout="@layout/fragment_purchases" />
 
     <fragment
         android:id="@+id/productsFragment"
-        android:name="com.apphud.demo.ui.products.ProductsFragment"
+        android:name="com.apphud.demo.mi.ui.products.ProductsFragment"
         android:label="@string/menu_products"
         tools:layout="@layout/fragment_products" >
         <argument
@@ -41,5 +41,17 @@
             app:argType="string"
             app:nullable="true" />
     </fragment>
+
+    <fragment
+        android:id="@+id/nav_billing"
+        android:name="com.apphud.demo.mi.ui.billing.BillingFragment"
+        android:label="@string/menu_billing"
+        tools:layout="@layout/fragment_billing" >
+    </fragment>
+    <fragment
+        android:id="@+id/nav_billing_purchases"
+        android:name="com.apphud.demo.mi.ui.billingpurchases.BillingPurchasesFragment"
+        android:label="BillingPurchasesFragment"
+        tools:layout="@layout/fragment_billing_purchases"/>
 
 </navigation>

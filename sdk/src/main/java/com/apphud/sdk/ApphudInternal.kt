@@ -1,6 +1,7 @@
 package com.apphud.sdk
 
 import android.annotation.SuppressLint
+import android.app.Activity
 import android.content.Context
 import android.os.Handler
 import android.os.Looper
@@ -108,7 +109,7 @@ internal object ApphudInternal {
 
     //region === Start ===
     internal fun initialize(
-        context: Context,
+        activity: Activity,
         apiKey: ApiKey,
         inputUserId: UserId?,
         inputDeviceId: DeviceId?,
@@ -133,7 +134,7 @@ internal object ApphudInternal {
         ApphudLog.log("Start initialization with userId=$inputUserId, deviceId=$inputDeviceId")
         if (apiKey.isEmpty()) throw Exception("ApiKey can't be empty")
 
-        this.context = context
+        this.context = activity.applicationContext
         this.apiKey = apiKey
 
         val cachedUser = storage.apphudUser
@@ -180,7 +181,7 @@ internal object ApphudInternal {
         this.placements = cachedPlacements
 
         this.userRegisteredBlock = callback
-        billing = BillingWrapper(context)
+        billing = BillingWrapper(activity)
         RequestManager.setParams(this.context, this.userId, this.deviceId, this.apiKey)
         allowIdentifyUser = false
 
