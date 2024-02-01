@@ -27,7 +27,7 @@ class HeadersInterceptor(private val apiKey: String?) : Interceptor {
                 .header("X-Platform", "android")
                 .header("X-SDK", X_SDK)
                 .header("X-SDK-VERSION", X_SDK_VERSION)
-                .header("X-Store", "xiaomi")
+                .header("X-Store", "xiaomi_store")
                 .build()
 
         return chain.proceed(userAgentRequest)
