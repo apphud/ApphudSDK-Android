@@ -21,22 +21,17 @@ internal class BillingWrapper(activity: Activity) : Closeable {
     private val purchases = PurchasesUpdated(builder)
     private var billing: BillingClient = builder.build()
 
-    private var prod :SkuDetailsWrapper
-    private var flow :FlowWrapper
-    private var consume :ConsumeWrapper
-    private var history :HistoryWrapper
-    private var acknowledge :AcknowledgeWrapper
+    private val prod = SkuDetailsWrapper(billing)
+    private val flow = FlowWrapper(billing)
+    private val consume = ConsumeWrapper(billing)
+    private val history = HistoryWrapper(billing)
+    private val acknowledge = AcknowledgeWrapper(billing)
 
     private val mutex = Mutex()
 
 
     init{
         billing.enableFloatView(activity)
-        prod = SkuDetailsWrapper(billing)
-        flow = FlowWrapper(billing)
-        consume = ConsumeWrapper(billing)
-        history = HistoryWrapper(billing)
-        acknowledge = AcknowledgeWrapper(billing)
     }
 
 
