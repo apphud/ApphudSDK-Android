@@ -96,6 +96,12 @@ internal class BillingWrapper(context: Context) : Closeable {
             consume.callBack = value
         }
 
+    suspend fun queryPurchasesSync(): List<Purchase>? {
+        val connectIfNeeded = connectIfNeeded()
+        if (!connectIfNeeded) return null
+        return history.queryPurchasesSync()
+    }
+
     suspend fun queryPurchaseHistorySync(
         @BillingClient.ProductType type: ProductType,
     ): PurchaseHistoryCallbackStatus {
