@@ -1,11 +1,15 @@
 package com.apphud.demo.mi.ui.billingpurchases
 
 import android.app.Activity
+import android.content.ClipData
+import android.content.ClipboardManager
+import android.content.Context
 import android.util.Log
 import android.widget.Toast
 import com.xiaomi.billingclient.api.BillingClient
 import com.xiaomi.billingclient.api.BillingClientStateListener
 import com.xiaomi.billingclient.api.BillingResult
+import com.xiaomi.billingclient.api.Purchase
 import com.xiaomi.billingclient.api.PurchasesUpdatedListener
 
 
@@ -92,6 +96,18 @@ class BillingPurchasesViewModel (val activity: Activity){
             } else {
                 val t = Toast.makeText(activity, "Consume error", Toast.LENGTH_LONG)
                 t.show()
+            }
+        }
+    }
+
+    //IMPORTANT: If you do not acknowledge a purchase transaction within three days,
+    //the user will automatically receive a refund and GetApps will cancel the purchase.
+    fun acknowledgePurchase(purchaseToken :String) {
+        billingClient.acknowledgePurchase(purchaseToken) { billingResult: BillingResult ->
+            if (billingResult.responseCode == BillingClient.BillingResponseCode.OK) {
+                Toast.makeText(activity, "Acknowledge: OK", Toast.LENGTH_LONG).show()
+            } else {
+                Toast.makeText(activity, "Acknowledge: Error", Toast.LENGTH_LONG).show()
             }
         }
     }

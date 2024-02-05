@@ -30,6 +30,11 @@ class BillingPurchasesFragment : Fragment() {
         }
     }
 
+    var skuListInapp = mutableListOf (
+        "com.apphud.demo.mi.inapp1",
+        "com.apphud.demo.mi.inapp2"
+    )
+
     override fun onCreateView(
         inflater: LayoutInflater,
         container: ViewGroup?,
@@ -44,11 +49,15 @@ class BillingPurchasesFragment : Fragment() {
 
             viewAdapter = BillingPurchasesAdapter(purchasesViewModel, context)
             viewAdapter.selectPurchase = {
-                val clipboard = a.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
-                val clip = ClipData.newPlainText("card", it.purchaseToken)
-                clipboard.setPrimaryClip(clip)
+                //val clipboard = a.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+                //val clip = ClipData.newPlainText("card", it.purchaseToken)
+                //clipboard.setPrimaryClip(clip)
 
-                purchasesViewModel.consume(it.purchaseToken)
+                if(skuListInapp.contains(it.skus[0])){
+                    purchasesViewModel.consume(it.purchaseToken)
+                } else {
+                    purchasesViewModel.acknowledgePurchase(it.purchaseToken)
+                }
                 //val t = Toast.makeText(context, R.string.copied, Toast.LENGTH_LONG)
                 //t.show()
             }

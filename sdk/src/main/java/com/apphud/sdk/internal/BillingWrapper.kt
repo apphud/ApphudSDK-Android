@@ -34,7 +34,6 @@ internal class BillingWrapper(activity: Activity) : Closeable {
         billing.enableFloatView(activity)
     }
 
-
     private var isBillingReady = false
     private suspend fun connectIfNeeded(): Boolean {
         var result: Boolean
