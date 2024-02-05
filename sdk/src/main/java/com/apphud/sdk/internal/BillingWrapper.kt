@@ -1,8 +1,6 @@
 package com.apphud.sdk.internal
 
 import android.app.Activity
-import android.content.Context
-import android.util.Log
 import com.apphud.sdk.ApphudLog
 import com.apphud.sdk.ProductId
 import com.apphud.sdk.internal.callback_status.PurchaseHistoryCallbackStatus
@@ -21,8 +19,8 @@ import kotlin.coroutines.resume
 internal class BillingWrapper(activity: Activity) : Closeable {
     private val builder = BillingClient.newBuilder(activity)
     private val purchases = PurchasesUpdated(builder)
+    private var billing: BillingClient = builder.build()
 
-    private var billing: BillingClient
     private var prod :SkuDetailsWrapper
     private var flow :FlowWrapper
     private var consume :ConsumeWrapper
@@ -31,10 +29,9 @@ internal class BillingWrapper(activity: Activity) : Closeable {
 
     private val mutex = Mutex()
 
-    init{
-        billing = BillingClient.newBuilder(activity).build()
-        billing.enableFloatView(activity)
 
+    init{
+        billing.enableFloatView(activity)
         prod = SkuDetailsWrapper(billing)
         flow = FlowWrapper(billing)
         consume = ConsumeWrapper(billing)

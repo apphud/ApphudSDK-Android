@@ -152,6 +152,7 @@ private fun ApphudInternal.purchaseInternal(
             }
         }
     }
+
     billing.consumeCallback = { status, purchase ->
         billing.consumeCallback = null
         mainScope.launch {
@@ -168,6 +169,7 @@ private fun ApphudInternal.purchaseInternal(
             }
         }
     }
+
     billing.purchasesCallback = { purchasesResult ->
         billing.purchasesCallback = null
         mainScope.launch {
