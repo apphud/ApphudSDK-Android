@@ -1,5 +1,7 @@
 package com.apphud.sdk.internal
 
+import android.util.Log
+import com.apphud.sdk.ApphudLog
 import com.apphud.sdk.internal.callback_status.PurchaseUpdatedCallbackStatus
 import com.apphud.sdk.isSuccess
 import com.apphud.sdk.logMessage
@@ -16,15 +18,16 @@ internal class PurchasesUpdated(
 
     init {
         builder.setListener { result: BillingResult, list ->
-            when (result.isSuccess()) {
-                true -> {
-                    val purchases = list?.filterNotNull() ?: emptyList()
-                    callback?.invoke(PurchaseUpdatedCallbackStatus.Success(purchases))
-                }
-                else -> {
-                    result.logMessage("Failed Purchase")
-                    callback?.invoke(PurchaseUpdatedCallbackStatus.Error(result))
-                }
+            val code = result.responseCode
+            Log.d("TAG", "onPurchasesUpdated.code = $code")
+            if (code == BillingClient.BillingResponseCode.PAYMENT_SHOW_DIALOG) {
+                //do nothing
+            } else if (code == BillingClient.BillingResponseCode.OK) {
+                val purchases = list?.filterNotNull() ?: emptyList()
+                callback?.invoke(PurchaseUpdatedCallbackStatus.Success(purchases))
+            } else {
+                result.logMessage("Failed Purchase")
+                callback?.invoke(PurchaseUpdatedCallbackStatus.Error(result))
             }
         }
     }

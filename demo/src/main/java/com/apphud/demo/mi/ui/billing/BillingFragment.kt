@@ -42,7 +42,7 @@ class BillingFragment : Fragment() {
         _binding = FragmentBillingBinding.inflate(inflater, container, false)
         val root: View = binding.root
 
-        binding.swipeRefresh.setOnRefreshListener {
+       /* binding.swipeRefresh.setOnRefreshListener {
             updateData()
         }
 
@@ -88,7 +88,7 @@ class BillingFragment : Fragment() {
             }
 
             updateData()
-        }
+        }*/
         return root
     }
 
