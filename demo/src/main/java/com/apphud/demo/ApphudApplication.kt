@@ -49,9 +49,9 @@ class ApphudApplication : Application() {
         Apphud.collectDeviceIdentifiers()
 
         applicationScope.launch {
-            Log.d("ApphudLogs", "Unvalidated premium start")
-            val hasPurchases = Apphud.hasUnvalidatedActivePurchases()
-            Log.d("ApphudLogs", "Unvalidated premium finish: $hasPurchases")
+//            Log.d("ApphudLogs", "Unvalidated premium start")
+//            val hasPurchases = Apphud.hasUnvalidatedActivePurchases()
+//            Log.d("ApphudLogs", "Unvalidated premium finish: $hasPurchases")
         }
     }
 }

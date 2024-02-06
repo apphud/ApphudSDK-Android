@@ -537,6 +537,9 @@ object Apphud {
      * It can be useful for conditionally skipping the initial paywall on the first app launch.
      * Note that `Apphud.hasPremiumAccess()` will still return false until
      * purchases are validated through Apphud, so this method should not be used for access control.
+     *
+     * If there are unvalidated purchases, Apphud will automatically track and validate them,
+     * so developer doesn't need to call `Apphud.restorePurchases` manually.
      */
     suspend fun hasUnvalidatedActivePurchases(): Boolean = suspendCancellableCoroutine { continuation ->
         ApphudInternal.fastRestore { continuation.resume(it) }

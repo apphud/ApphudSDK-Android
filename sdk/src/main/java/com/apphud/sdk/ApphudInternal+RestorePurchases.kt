@@ -24,11 +24,21 @@ private var hasUnvalidatedPurchases = false
 
 internal fun ApphudInternal.fastRestore(callback: Callback1<Boolean>? = null) {
     coroutineScope.launch(errorHandler) {
+
+        if (hasUnvalidatedPurchases) {
+            mainScope.launch {
+                callback?.invoke(hasUnvalidatedPurchases)
+            }
+            return@launch
+        }
+
         // if this parameter is already true, do not sync again
         val shouldSyncPurchases = !hasUnvalidatedPurchases
         val purchases = billing.queryPurchasesSync()
         hasUnvalidatedPurchases = !purchases.isNullOrEmpty()
-        callback?.invoke(hasUnvalidatedPurchases)
+        mainScope.launch {
+            callback?.invoke(hasUnvalidatedPurchases)
+        }
         if (shouldSyncPurchases && hasUnvalidatedPurchases) {  syncPurchases(unvalidatedPurchases = purchases)  }
     }
 }

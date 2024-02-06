@@ -8,4 +8,6 @@ data class ApphudPaywallDto(
     val json: String,
     val items: List<ApphudProductDto>,
     val experiment_name: String?,
+    val variation_name: String?,
+    val from_paywall: String?
 )

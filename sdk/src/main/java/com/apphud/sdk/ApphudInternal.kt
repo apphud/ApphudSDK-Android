@@ -837,6 +837,7 @@ internal object ApphudInternal {
             placements.forEach { placement ->
                 val paywall = placement.paywall
                 paywall?.placementId = placement.id
+                paywall?.placementIdentifier = placement.identifier
                 paywall?.products?.forEach { product ->
                     product.paywallId = placement.paywall.id
                     product.paywallIdentifier = placement.paywall.identifier
