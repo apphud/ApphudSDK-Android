@@ -19,7 +19,7 @@ object SharedPreferencesStorage : Storage {
     fun getInstance(applicationContext: Context): SharedPreferencesStorage {
         this.applicationContext = applicationContext
         preferences = SharedPreferencesStorage.applicationContext.getSharedPreferences(NAME, Context.MODE_PRIVATE)
-        this.cacheTimeout = if (SharedPreferencesStorage.applicationContext.isDebuggable()) 600L else 90000L // 25 hours
+        this.cacheTimeout = if (SharedPreferencesStorage.applicationContext.isDebuggable()) 120L else 90000L // 25 hours
         return this
     }
 
