@@ -58,10 +58,11 @@ class HttpRetryInterceptor : Interceptor {
                 )
                 Thread.sleep(STEP)
             } finally {
-                if (!isSuccess) {
+                tryCount++
+
+                if (!isSuccess && tryCount < MAX_COUNT) {
                     response?.close()
                 }
-                tryCount++
             }
         }
         if (!isSuccess) {
