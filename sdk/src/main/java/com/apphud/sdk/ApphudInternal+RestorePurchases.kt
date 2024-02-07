@@ -38,15 +38,14 @@ internal fun ApphudInternal.restoreWithoutValidation(callback: Callback1<List<Pu
         val wasNullOrEmpty = unvalidatedPurchases.isNullOrEmpty()
         val purchases = billing.queryPurchasesSync()
         val gotPurchases = !purchases.isNullOrEmpty()
-        if (!purchases.isNullOrEmpty()) {
+        if (gotPurchases) {
             unvalidatedPurchases = purchases
         }
 
         mainScope.launch {
-            unvalidatedPurchases?.let {
-                callback?.invoke(it)
-            }
+            unvalidatedPurchases?.let { callback?.invoke(it) }
         }
+
         if (wasNullOrEmpty && gotPurchases) {
             storage.isNeedSync = true
             syncPurchases(unvalidatedPurchs = unvalidatedPurchases)
