@@ -13,8 +13,8 @@ import java.net.SocketTimeoutException
 
 class HttpRetryInterceptor : Interceptor {
     companion object {
-        private const val STEP = 3_000L
-        private const val MAX_COUNT = 7
+        private var STEP = 3_000L
+        private var MAX_COUNT = 7
     }
 
     @Throws(IOException::class)
@@ -34,6 +34,10 @@ class HttpRetryInterceptor : Interceptor {
                         val isBlocked = RequestManager.checkLock403(request, response)
                         if (isBlocked) {
                             return response
+                        }
+                        if (response.code == 429) {
+                            STEP = 6_000L
+                            MAX_COUNT = 1
                         }
                     }
 
