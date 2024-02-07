@@ -29,6 +29,14 @@ class HttpRetryInterceptor : Interceptor {
                 isSuccess = response.isSuccessful
 
                 if (!isSuccess) {
+
+                    if (response != null) {
+                        val isBlocked = RequestManager.checkLock403(request, response)
+                        if (isBlocked) {
+                            return response
+                        }
+                    }
+
                     ApphudLog.logE(
                         "Request (${request.url.encodedPath}) failed with code (${response.code}). Will retry in ${STEP / 1000} seconds ($tryCount).",
                     )
@@ -61,4 +69,6 @@ class HttpRetryInterceptor : Interceptor {
         }
         return response ?: chain.proceed(request)
     }
+
+
 }
