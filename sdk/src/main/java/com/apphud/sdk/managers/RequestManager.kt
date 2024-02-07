@@ -249,7 +249,7 @@ object RequestManager {
 
             logRequestFinish(request, response)
 
-            val responseBody = response.body!!.string()
+            val responseBody = response.body?.string() ?: ""
             if (response.isSuccessful) {
                 return responseBody
             } else {
