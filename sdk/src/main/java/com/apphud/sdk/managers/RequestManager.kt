@@ -164,29 +164,11 @@ object RequestManager {
         request: Request,
         response: Response,
     ) {
-        try {
-            val responseBody = response.body
-            val source = responseBody?.source()
-            source?.request(Long.MAX_VALUE)
-
-            var outputBody = ""
-            if (ApphudUtils.httpLogging) {
-                val buffer =
-                    source?.buffer?.clone()
-                        ?.readString(Charset.forName("UTF-8"))
-                buffer?.let {
-                    if (parser.isJson(buffer)) {
-                        outputBody = buildPrettyPrintedBy(it) ?: ""
-                    }
-                }
-            }
-
-            ApphudLog.logI(
-                "Finished " + request.method + " request " + request.url + " with response: " + response.code + "\n" + outputBody,
-            )
-        } catch (ex: Exception) {
-            ApphudLog.logE(ex.message ?: "")
-        }
+        val responseBody = response.body?.string()
+        val outputBody = buildPrettyPrintedBy(responseBody ?: "") ?: ""
+        ApphudLog.logI(
+            "Finished " + request.method + " request " + request.url + " with response: " + response.code + "\n" + outputBody,
+        )
     }
 
     private fun performRequest(
@@ -286,13 +268,16 @@ object RequestManager {
         }
     }
 
-    private fun checkLock403(
+    internal fun checkLock403(
         request: Request,
         response: Response,
-    ) {
+    ): Boolean {
         if (response.code == 403 && request.method == "POST" && request.url.encodedPath.endsWith("/customers")) {
             HeadersInterceptor.isBlocked = true
+            ApphudLog.logE("Unable to perform API requests, because your account has been suspended.")
         }
+
+        return HeadersInterceptor.isBlocked
     }
 
     private fun makeRequest(

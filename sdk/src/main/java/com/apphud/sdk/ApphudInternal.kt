@@ -32,7 +32,7 @@ internal object ApphudInternal {
     internal val coroutineScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     internal val errorHandler =
         CoroutineExceptionHandler { _, error ->
-            error.message?.let { ApphudLog.logE(it) }
+            error.message?.let { ApphudLog.logE("Coroutine exception: " + it) }
         }
 
     internal const val ERROR_TIMEOUT = 408
