@@ -211,6 +211,9 @@ object RequestManager {
                             }"
                     completionHandler(null, ApphudError(message, null, response.code))
                 }
+
+                response.close()
+
             } else {
                 val message = "No Internet connection"
                 ApphudLog.logE(message)
@@ -250,6 +253,9 @@ object RequestManager {
             logRequestFinish(request, response)
 
             val responseBody = response.body?.string() ?: ""
+
+            response.close()
+
             if (response.isSuccessful) {
                 return responseBody
             } else {
@@ -259,6 +265,7 @@ object RequestManager {
                         "failed with code: ${response.code} response: ${
                             buildPrettyPrintedBy(responseBody)
                         }"
+                ApphudLog.logE(message)
                 throw Exception(message)
             }
         } else {
