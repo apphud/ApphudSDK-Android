@@ -40,7 +40,7 @@ class ApphudApplication : Application() {
         // Apphud.optOutOfTracking()
 
         if (BuildConfig.DEBUG) {
-            ApphudUtils.enableAllLogs()
+//            ApphudUtils.enableAllLogs()
         }
 
       //  check again restore cache from previous sdk version

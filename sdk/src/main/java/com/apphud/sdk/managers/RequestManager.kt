@@ -162,12 +162,16 @@ object RequestManager {
 
     private fun logRequestFinish(
         request: Request,
-        response: Response,
+        responseBody: String?,
+        responseCode: Int
     ) {
-        val responseBody = response.body?.string()
-        val outputBody = buildPrettyPrintedBy(responseBody ?: "") ?: ""
+        var outputBody = ""
+        if (ApphudUtils.httpLogging) {
+            outputBody = buildPrettyPrintedBy(responseBody ?: "") ?: ""
+        }
+
         ApphudLog.logI(
-            "Finished " + request.method + " request " + request.url + " with response: " + response.code + "\n" + outputBody,
+            "Finished " + request.method + " request " + request.url + " with response: " + responseCode + "\n" + outputBody,
         )
     }
 
@@ -187,6 +191,7 @@ object RequestManager {
 
                 val start = Date()
                 val response = client.newCall(request).execute()
+                val responseBody = response.body?.string()
                 val finish = Date()
                 val diff = (finish.time - start.time)
                 ApphudLog.logBenchmark(
@@ -194,11 +199,11 @@ object RequestManager {
                     diff,
                 )
 
-                logRequestFinish(request, response)
+                logRequestFinish(request, responseBody, response.code)
 
                 if (response.isSuccessful) {
-                    response.body?.let {
-                        completionHandler(it.string(), null)
+                    responseBody?.let {
+                        completionHandler(it, null)
                     } ?: run {
                         completionHandler(null, ApphudError("Request failed", null, response.code))
                     }
@@ -207,7 +212,7 @@ object RequestManager {
                     val message =
                         "finish ${request.method} request ${request.url} " +
                             "failed with code: ${response.code} response: ${
-                                buildPrettyPrintedBy(response.body.toString())
+                                buildPrettyPrintedBy(responseBody.toString())
                             }"
                     completionHandler(null, ApphudError(message, null, response.code))
                 }
@@ -243,6 +248,7 @@ object RequestManager {
 
             val start = Date()
             val response = client.newCall(request).execute()
+            val responseBody = response.body?.string()
             val finish = Date()
             val diff = (finish.time - start.time)
             ApphudLog.logBenchmark(
@@ -250,20 +256,18 @@ object RequestManager {
                 diff,
             )
 
-            logRequestFinish(request, response)
-
-            val responseBody = response.body?.string() ?: ""
+            logRequestFinish(request, responseBody, response.code)
 
             response.close()
 
             if (response.isSuccessful) {
-                return responseBody
+                return responseBody ?: ""
             } else {
                 checkLock403(request, response)
                 val message =
                     "finish ${request.method} request ${request.url} " +
                         "failed with code: ${response.code} response: ${
-                            buildPrettyPrintedBy(responseBody)
+                            buildPrettyPrintedBy(responseBody ?: "")
                         }"
                 ApphudLog.logE(message)
                 throw Exception(message)
