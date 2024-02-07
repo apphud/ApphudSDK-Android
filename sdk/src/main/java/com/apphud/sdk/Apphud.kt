@@ -530,7 +530,7 @@ object Apphud {
     }
 
     /**
-     * Quickly checks for active subscriptions or lifetime purchases
+     * Quickly checks for active subscriptions or active lifetime purchases
      * associated with the current Google Play account.
      * This method is much faster than `Apphud.restorePurchases` as it bypasses validation,
      * providing a quick way to determine the presence of purchases.
@@ -538,11 +538,12 @@ object Apphud {
      * Note that `Apphud.hasPremiumAccess()` will still return false until
      * purchases are validated through Apphud, so this method should not be used for access control.
      *
-     * If there are unvalidated purchases, Apphud will automatically track and validate them,
+     * __NOTE__: If any unvalidated purchases were found in the result of this method call,
+     * Apphud will automatically track and validate them in the background,
      * so developer doesn't need to call `Apphud.restorePurchases` manually.
      */
-    suspend fun hasUnvalidatedActivePurchases(): Boolean = suspendCancellableCoroutine { continuation ->
-        ApphudInternal.fastRestore { continuation.resume(it) }
+    suspend fun unvalidatedActivePurchases(): List<Purchase> = suspendCancellableCoroutine { continuation ->
+        ApphudInternal.restoreWithoutValidation { continuation.resume(it) }
     }
 
     //endregion

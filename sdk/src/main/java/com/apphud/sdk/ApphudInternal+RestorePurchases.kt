@@ -20,26 +20,37 @@ internal fun ApphudInternal.restorePurchases(callback: ApphudPurchasesRestoreCal
 
 private val mutexSync = Mutex()
 
-private var hasUnvalidatedPurchases = false
+private var unvalidatedPurchases: List<Purchase>? = null
 
-internal fun ApphudInternal.fastRestore(callback: Callback1<Boolean>? = null) {
+internal fun ApphudInternal.restoreWithoutValidation(callback: Callback1<List<Purchase>>? = null) {
     coroutineScope.launch(errorHandler) {
 
-        if (hasUnvalidatedPurchases) {
+        if (!unvalidatedPurchases.isNullOrEmpty()) {
             mainScope.launch {
-                callback?.invoke(hasUnvalidatedPurchases)
+                unvalidatedPurchases?.let {
+                    callback?.invoke(it)
+                }
             }
             return@launch
         }
 
         // if this parameter is already true, do not sync again
-        val shouldSyncPurchases = !hasUnvalidatedPurchases
+        val wasNullOrEmpty = unvalidatedPurchases.isNullOrEmpty()
         val purchases = billing.queryPurchasesSync()
-        hasUnvalidatedPurchases = !purchases.isNullOrEmpty()
-        mainScope.launch {
-            callback?.invoke(hasUnvalidatedPurchases)
+        val gotPurchases = !purchases.isNullOrEmpty()
+        if (!purchases.isNullOrEmpty()) {
+            unvalidatedPurchases = purchases
         }
-        if (shouldSyncPurchases && hasUnvalidatedPurchases) {  syncPurchases(unvalidatedPurchases = purchases)  }
+
+        mainScope.launch {
+            unvalidatedPurchases?.let {
+                callback?.invoke(it)
+            }
+        }
+        if (wasNullOrEmpty && gotPurchases) {
+            storage.isNeedSync = true
+            syncPurchases(unvalidatedPurchs = unvalidatedPurchases)
+        }
     }
 }
 
@@ -47,7 +58,7 @@ internal fun ApphudInternal.syncPurchases(
     paywallIdentifier: String? = null,
     placementIdentifier: String? = null,
     observerMode: Boolean = true,
-    unvalidatedPurchases: List<Purchase>? = null,
+    unvalidatedPurchs: List<Purchase>? = null,
     callback: ApphudPurchasesRestoreCallback? = null,
 ) {
     performWhenUserRegistered { error ->
@@ -65,10 +76,12 @@ internal fun ApphudInternal.syncPurchases(
                     purchases.addAll(processHistoryCallbackStatus(subsResult))
                     purchases.addAll(processHistoryCallbackStatus(inapsResult))
 
-                    if (!unvalidatedPurchases.isNullOrEmpty()) {
-                        val tokens = unvalidatedPurchases.map { it.purchaseToken }
+                    if (!unvalidatedPurchs.isNullOrEmpty()) {
+                        val tokens = unvalidatedPurchs.map { it.purchaseToken }
                         val filtered = purchases.filter { tokens.contains(it.purchaseToken) }
-                        purchases = filtered.toMutableList()
+                        if (filtered.isNotEmpty()) {
+                            purchases = filtered.toMutableList()
+                        }
                     }
 
                     if (purchases.isEmpty()) {
