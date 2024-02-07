@@ -6,6 +6,7 @@ import kotlinx.coroutines.async
 import com.apphud.sdk.internal.callback_status.PurchaseHistoryCallbackStatus
 import com.apphud.sdk.response
 import com.xiaomi.billingclient.api.BillingClient
+import com.xiaomi.billingclient.api.Purchase
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.suspendCancellableCoroutine
@@ -30,6 +31,31 @@ internal class HistoryWrapper(
                 success = { callback?.invoke(PurchaseHistoryCallbackStatus.Success(type, purchases ?: emptyList())) },
             )
         }
+    }
+
+    suspend fun queryPurchasesSync(): List<Purchase> = coroutineScope {
+        val subsDeferred = CompletableDeferred<List<Purchase>>()
+        billing.queryPurchasesAsync(BillingClient.SkuType.SUBS) { result, purchases ->
+            if (result.responseCode == BillingClient.BillingResponseCode.OK && purchases != null) {
+                subsDeferred.complete(purchases)
+            } else {
+                subsDeferred.complete(emptyList())
+            }
+        }
+
+        val inAppsDeferred = CompletableDeferred<List<Purchase>>()
+        billing.queryPurchasesAsync(BillingClient.SkuType.SUBS) { result, purchases ->
+            if (result.responseCode == BillingClient.BillingResponseCode.OK && purchases != null) {
+                inAppsDeferred.complete(purchases)
+            } else {
+                inAppsDeferred.complete(emptyList())
+            }
+        }
+
+        val subsPurchases = async { subsDeferred.await() }
+        val inAppsPurchases = async { inAppsDeferred.await() }
+
+        subsPurchases.await() + inAppsPurchases.await()
     }
 
     suspend fun queryPurchaseHistorySync(

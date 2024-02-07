@@ -290,7 +290,7 @@ internal object ApphudInternal {
 
         updatePaywallsAndPlacements()
 
-        if (currentUser != null && paywalls.isNotEmpty() && productDetails.isNotEmpty() && !didLoadOfferings) {
+        if (currentUser != null && paywalls.isNotEmpty() && skuDetails.isNotEmpty() && !didLoadOfferings) {
             didLoadOfferings = true
             apphudListener?.paywallsDidFullyLoad(paywalls)
             apphudListener?.placementsDidFullyLoad(placements)
