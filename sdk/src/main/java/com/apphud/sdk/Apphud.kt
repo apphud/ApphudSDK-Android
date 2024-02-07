@@ -542,9 +542,7 @@ object Apphud {
      * Apphud will automatically track and validate them in the background,
      * so developer doesn't need to call `Apphud.restorePurchases` manually.
      */
-    suspend fun unvalidatedActivePurchases(): List<Purchase> = suspendCancellableCoroutine { continuation ->
-        ApphudInternal.restoreWithoutValidation { continuation.resume(it) }
-    }
+    suspend fun unvalidatedActivePurchases(): List<Purchase> = ApphudInternal.restoreWithoutValidation()
 
     //endregion
     //region === Attribution ===

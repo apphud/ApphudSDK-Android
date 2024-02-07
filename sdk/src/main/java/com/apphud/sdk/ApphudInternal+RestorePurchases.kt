@@ -20,37 +20,18 @@ internal fun ApphudInternal.restorePurchases(callback: ApphudPurchasesRestoreCal
 
 private val mutexSync = Mutex()
 
-private var unvalidatedPurchases: List<Purchase>? = null
+private var unvalidatedPurchases = listOf<Purchase>()
 
-internal fun ApphudInternal.restoreWithoutValidation(callback: Callback1<List<Purchase>>? = null) {
-    coroutineScope.launch(errorHandler) {
-
-        if (!unvalidatedPurchases.isNullOrEmpty()) {
-            mainScope.launch {
-                unvalidatedPurchases?.let {
-                    callback?.invoke(it)
-                }
-            }
-            return@launch
-        }
-
-        // if this parameter is already true, do not sync again
-        val wasNullOrEmpty = unvalidatedPurchases.isNullOrEmpty()
+internal suspend fun ApphudInternal.restoreWithoutValidation(): List<Purchase> {
+    if (unvalidatedPurchases.isEmpty()) {
         val purchases = billing.queryPurchasesSync()
-        val gotPurchases = !purchases.isNullOrEmpty()
-        if (gotPurchases) {
+        if (!purchases.isNullOrEmpty()) {
             unvalidatedPurchases = purchases
-        }
-
-        mainScope.launch {
-            unvalidatedPurchases?.let { callback?.invoke(it) }
-        }
-
-        if (wasNullOrEmpty && gotPurchases) {
             storage.isNeedSync = true
             syncPurchases(unvalidatedPurchs = unvalidatedPurchases)
         }
     }
+    return unvalidatedPurchases
 }
 
 internal fun ApphudInternal.syncPurchases(
