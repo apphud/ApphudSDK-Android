@@ -7,6 +7,8 @@ import androidx.lifecycle.lifecycleScope
 import com.apphud.sdk.Apphud
 import com.apphud.sdk.ApphudUtils
 import com.apphud.sdk.client.ApiClient
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.launch
 
@@ -28,6 +30,8 @@ class ApphudApplication : Application() {
     init {
         instance = this
     }
+
+    private val applicationScope = CoroutineScope(Dispatchers.Default)
 
     override fun onCreate() {
         super.onCreate()

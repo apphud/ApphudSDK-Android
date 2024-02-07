@@ -19,68 +19,6 @@ internal class ProductDetailsWrapper(
     var detailsCallback: ApphudProductDetailsCallback? = null
     var restoreCallback: ApphudProductDetailsRestoreCallback? = null
 
-    fun restoreAsync(
-        @BillingClient.ProductType type: ProductType,
-        recordsToResore: List<PurchaseHistoryRecord>?,
-    ) {
-        recordsToResore?.let {
-            val products = recordsToResore.map { it.products }.flatten()
-            val productList =
-                products.map {
-                    QueryProductDetailsParams.Product.newBuilder()
-                        .setProductId(it)
-                        .setProductType(type)
-                        .build()
-                }
-
-            val params =
-                QueryProductDetailsParams.newBuilder()
-                    .setProductList(productList)
-                    .build()
-
-            thread(start = true, name = "restoreAsync+$type") {
-                billing.queryProductDetailsAsync(params) { result, details ->
-                    when (result.isSuccess()) {
-                        true -> {
-                            val values = details ?: emptyList()
-
-                            val purchases = mutableListOf<PurchaseRecordDetails>()
-                            for (productDetails in values) {
-                                val record = recordsToResore.firstOrNull { it.products.contains(productDetails.productId) }
-                                record?.let {
-                                    purchases.add(
-                                        PurchaseRecordDetails(
-                                            record = it,
-                                            details = productDetails,
-                                        ),
-                                    )
-                                }
-                            }
-
-                            when (purchases.isEmpty()) {
-                                true -> {
-                                    val message = "ProductsDetails return empty list for $type and records: $recordsToResore"
-                                    ApphudLog.log(message)
-                                    restoreCallback?.invoke(PurchaseRestoredCallbackStatus.Error(type = type, result = null, message = message))
-                                }
-                                else -> {
-                                    restoreCallback?.invoke(PurchaseRestoredCallbackStatus.Success(type = type, purchases))
-                                }
-                            }
-                        }
-                        else -> {
-                            result.logMessage("RestoreAsync failed for type: $type products: $products")
-                            restoreCallback?.invoke(PurchaseRestoredCallbackStatus.Error(type = type, result = result, message = type.toString()))
-                        }
-                    }
-                }
-            }
-        } ?: run {
-            val message = "List of records to restore is NULL"
-            restoreCallback?.invoke(PurchaseRestoredCallbackStatus.Error(type = type, result = null, message = message))
-        }
-    }
-
     suspend fun restoreSync(
         @BillingClient.ProductType type: ProductType,
         records: List<PurchaseHistoryRecord>,

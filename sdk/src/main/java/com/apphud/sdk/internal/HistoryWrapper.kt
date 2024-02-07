@@ -1,10 +1,15 @@
 package com.apphud.sdk.internal
 
 import com.android.billingclient.api.BillingClient
+import com.android.billingclient.api.Purchase
 import com.android.billingclient.api.QueryPurchaseHistoryParams
+import com.android.billingclient.api.QueryPurchasesParams
 import com.apphud.sdk.ApphudLog
+import kotlinx.coroutines.async
 import com.apphud.sdk.internal.callback_status.PurchaseHistoryCallbackStatus
 import com.apphud.sdk.response
+import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.suspendCancellableCoroutine
 import java.io.Closeable
 import kotlin.concurrent.thread
@@ -32,6 +37,41 @@ internal class HistoryWrapper(
                 success = { callback?.invoke(PurchaseHistoryCallbackStatus.Success(type, purchases ?: emptyList())) },
             )
         }
+    }
+
+    suspend fun queryPurchasesSync(): List<Purchase> = coroutineScope {
+        val paramsSubs = QueryPurchasesParams.newBuilder()
+            .setProductType(BillingClient.ProductType.SUBS)
+            .build()
+
+        val subsDeferred = CompletableDeferred<List<Purchase>>()
+
+        billing.queryPurchasesAsync(paramsSubs) { result, purchases ->
+            if (result.responseCode == BillingClient.BillingResponseCode.OK && purchases != null) {
+                subsDeferred.complete(purchases)
+            } else {
+                subsDeferred.complete(emptyList())
+            }
+        }
+
+        val paramsInApps = QueryPurchasesParams.newBuilder()
+            .setProductType(BillingClient.ProductType.INAPP)
+            .build()
+
+        val inAppsDeferred = CompletableDeferred<List<Purchase>>()
+
+        billing.queryPurchasesAsync(paramsInApps) { result, purchases ->
+            if (result.responseCode == BillingClient.BillingResponseCode.OK && purchases != null) {
+                inAppsDeferred.complete(purchases)
+            } else {
+                inAppsDeferred.complete(emptyList())
+            }
+        }
+
+        val subsPurchases = async { subsDeferred.await() }
+        val inAppsPurchases = async { inAppsDeferred.await() }
+
+        subsPurchases.await() + inAppsPurchases.await()
     }
 
     suspend fun queryPurchaseHistorySync(
