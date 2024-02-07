@@ -33,7 +33,7 @@ internal object ApphudInternal {
     internal val coroutineScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     internal val errorHandler =
         CoroutineExceptionHandler { _, error ->
-            error.message?.let { ApphudLog.logE(it) }
+            error.message?.let { ApphudLog.logE("Coroutine exception: " + it) }
         }
 
     internal const val ERROR_TIMEOUT = 408
@@ -77,7 +77,6 @@ internal object ApphudInternal {
     private var is_new = true
     private lateinit var apiKey: ApiKey
     lateinit var deviceId: DeviceId
-    private var notifyFullyLoaded = false
     internal var fallbackMode = false
     internal lateinit var userId: UserId
     internal lateinit var context: Context
@@ -244,10 +243,8 @@ internal object ApphudInternal {
             var updateOfferingsFromCustomer = false
 
             if (fromCache || fromFallback) {
-                notifyFullyLoaded = true
             } else {
                 if (it.paywalls.isNotEmpty()) {
-                    notifyFullyLoaded = true
                     updateOfferingsFromCustomer = true
                     cachePaywalls(it.paywalls)
                     cachePlacements(it.placements)
@@ -293,18 +290,13 @@ internal object ApphudInternal {
 
         updatePaywallsAndPlacements()
 
-        if (paywallsPrepared && currentUser != null && paywalls.isNotEmpty() && skuDetails.isNotEmpty() && notifyFullyLoaded) {
-            notifyFullyLoaded = false
-            if (!didLoadOfferings) {
-                didLoadOfferings = true
-                apphudListener?.paywallsDidFullyLoad(paywalls)
-                apphudListener?.placementsDidFullyLoad(placements)
-                offeringsPreparedCallbacks.forEach { it.invoke() }
-                offeringsPreparedCallbacks.clear()
-                ApphudLog.log("Did Fully Load")
-            }
-        } else {
-            ApphudLog.log("Not yet fully loaded")
+        if (currentUser != null && paywalls.isNotEmpty() && productDetails.isNotEmpty() && !didLoadOfferings) {
+            didLoadOfferings = true
+            apphudListener?.paywallsDidFullyLoad(paywalls)
+            apphudListener?.placementsDidFullyLoad(placements)
+            offeringsPreparedCallbacks.forEach { it.invoke() }
+            offeringsPreparedCallbacks.clear()
+            ApphudLog.log("Did Fully Load")
         }
     }
 
@@ -846,6 +838,7 @@ internal object ApphudInternal {
             placements.forEach { placement ->
                 val paywall = placement.paywall
                 paywall?.placementId = placement.id
+                paywall?.placementIdentifier = placement.identifier
                 paywall?.products?.forEach { product ->
                     product.paywallId = placement.paywall.id
                     product.paywallIdentifier = placement.paywall.identifier

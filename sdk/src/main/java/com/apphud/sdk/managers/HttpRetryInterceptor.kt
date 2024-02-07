@@ -13,8 +13,8 @@ import java.net.SocketTimeoutException
 
 class HttpRetryInterceptor : Interceptor {
     companion object {
-        private const val STEP = 3_000L
-        private const val MAX_COUNT = 7
+        private var STEP = 3_000L
+        private var MAX_COUNT = 7
     }
 
     @Throws(IOException::class)
@@ -29,6 +29,18 @@ class HttpRetryInterceptor : Interceptor {
                 isSuccess = response.isSuccessful
 
                 if (!isSuccess) {
+
+                    if (response != null) {
+                        val isBlocked = RequestManager.checkLock403(request, response)
+                        if (isBlocked) {
+                            return response
+                        }
+                        if (response.code == 429) {
+                            STEP = 6_000L
+                            MAX_COUNT = 1
+                        }
+                    }
+
                     ApphudLog.logE(
                         "Request (${request.url.encodedPath}) failed with code (${response.code}). Will retry in ${STEP / 1000} seconds ($tryCount).",
                     )
@@ -50,10 +62,11 @@ class HttpRetryInterceptor : Interceptor {
                 )
                 Thread.sleep(STEP)
             } finally {
-                if (!isSuccess) {
+                tryCount++
+
+                if (!isSuccess && tryCount < MAX_COUNT) {
                     response?.close()
                 }
-                tryCount++
             }
         }
         if (!isSuccess) {
@@ -61,4 +74,6 @@ class HttpRetryInterceptor : Interceptor {
         }
         return response ?: chain.proceed(request)
     }
+
+
 }

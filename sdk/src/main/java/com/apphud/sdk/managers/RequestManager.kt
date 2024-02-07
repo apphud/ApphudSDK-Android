@@ -162,31 +162,17 @@ object RequestManager {
 
     private fun logRequestFinish(
         request: Request,
-        response: Response,
+        responseBody: String?,
+        responseCode: Int
     ) {
-        try {
-            val responseBody = response.body
-            val source = responseBody?.source()
-            source?.request(Long.MAX_VALUE)
-
-            var outputBody = ""
-            if (ApphudUtils.httpLogging) {
-                val buffer =
-                    source?.buffer?.clone()
-                        ?.readString(Charset.forName("UTF-8"))
-                buffer?.let {
-                    if (parser.isJson(buffer)) {
-                        outputBody = buildPrettyPrintedBy(it) ?: ""
-                    }
-                }
-            }
-
-            ApphudLog.logI(
-                "Finished " + request.method + " request " + request.url + " with response: " + response.code + "\n" + outputBody,
-            )
-        } catch (ex: Exception) {
-            ApphudLog.logE(ex.message ?: "")
+        var outputBody = ""
+        if (ApphudUtils.httpLogging) {
+            outputBody = buildPrettyPrintedBy(responseBody ?: "") ?: ""
         }
+
+        ApphudLog.logI(
+            "Finished " + request.method + " request " + request.url + " with response: " + responseCode + "\n" + outputBody,
+        )
     }
 
     private fun performRequest(
@@ -205,6 +191,7 @@ object RequestManager {
 
                 val start = Date()
                 val response = client.newCall(request).execute()
+                val responseBody = response.body?.string()
                 val finish = Date()
                 val diff = (finish.time - start.time)
                 ApphudLog.logBenchmark(
@@ -212,11 +199,11 @@ object RequestManager {
                     diff,
                 )
 
-                logRequestFinish(request, response)
+                logRequestFinish(request, responseBody, response.code)
 
                 if (response.isSuccessful) {
-                    response.body?.let {
-                        completionHandler(it.string(), null)
+                    responseBody?.let {
+                        completionHandler(it, null)
                     } ?: run {
                         completionHandler(null, ApphudError("Request failed", null, response.code))
                     }
@@ -225,10 +212,13 @@ object RequestManager {
                     val message =
                         "finish ${request.method} request ${request.url} " +
                             "failed with code: ${response.code} response: ${
-                                buildPrettyPrintedBy(response.body.toString())
+                                buildPrettyPrintedBy(responseBody.toString())
                             }"
                     completionHandler(null, ApphudError(message, null, response.code))
                 }
+
+                response.close()
+
             } else {
                 val message = "No Internet connection"
                 ApphudLog.logE(message)
@@ -258,6 +248,7 @@ object RequestManager {
 
             val start = Date()
             val response = client.newCall(request).execute()
+            val responseBody = response.body?.string()
             val finish = Date()
             val diff = (finish.time - start.time)
             ApphudLog.logBenchmark(
@@ -265,18 +256,20 @@ object RequestManager {
                 diff,
             )
 
-            logRequestFinish(request, response)
+            logRequestFinish(request, responseBody, response.code)
 
-            val responseBody = response.body!!.string()
+            response.close()
+
             if (response.isSuccessful) {
-                return responseBody
+                return responseBody ?: ""
             } else {
                 checkLock403(request, response)
                 val message =
                     "finish ${request.method} request ${request.url} " +
                         "failed with code: ${response.code} response: ${
-                            buildPrettyPrintedBy(responseBody)
+                            buildPrettyPrintedBy(responseBody ?: "")
                         }"
+                ApphudLog.logE(message)
                 throw Exception(message)
             }
         } else {
@@ -286,13 +279,16 @@ object RequestManager {
         }
     }
 
-    private fun checkLock403(
+    internal fun checkLock403(
         request: Request,
         response: Response,
-    ) {
+    ): Boolean {
         if (response.code == 403 && request.method == "POST" && request.url.encodedPath.endsWith("/customers")) {
             HeadersInterceptor.isBlocked = true
+            ApphudLog.logE("Unable to perform API requests, because your account has been suspended.")
         }
+
+        return HeadersInterceptor.isBlocked
     }
 
     private fun makeRequest(

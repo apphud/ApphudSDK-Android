@@ -1,9 +1,13 @@
 package com.apphud.sdk.internal
 
+
 import com.apphud.sdk.ApphudLog
+import kotlinx.coroutines.async
 import com.apphud.sdk.internal.callback_status.PurchaseHistoryCallbackStatus
 import com.apphud.sdk.response
 import com.xiaomi.billingclient.api.BillingClient
+import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.suspendCancellableCoroutine
 import java.io.Closeable
 import kotlin.concurrent.thread

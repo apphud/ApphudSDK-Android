@@ -46,7 +46,7 @@ class PaywallsAdapter(private val paywallsViewModel: PaywallsViewModel, private 
             paywallIdentifier.text = "Paywall ID: " + (paywall?.identifier ?: "N/A")
             paywallDefault.text = paywall?.default.toString()
             paywallExperiment.text = item.placement?.experimentName ?: paywall?.experimentName ?: "N/A"
-            paywallVariation.text = "N/A"
+            paywallVariation.text = item.placement?.paywall?.variationName ?: paywall?.variationName ?: "N/A"
             paywallJson.text = if (paywall?.json != null) "true" else "false"
             experimentName?.let {
                 layoutHolder.setBackgroundResource(R.color.teal_200)

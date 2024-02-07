@@ -20,10 +20,25 @@ internal fun ApphudInternal.restorePurchases(callback: ApphudPurchasesRestoreCal
 
 private val mutexSync = Mutex()
 
+private var unvalidatedPurchases = listOf<Purchase>()
+
+internal suspend fun ApphudInternal.restoreWithoutValidation(): List<Purchase> {
+    if (unvalidatedPurchases.isEmpty()) {
+        val purchases = billing.queryPurchasesSync()
+        if (!purchases.isNullOrEmpty()) {
+            unvalidatedPurchases = purchases
+            storage.isNeedSync = true
+            syncPurchases(unvalidatedPurchs = unvalidatedPurchases)
+        }
+    }
+    return unvalidatedPurchases
+}
+
 internal fun ApphudInternal.syncPurchases(
     paywallIdentifier: String? = null,
     placementIdentifier: String? = null,
     observerMode: Boolean = true,
+    unvalidatedPurchs: List<Purchase>? = null,
     callback: ApphudPurchasesRestoreCallback? = null,
 ) {
     performWhenUserRegistered { error ->
@@ -40,6 +55,14 @@ internal fun ApphudInternal.syncPurchases(
                     var purchases = mutableListOf<Purchase>()
                     purchases.addAll(processHistoryCallbackStatus(subsResult))
                     purchases.addAll(processHistoryCallbackStatus(inapsResult))
+
+                    if (!unvalidatedPurchs.isNullOrEmpty()) {
+                        val tokens = unvalidatedPurchs.map { it.purchaseToken }
+                        val filtered = purchases.filter { tokens.contains(it.purchaseToken) }
+                        if (filtered.isNotEmpty()) {
+                            purchases = filtered.toMutableList()
+                        }
+                    }
 
                     if (purchases.isEmpty()) {
                         ApphudLog.log(message = "SyncPurchases: Nothing to restore", sendLogToServer = false)
@@ -81,7 +104,7 @@ internal fun ApphudInternal.syncPurchases(
 
                         ApphudLog.log("SyncPurchases: Products restored: ${restoredPurchases.map { it.details.sku } }")
 
-                        if (observerMode && prevPurchases.containsAll(restoredPurchases)) {
+                        if (prevPurchases.containsAll(restoredPurchases)) {
                             ApphudLog.log("SyncPurchases: Don't send equal purchases from prev state")
                             storage.isNeedSync = false
                             mainScope.launch {

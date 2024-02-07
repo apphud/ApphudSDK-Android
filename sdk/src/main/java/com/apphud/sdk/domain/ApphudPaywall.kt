@@ -30,6 +30,24 @@ data class ApphudPaywall(
      You can use it for additional analytics.
      */
     val experimentName: String?,
+
+    /**
+    A/B Experiment Variation Name
+     */
+    val variationName: String?,
+
+    /**
+    Represents the identifier of a parent paywall from which an experiment variation was derived in A/B Experiments.
+    This property is populated only if the 'Use existing paywall' option was selected
+    during the setup of the experiment variation.
+     */
+    val parentPaywallIdentifier: String?,
+
+    /**
+     Current paywall's placement identifier, if available.
+     */
+    var placementIdentifier: String?,
+
     /**
      * For internal usage
      */

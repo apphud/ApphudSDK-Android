@@ -34,5 +34,8 @@ class PaywallsMapper(
                 },
             experimentName = paywallDto.experiment_name,
             placementId = null,
+            placementIdentifier = null,
+            parentPaywallIdentifier = paywallDto.from_paywall,
+            variationName = paywallDto.variation_name
         )
 }
