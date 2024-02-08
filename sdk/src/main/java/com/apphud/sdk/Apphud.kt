@@ -531,19 +531,22 @@ object Apphud {
     }
 
     /**
-     * Quickly checks for active subscriptions or active lifetime purchases
-     * associated with the current Google Play account.
-     * This method is much faster than `Apphud.restorePurchases` as it bypasses validation,
-     * providing a quick way to determine the presence of purchases.
-     * If not empty, it can be used for skipping the initial paywall on the first app launch.
-     * Note that `Apphud.hasPremiumAccess()` will still return false until
-     * purchases are validated through Apphud, so this method should not be used for access control.
+     * Retrieves Google Play's native Purchase objects,
+     * which may include only active subscriptions or active non-consumed one-time purchases.
+     * Compared to `Apphud.restorePurchases`, this method offers a quicker way
+     * to determine the presence of owned purchases as it bypasses validation by Apphud.
      *
-     * __NOTE__: If any unvalidated purchases were found in the result of this method call,
+     * Usage of this function for granting premium access is not advised,
+     * as these purchases may not yet be validated.
+     *
+     * __NOTE__: `Apphud.hasPremiumAccess()` may return false until
+     * purchases are validated by Apphud.
+     *
+     * __NOTE__: If any native purchases were found in the result of this method call,
      * Apphud will automatically track and validate them in the background,
-     * so developer doesn't need to call `Apphud.restorePurchases` manually.
+     * so developer doesn't need to call `Apphud.restorePurchases` afterwards.
      */
-    suspend fun unvalidatedActivePurchases(): List<Purchase> = ApphudInternal.restoreWithoutValidation()
+    suspend fun nativePurchases(): List<Purchase> = ApphudInternal.fetchNativePurchases()
 
     //endregion
     //region === Attribution ===
