@@ -6,7 +6,6 @@ import com.apphud.sdk.isSuccess
 import com.apphud.sdk.logMessage
 import com.xiaomi.billingclient.api.BillingClient
 import com.xiaomi.billingclient.api.BillingFlowParams
-import com.xiaomi.billingclient.api.Purchase
 import com.xiaomi.billingclient.api.SkuDetails
 
 internal class FlowWrapper(private val billing: BillingClient) {
@@ -79,9 +78,9 @@ internal class FlowWrapper(private val billing: BillingClient) {
         return  BillingFlowParams.newBuilder()
             .setSkuDetails(skuDetails)
             .setOfferToken(offerToken)
-            //.setObfuscatedAccountId("")
+            .apply { obfuscatedAccountId?.let { setObfuscatedAccountId(it) } }
             //.setObfuscatedProfileId("")
-            //.setWebHookUrl(")
+            //.setWebHookUrl("")
             .setSubscriptionUpdateParams(BillingFlowParams.SubscriptionUpdateParams.newBuilder()
                 .setOldPurchaseToken(oldToken)
                 .setSubscriptionReplacementMode(replacementMode?: BillingFlowParams.SubscriptionUpdateParams.ReplacementMode.IMMEDIATE_AND_CHARGE_FULL_PRICE)
@@ -106,6 +105,7 @@ internal class FlowWrapper(private val billing: BillingClient) {
             return BillingFlowParams.newBuilder()
                 .setSkuDetails(skuDetails)
                 .setOfferToken(offerToken)
+                .apply { obfuscatedAccountId?.let { setObfuscatedAccountId(it) } }
         } ?: run {
             return BillingFlowParams.newBuilder()
                 .setSkuDetails(skuDetails)
