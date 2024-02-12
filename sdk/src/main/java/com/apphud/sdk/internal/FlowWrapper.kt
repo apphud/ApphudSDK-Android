@@ -30,7 +30,6 @@ internal class FlowWrapper(private val billing: BillingClient) {
             }
 
         try {
-
             val params: BillingFlowParams =
                 if (offerToken != null) {
                     if (oldToken != null) {
@@ -78,7 +77,7 @@ internal class FlowWrapper(private val billing: BillingClient) {
         return  BillingFlowParams.newBuilder()
             .setSkuDetails(skuDetails)
             .setOfferToken(offerToken)
-            .apply { obfuscatedAccountId?.let { setObfuscatedAccountId(it) } }
+            .setObfuscatedAccountId(obfuscatedAccountId)
             //.setObfuscatedProfileId("")
             //.setWebHookUrl("")
             .setSubscriptionUpdateParams(BillingFlowParams.SubscriptionUpdateParams.newBuilder()
@@ -105,10 +104,11 @@ internal class FlowWrapper(private val billing: BillingClient) {
             return BillingFlowParams.newBuilder()
                 .setSkuDetails(skuDetails)
                 .setOfferToken(offerToken)
-                .apply { obfuscatedAccountId?.let { setObfuscatedAccountId(it) } }
+                .setObfuscatedAccountId(obfuscatedAccountId)
         } ?: run {
             return BillingFlowParams.newBuilder()
                 .setSkuDetails(skuDetails)
+                .setObfuscatedAccountId(obfuscatedAccountId)
         }
     }
 }
