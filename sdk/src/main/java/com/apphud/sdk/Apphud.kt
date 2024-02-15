@@ -14,7 +14,7 @@ object Apphud {
     /**
      * Initializes Apphud SDK. You should call it during app launch.
      *
-     * @param context The application context.
+     * @param activity Activity.
      * @param apiKey Your API key. This is a required parameter.
      * @param callback (Optional) A callback function that is invoked with the `ApphudUser`
      *                 object after the SDK initialization is complete. __Note__: Do not store
@@ -30,7 +30,7 @@ object Apphud {
     /**
      * Initializes Apphud SDK. You should call it during app launch.
      *
-     * @param context The application context.
+     * @param activity Activity.
      * @param apiKey Your API key. This is a required parameter.
      * @param userId (Optional) A unique user identifier. If null is passed, a UUID will be
      *               generated and used as the user identifier.
@@ -49,7 +49,7 @@ object Apphud {
     /**
      * Initializes the Apphud SDK. This method should be called during the app launch.
      *
-     * @param context The application context.
+     * @param activity Activity.
      * @param apiKey Your API key. This is a required parameter.
      * @param userId (Optional) A unique user identifier. If null is passed, a UUID will be
      *               generated and used as the user identifier.
