@@ -52,10 +52,10 @@ dependencies {
     implementation("org.greenrobot:eventbus:3.3.1")
 
 
-    //implementation project(path: ':sdk')
+    implementation project(path: ':sdk')
 
     //To use from maven central
-    implementation "com.github.apphud:ApphudSDK-Android:development_xiaomi-SNAPSHOT"
+    //implementation "com.github.apphud:ApphudSDK-Android:development_xiaomi-SNAPSHOT"
 
     implementation 'com.xiaomi.billingclient:billing:1.1.2'
 

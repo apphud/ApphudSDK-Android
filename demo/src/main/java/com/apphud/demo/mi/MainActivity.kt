@@ -12,6 +12,7 @@ import androidx.navigation.ui.setupActionBarWithNavController
 import com.apphud.demo.mi.databinding.ActivityMainBinding
 import com.apphud.sdk.Apphud
 import com.apphud.sdk.ApphudUtils
+import com.apphud.sdk.client.ApiClient
 
 
 class MainActivity : AppCompatActivity() {
@@ -24,6 +25,11 @@ class MainActivity : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         me = this
+
+        //TODO: Working with stage api, remove this code for production
+        if (BuildConfig.DEBUG) {
+            ApiClient.host = "https://api.apphudstage.com"
+        }
 
         Apphud.enableDebugLogs()
         // Apphud.optOutOfTracking()
