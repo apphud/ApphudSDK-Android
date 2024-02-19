@@ -535,6 +535,8 @@ object Apphud {
      * Compared to `Apphud.restorePurchases`, this method offers a quicker way
      * to determine the presence of owned purchases as it bypasses validation by Apphud.
      *
+     * Returns `BillingClient.BillingResponseCode` as second parameter of Pair.
+     *
      * Usage of this function for granting premium access is not advised,
      * as these purchases may not yet be validated.
      *
@@ -545,7 +547,7 @@ object Apphud {
      * Apphud will automatically track and validate them in the background,
      * so developer doesn't need to call `Apphud.restorePurchases` afterwards.
      */
-    suspend fun nativePurchases(): List<Purchase> = ApphudInternal.fetchNativePurchases()
+    suspend fun nativePurchases(): Pair<List<Purchase>, Int> = ApphudInternal.fetchNativePurchases()
 
     //endregion
     //region === Attribution ===
