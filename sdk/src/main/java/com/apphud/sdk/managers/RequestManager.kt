@@ -906,7 +906,7 @@ object RequestManager {
 
         return RegistrationBody(
             locale = Locale.getDefault().toString(),
-            sdk_version = BuildConfig.VERSION_NAME,
+            sdk_version = HeadersInterceptor.X_SDK_VERSION,
             app_version = this.applicationContext.buildAppVersion(),
             device_family = Build.MANUFACTURER,
             platform = "Android",
