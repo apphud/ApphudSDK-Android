@@ -22,15 +22,18 @@ private val mutexSync = Mutex()
 
 private var unvalidatedPurchases = listOf<Purchase>()
 
-internal suspend fun ApphudInternal.fetchNativePurchases(): List<Purchase> {
+internal suspend fun ApphudInternal.fetchNativePurchases(): Pair<List<Purchase>, Int> {
+    var responseCode = BillingClient.BillingResponseCode.OK
     if (unvalidatedPurchases.isEmpty()) {
-        val purchases = billing.queryPurchasesSync()
+        val result = billing.queryPurchasesSync()
+        val purchases = result.first
+        responseCode = result.second
         if (!purchases.isNullOrEmpty()) {
             unvalidatedPurchases = purchases
             syncPurchases(unvalidatedPurchs = unvalidatedPurchases)
         }
     }
-    return unvalidatedPurchases
+    return Pair(unvalidatedPurchases, responseCode)
 }
 
 internal fun ApphudInternal.syncPurchases(
