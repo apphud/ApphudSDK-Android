@@ -32,7 +32,7 @@ internal class BillingWrapper(context: Context) : Closeable {
 
     private val mutex = Mutex()
 
-    private var connectionResponse: Int = BillingClient.BillingResponseCode.SERVICE_DISCONNECTED
+    private var connectionResponse: Int = BillingClient.BillingResponseCode.OK
 
     private suspend fun connectIfNeeded(): Boolean {
         var result: Boolean
@@ -40,11 +40,16 @@ internal class BillingWrapper(context: Context) : Closeable {
             if (billing.isReady) {
                 result = true
             } else {
+                var retries = 0
                 try {
-                    while (!billing.connect()) {
+                    val MAX_RETRIES = 5
+                    var connected = false
+                    while (!connected && retries < MAX_RETRIES) {
                         Thread.sleep(300)
+                        retries += 1
+                        connected = billing.connect()
                     }
-                    result = true
+                    result = connected
                 } catch (ex: java.lang.Exception) {
                     ApphudLog.log("Connect to Billing failed: ${ex.message ?: "error"}")
                     result = false
@@ -61,7 +66,6 @@ internal class BillingWrapper(context: Context) : Closeable {
                 object : BillingClientStateListener {
                     override fun onBillingSetupFinished(billingResult: BillingResult) {
                         connectionResponse = billingResult.responseCode
-
                         if (billingResult.responseCode == BillingClient.BillingResponseCode.OK) {
                             if (continuation.isActive && !resumed) {
                                 resumed = true
