@@ -115,14 +115,14 @@ object Apphud {
      * Suspends the current coroutine until the placements from
      * Product Hub > Placements are available, potentially altered based on the
      * user's involvement in A/B testing, if applicable.
-     * Method suspends until the inner `SkuDetails` are loaded from Google Play.
+     * Method suspends until the inner `SkuDetails` are loaded from Xiaomi GetApps.
      *
      * A placement is a specific location within a user's journey
      * (such as onboarding, settings, etc.) where its internal paywall
      * is intended to be displayed.
      *
      * If you want to obtain placements without waiting for `SkuDetails`
-     * from Google Play, you can use `rawPlacements()` method.
+     * from Xiaomi GetApps, you can use `rawPlacements()` method.
      *
      * @return The list of `ApphudPlacement` objects.
      */
@@ -137,14 +137,14 @@ object Apphud {
      * Suspends the current coroutine until the specific placement by identifier
      * is available, potentially altered based on the
      * user's involvement in A/B testing, if applicable.
-     * Method suspends until the inner `SkuDetails` are loaded from Google Play.
+     * Method suspends until the inner `SkuDetails` are loaded from Xiaomi GetApps.
      *
      * A placement is a specific location within a user's journey
      * (such as onboarding, settings, etc.) where its internal paywall
      * is intended to be displayed.
      *
      * If you want to obtain placements without waiting for `SkuDetails`
-     * from Google Play, you can use `rawPlacements()` method.
+     * from Xiaomi GetApps, you can use `rawPlacements()` method.
      *
      * @return The list of `ApphudPlacement` objects.
      */
@@ -160,7 +160,7 @@ object Apphud {
      * is intended to be displayed.
      *
      * If you want to obtain placements without waiting for `SkuDetails`
-     * from Google Play, you can use `rawPlacements()` method.
+     * from Xiaomi GetApps, you can use `rawPlacements()` method.
      *
      * @param callback The callback function that is invoked with the list of `ApphudPlacement` objects.
      */
@@ -173,10 +173,10 @@ object Apphud {
      * on the user's involvement in A/B testing, if any.
      *
      * __Note__: This function doesn't suspend until inner `SkuDetails`
-     * are loaded from Google Play. That means placements may or may not have
-     * inner Google Play products at the time you call this function.
+     * are loaded from Xiaomi GetApps. That means placements may or may not have
+     * inner Xiaomi GetApps products at the time you call this function.
      *
-     * To get placements with awaiting for inner Google Play products, use
+     * To get placements with awaiting for inner GoXiaomi GetApps products, use
      * `placements()` or `placementsDidLoadCallback(...)` functions.
      */
     fun rawPlacements(): List<ApphudPlacement> = ApphudInternal.placements
@@ -190,10 +190,10 @@ object Apphud {
      * can be used for purchases.
      * `ApphudProduct` is Apphud's wrapper around `SkuDetails`.
      *
-     * Method suspends until the inner `SkuDetails` are loaded from Google Play.
+     * Method suspends until the inner `SkuDetails` are loaded from Xiaomi GetApps.
      *
      * If you want to obtain paywalls without waiting for `SkuDetails` from
-     * Google Play, you can use `rawPaywalls()` method.
+     * Xiaomi GetApps, you can use `rawPaywalls()` method.
      *
      * @return The list of `ApphudPaywall` objects.
      */
@@ -217,10 +217,10 @@ object Apphud {
      * can be used for purchases.
      * `ApphudProduct` is Apphud's wrapper around `SkuDetails`.
      *
-     * Method suspends until the inner `SkuDetails` are loaded from Google Play.
+     * Method suspends until the inner `SkuDetails` are loaded from Xiaomi GetApps.
      *
      * If you want to obtain paywalls without waiting for `SkuDetails` from
-     * Google Play, you can use `rawPaywalls()` method.
+     * Xiaomi GetApps, you can use `rawPaywalls()` method.
      *
      * @return The list of `ApphudPaywall` objects.
      */
@@ -239,10 +239,10 @@ object Apphud {
      * can be used for purchases.
      * `ApphudProduct` is Apphud's wrapper around `SkuDetails`.
      *
-     * Method suspends until the inner `SkuDetails` are loaded from Google Play.
+     * Method suspends until the inner `SkuDetails` are loaded from Xiaomi GetApps.
      *
      * If you want to obtain paywalls without waiting for `SkuDetails` from
-     * Google Play, you can use `rawPaywalls()` method.
+     * Xiaomi GetApps, you can use `rawPaywalls()` method.
      *
      * @param callback The callback function that is invoked with the list of `ApphudPaywall` objects.
      */
@@ -259,10 +259,10 @@ object Apphud {
      * on the user's involvement in A/B testing, if any.
      *
      * __Note__: This function doesn't suspend until inner `SkuDetails`
-     * are loaded from Google Play. That means paywalls may or may not have
-     * inner Google Play products at the time you call this function.
+     * are loaded from Xiaomi GetApps. That means paywalls may or may not have
+     * inner Xiaomi GetApps products at the time you call this function.
      *
-     * To get paywalls with awaiting for inner Google Play products, use
+     * To get paywalls with awaiting for inner Xiaomi GetApps products, use
      * Apphud.paywalls() or Apphud.paywallsDidLoadCallback(...) functions.
      */
     fun rawPaywalls(): List<ApphudPaywall> = ApphudInternal.paywalls
@@ -290,7 +290,7 @@ object Apphud {
     /**
      * Returns permission groups configured in the Apphud dashboard under Product Hub > Products.
      * These groups are cached on the device.
-     * Note that this method returns an empty array if `SkuDetails` are not yet fetched from Google Play.
+     * Note that this method returns an empty array if `SkuDetails` are not yet fetched from Xiaomi GetApps.
      *
      * To get notified when `permissionGroups` are ready to use, you can use ApphudListener's
      * `apphudFetchProductsDetailsProducts` or `paywallsDidFullyLoad` methods, or `productsFetchCallback`.
@@ -325,7 +325,7 @@ object Apphud {
     }
 
     /**
-     * This callback is triggered when `SkuDetails` are fetched from Google Play Billing.
+     * This callback is triggered when `SkuDetails` are fetched from Xiaomi GetApps Billing.
      * Ensure that all product identifiers are added in Apphud > Product Hub > Products.
      * You can use this callback or implement `ApphudListener`'s `apphudFetchProductsDetails`
      * method, based on your preference.
@@ -343,7 +343,7 @@ object Apphud {
     /**
      * Returns the `SkuDetails` object for a specific product identifier.
      * Ensure the product identifier is added in Apphud > Product Hub > Products.
-     * The method will return `null` if the product is not yet fetched from Google Play.
+     * The method will return `null` if the product is not yet fetched from Xiaomi GetApps.
      *
      * @param productIdentifier The identifier of the product.
      * @return The `SkuDetails` object for the specified product, or null if not available.
@@ -422,12 +422,12 @@ object Apphud {
 
     /**
      * Initiates the purchase process for a specified product and automatically submits the
-     * Google Play purchase token to Apphud.
+     * Xiaomi GetApps purchase token to Apphud.
      *
      * @param activity The current Activity context.
      * @param apphudProduct The `ApphudProduct` object representing the product to be purchased.
      * @param offerIdToken (Required for Subscriptions) The identifier of the offer for initiating the purchase. Developer should retrieve it from SubscriptionOfferDetails object.
-     * @param oldToken (Optional) The Google Play Billing purchase token that the user is
+     * @param oldToken (Optional) The Xiaomi GetApps Billing purchase token that the user is
      *                 upgrading or downgrading from.
      * @param replacementMode (Optional) The replacement mode for the subscription update.
      * @param consumableInAppProduct (Optional) Set to true for consumable products. Otherwise purchase will be treated as non-consumable and acknowledged.
@@ -453,13 +453,13 @@ object Apphud {
     )
 
     /**
-     * Initiates the purchase process for a product by its Google Play product ID and automatically
+     * Initiates the purchase process for a product by its Xiaomi GetApps product ID and automatically
      * submits the purchase token to Apphud.
      *
      * @param activity The current Activity context.
-     * @param productId The Google Play product ID of the item to purchase.
+     * @param productId The Xiaomi GetApps product ID of the item to purchase.
      * @param offerIdToken (Required for Subscriptions) The identifier of the offer for initiating the purchase. Developer should retrieve it from SubscriptionOfferDetails object.
-     * @param oldToken (Optional) The Google Play Billing purchase token that the user is
+     * @param oldToken (Optional) The Xiaomi GetApps Billing purchase token that the user is
      *                 upgrading or downgrading from.
      * @param replacementMode (Optional) The replacement mode for the subscription update.
      *
@@ -531,7 +531,7 @@ object Apphud {
     }
 
     /**
-     * Retrieves Google Play's native Purchase objects,
+     * Retrieves Xiaomi GetApps native Purchase objects,
      * which may include only active subscriptions or active non-consumed one-time purchases.
      * Compared to `Apphud.restorePurchases`, this method offers a quicker way
      * to determine the presence of owned purchases as it bypasses validation by Apphud.
