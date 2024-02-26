@@ -163,9 +163,11 @@ object Apphud {
      * from Google Play, you can use `rawPlacements()` method.
      *
      * @param callback The callback function that is invoked with the list of `ApphudPlacement` objects.
+     * Second parameter in callback represents optional error, which may be on Google (BillingClient issue) or Apphud side.
      */
-    fun placementsDidLoadCallback(callback: (List<ApphudPlacement>) -> Unit) {
-        ApphudInternal.performWhenOfferingsPrepared { callback(ApphudInternal.placements) }
+    fun placementsDidLoadCallback(callback: (List<ApphudPlacement>, ApphudError?) -> Unit) {
+        ApphudInternal.performWhenOfferingsPrepared {
+            callback(ApphudInternal.placements, it) }
     }
 
     /** Returns:
@@ -245,13 +247,14 @@ object Apphud {
      * Google Play, you can use `rawPaywalls()` method.
      *
      * @param callback The callback function that is invoked with the list of `ApphudPaywall` objects.
+     * Second parameter in callback represents optional error, which may be on Google (BillingClient issue) or Apphud side.
      */
     @Deprecated(
         "Deprecated in favor of Placements",
         ReplaceWith("this.placementsDidLoadCallback(callback)"),
     )
-    fun paywallsDidLoadCallback(callback: (List<ApphudPaywall>) -> Unit) {
-        ApphudInternal.performWhenOfferingsPrepared { callback(ApphudInternal.paywalls) }
+    fun paywallsDidLoadCallback(callback: (List<ApphudPaywall>, ApphudError?) -> Unit) {
+        ApphudInternal.performWhenOfferingsPrepared { callback(ApphudInternal.paywalls, it) }
     }
 
     /** Returns:

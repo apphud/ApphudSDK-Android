@@ -7,6 +7,7 @@ import androidx.lifecycle.lifecycleScope
 import com.apphud.sdk.Apphud
 import com.apphud.sdk.ApphudUtils
 import com.apphud.sdk.client.ApiClient
+import com.apphud.sdk.domain.ApphudPlacement
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.GlobalScope
@@ -47,5 +48,6 @@ class ApphudApplication : Application() {
 
         Apphud.start(this, API_KEY)
         Apphud.collectDeviceIdentifiers()
+
     }
 }

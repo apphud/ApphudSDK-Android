@@ -10,6 +10,7 @@ import okhttp3.Response
 import java.io.IOException
 import java.lang.Exception
 import java.net.SocketTimeoutException
+import java.net.UnknownHostException
 
 class HttpRetryInterceptor : Interceptor {
     companion object {
@@ -22,7 +23,7 @@ class HttpRetryInterceptor : Interceptor {
         val request: Request = chain.request()
         var response: Response? = null
         var isSuccess = false
-        var tryCount: Byte = 0
+        var tryCount: Int = 0
         while (!isSuccess && tryCount < MAX_COUNT) {
             try {
                 response = chain.proceed(request)
@@ -56,6 +57,9 @@ class HttpRetryInterceptor : Interceptor {
                     "Request (${request.url.encodedPath}) failed with code (${response?.code ?: 0}). Will retry in ${STEP / 1000} seconds ($tryCount).",
                 )
                 Thread.sleep(STEP)
+            } catch (e: UnknownHostException) {
+                // do not retry unknown host exception (no internet connection issue)
+                tryCount = MAX_COUNT
             } catch (e: Exception) {
                 ApphudLog.logE(
                     "Request (${request.url.encodedPath}) failed with code (${response?.code ?: 0}). Will retry in ${STEP / 1000} seconds ($tryCount).",

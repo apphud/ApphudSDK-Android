@@ -1,5 +1,6 @@
 package com.apphud.demo.ui.customer
 
+import android.util.Log
 import androidx.lifecycle.ViewModel
 import com.apphud.sdk.Apphud
 import com.apphud.sdk.domain.ApphudPaywall
@@ -15,6 +16,7 @@ class PaywallsViewModel : ViewModel() {
     var showPlacements: Boolean = false
 
     suspend fun updateData() {
+        Log.d("ApphudLogs", "PaywallsViewModel update data")
         if (showPlacements) {
             items.clear()
             val placements = Apphud.placements()

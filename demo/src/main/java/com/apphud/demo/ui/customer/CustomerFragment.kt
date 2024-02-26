@@ -48,8 +48,9 @@ class CustomerFragment : Fragment() {
         binding.appVersion.text = BuildConfig.VERSION_NAME + " (" + BuildConfig.VERSION_CODE + ")"
 
         binding.btnSync.setOnClickListener {
-            Apphud.restorePurchases { subscriptions, purchases, error ->
-            }
+            getPaywalls()
+//            Apphud.restorePurchases { subscriptions, purchases, error ->
+//            }
         }
 
         paywallsViewModel = ViewModelProvider(this)[PaywallsViewModel::class.java]
@@ -95,7 +96,7 @@ class CustomerFragment : Fragment() {
                 }
 
                 override fun userDidLoad(user: ApphudUser) {
-                    Log.d("ApphudDemo", "userDidLoad()")
+                    Log.d("ApphudDemo", "userDidLoad(): ${user.userId}")
                     // TODO handle user registered event
                     updateData()
                 }
@@ -112,9 +113,32 @@ class CustomerFragment : Fragment() {
             }
         Apphud.setListener(listener)
 
+        getPaywalls()
         updateData()
 
         return root
+    }
+
+    private fun getPaywalls() {
+        Apphud.paywallsDidLoadCallback { pwls, response ->
+            Log.d("ApphudLogs", "NETWORK ISSUES: ${response?.networkIssue()} response = ${response}, paywallsDidLoadCallback = ${pwls.map { it.identifier }.toString()}")
+        }
+        Apphud.placementsDidLoadCallback { plms, response ->
+            Log.d("ApphudLogs", "NETWORK ISSUES: ${response?.networkIssue()} response = ${response}, placementsDidLoadCallback = ${plms.map { it.identifier }.toString()}")
+        }
+
+        lifecycleScope.launch {
+            val paywalls = Apphud.paywalls()
+            Log.d("ApphudLogs", "paywalls ARRAY = ${paywalls.map { it.identifier }.toString()}")
+        }
+        lifecycleScope.launch {
+            val placements = Apphud.placements()
+            Log.d("ApphudLogs", "PLACEMENTS ARRAY = ${placements.map { it.identifier }.toString()}")
+        }
+
+        // 1. CHECK PAYWALLS FALLBACK JSON IF NO INTERNET
+        // 2. CALLED TWICE!!!!
+        // 3. test application resumed
     }
 
     private fun updateData() {

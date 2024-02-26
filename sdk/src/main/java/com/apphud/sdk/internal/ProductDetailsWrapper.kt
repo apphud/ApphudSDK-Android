@@ -127,7 +127,7 @@ internal class ProductDetailsWrapper(
     suspend fun querySync(
         @BillingClient.ProductType type: ProductType,
         products: List<ProductId>,
-    ): List<ProductDetails>? =
+    ): Pair<List<ProductDetails>?, Int> =
         suspendCancellableCoroutine { continuation ->
             var resumed = false
             val productList =
@@ -150,14 +150,14 @@ internal class ProductDetailsWrapper(
                             ApphudLog.logI("Query ProductDetails success $type")
                             if (continuation.isActive && !resumed) {
                                 resumed = true
-                                continuation.resume(details.orEmpty())
+                                continuation.resume(Pair(details.orEmpty(), result.responseCode))
                             }
                         }
                         else -> {
                             result.logMessage("Query ProductDetails Async type: $type products: $products")
                             if (continuation.isActive && !resumed) {
                                 resumed = true
-                                continuation.resume(null)
+                                continuation.resume(Pair(null, result.responseCode))
                             }
                         }
                     }

@@ -34,6 +34,7 @@ import org.json.JSONObject
 import java.io.IOException
 import java.net.SocketTimeoutException
 import java.net.URL
+import java.net.UnknownHostException
 import java.nio.charset.Charset
 import java.util.*
 import java.util.concurrent.TimeUnit
@@ -227,7 +228,7 @@ object RequestManager {
         } catch (e: SocketTimeoutException) {
             ApphudInternal.processFallbackError(request)
             val message = e.message ?: "Undefined error"
-            completionHandler(null, ApphudError(message, null, ApphudInternal.ERROR_TIMEOUT))
+            completionHandler(null, ApphudError(message, null, APPHUD_ERROR_TIMEOUT))
         } catch (e: IOException) {
             val message = e.message ?: "Undefined error"
             completionHandler(null, ApphudError(message))
@@ -407,10 +408,13 @@ object RequestManager {
                 }
             } catch (e: SocketTimeoutException) {
                 ApphudInternal.processFallbackError(request)
-                val message = e.message ?: "Undefined error"
-                completionHandler(null, ApphudError(message, null, ApphudInternal.ERROR_TIMEOUT))
+                val message = e.message ?: "Registration failed"
+                completionHandler(null, ApphudError(message, null, APPHUD_ERROR_TIMEOUT))
+            } catch (ex: UnknownHostException) {
+                val message = ex.message ?: "Registration failed"
+                completionHandler(null, ApphudError(message, null, APPHUD_ERROR_NO_INTERNET))
             } catch (ex: Exception) {
-                val message = ex.message ?: "Undefined error"
+                val message = ex.message ?: "Registration failed"
                 completionHandler(null, ApphudError(message))
             }
         } else {
