@@ -59,23 +59,15 @@ object RequestManager {
 
     // TODO to be settled
     private var apiKey: String? = null
-    lateinit var userId: UserId
-    lateinit var deviceId: DeviceId
     lateinit var applicationContext: Context
     lateinit var storage: SharedPreferencesStorage
 
     fun setParams(
         applicationContext: Context,
-        userId: UserId,
-        deviceId: DeviceId,
         apiKey: String? = null,
     ) {
         this.applicationContext = applicationContext
-        this.userId = userId
-        this.deviceId = deviceId
-        apiKey?.let {
-            this.apiKey = it
-        }
+        apiKey?.let { this.apiKey = it }
         this.storage = SharedPreferencesStorage
     }
 
@@ -85,8 +77,6 @@ object RequestManager {
 
     private fun canPerformRequest(): Boolean {
         return ::applicationContext.isInitialized &&
-            ::userId.isInitialized &&
-            ::deviceId.isInitialized &&
             apiKey != null
     }
 
@@ -891,8 +881,8 @@ object RequestManager {
 
         return PaywallEventBody(
             name = name,
-            user_id = userId,
-            device_id = deviceId,
+            user_id = ApphudInternal.userId,
+            device_id = ApphudInternal.deviceId,
             environment = if (applicationContext.isDebuggable()) "sandbox" else "production",
             timestamp = System.currentTimeMillis(),
             properties = properties.ifEmpty { null },
@@ -920,8 +910,8 @@ object RequestManager {
             idfv = if (ApphudUtils.optOutOfTracking || appSetId.isEmpty()) null else appSetId,
             idfa = if (ApphudUtils.optOutOfTracking || idfa.isEmpty()) null else idfa,
             android_id = if (ApphudUtils.optOutOfTracking || androidId.isEmpty()) null else androidId,
-            user_id = userId,
-            device_id = deviceId,
+            user_id = ApphudInternal.userId,
+            device_id = ApphudInternal.deviceId,
             time_zone = TimeZone.getDefault().id,
             is_sandbox = this.applicationContext.isDebuggable(),
             is_new = isNew,
@@ -955,7 +945,7 @@ object RequestManager {
         oldToken: String?,
     ): PurchaseBody {
         return PurchaseBody(
-            device_id = deviceId,
+            device_id = ApphudInternal.deviceId,
             purchases =
                 listOf(
                     PurchaseItemBody(
@@ -985,7 +975,7 @@ object RequestManager {
         purchases: List<PurchaseRecordDetails>,
         observerMode: Boolean,
     ) = PurchaseBody(
-        device_id = deviceId,
+        device_id = ApphudInternal.deviceId,
         purchases =
             purchases.map { purchase ->
                 PurchaseItemBody(
@@ -1019,7 +1009,7 @@ object RequestManager {
         offerIdToken: String?,
         observerMode: Boolean,
     ) = PurchaseBody(
-        device_id = deviceId,
+        device_id = ApphudInternal.deviceId,
         purchases =
             listOf(
                 PurchaseItemBody(
@@ -1047,8 +1037,8 @@ object RequestManager {
     ) = ErrorLogsBody(
         message = message,
         bundle_id = apphud_product_id,
-        user_id = userId,
-        device_id = deviceId,
+        user_id = ApphudInternal.userId,
+        device_id = ApphudInternal.deviceId,
         environment = if (applicationContext.isDebuggable()) "sandbox" else "production",
         timestamp = System.currentTimeMillis(),
     )
@@ -1060,8 +1050,8 @@ object RequestManager {
     ): GrantPromotionalBody {
         return GrantPromotionalBody(
             duration = daysCount,
-            user_id = userId,
-            device_id = deviceId,
+            user_id = ApphudInternal.userId,
+            device_id = ApphudInternal.deviceId,
             product_id = productId,
             product_group_id = permissionGroup?.id,
         )

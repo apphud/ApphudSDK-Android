@@ -36,18 +36,10 @@ class ApphudApplication : Application() {
 
     override fun onCreate() {
         super.onCreate()
-
-        Apphud.enableDebugLogs()
-        // Apphud.optOutOfTracking()
-
         if (BuildConfig.DEBUG) {
-//            ApphudUtils.enableAllLogs()
+            Apphud.enableDebugLogs()
         }
-
-      //  check again restore cache from previous sdk version
-
         Apphud.start(this, API_KEY)
         Apphud.collectDeviceIdentifiers()
-
     }
 }

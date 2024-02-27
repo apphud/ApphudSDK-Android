@@ -48,9 +48,8 @@ class CustomerFragment : Fragment() {
         binding.appVersion.text = BuildConfig.VERSION_NAME + " (" + BuildConfig.VERSION_CODE + ")"
 
         binding.btnSync.setOnClickListener {
-            getPaywalls()
-//            Apphud.restorePurchases { subscriptions, purchases, error ->
-//            }
+            Apphud.restorePurchases { subscriptions, purchases, error ->
+            }
         }
 
         paywallsViewModel = ViewModelProvider(this)[PaywallsViewModel::class.java]
@@ -79,10 +78,12 @@ class CustomerFragment : Fragment() {
             object : ApphudListener {
                 override fun apphudSubscriptionsUpdated(subscriptions: List<ApphudSubscription>) {
                     Log.d("ApphudDemo", "apphudSubscriptionsUpdated")
+                    updateData()
                 }
 
                 override fun apphudNonRenewingPurchasesUpdated(purchases: List<ApphudNonRenewingPurchase>) {
                     Log.d("ApphudDemo", "apphudNonRenewingPurchasesUpdated")
+                    updateData()
                 }
 
                 override fun apphudFetchProductDetails(details: List<ProductDetails>) {
@@ -120,28 +121,29 @@ class CustomerFragment : Fragment() {
     }
 
     private fun getPaywalls() {
-        Apphud.paywallsDidLoadCallback { pwls, response ->
-            Log.d("ApphudLogs", "NETWORK ISSUES: ${response?.networkIssue()} billing response = ${response?.billingResponseCode()}, paywallsDidLoadCallback = ${pwls.map { it.identifier }.toString()}")
-        }
-        Apphud.fetchPlacements { plms, response ->
-            Log.d("ApphudLogs", "NETWORK ISSUES: ${response?.networkIssue()} billing response = ${response?.billingResponseCode()}, placementsDidLoadCallback = ${plms.map { it.identifier }.toString()}")
+        Apphud.fetchPlacements { plms, error ->
+            if (plms.isEmpty() && Apphud.isFallbackMode()) {
+                val paywall = Apphud.rawPaywalls().first()
+                val fallbackPlacement = ApphudPlacement.createCustom("fallback", paywall = paywall)
+                Log.d("ApphudLogs", "FALLBACK PLACEMENT: ${fallbackPlacement}")
+            }
+            if (error != null) {
+                Log.d("ApphudLogs", "Placements fetch error: ${error.billingErrorTitle()}")
+            }
         }
 
         lifecycleScope.launch {
             val paywalls = Apphud.paywalls()
-            Log.d("ApphudLogs", "paywalls ARRAY = ${paywalls.map { it.identifier }.toString()}")
+            Log.d("ApphudLogs", "PAYWALLS ARRAY = ${paywalls.map { it.identifier }.toString()}")
         }
         lifecycleScope.launch {
             val placements = Apphud.placements()
             Log.d("ApphudLogs", "PLACEMENTS ARRAY = ${placements.map { it.identifier }.toString()}")
         }
-
-        // 1. CHECK PAYWALLS FALLBACK JSON IF NO INTERNET
-        // 2. CALLED TWICE!!!!
-        // 3. test application resumed
     }
 
     private fun updateData() {
+        _binding?.isPremiumValue?.text = if (Apphud.hasPremiumAccess()) "Premium" else "No Premium"
         lifecycleScope.launch {
             paywallsViewModel.updateData()
             withContext(Dispatchers.Main) {

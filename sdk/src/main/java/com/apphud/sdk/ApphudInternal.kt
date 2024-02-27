@@ -96,7 +96,10 @@ internal object ApphudInternal {
                 Lifecycle.Event.ON_START -> {
                     // do nothing
                     ApphudLog.log("Application resumed")
-                    refreshPaywallsIfNeeded()
+                    coroutineScope.launch {
+                        delay(1000L)
+                        refreshPaywallsIfNeeded()
+                    }
                 }
                 Lifecycle.Event.ON_CREATE -> {
                     // do nothing
@@ -125,6 +128,7 @@ internal object ApphudInternal {
             )
             return
         }
+        allowIdentifyUser = false
 
         mainScope.launch {
             ProcessLifecycleOwner.get().lifecycle.addObserver(lifecycleEventObserver)
@@ -181,8 +185,7 @@ internal object ApphudInternal {
 
         this.userRegisteredBlock = callback
         billing = BillingWrapper(context)
-        RequestManager.setParams(this.context, this.userId, this.deviceId, this.apiKey)
-        allowIdentifyUser = false
+        RequestManager.setParams(this.context, this.apiKey)
 
         loadProducts()
 
@@ -304,12 +307,17 @@ internal object ApphudInternal {
                 ApphudLog.log("Did Fully Load")
             }
 
-            ApphudLog.log("handlePaywallsAndProductsLoaded")
+            if (offeringsPreparedCallbacks.isNotEmpty()) {
+                ApphudLog.log("handle offeringsPreparedCallbacks")
+            }
             while (offeringsPreparedCallbacks.isNotEmpty()) {
                 val callback = offeringsPreparedCallbacks.removeFirst()
                 callback.invoke(null)
             }
         } else if (customerError != null || productsResponseCode != BillingClient.BillingResponseCode.OK) {
+            if (offeringsPreparedCallbacks.isNotEmpty()) {
+                ApphudLog.log("handle offeringsPreparedCallbacks with errors")
+            }
             while (offeringsPreparedCallbacks.isNotEmpty()) {
                 val error = customerError ?: ApphudError("Registration failed", errorCode = productsResponseCode)
                 val callback = offeringsPreparedCallbacks.removeFirst()
@@ -395,29 +403,34 @@ internal object ApphudInternal {
     internal fun performWhenOfferingsPrepared(callback: (ApphudError?) -> Unit) {
         val willRefresh = refreshPaywallsIfNeeded()
         val isWaitingForProducts = !finishedLoadingProducts()
-        if (isWaitingForProducts || willRefresh) {
+        if ((isWaitingForProducts || willRefresh) && !fallbackMode) {
             offeringsPreparedCallbacks.add(callback)
         } else {
             callback.invoke(null)
         }
     }
 
-    private fun refreshPaywallsIfNeeded(): Boolean {
-
+    internal fun refreshPaywallsIfNeeded(): Boolean {
         var isLoading = false
 
         if (isRegisteringUser) {
+//            ApphudLog.logI("Already refreshing")
             isLoading = true
         } else if (currentUser == null) {
-            ApphudLog.log("Refresh User Paywalls Needed")
+            ApphudLog.logI("Refreshing User")
             didRegisterCustomerAtThisLaunch = false
             refreshEntitlements(true)
             isLoading = true
         }
 
         if (shouldLoadProducts()) {
+            ApphudLog.logI("Refreshing Products")
             loadProducts()
             isLoading = true
+        }
+
+        if (!isLoading) {
+//            ApphudLog.logI("No need to refresh")
         }
 
         return isLoading
@@ -540,7 +553,7 @@ internal object ApphudInternal {
             } ?: run {
                 this.userId = userId
                 storage.userId = userId
-                RequestManager.setParams(this.context, userId, this.deviceId, this.apiKey)
+                RequestManager.setParams(this.context, this.apiKey)
 
                 coroutineScope.launch(errorHandler) {
                     val customer = RequestManager.registrationSync(!didRegisterCustomerAtThisLaunch, is_new, true)
@@ -663,9 +676,8 @@ internal object ApphudInternal {
             if (it.isTemporary == false) {
                 callback.invoke(null)
             } else {
-                registration(this.userId, this.deviceId) { _, error ->
-                    callback.invoke(error)
-                }
+                callback.invoke(ApphudError("Fallback mode"))
+                refreshPaywallsIfNeeded()
             }
         } ?: run {
             registration(this.userId, this.deviceId) { _, error ->

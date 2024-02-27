@@ -94,7 +94,7 @@ class ProductsFragment : Fragment() {
                     } else {
                         Apphud.purchase(activity = activity, apphudProduct = product, consumableInAppProduct = true) { result ->
                             result.error?.let { err ->
-                                Toast.makeText(activity, if (result.userCanceled()) "User Canceled" else err.message, Toast.LENGTH_SHORT).show()
+                                Toast.makeText(activity, if (result.userCanceled()) "User Canceled" else err.message + " billing code: " + err.errorCode, Toast.LENGTH_SHORT).show()
                             } ?: run {
                                 Toast.makeText(activity, R.string.success, Toast.LENGTH_SHORT).show()
                             }

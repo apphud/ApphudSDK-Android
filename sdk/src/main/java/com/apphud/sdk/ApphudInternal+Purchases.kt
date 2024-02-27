@@ -85,7 +85,7 @@ private suspend fun ApphudInternal.fetchDetailsAndPurchase(
             purchaseInternal(activity, apphudProduct, offerIdToken, oldToken, prorationMode, consumableInappProduct, callback)
         }
     } else {
-        val message = "Aborting purchase because failed to fetch product details [${apphudProduct.productId}] from the store"
+        val message = "[${ApphudBillingResponseCodes.getName(responseCode)}] Aborting purchase because product unavailable: ${apphudProduct.productId}"
         ApphudLog.log(message = message, sendLogToServer = true)
         mainScope.launch {
             callback?.invoke(ApphudPurchaseResult(null, null, null, ApphudError(message, errorCode = responseCode)))
@@ -249,6 +249,9 @@ private fun ApphudInternal.sendCheckToApphud(
             ApphudLog.logE(it.message)
             if (fallbackMode) {
                 currentUser?.let {
+                    coroutineScope.launch(errorHandler) {
+                        RequestManager.purchased(purchase, apphudProduct, offerIdToken, oldToken) { _, _ -> }
+                    }
                     mainScope.launch {
                         addTempPurchase(
                             it,
@@ -327,6 +330,7 @@ internal fun ApphudInternal.addTempPurchase(
             // nothing
         }
     }
+    SharedPreferencesStorage.isNeedSync = true
     notifyAboutSuccess(apphudUser, purchase, newSubscription, newPurchase, true, callback)
 }
 

@@ -19,12 +19,12 @@ class PaywallsViewModel : ViewModel() {
         Log.d("ApphudLogs", "PaywallsViewModel update data")
         if (showPlacements) {
             items.clear()
-            val placements = Apphud.placements()
+            val placements = Apphud.rawPlacements()
             placements.forEach {
                 items.add(AdapterItem(null, it))
             }
         } else {
-            val list = Apphud.paywalls()
+            val list = Apphud.rawPaywalls()
             items.clear()
             list.forEach {
                 items.add(AdapterItem(it, null))

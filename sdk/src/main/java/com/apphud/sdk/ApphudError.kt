@@ -46,6 +46,17 @@ data class ApphudError(
 
         return if (errorCode!! in validCodes) errorCode else null
     }
+
+    /**
+     * Returns BillingClient error as a String representation, if matched.
+     */
+    fun billingErrorTitle(): String? {
+        billingResponseCode()?.let {
+            return ApphudBillingResponseCodes.getName(it)
+        } ?: run {
+            return null
+        }
+    }
 }
 
 const val APPHUD_ERROR_TIMEOUT = 408

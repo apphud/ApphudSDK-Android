@@ -26,37 +26,39 @@ internal fun ApphudInternal.processFallbackError(request: Request) {
 private fun ApphudInternal.processFallbackData() {
     coroutineScope.launch(errorHandler) {
         try {
-            val jsonFileString = getJsonDataFromAsset(context, "apphud_paywalls_fallback.json")
-            val gson = Gson()
-            val contentType = object : TypeToken<FallbackJsonObject>() {}.type
-            val fallbackJson: FallbackJsonObject = gson.fromJson(jsonFileString, contentType)
+            if (currentUser == null) {
+                currentUser =
+                    ApphudUser(
+                        userId, "", "", listOf(), listOf(), listOf(),
+                        listOf(), true,
+                    )
+                ApphudLog.log("Fallback: user created: $userId")
+            }
 
-            if (paywalls.isEmpty() && fallbackJson.data.results.isNotEmpty()) {
+            // read paywalls from cache
+            var ids = paywalls.map { it.products?.map { it.productId } ?: listOf() }.flatten()
+
+            if (ids.isEmpty()) {
+                // read from json file
+                val jsonFileString = getJsonDataFromAsset(context, "apphud_paywalls_fallback.json")
+                val gson = Gson()
+                val contentType = object : TypeToken<FallbackJsonObject>() {}.type
+                val fallbackJson: FallbackJsonObject = gson.fromJson(jsonFileString, contentType)
                 val paywallToParse = paywallsMapper.map(fallbackJson.data.results)
-                val ids = paywallToParse.map { it.products?.map { it.productId } ?: listOf() }.flatten()
-                if (ids.isNotEmpty() && !fallbackMode) {
-                    fallbackMode = true
-                    didRegisterCustomerAtThisLaunch = false
-                    ApphudLog.log("Fallback: ENABLED")
-                    fetchDetails(ids)
-                    cachePaywalls(paywallToParse)
+                ids = paywallToParse.map { it.products?.map { it.productId } ?: listOf() }.flatten()
+                cachePaywalls(paywallToParse)
+            }
 
-                    if (currentUser == null) {
-                        currentUser =
-                            ApphudUser(
-                                userId, "", "", listOf(), listOf(), listOf(),
-                                listOf(), true,
-                            )
-                        ApphudLog.log("Fallback: user created: $userId")
-                    }
-                    mainScope.launch {
-                        notifyLoadingCompleted(
-                            customerLoaded = currentUser,
-                            productDetailsLoaded = productDetails,
-                            fromFallback = true,
-                        )
-                    }
-                }
+            fallbackMode = true
+            didRegisterCustomerAtThisLaunch = false
+            ApphudLog.log("Fallback: ENABLED")
+            fetchDetails(ids)
+            mainScope.launch {
+                notifyLoadingCompleted(
+                    customerLoaded = currentUser,
+                    productDetailsLoaded = productDetails,
+                    fromFallback = true,
+                )
             }
         } catch (ex: Exception) {
             ApphudLog.logE("Fallback: ${ex.message}")

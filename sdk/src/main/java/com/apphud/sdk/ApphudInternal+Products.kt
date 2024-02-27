@@ -15,34 +15,43 @@ internal var productsStatus = ApphudProductsStatus.none
 internal var productsResponseCode = BillingClient.BillingResponseCode.OK
 private val mutexProducts = Mutex()
 
+// to avoid Google servers spamming if there is no productDetails added at all
+private var loadingCounts: Int = 0
+
 internal enum class ApphudProductsStatus {
     none,
     loading,
-    finished,
+    loaded,
+    failed
 }
 
 internal fun ApphudInternal.finishedLoadingProducts(): Boolean {
-    return productsStatus == ApphudProductsStatus.finished
+    return productsStatus == ApphudProductsStatus.loaded || productsStatus == ApphudProductsStatus.failed
 }
 
 internal fun ApphudInternal.shouldLoadProducts(): Boolean {
-    return productsStatus == ApphudProductsStatus.none || (productsStatus == ApphudProductsStatus.finished && productDetails.isEmpty())
+    return when (productsStatus) {
+        ApphudProductsStatus.none -> true
+        ApphudProductsStatus.loading -> false
+        else -> {
+            productDetails.isEmpty() && loadingCounts < 10
+        }
+    }
 }
 
 internal fun ApphudInternal.loadProducts() {
     if (!shouldLoadProducts()) { return }
-    // continue only if status is none or finished with empty products
 
-    if (productsStatus != ApphudProductsStatus.loading) {
-        productsStatus = ApphudProductsStatus.loading
-    }
+    productsStatus = ApphudProductsStatus.loading
+    loadingCounts += 1
 
     coroutineScope.launch(errorHandler) {
         mutexProducts.withLock {
             async {
                 val result = fetchProducts()
                 productsResponseCode = result
-                productsStatus = ApphudProductsStatus.finished
+                productsStatus = if (result == BillingClient.BillingResponseCode.OK) ApphudProductsStatus.loaded else
+                    ApphudProductsStatus.failed
 
                 mainScope.launch {
                     notifyLoadingCompleted(null, productDetails, false, false)
@@ -101,7 +110,7 @@ internal suspend fun ApphudInternal.fetchDetails(ids: List<String>): Int {
                 }
             }
         } ?: run {
-            ApphudLog.logE("Unable to load SUBS details", false)
+            ApphudLog.logE("Unable to load SUBS details: ${subsResult.second}", false)
             if (responseCode == BillingClient.BillingResponseCode.OK) {
                 responseCode = subsResult.second
             }
@@ -117,7 +126,7 @@ internal suspend fun ApphudInternal.fetchDetails(ids: List<String>): Int {
                 }
             }
         } ?: run {
-            ApphudLog.logE("Unable to load INAPP details", false)
+            ApphudLog.logE("Unable to load INAPP details: ${inAppResult.second}", false)
             if (responseCode == BillingClient.BillingResponseCode.OK) {
                 responseCode = inAppResult.second
             }

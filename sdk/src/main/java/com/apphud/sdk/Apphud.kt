@@ -170,18 +170,27 @@ object Apphud {
      * If you want to obtain placements without waiting for `ProductDetails`
      * from Google Play, you can use `rawPlacements()` method.
      *
+     * __IMPORTANT:__ The callback may return both placements and an error simultaneously.
+     * If there is an issue with Google Billing and inner product details could not be fetched,
+     * an error will be returned along with the raw placements array.
+     * This allows for handling situations where partial data is available.
+     *
      * @param callback The callback function that is invoked with the list of `ApphudPlacement` objects.
-     * Second parameter in callback represents optional error, which may be on Google (BillingClient issue) or Apphud side.
+     * Second parameter in callback represents optional error, which may be
+     * on Google (BillingClient issue) or Apphud side.
+     *
+     *
      */
     fun fetchPlacements(callback: (List<ApphudPlacement>, ApphudError?) -> Unit) {
         ApphudInternal.performWhenOfferingsPrepared { callback(ApphudInternal.placements, it) }
     }
     @Deprecated(
-        message = "Use fetchPlacements instead",
-        replaceWith = ReplaceWith("this.fetchPlacements(callback)")
+        message = "This method has been renamed to fetchPlacements",
+        replaceWith = ReplaceWith("this.fetchPlacements(callback)"),
+        level = DeprecationLevel.ERROR
     )
-    fun placementsDidLoadCallback(callback: (List<ApphudPlacement>, ApphudError?) -> Unit) {
-        fetchPlacements(callback)
+    fun placementsDidLoadCallback(callback: (List<ApphudPlacement>) -> Unit) {
+        callback(listOf())
     }
 
     /** Returns:
@@ -265,8 +274,14 @@ object Apphud {
      * If you want to obtain paywalls without waiting for `ProductDetails` from
      * Google Play, you can use `rawPaywalls()` method.
      *
+     * __IMPORTANT:__ The callback may return both paywalls and an error simultaneously.
+     * If there is an issue with Google Billing and inner product details could not be fetched,
+     * an error will be returned along with the raw paywalls array.
+     * This allows for handling situations where partial data is available.
+     *
      * @param callback The callback function that is invoked with the list of `ApphudPaywall` objects.
-     * Second parameter in callback represents optional error, which may be on Google (BillingClient issue) or Apphud side.
+     * Second parameter in callback represents optional error, which may be
+     * on Google (BillingClient issue) or Apphud side.
      */
     @Deprecated(
         "Deprecated in favor of Placements",
@@ -688,6 +703,14 @@ object Apphud {
      */
     fun optOutOfTracking() {
         ApphudUtils.optOutOfTracking = true
+    }
+
+    /**
+     * Returns `true` if fallback mode is on.
+     * That means paywalls are loaded from the fallback json file.
+     */
+    fun isFallbackMode(): Boolean {
+        return ApphudInternal.fallbackMode
     }
     //endregion
 }
