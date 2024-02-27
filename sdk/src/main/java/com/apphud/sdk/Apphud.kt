@@ -557,15 +557,18 @@ object Apphud {
     }
 
     /**
-     * Refreshes the current entitlements, which includes subscriptions, promotional or non-renewing purchases.
+     * Refreshes current user data, which includes:
+     * paywalls, placements, subscriptions, non-renewing purchases, or promotionals.
+     *
      * To be notified about updates, listen for `ApphudListener`'s `apphudSubscriptionsUpdated` and
      * `apphudNonRenewingPurchasesUpdated` methods.
-     * Note: Do not call this method on app launch, as Apphud SDK does it automatically.
-     * It is best used when a promotional has been granted on the web or when the app reactivates
-     * from the background, if needed.
+     *
+     * __NOTE__: Do not call this method on app launch, as Apphud SDK does it automatically.
+     *
+     * You can call this method, when the app reactivates from the background, if needed.
      */
-    fun refreshEntitlements() {
-        ApphudInternal.refreshEntitlements()
+    fun refreshUserData() {
+        ApphudInternal.refreshEntitlements(forceRefresh = true)
     }
 
     /**

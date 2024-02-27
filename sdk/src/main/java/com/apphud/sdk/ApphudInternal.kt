@@ -216,9 +216,14 @@ internal object ApphudInternal {
     }
 
     internal fun refreshEntitlements(forceRefresh: Boolean = false) {
+        if (forceRefresh) {
+            didRegisterCustomerAtThisLaunch = false
+        }
         if (didRegisterCustomerAtThisLaunch || forceRefresh) {
             ApphudLog.log("RefreshEntitlements: didRegister:$didRegisterCustomerAtThisLaunch force:$forceRefresh")
-            registration(this.userId, this.deviceId, true, null)
+            registration(this.userId, this.deviceId, true) { _, _ ->
+                loadProducts()
+            }
         }
     }
 

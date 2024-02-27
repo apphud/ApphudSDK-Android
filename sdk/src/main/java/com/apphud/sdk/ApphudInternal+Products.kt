@@ -2,6 +2,8 @@ package com.apphud.sdk
 
 import com.android.billingclient.api.BillingClient
 import com.android.billingclient.api.ProductDetails
+import com.apphud.sdk.domain.ApphudGroup
+import com.apphud.sdk.domain.ApphudPaywall
 import com.apphud.sdk.managers.RequestManager
 import kotlinx.coroutines.async
 import kotlinx.coroutines.coroutineScope
@@ -62,19 +64,26 @@ internal fun ApphudInternal.loadProducts() {
 }
 
 private suspend fun ApphudInternal.fetchProducts(): Int {
-    val permissionGroupsCopy = getPermissionGroups()
+    var permissionGroupsCopy = getPermissionGroups()
     if (permissionGroupsCopy.isEmpty() || storage.needUpdateProductGroups()) {
-        val groupsList = RequestManager.allProducts()
-        groupsList?.let { groups ->
+        RequestManager.allProducts()?.let { groups ->
             cacheGroups(groups)
-            val ids = groups.map { it -> it.products?.map { it.productId }!! }.flatten()
-            return fetchDetails(ids)
+            permissionGroupsCopy = groups
         }
-    } else {
-        val ids = permissionGroupsCopy.map { it -> it.products?.map { it.productId }!! }.flatten()
-        return fetchDetails(ids)
     }
-    return BillingClient.BillingResponseCode.OK
+    val ids = allAvailableProductIds(permissionGroupsCopy, paywalls)
+    return fetchDetails(ids)
+}
+
+private fun allAvailableProductIds(groups: List<ApphudGroup>, paywalls: List<ApphudPaywall>): List<String> {
+    val ids = paywalls.map { p -> p.products?.map { it.productId } ?: listOf() }.flatten().toMutableList()
+    val idsPaywall = groups.map { it -> it.products?.map { it.productId } ?: listOf() }.flatten()
+    idsPaywall.forEach {
+        if (!ids.contains(it)) {
+            ids.add(it)
+        }
+    }
+    return ids
 }
 
 internal suspend fun ApphudInternal.fetchDetails(ids: List<String>): Int {
