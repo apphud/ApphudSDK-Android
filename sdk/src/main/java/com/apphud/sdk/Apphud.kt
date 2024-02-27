@@ -117,6 +117,8 @@ object Apphud {
      * user's involvement in A/B testing, if applicable.
      * Method suspends until the inner `ProductDetails` are loaded from Google Play.
      *
+     * This is equivalent to `fetchPlacements(callback: (List<ApphudPlacement>, ApphudError?) -> Unit)`.
+     *
      * A placement is a specific location within a user's journey
      * (such as onboarding, settings, etc.) where its internal paywall
      * is intended to be displayed.
@@ -129,6 +131,8 @@ object Apphud {
     suspend fun placements(): List<ApphudPlacement> =
         suspendCancellableCoroutine { continuation ->
             ApphudInternal.performWhenOfferingsPrepared {
+                /* Error is not returned is suspending function.
+                If you want to handle error, use `fetchPlacements` method. */
                 continuation.resume(ApphudInternal.placements)
             }
         }
@@ -155,6 +159,10 @@ object Apphud {
      * Returns the placements from Product Hub > Placements, potentially altered
      * based on the user's involvement in A/B testing, if applicable.
      *
+     * __Note:__ Method waits until the inner `ProductDetails` are loaded from Google Play.
+     *
+     * This is equivalent to `suspend fun placements()` method.
+     *
      * A placement is a specific location within a user's journey
      * (such as onboarding, settings, etc.) where its internal paywall
      * is intended to be displayed.
@@ -165,9 +173,15 @@ object Apphud {
      * @param callback The callback function that is invoked with the list of `ApphudPlacement` objects.
      * Second parameter in callback represents optional error, which may be on Google (BillingClient issue) or Apphud side.
      */
+    fun fetchPlacements(callback: (List<ApphudPlacement>, ApphudError?) -> Unit) {
+        ApphudInternal.performWhenOfferingsPrepared { callback(ApphudInternal.placements, it) }
+    }
+    @Deprecated(
+        message = "Use fetchPlacements instead",
+        replaceWith = ReplaceWith("this.fetchPlacements(callback)")
+    )
     fun placementsDidLoadCallback(callback: (List<ApphudPlacement>, ApphudError?) -> Unit) {
-        ApphudInternal.performWhenOfferingsPrepared {
-            callback(ApphudInternal.placements, it) }
+        fetchPlacements(callback)
     }
 
     /** Returns:
@@ -188,6 +202,8 @@ object Apphud {
      * Product Hub > Paywalls are available, potentially altered based on the
      * user's involvement in A/B testing, if applicable.
      *
+     * This is equivalent to `paywallsDidLoadCallback(callback: (List<ApphudPaywall>, ApphudError?) -> Unit)`.
+     *
      * Each paywall contains an array of `ApphudProduct` objects that
      * can be used for purchases.
      * `ApphudProduct` is Apphud's wrapper around `ProductDetails`.
@@ -206,6 +222,8 @@ object Apphud {
     suspend fun paywalls(): List<ApphudPaywall> =
         suspendCancellableCoroutine { continuation ->
             ApphudInternal.performWhenOfferingsPrepared {
+                /* Error is not returned is suspending function.
+                If you want to handle error, use `paywallsDidLoadCallback` method. */
                 continuation.resume(ApphudInternal.paywalls)
             }
         }
@@ -236,12 +254,13 @@ object Apphud {
     /**
      * Returns the paywalls from Product Hub > Paywalls, potentially altered
      * based on the user's involvement in A/B testing, if applicable.
+     * __Note:__ Method waits until the inner `ProductDetails` are loaded from Google Play.
+     *
+     * This is equivalent to `suspend fun paywalls()` method.
      *
      * Each paywall contains an array of `ApphudProduct` objects that
      * can be used for purchases.
      * `ApphudProduct` is Apphud's wrapper around `ProductDetails`.
-     *
-     * Method suspends until the inner `ProductDetails` are loaded from Google Play.
      *
      * If you want to obtain paywalls without waiting for `ProductDetails` from
      * Google Play, you can use `rawPaywalls()` method.
@@ -429,7 +448,9 @@ object Apphud {
      *
      * @param activity The current Activity context.
      * @param apphudProduct The `ApphudProduct` object representing the product to be purchased.
-     * @param offerIdToken (Required for Subscriptions) The identifier of the offer for initiating the purchase. Developer should retrieve it from SubscriptionOfferDetails object.
+     * @param offerIdToken (Required for Subscriptions) The identifier of the offer for initiating the purchase.
+     *                                                  Developer should retrieve it from SubscriptionOfferDetails array.
+     *                                                  If not passed, then SDK will try to use first one from the array.
      * @param oldToken (Optional) The Google Play Billing purchase token that the user is
      *                 upgrading or downgrading from.
      * @param replacementMode (Optional) The replacement mode for the subscription update.

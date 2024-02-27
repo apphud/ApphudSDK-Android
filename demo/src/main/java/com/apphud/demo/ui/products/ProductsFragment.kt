@@ -39,21 +39,33 @@ class ProductsFragment : Fragment() {
         _binding = FragmentProductsBinding.inflate(inflater, container, false)
         val root: View = binding.root
 
+        val showsOffers = false
+
         viewAdapter = ProductsAdapter(productsViewModel, context)
         viewAdapter.selectProduct = { product ->
             activity?.let { activity ->
-                product.productDetails?.let { details ->
-                    // Use Apphud purchases flow
-                    if (details.productType == BillingClient.ProductType.SUBS) {
+
+                // Use Apphud purchases flow
+                if (product.productDetails?.productType == BillingClient.ProductType.SUBS) {
+
+                    if (showsOffers) {
                         product.productDetails?.subscriptionOfferDetails?.let {
                             val fragment = OffersFragment()
                             fragment.offers = it
                             fragment.offerSelected = { offer ->
                                 Apphud.purchase(activity, product, offer.offerToken) { result ->
                                     result.error?.let { err ->
-                                        Toast.makeText(activity, if (result.userCanceled()) "User Canceled" else err.message, Toast.LENGTH_SHORT).show()
+                                        Toast.makeText(
+                                            activity,
+                                            if (result.userCanceled()) "User Canceled" else err.message,
+                                            Toast.LENGTH_SHORT
+                                        ).show()
                                     } ?: run {
-                                        Toast.makeText(activity, R.string.success, Toast.LENGTH_SHORT).show()
+                                        Toast.makeText(
+                                            activity,
+                                            R.string.success,
+                                            Toast.LENGTH_SHORT
+                                        ).show()
                                     }
                                 }
                             }
@@ -62,25 +74,34 @@ class ProductsFragment : Fragment() {
                             }
                         }
                     } else {
-                        if (product.productId == "com.apphud.demo.nonconsumable.premium") {
-                            Apphud.purchase(activity = activity, apphudProduct = product, consumableInAppProduct = false) { result ->
-                                result.error?.let { err ->
-                                    Toast.makeText(activity, if (result.userCanceled()) "User Canceled" else err.message, Toast.LENGTH_SHORT).show()
-                                } ?: run {
-                                    Toast.makeText(activity, R.string.success, Toast.LENGTH_SHORT).show()
-                                }
+                        Apphud.purchase(activity, product, null) { result ->
+                            result.error?.let { err ->
+                                Toast.makeText(activity, if (result.userCanceled()) "User Canceled" else err.message, Toast.LENGTH_SHORT).show()
+                            } ?: run {
+                                Toast.makeText(activity, R.string.success, Toast.LENGTH_SHORT).show()
                             }
-                        } else {
-                            Apphud.purchase(activity = activity, apphudProduct = product, consumableInAppProduct = true) { result ->
-                                result.error?.let { err ->
-                                    Toast.makeText(activity, if (result.userCanceled()) "User Canceled" else err.message, Toast.LENGTH_SHORT).show()
-                                } ?: run {
-                                    Toast.makeText(activity, R.string.success, Toast.LENGTH_SHORT).show()
-                                }
+                        }
+                    }
+                } else {
+                    if (product.productId == "com.apphud.demo.nonconsumable.premium") {
+                        Apphud.purchase(activity = activity, apphudProduct = product, consumableInAppProduct = false) { result ->
+                            result.error?.let { err ->
+                                Toast.makeText(activity, if (result.userCanceled()) "User Canceled" else err.message, Toast.LENGTH_SHORT).show()
+                            } ?: run {
+                                Toast.makeText(activity, R.string.success, Toast.LENGTH_SHORT).show()
+                            }
+                        }
+                    } else {
+                        Apphud.purchase(activity = activity, apphudProduct = product, consumableInAppProduct = true) { result ->
+                            result.error?.let { err ->
+                                Toast.makeText(activity, if (result.userCanceled()) "User Canceled" else err.message, Toast.LENGTH_SHORT).show()
+                            } ?: run {
+                                Toast.makeText(activity, R.string.success, Toast.LENGTH_SHORT).show()
                             }
                         }
                     }
                 }
+
             }
         }
 

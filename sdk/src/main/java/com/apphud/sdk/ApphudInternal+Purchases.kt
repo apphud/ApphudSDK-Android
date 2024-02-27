@@ -49,7 +49,10 @@ internal fun ApphudInternal.purchase(
                 offerIdToken?.let {
                     purchaseInternal(activity, product, offerIdToken, oldToken, replacementMode, consumableInappProduct, callback)
                 } ?: run {
-                    callback?.invoke(ApphudPurchaseResult(null, null, null, ApphudError("OfferToken required")))
+                    val firstOfferToken = it.subscriptionOfferDetails?.firstOrNull()?.offerToken
+                    purchaseInternal(activity, product, firstOfferToken, oldToken, replacementMode, consumableInappProduct, callback)
+                    ApphudLog.logE("OfferToken not set. You are required to pass offer token in Apphud.purchase method when purchasing subscription. Passing first offerToken as a fallback.")
+//                    callback?.invoke(ApphudPurchaseResult(null, null, null, ApphudError("OfferToken required")))
                 }
             } else {
                 purchaseInternal(activity, product, offerIdToken, oldToken, replacementMode, consumableInappProduct, callback)
@@ -74,7 +77,7 @@ private suspend fun ApphudInternal.fetchDetailsAndPurchase(
     consumableInappProduct: Boolean,
     callback: ((ApphudPurchaseResult) -> Unit)?,
 ) {
-    fetchDetails(listOf(apphudProduct.productId))
+    val responseCode = fetchDetails(listOf(apphudProduct.productId))
     val productDetails = getProductDetailsByProductId(apphudProduct.productId)
     if (productDetails != null) {
         mainScope.launch {
@@ -85,7 +88,7 @@ private suspend fun ApphudInternal.fetchDetailsAndPurchase(
         val message = "Aborting purchase because failed to fetch product details [${apphudProduct.productId}] from the store"
         ApphudLog.log(message = message, sendLogToServer = true)
         mainScope.launch {
-            callback?.invoke(ApphudPurchaseResult(null, null, null, ApphudError(message)))
+            callback?.invoke(ApphudPurchaseResult(null, null, null, ApphudError(message, errorCode = responseCode)))
         }
     }
 }

@@ -121,10 +121,10 @@ class CustomerFragment : Fragment() {
 
     private fun getPaywalls() {
         Apphud.paywallsDidLoadCallback { pwls, response ->
-            Log.d("ApphudLogs", "NETWORK ISSUES: ${response?.networkIssue()} response = ${response}, paywallsDidLoadCallback = ${pwls.map { it.identifier }.toString()}")
+            Log.d("ApphudLogs", "NETWORK ISSUES: ${response?.networkIssue()} billing response = ${response?.billingResponseCode()}, paywallsDidLoadCallback = ${pwls.map { it.identifier }.toString()}")
         }
-        Apphud.placementsDidLoadCallback { plms, response ->
-            Log.d("ApphudLogs", "NETWORK ISSUES: ${response?.networkIssue()} response = ${response}, placementsDidLoadCallback = ${plms.map { it.identifier }.toString()}")
+        Apphud.fetchPlacements { plms, response ->
+            Log.d("ApphudLogs", "NETWORK ISSUES: ${response?.networkIssue()} billing response = ${response?.billingResponseCode()}, placementsDidLoadCallback = ${plms.map { it.identifier }.toString()}")
         }
 
         lifecycleScope.launch {

@@ -14,7 +14,7 @@ import java.net.UnknownHostException
 
 class HttpRetryInterceptor : Interceptor {
     companion object {
-        private var STEP = 3_000L
+        private var STEP = 2_000L
         private var MAX_COUNT = 7
     }
 
@@ -36,9 +36,13 @@ class HttpRetryInterceptor : Interceptor {
                         if (isBlocked) {
                             return response
                         }
+                        // do not retry 429
                         if (response.code == 429) {
                             STEP = 6_000L
                             MAX_COUNT = 1
+                        } else if (response.code in 200..499) {
+                            // do not retry 200..499 http codes
+                            return response
                         }
                     }
 
@@ -58,7 +62,7 @@ class HttpRetryInterceptor : Interceptor {
                 )
                 Thread.sleep(STEP)
             } catch (e: UnknownHostException) {
-                // do not retry unknown host exception (no internet connection issue)
+                // do not retry when no internet connection issue
                 tryCount = MAX_COUNT
             } catch (e: Exception) {
                 ApphudLog.logE(
