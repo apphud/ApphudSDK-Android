@@ -439,7 +439,7 @@ internal object ApphudInternal {
         if (isRegisteringUser) {
 //            ApphudLog.logI("Already refreshing")
             isLoading = true
-        } else if (currentUser == null) {
+        } else if (currentUser == null || fallbackMode) {
             ApphudLog.logI("Refreshing User")
             didRegisterCustomerAtThisLaunch = false
             refreshEntitlements(true)

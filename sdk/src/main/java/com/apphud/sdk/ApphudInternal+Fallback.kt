@@ -1,11 +1,13 @@
 package com.apphud.sdk
 
 import android.content.Context
+import android.content.SharedPreferences
 import com.apphud.sdk.domain.ApphudUser
 import com.apphud.sdk.domain.FallbackJsonObject
 import com.apphud.sdk.mappers.PaywallsMapper
 import com.apphud.sdk.parser.GsonParser
 import com.apphud.sdk.parser.Parser
+import com.apphud.sdk.storage.SharedPreferencesStorage
 import com.google.gson.Gson
 import com.google.gson.GsonBuilder
 import com.google.gson.reflect.TypeToken
@@ -18,12 +20,17 @@ private val parser: Parser = GsonParser(gson)
 private val paywallsMapper = PaywallsMapper(parser)
 
 internal fun ApphudInternal.processFallbackError(request: Request) {
-    if (request.url.encodedPath.endsWith("/customers") && !fallbackMode) {
+    if ((request.url.encodedPath.endsWith("/customers") ||
+        request.url.encodedPath.endsWith("/subscriptions"))
+        && !fallbackMode) {
         processFallbackData()
     }
 }
 
 private fun ApphudInternal.processFallbackData() {
+
+    fallbackMode = true
+
     coroutineScope.launch(errorHandler) {
         try {
             if (currentUser == null) {
@@ -49,7 +56,6 @@ private fun ApphudInternal.processFallbackData() {
                 cachePaywalls(paywallToParse)
             }
 
-            fallbackMode = true
             didRegisterCustomerAtThisLaunch = false
             ApphudLog.log("Fallback: ENABLED")
             fetchDetails(ids)
@@ -88,5 +94,8 @@ internal fun ApphudInternal.disableFallback() {
             ApphudLog.log("Fallback: reload products")
             loadProducts()
         }
+    }
+    if (storage.isNeedSync) {
+        syncPurchases { _, _, _ ->  }
     }
 }

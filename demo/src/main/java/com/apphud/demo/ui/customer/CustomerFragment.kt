@@ -17,6 +17,7 @@ import com.apphud.demo.BuildConfig
 import com.apphud.demo.databinding.FragmentCustomerBinding
 import com.apphud.sdk.Apphud
 import com.apphud.sdk.ApphudListener
+import com.apphud.sdk.client.ApiClient
 import com.apphud.sdk.domain.ApphudNonRenewingPurchase
 import com.apphud.sdk.domain.ApphudPaywall
 import com.apphud.sdk.domain.ApphudPlacement

@@ -229,7 +229,7 @@ private fun ApphudInternal.purchaseInternal(
 
 private fun ApphudInternal.processPurchaseError(status: PurchaseUpdatedCallbackStatus.Error) {
     if (status.result.responseCode == BillingClient.BillingResponseCode.ITEM_ALREADY_OWNED) {
-        SharedPreferencesStorage.isNeedSync = true
+        storage.isNeedSync = true
         coroutineScope.launch(errorHandler) {
             ApphudLog.log("ProcessPurchaseError: syncPurchases()")
             syncPurchases()
@@ -245,6 +245,7 @@ private fun ApphudInternal.sendCheckToApphud(
     callback: ((ApphudPurchaseResult) -> Unit)?,
 ) {
     performWhenUserRegistered { error ->
+
         error?.let {
             ApphudLog.logE(it.message)
             if (fallbackMode) {
@@ -262,6 +263,8 @@ private fun ApphudInternal.sendCheckToApphud(
                         )
                     }
                 }
+            } else {
+                storage.isNeedSync = true
             }
         } ?: run {
             coroutineScope.launch(errorHandler) {
@@ -330,7 +333,7 @@ internal fun ApphudInternal.addTempPurchase(
             // nothing
         }
     }
-    SharedPreferencesStorage.isNeedSync = true
+    storage.isNeedSync = true
     notifyAboutSuccess(apphudUser, purchase, newSubscription, newPurchase, true, callback)
 }
 

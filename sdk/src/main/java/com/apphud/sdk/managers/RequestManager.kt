@@ -297,6 +297,7 @@ object RequestManager {
         completionHandler: (String?, ApphudError?) -> Unit,
     ) {
         val httpClient = getOkHttpClient(request, retry)
+
         if (currentUser == null) {
             registration(true, true) { customer, error ->
                 customer?.let {
