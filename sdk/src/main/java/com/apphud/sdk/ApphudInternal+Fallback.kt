@@ -28,36 +28,35 @@ internal fun ApphudInternal.processFallbackError(request: Request) {
 }
 
 private fun ApphudInternal.processFallbackData() {
+    try {
+        if (currentUser == null) {
+            currentUser =
+                ApphudUser(
+                    userId, "", "", listOf(), listOf(), listOf(),
+                    listOf(), true,
+                )
+            ApphudLog.log("Fallback: user created: $userId")
+        }
 
-    fallbackMode = true
+        // read paywalls from cache
+        var ids = paywalls.map { it.products?.map { it.productId } ?: listOf() }.flatten()
+        if (ids.isEmpty()) {
+            // read from json file
+            val jsonFileString = getJsonDataFromAsset(context, "apphud_paywalls_fallback.json")
+            val gson = Gson()
+            val contentType = object : TypeToken<FallbackJsonObject>() {}.type
+            val fallbackJson: FallbackJsonObject = gson.fromJson(jsonFileString, contentType)
+            val paywallToParse = paywallsMapper.map(fallbackJson.data.results)
+            ids = paywallToParse.map { it.products?.map { it.productId } ?: listOf() }.flatten()
+            cachePaywalls(paywallToParse)
+        }
 
-    coroutineScope.launch(errorHandler) {
-        try {
-            if (currentUser == null) {
-                currentUser =
-                    ApphudUser(
-                        userId, "", "", listOf(), listOf(), listOf(),
-                        listOf(), true,
-                    )
-                ApphudLog.log("Fallback: user created: $userId")
-            }
+        if (ids.isEmpty()) { return }
 
-            // read paywalls from cache
-            var ids = paywalls.map { it.products?.map { it.productId } ?: listOf() }.flatten()
-
-            if (ids.isEmpty()) {
-                // read from json file
-                val jsonFileString = getJsonDataFromAsset(context, "apphud_paywalls_fallback.json")
-                val gson = Gson()
-                val contentType = object : TypeToken<FallbackJsonObject>() {}.type
-                val fallbackJson: FallbackJsonObject = gson.fromJson(jsonFileString, contentType)
-                val paywallToParse = paywallsMapper.map(fallbackJson.data.results)
-                ids = paywallToParse.map { it.products?.map { it.productId } ?: listOf() }.flatten()
-                cachePaywalls(paywallToParse)
-            }
-
-            didRegisterCustomerAtThisLaunch = false
-            ApphudLog.log("Fallback: ENABLED")
+        fallbackMode = true
+        didRegisterCustomerAtThisLaunch = false
+        ApphudLog.log("Fallback: ENABLED")
+        coroutineScope.launch {
             fetchDetails(ids)
             mainScope.launch {
                 notifyLoadingCompleted(
@@ -66,9 +65,9 @@ private fun ApphudInternal.processFallbackData() {
                     fromFallback = true,
                 )
             }
-        } catch (ex: Exception) {
-            ApphudLog.logE("Fallback: ${ex.message}")
         }
+    } catch (ex: Exception) {
+        ApphudLog.logE("Fallback Mode Failed: ${ex.message}")
     }
 }
 

@@ -16,7 +16,7 @@ import java.net.UnknownHostException
 class HttpRetryInterceptor : Interceptor {
     companion object {
         private var STEP = 1_000L
-        private var MAX_COUNT = 7
+        private var MAX_COUNT = 5
     }
 
     @Throws(IOException::class)
