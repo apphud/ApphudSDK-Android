@@ -61,3 +61,4 @@ data class ApphudError(
 
 const val APPHUD_ERROR_TIMEOUT = 408
 const val APPHUD_ERROR_NO_INTERNET = -999
+const val APPHUD_NO_REQUEST = -998

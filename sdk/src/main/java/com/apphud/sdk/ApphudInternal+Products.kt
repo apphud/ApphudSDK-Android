@@ -18,7 +18,8 @@ internal var productsResponseCode = BillingClient.BillingResponseCode.OK
 private val mutexProducts = Mutex()
 
 // to avoid Google servers spamming if there is no productDetails added at all
-private var loadingCounts: Int = 0
+internal var productsLoadingCounts: Int = 0
+const val MAX_PRODUCTS_RETRIES: Int = 100
 
 internal enum class ApphudProductsStatus {
     none,
@@ -36,7 +37,7 @@ internal fun ApphudInternal.shouldLoadProducts(): Boolean {
         ApphudProductsStatus.none -> true
         ApphudProductsStatus.loading -> false
         else -> {
-            productDetails.isEmpty() && loadingCounts < 10
+            productDetails.isEmpty() && productsLoadingCounts < MAX_PRODUCTS_RETRIES
         }
     }
 }
@@ -45,7 +46,7 @@ internal fun ApphudInternal.loadProducts() {
     if (!shouldLoadProducts()) { return }
 
     productsStatus = ApphudProductsStatus.loading
-    loadingCounts += 1
+    ApphudLog.logI("Loading ProductDetails from the Store")
 
     coroutineScope.launch(errorHandler) {
         mutexProducts.withLock {
@@ -54,6 +55,10 @@ internal fun ApphudInternal.loadProducts() {
                 productsResponseCode = result
                 productsStatus = if (result == BillingClient.BillingResponseCode.OK) ApphudProductsStatus.loaded else
                     ApphudProductsStatus.failed
+
+                if (productsResponseCode != APPHUD_NO_REQUEST) {
+                    productsLoadingCounts += 1
+                }
 
                 mainScope.launch {
                     notifyLoadingCompleted(null, productDetails, false, false)
@@ -92,9 +97,9 @@ internal suspend fun ApphudInternal.fetchDetails(ids: List<String>): Int {
 
     val idsToFetch = ids.filterNot { existingIds.contains(it) }
 
-    // If all IDs are already loaded, return immediately
+    // If none ids to load, return immediately
     if (idsToFetch.isEmpty()) {
-        return BillingClient.BillingResponseCode.OK
+        return APPHUD_NO_REQUEST
     }
 
     ApphudLog.log("Fetching Product Details: ${idsToFetch.toString()}")

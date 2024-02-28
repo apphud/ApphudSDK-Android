@@ -45,7 +45,7 @@ internal object ApphudInternal {
     internal var paywalls = listOf<ApphudPaywall>()
     internal var placements = listOf<ApphudPlacement>()
     internal var isRegisteringUser = false
-
+    internal var refreshUserPending = false
     private val handler: Handler = Handler(Looper.getMainLooper())
     private val pendingUserProperties = mutableMapOf<String, ApphudUserProperty>()
     private val userPropertiesRunnable =
@@ -84,6 +84,7 @@ internal object ApphudInternal {
     private var customProductsFetchedBlock: ((List<ProductDetails>) -> Unit)? = null
     private var offeringsPreparedCallbacks = mutableListOf<((ApphudError?) -> Unit)>()
     private var userRegisteredBlock: ((ApphudUser) -> Unit)? = null
+    private var isActive = false
     private var lifecycleEventObserver =
         LifecycleEventObserver { _, event ->
             when (event) {
@@ -91,6 +92,7 @@ internal object ApphudInternal {
                     if (fallbackMode) {
                         storage.isNeedSync = true
                     }
+                    isActive = false
                     ApphudLog.log("Application stopped [need sync ${storage.isNeedSync}]")
                 }
                 Lifecycle.Event.ON_START -> {
@@ -100,6 +102,7 @@ internal object ApphudInternal {
                         delay(1000L)
                         refreshPaywallsIfNeeded()
                     }
+                    isActive = true
                 }
                 Lifecycle.Event.ON_CREATE -> {
                     // do nothing
@@ -299,6 +302,8 @@ internal object ApphudInternal {
 
         updatePaywallsAndPlacements()
         handlePaywallsAndProductsLoaded(customerError)
+
+        customerError?.let { handleCustomerError(it) }
     }
 
     private fun handlePaywallsAndProductsLoaded(customerError: ApphudError?) {
@@ -327,6 +332,19 @@ internal object ApphudInternal {
                 val error = customerError ?: ApphudError("Registration failed", errorCode = productsResponseCode)
                 val callback = offeringsPreparedCallbacks.removeFirst()
                 callback.invoke(error)
+            }
+        }
+    }
+
+    private fun handleCustomerError(customerError: ApphudError) {
+        if ( (currentUser == null || paywalls.isEmpty() || productDetails.isEmpty()) &&
+            (isActive && !refreshUserPending && customerError.networkIssue() && !ApphudUtils.isOnline(this.context))) {
+            refreshUserPending = true
+            coroutineScope.launch {
+                ApphudLog.logE("Internet connection issue, will refresh in 2 seconds..")
+                delay(2000L)
+                refreshPaywallsIfNeeded()
+                refreshUserPending = false
             }
         }
     }
