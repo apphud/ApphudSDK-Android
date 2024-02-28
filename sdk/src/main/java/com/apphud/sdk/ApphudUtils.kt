@@ -1,5 +1,9 @@
 package com.apphud.sdk
 
+import android.content.Context
+import android.net.ConnectivityManager
+import android.net.NetworkCapabilities
+
 /**
  * This class will contain some utils, more will be added in the future.
  */
@@ -29,5 +33,22 @@ object ApphudUtils {
 
     internal fun setPackageName(packageName: String) {
         this.packageName = packageName
+    }
+
+    fun isOnline(context: Context): Boolean {
+        val connectivityManager =
+            context.getSystemService(Context.CONNECTIVITY_SERVICE) as? ConnectivityManager
+        if (connectivityManager != null) {
+            val capabilities =
+                connectivityManager.getNetworkCapabilities(connectivityManager.activeNetwork)
+            if (capabilities != null) {
+                if (capabilities.hasTransport(NetworkCapabilities.TRANSPORT_CELLULAR)) {
+                    return true
+                } else if (capabilities.hasTransport(NetworkCapabilities.TRANSPORT_WIFI)) {
+                    return true
+                }
+            }
+        }
+        return false
     }
 }

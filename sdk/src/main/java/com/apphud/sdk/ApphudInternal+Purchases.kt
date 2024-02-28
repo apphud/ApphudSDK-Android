@@ -49,14 +49,17 @@ internal fun ApphudInternal.purchase(
                 offerIdToken?.let {
                     purchaseInternal(activity, product, offerIdToken, oldToken, replacementMode, consumableInappProduct, callback)
                 } ?: run {
-                    callback?.invoke(ApphudPurchaseResult(null, null, null, ApphudError("OfferToken required")))
+                    val firstOfferToken = it.subscriptionOfferDetails?.firstOrNull()?.offerToken
+                    purchaseInternal(activity, product, firstOfferToken, oldToken, replacementMode, consumableInappProduct, callback)
+                    ApphudLog.logE("OfferToken not set. You are required to pass offer token in Apphud.purchase method when purchasing subscription. Passing first offerToken as a fallback.")
+//                    callback?.invoke(ApphudPurchaseResult(null, null, null, ApphudError("OfferToken required")))
                 }
             } else {
                 purchaseInternal(activity, product, offerIdToken, oldToken, replacementMode, consumableInappProduct, callback)
             }
         } ?: run {
             coroutineScope.launch(errorHandler) {
-                fetchDetails(activity, product, offerIdToken, oldToken, replacementMode, consumableInappProduct, callback)
+                fetchDetailsAndPurchase(activity, product, offerIdToken, oldToken, replacementMode, consumableInappProduct, callback)
             }
         }
     } ?: run {
@@ -65,7 +68,7 @@ internal fun ApphudInternal.purchase(
     }
 }
 
-private suspend fun ApphudInternal.fetchDetails(
+private suspend fun ApphudInternal.fetchDetailsAndPurchase(
     activity: Activity,
     apphudProduct: ApphudProduct,
     offerIdToken: String?,
@@ -74,56 +77,19 @@ private suspend fun ApphudInternal.fetchDetails(
     consumableInappProduct: Boolean,
     callback: ((ApphudPurchaseResult) -> Unit)?,
 ) {
-    val productName: String = apphudProduct.productId
-    if (loadDetails(productName, apphudProduct)) {
-        getProductDetailsByProductId(productName)?.let { details ->
-            mainScope.launch {
-                apphudProduct.productDetails = details
-                purchaseInternal(activity, apphudProduct, offerIdToken, oldToken, prorationMode, consumableInappProduct, callback)
-            }
+    val responseCode = fetchDetails(listOf(apphudProduct.productId))
+    val productDetails = getProductDetailsByProductId(apphudProduct.productId)
+    if (productDetails != null) {
+        mainScope.launch {
+            apphudProduct.productDetails = productDetails
+            purchaseInternal(activity, apphudProduct, offerIdToken, oldToken, prorationMode, consumableInappProduct, callback)
         }
     } else {
-        val message = "Unable to fetch product with given product id: $productName" + apphudProduct.let { " [Apphud product ID: " + it.id + "]" }
+        val message = "[${ApphudBillingResponseCodes.getName(responseCode)}] Aborting purchase because product unavailable: ${apphudProduct.productId}"
         ApphudLog.log(message = message, sendLogToServer = true)
         mainScope.launch {
-            callback?.invoke(ApphudPurchaseResult(null, null, null, ApphudError(message)))
+            callback?.invoke(ApphudPurchaseResult(null, null, null, ApphudError(message, errorCode = responseCode)))
         }
-    }
-}
-
-private suspend fun ApphudInternal.loadDetails(
-    productId: String?,
-    apphudProduct: ApphudProduct?,
-): Boolean {
-    val productName: String = productId ?: apphudProduct?.productId ?: "none"
-    ApphudLog.log("Could not find Product for product id: $productName in memory")
-    ApphudLog.log("Now try fetch it from Google Billing")
-
-    return coroutineScope {
-        var isInapLoaded = false
-        var isSubsLoaded = false
-
-        val subs = async { billing.detailsEx(BillingClient.ProductType.SUBS, listOf(productName)) }
-        val inap = async { billing.detailsEx(BillingClient.ProductType.INAPP, listOf(productName)) }
-
-        subs.await()?.let {
-            productDetails.addAll(it)
-            isSubsLoaded = true
-
-            ApphudLog.log("Google Billing return this info for product id = $productName :")
-            it.forEach { ApphudLog.log("$it") }
-        } ?: run {
-            ApphudLog.logE("Unable to load SUBS details")
-        }
-
-        inap.await()?.let {
-            productDetails.addAll(it)
-            isInapLoaded = true
-            it.forEach { ApphudLog.log("$it") }
-        } ?: run {
-            ApphudLog.logE("Unable to load INAP details")
-        }
-        return@coroutineScope isSubsLoaded && isInapLoaded
     }
 }
 
@@ -263,7 +229,7 @@ private fun ApphudInternal.purchaseInternal(
 
 private fun ApphudInternal.processPurchaseError(status: PurchaseUpdatedCallbackStatus.Error) {
     if (status.result.responseCode == BillingClient.BillingResponseCode.ITEM_ALREADY_OWNED) {
-        SharedPreferencesStorage.isNeedSync = true
+        storage.isNeedSync = true
         coroutineScope.launch(errorHandler) {
             ApphudLog.log("ProcessPurchaseError: syncPurchases()")
             syncPurchases()
@@ -279,10 +245,14 @@ private fun ApphudInternal.sendCheckToApphud(
     callback: ((ApphudPurchaseResult) -> Unit)?,
 ) {
     performWhenUserRegistered { error ->
+
         error?.let {
             ApphudLog.logE(it.message)
             if (fallbackMode) {
                 currentUser?.let {
+                    coroutineScope.launch(errorHandler) {
+                        RequestManager.purchased(purchase, apphudProduct, offerIdToken, oldToken) { _, _ -> }
+                    }
                     mainScope.launch {
                         addTempPurchase(
                             it,
@@ -293,6 +263,8 @@ private fun ApphudInternal.sendCheckToApphud(
                         )
                     }
                 }
+            } else {
+                storage.isNeedSync = true
             }
         } ?: run {
             coroutineScope.launch(errorHandler) {
@@ -361,6 +333,7 @@ internal fun ApphudInternal.addTempPurchase(
             // nothing
         }
     }
+    storage.isNeedSync = true
     notifyAboutSuccess(apphudUser, purchase, newSubscription, newPurchase, true, callback)
 }
 

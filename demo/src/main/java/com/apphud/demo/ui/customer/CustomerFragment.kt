@@ -17,6 +17,7 @@ import com.apphud.demo.BuildConfig
 import com.apphud.demo.databinding.FragmentCustomerBinding
 import com.apphud.sdk.Apphud
 import com.apphud.sdk.ApphudListener
+import com.apphud.sdk.client.ApiClient
 import com.apphud.sdk.domain.ApphudNonRenewingPurchase
 import com.apphud.sdk.domain.ApphudPaywall
 import com.apphud.sdk.domain.ApphudPlacement
@@ -78,10 +79,12 @@ class CustomerFragment : Fragment() {
             object : ApphudListener {
                 override fun apphudSubscriptionsUpdated(subscriptions: List<ApphudSubscription>) {
                     Log.d("ApphudDemo", "apphudSubscriptionsUpdated")
+                    updateData()
                 }
 
                 override fun apphudNonRenewingPurchasesUpdated(purchases: List<ApphudNonRenewingPurchase>) {
                     Log.d("ApphudDemo", "apphudNonRenewingPurchasesUpdated")
+                    updateData()
                 }
 
                 override fun apphudFetchProductDetails(details: List<ProductDetails>) {
@@ -95,7 +98,7 @@ class CustomerFragment : Fragment() {
                 }
 
                 override fun userDidLoad(user: ApphudUser) {
-                    Log.d("ApphudDemo", "userDidLoad()")
+                    Log.d("ApphudDemo", "userDidLoad(): ${user.userId}")
                     // TODO handle user registered event
                     updateData()
                 }
@@ -112,12 +115,36 @@ class CustomerFragment : Fragment() {
             }
         Apphud.setListener(listener)
 
+        getPaywalls()
         updateData()
 
         return root
     }
 
+    private fun getPaywalls() {
+        Apphud.fetchPlacements { plms, error ->
+            if (plms.isEmpty() && Apphud.isFallbackMode()) {
+                val paywall = Apphud.rawPaywalls().first()
+                val fallbackPlacement = ApphudPlacement.createCustom("fallback", paywall = paywall)
+                Log.d("ApphudLogs", "FALLBACK PLACEMENT: ${fallbackPlacement}")
+            }
+            if (error != null) {
+                Log.d("ApphudLogs", "Placements fetch error: ${error.billingErrorTitle()}")
+            }
+        }
+
+        lifecycleScope.launch {
+            val paywalls = Apphud.paywalls()
+            Log.d("ApphudLogs", "PAYWALLS ARRAY = ${paywalls.map { it.identifier }.toString()}")
+        }
+        lifecycleScope.launch {
+            val placements = Apphud.placements()
+            Log.d("ApphudLogs", "PLACEMENTS ARRAY = ${placements.map { it.identifier }.toString()}")
+        }
+    }
+
     private fun updateData() {
+        _binding?.isPremiumValue?.text = if (Apphud.hasPremiumAccess()) "Premium" else "No Premium"
         lifecycleScope.launch {
             paywallsViewModel.updateData()
             withContext(Dispatchers.Main) {

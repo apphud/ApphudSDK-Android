@@ -2,6 +2,7 @@ package com.apphud.sdk.managers
 
 import com.apphud.sdk.ApphudInternal
 import com.apphud.sdk.ApphudInternal.FALLBACK_ERRORS
+import com.apphud.sdk.ApphudInternal.fallbackMode
 import com.apphud.sdk.ApphudLog
 import com.apphud.sdk.processFallbackError
 import okhttp3.Interceptor
@@ -10,11 +11,12 @@ import okhttp3.Response
 import java.io.IOException
 import java.lang.Exception
 import java.net.SocketTimeoutException
+import java.net.UnknownHostException
 
 class HttpRetryInterceptor : Interceptor {
     companion object {
-        private var STEP = 3_000L
-        private var MAX_COUNT = 7
+        private var STEP = 1_000L
+        private var MAX_COUNT = 5
     }
 
     @Throws(IOException::class)
@@ -22,7 +24,7 @@ class HttpRetryInterceptor : Interceptor {
         val request: Request = chain.request()
         var response: Response? = null
         var isSuccess = false
-        var tryCount: Byte = 0
+        var tryCount: Int = 0
         while (!isSuccess && tryCount < MAX_COUNT) {
             try {
                 response = chain.proceed(request)
@@ -35,9 +37,20 @@ class HttpRetryInterceptor : Interceptor {
                         if (isBlocked) {
                             return response
                         }
+                        // do not retry 429
                         if (response.code == 429) {
                             STEP = 6_000L
                             MAX_COUNT = 1
+                        } else if (response.code in 200..499) {
+                            // do not retry 200..499 http codes
+                            return response
+                        }
+                    }
+
+                    if (response.code in FALLBACK_ERRORS) {
+                        ApphudInternal.processFallbackError(request)
+                        if (ApphudInternal.fallbackMode) {
+                            tryCount = MAX_COUNT
                         }
                     }
 
@@ -45,20 +58,23 @@ class HttpRetryInterceptor : Interceptor {
                         "Request (${request.url.encodedPath}) failed with code (${response.code}). Will retry in ${STEP / 1000} seconds ($tryCount).",
                     )
 
-                    if (response.code in FALLBACK_ERRORS) {
-                        ApphudInternal.processFallbackError(request)
-                    }
                     Thread.sleep(STEP)
                 }
             } catch (e: SocketTimeoutException) {
                 ApphudInternal.processFallbackError(request)
                 ApphudLog.logE(
-                    "Request (${request.url.encodedPath}) failed with code (${response?.code ?: 0}). Will retry in ${STEP / 1000} seconds ($tryCount).",
+                    "Request (${request.url.encodedPath}) failed with SocketTimeoutException. Will retry in ${STEP / 1000} seconds ($tryCount).",
                 )
+                if (ApphudInternal.fallbackMode) {
+                    throw e
+                }
                 Thread.sleep(STEP)
+            } catch (e: UnknownHostException) {
+                // do not retry when no internet connection issue
+                tryCount = MAX_COUNT
             } catch (e: Exception) {
                 ApphudLog.logE(
-                    "Request (${request.url.encodedPath}) failed with code (${response?.code ?: 0}). Will retry in ${STEP / 1000} seconds ($tryCount).",
+                    "Request (${request.url.encodedPath}) failed with Exception. Will retry in ${STEP / 1000} seconds ($tryCount).",
                 )
                 Thread.sleep(STEP)
             } finally {
@@ -72,7 +88,12 @@ class HttpRetryInterceptor : Interceptor {
         if (!isSuccess) {
             ApphudLog.logE("Reached max number (${MAX_COUNT}) of (${request.url.encodedPath}) request retries. Exiting..")
         }
-        return response ?: chain.proceed(request)
+        if (response != null) {
+            return response
+        } else {
+            ApphudLog.log("Performing one more request ${request.url.encodedPath}")
+            return chain.proceed(request)
+        }
     }
 
 

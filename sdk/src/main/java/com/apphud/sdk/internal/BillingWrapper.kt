@@ -122,9 +122,9 @@ internal class BillingWrapper(context: Context) : Closeable {
     suspend fun detailsEx(
         @BillingClient.ProductType type: ProductType,
         products: List<ProductId>,
-    ): List<ProductDetails>? {
+    ): Pair<List<ProductDetails>?, Int> {
         val connectIfNeeded = connectIfNeeded()
-        if (!connectIfNeeded) return null
+        if (!connectIfNeeded) return Pair(null, connectionResponse)
 
         return prod.querySync(type = type, products = products)
     }
