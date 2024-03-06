@@ -55,7 +55,7 @@ android {
     namespace 'com.apphud.sdk'
 }
 
-afterEvaluate {
+/*afterEvaluate {
     publishing {
         publications {
             release(MavenPublication) {
@@ -63,7 +63,7 @@ afterEvaluate {
             }
         }
     }
-}
+}*/
 
 dependencies {
     implementation fileTree(dir: "libs", include: ["*.jar"])
