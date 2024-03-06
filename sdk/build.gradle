@@ -53,9 +53,13 @@ android {
         jvmTarget = '17'
     }
     namespace 'com.apphud.sdk'
+
+    publishing {
+        singleVariant('release')
+    }
 }
 
-/*afterEvaluate {
+afterEvaluate {
     publishing {
         publications {
             release(MavenPublication) {
@@ -63,7 +67,7 @@ android {
             }
         }
     }
-}*/
+}
 
 dependencies {
     implementation fileTree(dir: "libs", include: ["*.jar"])
