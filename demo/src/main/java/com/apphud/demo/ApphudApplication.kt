@@ -37,7 +37,7 @@ class ApphudApplication : Application() {
     override fun onCreate() {
         super.onCreate()
         if (BuildConfig.DEBUG) {
-            ApphudUtils.enableAllLogs()
+            Apphud.enableDebugLogs()
         }
         Apphud.start(this, API_KEY)
         Apphud.collectDeviceIdentifiers()
