@@ -4,6 +4,8 @@ import com.android.billingclient.api.AcknowledgePurchaseParams
 import com.android.billingclient.api.BillingClient
 import com.android.billingclient.api.BillingResult
 import com.android.billingclient.api.Purchase
+import com.apphud.sdk.ApphudInternal
+import com.apphud.sdk.handlePurchaseWithoutCallbacks
 import com.apphud.sdk.internal.callback_status.PurchaseCallbackStatus
 import com.apphud.sdk.response
 import java.io.Closeable
@@ -34,7 +36,13 @@ internal class AcknowledgeWrapper(
             result.response(
                 MESSAGE,
                 { callBack?.invoke(PurchaseCallbackStatus.Error(result.responseCode.toString()), purchase) },
-                { callBack?.invoke(PurchaseCallbackStatus.Success(), purchase) },
+                {
+                    if (callBack != null) {
+                        callBack?.invoke(PurchaseCallbackStatus.Success(), purchase)
+                    } else {
+                        ApphudInternal.handlePurchaseWithoutCallbacks(purchase)
+                    }
+                },
             )
         }
     }
