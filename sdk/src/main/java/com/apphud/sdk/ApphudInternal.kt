@@ -81,6 +81,7 @@ internal object ApphudInternal {
     internal var currentUser: ApphudUser? = null
     internal var apphudListener: ApphudListener? = null
     internal var notifiedAboutPaywallsDidFullyLoaded = false
+    internal var purchasingProduct: ApphudProduct? = null
     private var customProductsFetchedBlock: ((List<ProductDetails>) -> Unit)? = null
     private var offeringsPreparedCallbacks = mutableListOf<((ApphudError?) -> Unit)>()
     private var userRegisteredBlock: ((ApphudUser) -> Unit)? = null
@@ -384,7 +385,7 @@ internal object ApphudInternal {
                             if (storage.isNeedSync) {
                                 coroutineScope.launch(errorHandler) {
                                     ApphudLog.log("Registration: isNeedSync true, start syncing")
-                                    syncPurchases()
+                                    fetchNativePurchases(forceRefresh = true)
                                 }
                             }
                         } ?: run {

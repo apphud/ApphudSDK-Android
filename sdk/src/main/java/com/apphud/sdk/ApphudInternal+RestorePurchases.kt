@@ -22,9 +22,9 @@ private val mutexSync = Mutex()
 
 private var unvalidatedPurchases = listOf<Purchase>()
 
-internal suspend fun ApphudInternal.fetchNativePurchases(): Pair<List<Purchase>, Int> {
+internal suspend fun ApphudInternal.fetchNativePurchases(forceRefresh: Boolean = false): Pair<List<Purchase>, Int> {
     var responseCode = BillingClient.BillingResponseCode.OK
-    if (unvalidatedPurchases.isEmpty()) {
+    if (unvalidatedPurchases.isEmpty() || forceRefresh) {
         val result = billing.queryPurchasesSync()
         val purchases = result.first
         responseCode = result.second
@@ -34,6 +34,11 @@ internal suspend fun ApphudInternal.fetchNativePurchases(): Pair<List<Purchase>,
         }
     }
     return Pair(unvalidatedPurchases, responseCode)
+}
+
+private suspend fun queryPurchases(): List<Purchase> {
+    val result = ApphudInternal.billing.queryPurchasesSync()
+    return result.first ?: listOf()
 }
 
 internal fun ApphudInternal.syncPurchases(
@@ -50,16 +55,25 @@ internal fun ApphudInternal.syncPurchases(
         } ?: run {
             coroutineScope.launch(errorHandler) {
                 mutexSync.withLock {
+
+                    var queriedPurchases = unvalidatedPurchs
+
                     ApphudLog.log("SyncPurchases: start")
                     val subsResult = billing.queryPurchaseHistorySync(BillingClient.ProductType.SUBS)
                     val inapsResult = billing.queryPurchaseHistorySync(BillingClient.ProductType.INAPP)
-
                     var purchases = mutableListOf<PurchaseHistoryRecord>()
                     purchases.addAll(processHistoryCallbackStatus(subsResult))
+
+                    if (purchases.count() > 10 && queriedPurchases.isNullOrEmpty()) {
+                        ApphudLog.log("Found ${purchases.count()} subscriptions during restorePurchases call. Will send only active of them.")
+                        // more than 10 subscriptions in history, assuming this is sandbox account
+                        queriedPurchases = queryPurchases()
+                    }
+
                     purchases.addAll(processHistoryCallbackStatus(inapsResult))
 
-                    if (!unvalidatedPurchs.isNullOrEmpty()) {
-                        val tokens = unvalidatedPurchs.map { it.purchaseToken }
+                    if (!queriedPurchases.isNullOrEmpty()) {
+                        val tokens = queriedPurchases.map { it.purchaseToken }
                         val filtered = purchases.filter { tokens.contains(it.purchaseToken) }
                         if (filtered.isNotEmpty()) {
                             purchases = filtered.toMutableList()
@@ -104,7 +118,7 @@ internal fun ApphudInternal.syncPurchases(
                             ApphudLog.log("SyncPurchases: All products details already loaded.")
                         }
 
-                        ApphudLog.log("SyncPurchases: Products restored: ${restoredPurchases.map { it.details.productId } }")
+                        ApphudLog.log("Start syncing ${restoredPurchases.count()} in-app purchases: ${restoredPurchases.map { it.details.productId } }")
 
                         if (prevPurchases.containsAll(restoredPurchases)) {
                             ApphudLog.log("SyncPurchases: Don't send equal purchases from prev state")

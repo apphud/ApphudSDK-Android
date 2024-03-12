@@ -61,7 +61,6 @@ internal class ProductDetailsWrapper(
                             when (purchases.isEmpty()) {
                                 true -> {
                                     val message = "ProductsDetails return empty list for $type and records: $records"
-                                    ApphudLog.log(message)
                                     if (continuation.isActive && !resumed) {
                                         resumed = true
                                         continuation.resume(
