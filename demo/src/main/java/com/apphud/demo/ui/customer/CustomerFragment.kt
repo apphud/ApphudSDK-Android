@@ -12,7 +12,6 @@ import androidx.lifecycle.lifecycleScope
 import androidx.navigation.fragment.findNavController
 import androidx.recyclerview.widget.DividerItemDecoration
 import androidx.recyclerview.widget.RecyclerView
-import com.android.billingclient.api.ProductDetails
 import com.apphud.demo.BuildConfig
 import com.apphud.demo.databinding.FragmentCustomerBinding
 import com.apphud.sdk.Apphud
@@ -85,11 +84,6 @@ class CustomerFragment : Fragment() {
                 override fun apphudNonRenewingPurchasesUpdated(purchases: List<ApphudNonRenewingPurchase>) {
                     Log.d("ApphudDemo", "apphudNonRenewingPurchasesUpdated")
                     updateData()
-                }
-
-                override fun apphudFetchProductDetails(details: List<ProductDetails>) {
-                    Log.d("ApphudDemo", "apphudFetchProductDetails()")
-                    // TODO handle loaded sku details
                 }
 
                 override fun apphudDidChangeUserID(userId: String) {

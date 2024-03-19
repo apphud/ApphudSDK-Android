@@ -2,7 +2,6 @@ package com.apphud.sdk
 
 import android.app.Activity
 import android.content.Context
-import com.android.billingclient.api.ProductDetails
 import com.android.billingclient.api.Purchase
 import com.apphud.sdk.domain.*
 import kotlinx.coroutines.suspendCancellableCoroutine
@@ -341,58 +340,6 @@ object Apphud {
     fun permissionGroups(): List<ApphudGroup> {
         return ApphudInternal.getPermissionGroups()
     }
-
-    /**
-     * Returns an array of `ProductDetails` objects, whose identifiers you added in Apphud > Product Hub > Products.
-     * Note that this method will return empty array if products are not yet fetched.
-     * To get notified when `products` are ready to use, implement `ApphudListener`'s
-     * `apphudFetchProductsDetails` or `paywallsDidFullyLoad` methods, or use `productsFetchCallback`.
-     * When any of these methods is called, it indicates that `ProductDetails` are loaded and
-     * the `products` method is ready to use.
-     * It is recommended not to use this method directly, but to use `paywalls()` instead.
-     *
-     * @return A list of `ProductDetails` objects, or null if not yet available.
-     */
-    @Deprecated(
-        "Use \"paywalls()\" method instead.",
-        ReplaceWith("this.paywalls()"),
-    )
-    fun products(): List<ProductDetails> {
-        return ApphudInternal.getProductDetails()
-    }
-
-    /**
-     * This callback is triggered when `ProductDetails` are fetched from Google Play Billing.
-     * Ensure that all product identifiers are added in Apphud > Product Hub > Products.
-     * You can use this callback or implement `ApphudListener`'s `apphudFetchProductsDetails`
-     * method, based on your preference.
-     *
-     * @param callback The callback function to be invoked with the list of `ProductDetails`.
-     */
-    @Deprecated(
-        "Use \"paywalls()\" method instead.",
-        ReplaceWith("this.paywalls()"),
-    )
-    fun productsFetchCallback(callback: (List<ProductDetails>) -> Unit) {
-        ApphudInternal.productsFetchCallback(callback)
-    }
-
-    /**
-     * Returns the `ProductDetails` object for a specific product identifier.
-     * Ensure the product identifier is added in Apphud > Product Hub > Products.
-     * The method will return `null` if the product is not yet fetched from Google Play.
-     *
-     * @param productIdentifier The identifier of the product.
-     * @return The `ProductDetails` object for the specified product, or null if not available.
-     */
-    @Deprecated(
-        "Use \"paywalls()\" method instead.",
-        ReplaceWith("this.paywalls()"),
-    )
-    fun product(productIdentifier: String): ProductDetails? {
-        return ApphudInternal.getProductDetailsByProductId(productIdentifier)
-    }
-
     //endregion
     //region === Purchases ===
 
@@ -522,26 +469,6 @@ object Apphud {
         consumableInappProduct = consumableInAppProduct,
         callback = block,
     )
-
-    /**
-     * Only for use in Observer Mode: call this method after every successful purchase.
-     * Note: Passing the offerIdToken is mandatory for subscriptions!
-     * This method submits the successful purchase information to Apphud.
-     * Pass `paywallIdentifier` and `placementIdentifier` for A/B test analysis in Observer Mode.
-     *
-     * @param purchase The `Purchase` object representing the successful purchase.
-     * @param productDetails The `ProductDetails` object associated with the purchase.
-     * @param offerIdToken The identifier of the subscription's offer token.
-     * @param paywallIdentifier (Optional) The identifier of the paywall.
-     * @param placementIdentifier (Optional) The identifier of the placement.
-     */
-    fun trackPurchase(
-        purchase: Purchase,
-        productDetails: ProductDetails,
-        offerIdToken: String?,
-        paywallIdentifier: String? = null,
-        placementIdentifier: String? = null,
-    ) = ApphudInternal.trackPurchase(purchase, productDetails, offerIdToken, paywallIdentifier, placementIdentifier)
 
     /**
      * Implements the 'Restore Purchases' mechanism. This method sends the current Play Market

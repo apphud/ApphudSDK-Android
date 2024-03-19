@@ -12,12 +12,12 @@ import androidx.lifecycle.lifecycleScope
 import androidx.navigation.fragment.navArgs
 import androidx.recyclerview.widget.GridLayoutManager
 import androidx.recyclerview.widget.RecyclerView
-import com.android.billingclient.api.BillingClient
 import com.apphud.demo.R
 import com.apphud.demo.databinding.FragmentProductsBinding
 import com.apphud.demo.ui.utils.OffersFragment
 import com.apphud.sdk.Apphud
 import com.apphud.sdk.domain.ApphudPaywall
+import com.apphud.sdk.domain.ApphudProductType
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -46,10 +46,9 @@ class ProductsFragment : Fragment() {
             activity?.let { activity ->
 
                 // Use Apphud purchases flow
-                if (product.productDetails?.productType == BillingClient.ProductType.SUBS) {
-
+                if (product.type() == ApphudProductType.SUBS) {
                     if (showsOffers) {
-                        product.productDetails?.subscriptionOfferDetails?.let {
+                        product.subscriptionOfferDetails()?.let {
                             val fragment = OffersFragment()
                             fragment.offers = it
                             fragment.offerSelected = { offer ->

@@ -247,7 +247,7 @@ internal object ApphudInternal {
 
             synchronized(productDetails) {
                 // notify that productDetails are loaded
-                apphudListener?.apphudFetchProductDetails(productDetails)
+                //apphudListener?.apphudFetchProductDetails(productDetails)
                 customProductsFetchedBlock?.invoke(productDetails)
             }
         }

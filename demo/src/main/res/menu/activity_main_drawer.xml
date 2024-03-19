@@ -9,10 +9,6 @@
             android:icon="@drawable/ic_baseline_account_circle_24"
             android:title="@string/menu_customer" />
         <item
-            android:id="@+id/nav_billing"
-            android:icon="@drawable/ic_baseline_store_24"
-            android:title="@string/menu_billing" />
-        <item
             android:id="@+id/nav_groups"
             android:icon="@drawable/ic_baseline_apps_24"
             android:title="@string/menu_groups" />
