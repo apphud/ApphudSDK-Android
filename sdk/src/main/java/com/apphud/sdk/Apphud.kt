@@ -117,6 +117,8 @@ object Apphud {
      * user's involvement in A/B testing, if applicable.
      * Method suspends until the inner `SkuDetails` are loaded from Xiaomi GetApps.
      *
+     * This is equivalent to `fetchPlacements(callback: (List<ApphudPlacement>, ApphudError?) -> Unit)`.
+     *
      * A placement is a specific location within a user's journey
      * (such as onboarding, settings, etc.) where its internal paywall
      * is intended to be displayed.
@@ -129,6 +131,8 @@ object Apphud {
     suspend fun placements(): List<ApphudPlacement> =
         suspendCancellableCoroutine { continuation ->
             ApphudInternal.performWhenOfferingsPrepared {
+                /* Error is not returned is suspending function.
+                If you want to handle error, use `fetchPlacements` method. */
                 continuation.resume(ApphudInternal.placements)
             }
         }
@@ -155,6 +159,10 @@ object Apphud {
      * Returns the placements from Product Hub > Placements, potentially altered
      * based on the user's involvement in A/B testing, if applicable.
      *
+     * __Note:__ Method waits until the inner `ProductDetails` are loaded from Google Play.
+     *
+     * This is equivalent to `suspend fun placements()` method.
+     *
      * A placement is a specific location within a user's journey
      * (such as onboarding, settings, etc.) where its internal paywall
      * is intended to be displayed.
@@ -162,10 +170,27 @@ object Apphud {
      * If you want to obtain placements without waiting for `SkuDetails`
      * from Xiaomi GetApps, you can use `rawPlacements()` method.
      *
+     * __IMPORTANT:__ The callback may return both placements and an error simultaneously.
+     * If there is an issue with Google Billing and inner product details could not be fetched,
+     * an error will be returned along with the raw placements array.
+     * This allows for handling situations where partial data is available.
+     *
      * @param callback The callback function that is invoked with the list of `ApphudPlacement` objects.
+     * Second parameter in callback represents optional error, which may be
+     * on Google (BillingClient issue) or Apphud side.
+     *
+     *
      */
+    fun fetchPlacements(callback: (List<ApphudPlacement>, ApphudError?) -> Unit) {
+        ApphudInternal.performWhenOfferingsPrepared { callback(ApphudInternal.placements, it) }
+    }
+    @Deprecated(
+        message = "This method has been renamed to fetchPlacements",
+        replaceWith = ReplaceWith("this.fetchPlacements(callback)"),
+        level = DeprecationLevel.ERROR
+    )
     fun placementsDidLoadCallback(callback: (List<ApphudPlacement>) -> Unit) {
-        ApphudInternal.performWhenOfferingsPrepared { callback(ApphudInternal.placements) }
+        callback(listOf())
     }
 
     /** Returns:
@@ -186,6 +211,8 @@ object Apphud {
      * Product Hub > Paywalls are available, potentially altered based on the
      * user's involvement in A/B testing, if applicable.
      *
+     * This is equivalent to `paywallsDidLoadCallback(callback: (List<ApphudPaywall>, ApphudError?) -> Unit)`.
+     *
      * Each paywall contains an array of `ApphudProduct` objects that
      * can be used for purchases.
      * `ApphudProduct` is Apphud's wrapper around `SkuDetails`.
@@ -204,6 +231,8 @@ object Apphud {
     suspend fun paywalls(): List<ApphudPaywall> =
         suspendCancellableCoroutine { continuation ->
             ApphudInternal.performWhenOfferingsPrepared {
+                /* Error is not returned is suspending function.
+                If you want to handle error, use `paywallsDidLoadCallback` method. */
                 continuation.resume(ApphudInternal.paywalls)
             }
         }
@@ -234,6 +263,9 @@ object Apphud {
     /**
      * Returns the paywalls from Product Hub > Paywalls, potentially altered
      * based on the user's involvement in A/B testing, if applicable.
+     * __Note:__ Method waits until the inner `ProductDetails` are loaded from Google Play.
+     *
+     * This is equivalent to `suspend fun paywalls()` method.
      *
      * Each paywall contains an array of `ApphudProduct` objects that
      * can be used for purchases.
@@ -245,13 +277,15 @@ object Apphud {
      * Xiaomi GetApps, you can use `rawPaywalls()` method.
      *
      * @param callback The callback function that is invoked with the list of `ApphudPaywall` objects.
+     * Second parameter in callback represents optional error, which may be
+     * on Google (BillingClient issue) or Apphud side.
      */
     @Deprecated(
         "Deprecated in favor of Placements",
         ReplaceWith("this.placementsDidLoadCallback(callback)"),
     )
-    fun paywallsDidLoadCallback(callback: (List<ApphudPaywall>) -> Unit) {
-        ApphudInternal.performWhenOfferingsPrepared { callback(ApphudInternal.paywalls) }
+    fun paywallsDidLoadCallback(callback: (List<ApphudPaywall>, ApphudError?) -> Unit) {
+        ApphudInternal.performWhenOfferingsPrepared { callback(ApphudInternal.paywalls, it) }
     }
 
     /** Returns:
@@ -519,15 +553,18 @@ object Apphud {
     }
 
     /**
-     * Refreshes the current entitlements, which includes subscriptions, promotional or non-renewing purchases.
+     * Refreshes current user data, which includes:
+     * paywalls, placements, subscriptions, non-renewing purchases, or promotionals.
+     *
      * To be notified about updates, listen for `ApphudListener`'s `apphudSubscriptionsUpdated` and
      * `apphudNonRenewingPurchasesUpdated` methods.
-     * Note: Do not call this method on app launch, as Apphud SDK does it automatically.
-     * It is best used when a promotional has been granted on the web or when the app reactivates
-     * from the background, if needed.
+     *
+     * __NOTE__: Do not call this method on app launch, as Apphud SDK does it automatically.
+     *
+     * You can call this method, when the app reactivates from the background, if needed.
      */
-    fun refreshEntitlements() {
-        ApphudInternal.refreshEntitlements()
+    fun refreshUserData() {
+        ApphudInternal.refreshEntitlements(forceRefresh = true)
     }
 
     /**
@@ -535,6 +572,8 @@ object Apphud {
      * which may include only active subscriptions or active non-consumed one-time purchases.
      * Compared to `Apphud.restorePurchases`, this method offers a quicker way
      * to determine the presence of owned purchases as it bypasses validation by Apphud.
+     *
+     * Returns `BillingClient.BillingResponseCode` as second parameter of Pair.
      *
      * Usage of this function for granting premium access is not advised,
      * as these purchases may not yet be validated.
@@ -546,7 +585,7 @@ object Apphud {
      * Apphud will automatically track and validate them in the background,
      * so developer doesn't need to call `Apphud.restorePurchases` afterwards.
      */
-    suspend fun nativePurchases(): List<Purchase> = ApphudInternal.fetchNativePurchases()
+    suspend fun nativePurchases(): Pair<List<Purchase>, Int> = ApphudInternal.fetchNativePurchases()
 
     //endregion
     //region === Attribution ===
@@ -663,6 +702,14 @@ object Apphud {
      */
     fun optOutOfTracking() {
         ApphudUtils.optOutOfTracking = true
+    }
+
+    /**
+     * Returns `true` if fallback mode is on.
+     * That means paywalls are loaded from the fallback json file.
+     */
+    fun isFallbackMode(): Boolean {
+        return ApphudInternal.fallbackMode
     }
     //endregion
 }

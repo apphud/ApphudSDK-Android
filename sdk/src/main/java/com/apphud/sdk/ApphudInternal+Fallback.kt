@@ -1,11 +1,13 @@
 package com.apphud.sdk
 
 import android.content.Context
+import android.content.SharedPreferences
 import com.apphud.sdk.domain.ApphudUser
 import com.apphud.sdk.domain.FallbackJsonObject
 import com.apphud.sdk.mappers.PaywallsMapper
 import com.apphud.sdk.parser.GsonParser
 import com.apphud.sdk.parser.Parser
+import com.apphud.sdk.storage.SharedPreferencesStorage
 import com.google.gson.Gson
 import com.google.gson.GsonBuilder
 import com.google.gson.reflect.TypeToken
@@ -18,49 +20,54 @@ private val parser: Parser = GsonParser(gson)
 private val paywallsMapper = PaywallsMapper(parser)
 
 internal fun ApphudInternal.processFallbackError(request: Request) {
-    if (request.url.encodedPath.endsWith("/customers") && !fallbackMode) {
+    if ((request.url.encodedPath.endsWith("/customers") ||
+        request.url.encodedPath.endsWith("/subscriptions"))
+        && !fallbackMode) {
         processFallbackData()
     }
 }
 
 private fun ApphudInternal.processFallbackData() {
-    coroutineScope.launch(errorHandler) {
-        try {
+    try {
+        if (currentUser == null) {
+            currentUser =
+                ApphudUser(
+                    userId, "", "", listOf(), listOf(), listOf(),
+                    listOf(), true,
+                )
+            ApphudLog.log("Fallback: user created: $userId")
+        }
+
+        // read paywalls from cache
+        var ids = paywalls.map { it.products?.map { it.productId } ?: listOf() }.flatten()
+        if (ids.isEmpty()) {
+            // read from json file
             val jsonFileString = getJsonDataFromAsset(context, "apphud_paywalls_fallback.json")
             val gson = Gson()
             val contentType = object : TypeToken<FallbackJsonObject>() {}.type
             val fallbackJson: FallbackJsonObject = gson.fromJson(jsonFileString, contentType)
-
-            if (paywalls.isEmpty() && fallbackJson.data.results.isNotEmpty()) {
-                val paywallToParse = paywallsMapper.map(fallbackJson.data.results)
-                val ids = paywallToParse.map { it.products?.map { it.productId } ?: listOf() }.flatten()
-                if (ids.isNotEmpty() && !fallbackMode) {
-                    fallbackMode = true
-                    didRegisterCustomerAtThisLaunch = false
-                    ApphudLog.log("Fallback: ENABLED")
-                    fetchDetails(ids)
-                    cachePaywalls(paywallToParse)
-
-                    if (currentUser == null) {
-                        currentUser =
-                            ApphudUser(
-                                userId, "", "", listOf(), listOf(), listOf(),
-                                listOf(), true,
-                            )
-                        ApphudLog.log("Fallback: user created: $userId")
-                    }
-                    mainScope.launch {
-                        notifyLoadingCompleted(
-                            customerLoaded = currentUser,
-                            skuDetailsLoaded = skuDetails,
-                            fromFallback = true,
-                        )
-                    }
-                }
-            }
-        } catch (ex: Exception) {
-            ApphudLog.logE("Fallback: ${ex.message}")
+            val paywallToParse = paywallsMapper.map(fallbackJson.data.results)
+            ids = paywallToParse.map { it.products?.map { it.productId } ?: listOf() }.flatten()
+            cachePaywalls(paywallToParse)
         }
+
+        if (ids.isEmpty()) { return }
+
+        fallbackMode = true
+        didRegisterCustomerAtThisLaunch = false
+        ApphudLog.log("Fallback: ENABLED")
+        coroutineScope.launch {
+            fetchDetails(ids)
+            mainScope.launch {
+                notifyLoadingCompleted(
+                    customerLoaded = currentUser,
+                    productDetailsLoaded = productDetails,
+                    fromFallback = true,
+                )
+            }
+        }
+    } catch (ex: Exception) {
+        ApphudLog.logE("Fallback Mode Failed: ${ex.message}")
     }
 }
 
@@ -86,5 +93,8 @@ internal fun ApphudInternal.disableFallback() {
             ApphudLog.log("Fallback: reload products")
             loadProducts()
         }
+    }
+    if (storage.isNeedSync) {
+        syncPurchases { _, _, _ ->  }
     }
 }

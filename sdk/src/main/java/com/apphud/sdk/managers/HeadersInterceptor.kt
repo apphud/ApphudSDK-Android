@@ -2,6 +2,7 @@ package com.apphud.sdk.managers
 
 import com.apphud.sdk.BuildConfig
 import com.apphud.sdk.client.ApiClient
+import com.google.android.gms.common.api.Api
 import okhttp3.Interceptor
 import okhttp3.Request
 import okhttp3.Response
@@ -11,7 +12,7 @@ class HeadersInterceptor(private val apiKey: String?) : Interceptor {
     companion object Shared {
         var X_SDK_VERSION: String = BuildConfig.VERSION_NAME
         var X_SDK: String = "Kotlin"
-        var HOST: String = ApiClient.host
+        val HOST: String get() = ApiClient.host
         var isBlocked: Boolean = false
     }
 

@@ -33,12 +33,22 @@ internal class HistoryWrapper(
         }
     }
 
-    suspend fun queryPurchasesSync(): List<Purchase> = coroutineScope {
+    suspend fun queryPurchasesSync(): Pair<List<Purchase>, Int> = coroutineScope {
+        val paramsSubs = QueryPurchasesParams.newBuilder()
+            .setProductType(BillingClient.ProductType.SUBS)
+            .build()
+
         val subsDeferred = CompletableDeferred<List<Purchase>>()
-        billing.queryPurchasesAsync(BillingClient.SkuType.SUBS) { result, purchases ->
+
+        var responseResult = BillingClient.BillingResponseCode.OK
+
+        billing.queryPurchasesAsync(paramsSubs) { result, purchases ->
             if (result.responseCode == BillingClient.BillingResponseCode.OK && purchases != null) {
                 subsDeferred.complete(purchases)
             } else {
+                if (responseResult == BillingClient.BillingResponseCode.OK) {
+                    responseResult = result.responseCode
+                }
                 subsDeferred.complete(emptyList())
             }
         }
@@ -48,6 +58,9 @@ internal class HistoryWrapper(
             if (result.responseCode == BillingClient.BillingResponseCode.OK && purchases != null) {
                 inAppsDeferred.complete(purchases)
             } else {
+                if (responseResult == BillingClient.BillingResponseCode.OK) {
+                    responseResult = result.responseCode
+                }
                 inAppsDeferred.complete(emptyList())
             }
         }
@@ -55,7 +68,9 @@ internal class HistoryWrapper(
         val subsPurchases = async { subsDeferred.await() }
         val inAppsPurchases = async { inAppsDeferred.await() }
 
-        subsPurchases.await() + inAppsPurchases.await()
+        val finalPurchases = subsPurchases.await() + inAppsPurchases.await()
+
+        return@coroutineScope Pair(finalPurchases, responseResult)
     }
 
     suspend fun queryPurchaseHistorySync(

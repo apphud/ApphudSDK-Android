@@ -18,7 +18,13 @@ internal class ConsumeWrapper(
             result.response(
                 message = "failed response with value: $value",
                 error = { callBack?.invoke(PurchaseCallbackStatus.Error(value), purchase) },
-                success = { callBack?.invoke(PurchaseCallbackStatus.Success(value), purchase) },
+                success = {
+                    if (callBack != null) {
+                        callBack?.invoke(PurchaseCallbackStatus.Success(value), purchase)
+                    } else {
+                        ApphudInternal.handlePurchaseWithoutCallbacks(purchase)
+                    }
+                },
             )
         }
     }

@@ -29,24 +29,30 @@ internal class BillingWrapper(activity: Activity) : Closeable {
 
     private val mutex = Mutex()
 
-
     init{
         billing.enableFloatView(activity)
     }
 
     private var isBillingReady = false
+    private var connectionResponse: Int = BillingClient.BillingResponseCode.OK
+
+
     private suspend fun connectIfNeeded(): Boolean {
         var result: Boolean
         mutex.withLock {
             if (isBillingReady) {
                 result = true
             } else {
+                var retries = 0
                 try {
-                    while (!billing.connect()) {
-                        ApphudLog.log("WAITING for connection")
-                        Thread.sleep(500)
+                    val MAX_RETRIES = 5
+                    var connected = false
+                    while (!connected && retries < MAX_RETRIES) {
+                        Thread.sleep(300)
+                        retries += 1
+                        connected = billing.connect()
                     }
-                    result = true
+                    result = connected
                 } catch (ex: java.lang.Exception) {
                     ApphudLog.log("Connect to Billing failed: ${ex.message ?: "error"}")
                     result = false
@@ -63,6 +69,7 @@ internal class BillingWrapper(activity: Activity) : Closeable {
             startConnection(
                 object : BillingClientStateListener {
                     override fun onBillingSetupFinished(billingResult: BillingResult) {
+                        connectionResponse = billingResult.responseCode
                         if (billingResult.responseCode == BillingClient.BillingResponseCode.OK) {
                             if (continuation.isActive && !resumed) {
                                 ApphudLog.log("CONNECTED")
@@ -81,6 +88,7 @@ internal class BillingWrapper(activity: Activity) : Closeable {
                     }
 
                     override fun onBillingServiceDisconnected() {
+                        connectionResponse = BillingClient.BillingResponseCode.SERVICE_DISCONNECTED
                     }
                 },
             )
@@ -105,9 +113,9 @@ internal class BillingWrapper(activity: Activity) : Closeable {
             consume.callBack = value
         }
 
-    suspend fun queryPurchasesSync(): List<Purchase>? {
+    suspend fun queryPurchasesSync(): Pair<List<Purchase>?, Int> {
         val connectIfNeeded = connectIfNeeded()
-        if (!connectIfNeeded) return null
+        if (!connectIfNeeded) return Pair(null, connectionResponse)
         return history.queryPurchasesSync()
     }
 
@@ -122,9 +130,9 @@ internal class BillingWrapper(activity: Activity) : Closeable {
     suspend fun detailsEx(
         @BillingClient.SkuType type: ProductType,
         products: List<ProductId>,
-    ): List<SkuDetails>? {
+    ): Pair<List<SkuDetails>?, Int> {
         val connectIfNeeded = connectIfNeeded()
-        if (!connectIfNeeded) return null
+        if (!connectIfNeeded) return Pair(null, connectionResponse)
 
         return prod.querySync(type = type, products = products)
     }

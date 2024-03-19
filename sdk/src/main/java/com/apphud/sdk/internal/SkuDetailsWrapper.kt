@@ -104,7 +104,6 @@ internal class SkuDetailsWrapper(
                             when (purchases.isEmpty()) {
                                 true -> {
                                     val message = "ProductsDetails return empty list for $type and records: $records"
-                                    ApphudLog.log(message)
                                     if (continuation.isActive && !resumed) {
                                         resumed = true
                                         continuation.resume(
@@ -160,7 +159,7 @@ internal class SkuDetailsWrapper(
     suspend fun querySync(
         @BillingClient.SkuType type: ProductType,
         products: List<ProductId>,
-    ): List<SkuDetails>? =
+    ): Pair<List<SkuDetails>?, Int> =
         suspendCancellableCoroutine { continuation ->
             var resumed = false
             val params = SkuDetailsParams.newBuilder().setSkusList(products).setType(type).build()
@@ -172,14 +171,14 @@ internal class SkuDetailsWrapper(
                             ApphudLog.logI("Query SkuDetails success $type")
                             if (continuation.isActive && !resumed) {
                                 resumed = true
-                                continuation.resume(details.orEmpty())
+                                continuation.resume(Pair(details.orEmpty(), result.responseCode))
                             }
                         }
                         else -> {
                             result.logMessage("Query SkuDetails Async type: $type products: $products")
                             if (continuation.isActive && !resumed) {
                                 resumed = true
-                                continuation.resume(null)
+                                continuation.resume(Pair(null, result.responseCode))
                             }
                         }
                     }

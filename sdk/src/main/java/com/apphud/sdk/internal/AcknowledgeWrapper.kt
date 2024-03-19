@@ -29,7 +29,13 @@ internal class AcknowledgeWrapper(
             result.response(
                 MESSAGE,
                 { callBack?.invoke(PurchaseCallbackStatus.Error(result.responseCode.toString()), purchase) },
-                { callBack?.invoke(PurchaseCallbackStatus.Success(), purchase) },
+                {
+                    if (callBack != null) {
+                        callBack?.invoke(PurchaseCallbackStatus.Success(), purchase)
+                    } else {
+                        ApphudInternal.handlePurchaseWithoutCallbacks(purchase)
+                    }
+                },
             )
         }
     }
