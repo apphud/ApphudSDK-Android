@@ -41,33 +41,31 @@ class ProductsFragment : Fragment() {
         viewAdapter = ProductsAdapter(productsViewModel, context)
         viewAdapter.selectProduct = { product ->
             activity?.let { activity ->
-                product.skuDetails?.let { details ->
 
-                    val offers = details.subscriptionOfferDetails?.map { it.pricingPhases.pricingPhaseList[0].formattedPrice }
-                    offers?.let { _ ->
-                        details.subscriptionOfferDetails?.let {
-                            val fragment = OffersFragment()
-                            fragment.offers = it
-                            fragment.offerSelected = { offer ->
-                                Apphud.purchase(activity = activity, apphudProduct = product, consumableInAppProduct = true, offerIdToken = offer.offerToken) { result ->
-                                    result.error?.let { err ->
-                                        Toast.makeText(activity, if (result.userCanceled()) "User Canceled" else err.message, Toast.LENGTH_SHORT).show()
-                                    } ?: run {
-                                        Toast.makeText(activity, R.string.success, Toast.LENGTH_SHORT).show()
-                                    }
+                val offers = product.subscriptionOfferDetails()?.map { it.pricingPhases?.pricingPhaseList?.get(0)?.formattedPrice }
+                offers?.let { _ ->
+                    product.subscriptionOfferDetails()?.let {
+                        val fragment = OffersFragment()
+                        fragment.offers = it
+                        fragment.offerSelected = { offer ->
+                            Apphud.purchase(activity = activity, apphudProduct = product, consumableInAppProduct = true, offerIdToken = offer.offerToken) { result ->
+                                result.error?.let { err ->
+                                    Toast.makeText(activity, if (result.userCanceled()) "User Canceled" else err.message, Toast.LENGTH_SHORT).show()
+                                } ?: run {
+                                    Toast.makeText(activity, R.string.success, Toast.LENGTH_SHORT).show()
                                 }
                             }
-                            fragment.apply {
-                                show(activity.supportFragmentManager, tag)
-                            }
                         }
-                    } ?: run {
-                        Apphud.purchase(activity = activity, apphudProduct = product, consumableInAppProduct = true) { result ->
-                            result.error?.let { err ->
-                                Toast.makeText(activity, if (result.userCanceled()) "User Canceled" else err.message, Toast.LENGTH_SHORT).show()
-                            } ?: run {
-                                Toast.makeText(activity, R.string.success, Toast.LENGTH_SHORT).show()
-                            }
+                        fragment.apply {
+                            show(activity.supportFragmentManager, tag)
+                        }
+                    }
+                } ?: run {
+                    Apphud.purchase(activity = activity, apphudProduct = product, consumableInAppProduct = true) { result ->
+                        result.error?.let { err ->
+                            Toast.makeText(activity, if (result.userCanceled()) "User Canceled" else err.message, Toast.LENGTH_SHORT).show()
+                        } ?: run {
+                            Toast.makeText(activity, R.string.success, Toast.LENGTH_SHORT).show()
                         }
                     }
                 }

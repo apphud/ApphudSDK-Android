@@ -1,5 +1,5 @@
 package com.apphud.demo.mi.ui.utils
 
-import com.xiaomi.billingclient.api.SkuDetails
+import com.apphud.sdk.domain.SubscriptionOfferDetails
 
-class OffersViewModel(val offers: List<SkuDetails.SubscriptionOfferDetails>)
+class OffersViewModel(val offers: List<SubscriptionOfferDetails>)

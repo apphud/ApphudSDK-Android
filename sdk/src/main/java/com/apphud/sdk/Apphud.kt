@@ -1,10 +1,7 @@
 package com.apphud.sdk
 
 import android.app.Activity
-import android.content.Context
 import com.apphud.sdk.domain.*
-import com.xiaomi.billingclient.api.Purchase
-import com.xiaomi.billingclient.api.SkuDetails
 import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlin.coroutines.resume
 
@@ -339,57 +336,6 @@ object Apphud {
         return ApphudInternal.getPermissionGroups()
     }
 
-    /**
-     * Returns an array of `SkuDetails` objects, whose identifiers you added in Apphud > Product Hub > Products.
-     * Note that this method will return empty array if products are not yet fetched.
-     * To get notified when `products` are ready to use, implement `ApphudListener`'s
-     * `apphudFetchProductsDetails` or `paywallsDidFullyLoad` methods, or use `productsFetchCallback`.
-     * When any of these methods is called, it indicates that `SkuDetails` are loaded and
-     * the `products` method is ready to use.
-     * It is recommended not to use this method directly, but to use `paywalls()` instead.
-     *
-     * @return A list of `SkuDetails` objects, or null if not yet available.
-     */
-    @Deprecated(
-        "Use \"paywalls()\" method instead.",
-        ReplaceWith("this.paywalls()"),
-    )
-    fun products(): List<SkuDetails> {
-        return ApphudInternal.getSkuDetails()
-    }
-
-    /**
-     * This callback is triggered when `SkuDetails` are fetched from Xiaomi GetApps Billing.
-     * Ensure that all product identifiers are added in Apphud > Product Hub > Products.
-     * You can use this callback or implement `ApphudListener`'s `apphudFetchProductsDetails`
-     * method, based on your preference.
-     *
-     * @param callback The callback function to be invoked with the list of `SkuDetails`.
-     */
-    @Deprecated(
-        "Use \"paywalls()\" method instead.",
-        ReplaceWith("this.paywalls()"),
-    )
-    fun productsFetchCallback(callback: (List<SkuDetails>) -> Unit) {
-        ApphudInternal.productsFetchCallback(callback)
-    }
-
-    /**
-     * Returns the `SkuDetails` object for a specific product identifier.
-     * Ensure the product identifier is added in Apphud > Product Hub > Products.
-     * The method will return `null` if the product is not yet fetched from Xiaomi GetApps.
-     *
-     * @param productIdentifier The identifier of the product.
-     * @return The `SkuDetails` object for the specified product, or null if not available.
-     */
-    @Deprecated(
-        "Use \"paywalls()\" method instead.",
-        ReplaceWith("this.paywalls()"),
-    )
-    fun product(productIdentifier: String): SkuDetails? {
-        return ApphudInternal.getSkuDetailsByProductId(productIdentifier)
-    }
-
     //endregion
     //region === Purchases ===
 
@@ -520,26 +466,6 @@ object Apphud {
     )
 
     /**
-     * Only for use in Observer Mode: call this method after every successful purchase.
-     * Note: Passing the offerIdToken is mandatory for subscriptions!
-     * This method submits the successful purchase information to Apphud.
-     * Pass `paywallIdentifier` and `placementIdentifier` for A/B test analysis in Observer Mode.
-     *
-     * @param purchase The `Purchase` object representing the successful purchase.
-     * @param skuDetails The `SkuDetails` object associated with the purchase.
-     * @param offerIdToken The identifier of the subscription's offer token.
-     * @param paywallIdentifier (Optional) The identifier of the paywall.
-     * @param placementIdentifier (Optional) The identifier of the placement.
-     */
-    fun trackPurchase(
-        purchase: Purchase,
-        skuDetails: SkuDetails,
-        offerIdToken: String?,
-        paywallIdentifier: String? = null,
-        placementIdentifier: String? = null,
-    ) = ApphudInternal.trackPurchase(purchase, skuDetails, offerIdToken, paywallIdentifier, placementIdentifier)
-
-    /**
      * Implements the 'Restore Purchases' mechanism. This method sends the current Play Market
      * Purchase Tokens to Apphud and returns subscription information.
      * Note: Even if the callback returns some subscription, it doesn't necessarily mean that
@@ -566,26 +492,6 @@ object Apphud {
     fun refreshUserData() {
         ApphudInternal.refreshEntitlements(forceRefresh = true)
     }
-
-    /**
-     * Retrieves Xiaomi GetApps native Purchase objects,
-     * which may include only active subscriptions or active non-consumed one-time purchases.
-     * Compared to `Apphud.restorePurchases`, this method offers a quicker way
-     * to determine the presence of owned purchases as it bypasses validation by Apphud.
-     *
-     * Returns `BillingClient.BillingResponseCode` as second parameter of Pair.
-     *
-     * Usage of this function for granting premium access is not advised,
-     * as these purchases may not yet be validated.
-     *
-     * __NOTE__: `Apphud.hasPremiumAccess()` may return false until
-     * purchases are validated by Apphud.
-     *
-     * __NOTE__: If any native purchases were found in the result of this method call,
-     * Apphud will automatically track and validate them in the background,
-     * so developer doesn't need to call `Apphud.restorePurchases` afterwards.
-     */
-    suspend fun nativePurchases(): Pair<List<Purchase>, Int> = ApphudInternal.fetchNativePurchases()
 
     //endregion
     //region === Attribution ===

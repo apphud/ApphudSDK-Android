@@ -13,18 +13,15 @@ import androidx.lifecycle.lifecycleScope
 import androidx.navigation.fragment.findNavController
 import androidx.recyclerview.widget.DividerItemDecoration
 import androidx.recyclerview.widget.RecyclerView
-import com.apphud.demo.mi.BuildConfig
 import com.apphud.demo.mi.databinding.FragmentCustomerBinding
 import com.apphud.sdk.Apphud
 import com.apphud.sdk.ApphudListener
-import com.apphud.sdk.client.ApiClient
 import com.apphud.sdk.domain.ApphudNonRenewingPurchase
 import com.apphud.sdk.domain.ApphudPaywall
 import com.apphud.sdk.domain.ApphudPlacement
 import com.apphud.sdk.domain.ApphudSubscription
 import com.apphud.sdk.domain.ApphudUser
 import com.apphud.sdk.managers.HeadersInterceptor
-import com.xiaomi.billingclient.api.SkuDetails
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -96,11 +93,6 @@ class CustomerFragment : Fragment() {
                 override fun apphudNonRenewingPurchasesUpdated(purchases: List<ApphudNonRenewingPurchase>) {
                     Log.d("ApphudDemo", "apphudNonRenewingPurchasesUpdated")
                     updateData()
-                }
-
-                override fun apphudFetchSkuDetails(details: List<SkuDetails>) {
-                    Log.d("ApphudDemo", "apphudFetchSkuDetails()")
-                    // TODO handle loaded sku details
                 }
 
                 override fun apphudDidChangeUserID(userId: String) {

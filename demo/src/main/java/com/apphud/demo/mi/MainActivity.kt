@@ -54,8 +54,6 @@ class MainActivity : AppCompatActivity() {
             AppBarConfiguration(
                 setOf(
                     R.id.nav_customer,
-                    //R.id.nav_billing,
-                    //R.id.nav_billing_purchases,
                     R.id.nav_groups,
                     R.id.nav_purchases,
                 ),

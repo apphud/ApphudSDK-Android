@@ -9,7 +9,7 @@ import androidx.recyclerview.widget.RecyclerView
 import com.apphud.demo.mi.R
 import com.apphud.sdk.domain.ApphudGroup
 import com.apphud.sdk.domain.ApphudProduct
-import com.xiaomi.billingclient.api.BillingClient
+import com.apphud.sdk.domain.ApphudProductType
 
 class GroupsAdapter(private val groupsViewModel: GroupsViewModel, private val context: Context?) : RecyclerView.Adapter<GroupsAdapter.BaseViewHolder<*>>() {
     var selectGroup: ((account: ApphudGroup) -> Unit)? = null
@@ -48,10 +48,10 @@ class GroupsAdapter(private val groupsViewModel: GroupsViewModel, private val co
             productName.text = item.name
             productId.text = item.productId
 
-            item.skuDetails?.let { details ->
-                productPrice.text = details.price //TODO changes
-            } ?: run {
-                productPrice.text = ""
+            if(item.type() == ApphudProductType.INAPP){
+                productPrice.text = item.oneTimePurchaseOfferDetails()?.formattedPrice?:"ProductDetails N/A"
+            } else {
+                productPrice.text = "Click to view"
             }
 
             itemView.setOnClickListener {

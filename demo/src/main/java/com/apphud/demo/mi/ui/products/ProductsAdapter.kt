@@ -7,9 +7,8 @@ import android.view.ViewGroup
 import android.widget.TextView
 import androidx.recyclerview.widget.RecyclerView
 import com.apphud.demo.mi.R
-import com.apphud.demo.mi.ui.products.ProductsViewModel
 import com.apphud.sdk.domain.ApphudProduct
-import com.xiaomi.billingclient.api.BillingClient.SkuType
+import com.apphud.sdk.domain.ApphudProductType
 
 class ProductsAdapter(private val productsViewModel: ProductsViewModel, private val context: Context?) : RecyclerView.Adapter<ProductsAdapter.BaseViewHolder<*>>() {
     var selectProduct: ((account: ApphudProduct) -> Unit)? = null
@@ -31,14 +30,10 @@ class ProductsAdapter(private val productsViewModel: ProductsViewModel, private 
         ) {
             productName.text = "Name: " + item.name + "\nProduct ID: " + item.productId + "\nBase Plan ID: " + item.basePlanId
 
-            item.skuDetails?.let { details ->
-                if(details.type == SkuType.INAPP){
-                    productPrice.text = details.originalPrice
-                } else {
-                    productPrice.text = "Click to view"
-                }
-            } ?: run {
-                productPrice.text = "ProductDetails N/A"
+            if(item.type() == ApphudProductType.INAPP){
+                productPrice.text = item.oneTimePurchaseOfferDetails()?.formattedPrice?:"ProductDetails N/A"
+            } else {
+                productPrice.text = "Click to view"
             }
 
             itemView.setOnClickListener {
