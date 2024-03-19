@@ -61,7 +61,7 @@ private fun ApphudInternal.processFallbackData() {
             mainScope.launch {
                 notifyLoadingCompleted(
                     customerLoaded = currentUser,
-                    productDetailsLoaded = productDetails,
+                    skuDetailsLoaded = skuDetails,
                     fromFallback = true,
                 )
             }

@@ -1,6 +1,7 @@
 package com.apphud.sdk
 
-import com.android.billingclient.api.BillingClient
+import com.xiaomi.billingclient.api.BillingClient
+
 
 data class ApphudError(
     override val message: String,
@@ -41,7 +42,7 @@ data class ApphudError(
             BillingClient.BillingResponseCode.ERROR,
             BillingClient.BillingResponseCode.ITEM_ALREADY_OWNED,
             BillingClient.BillingResponseCode.ITEM_NOT_OWNED,
-            BillingClient.BillingResponseCode.NETWORK_ERROR
+            BillingClient.BillingResponseCode.NET_NOT_WORK
         )
 
         return if (errorCode!! in validCodes) errorCode else null

@@ -78,10 +78,10 @@ private suspend fun ApphudInternal.fetchDetailsAndPurchase(
     callback: ((ApphudPurchaseResult) -> Unit)?,
 ) {
     val responseCode = fetchDetails(listOf(apphudProduct.productId))
-    val productDetails = getProductDetailsByProductId(apphudProduct.productId)
+    val productDetails = getSkuDetailsByProductId(apphudProduct.productId)
     if (productDetails != null) {
         mainScope.launch {
-            apphudProduct.productDetails = productDetails
+            apphudProduct.skuDetails = productDetails
             purchaseInternal(activity, apphudProduct, offerIdToken, oldToken, prorationMode, consumableInappProduct, callback)
         }
     } else {
@@ -141,8 +141,8 @@ private fun ApphudInternal.purchaseInternal(
             when (purchasesResult) {
                 is PurchaseUpdatedCallbackStatus.Error -> {
                     val message =
-                        apphudProduct.productDetails?.let {
-                            "Unable to buy product with given product id: ${it.productId} "
+                        apphudProduct.skuDetails?.let {
+                            "Unable to buy product with given product id: ${it.sku} "
                         } ?: run {
                             "Unable to buy product with given product id: ${apphudProduct.productId} "
                         }
@@ -201,7 +201,7 @@ private fun ApphudInternal.purchaseInternal(
                                         }
                                     }
 
-                                    BillingClient.ProductType.INAPP -> {
+                                    BillingClient.SkuType.INAPP -> {
                                         if (consumableInappProduct) {
                                             ApphudLog.log("Start inapp consume purchase")
                                             billing.consume(it)
@@ -254,7 +254,7 @@ private fun ApphudInternal.purchaseInternal(
 }
 
 internal fun ApphudInternal.handlePurchaseWithoutCallbacks(purchase: Purchase) {
-    val productId = purchase.products.first()
+    val productId = purchase.skus.first()
 
     val products = paywalls.map { it.products ?: listOf() }.flatten().distinctBy { it.id }
     var apphudProduct = purchasingProduct ?: products.firstOrNull { it.productId == productId }
@@ -263,7 +263,7 @@ internal fun ApphudInternal.handlePurchaseWithoutCallbacks(purchase: Purchase) {
         apphudProduct = groupProducts.firstOrNull { it.productId == productId }
     }
 
-    ApphudLog.log("Handle purchase without callback: ${purchase.products}, product: ${apphudProduct}")
+    ApphudLog.log("Handle purchase without callback: ${purchase.skus}, product: ${apphudProduct}")
 
     apphudProduct?.let {
         sendCheckToApphud(purchase, apphudProduct, null, null) {}

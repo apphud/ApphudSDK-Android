@@ -34,15 +34,10 @@ internal class HistoryWrapper(
     }
 
     suspend fun queryPurchasesSync(): Pair<List<Purchase>, Int> = coroutineScope {
-        val paramsSubs = QueryPurchasesParams.newBuilder()
-            .setProductType(BillingClient.ProductType.SUBS)
-            .build()
-
-        val subsDeferred = CompletableDeferred<List<Purchase>>()
 
         var responseResult = BillingClient.BillingResponseCode.OK
-
-        billing.queryPurchasesAsync(paramsSubs) { result, purchases ->
+        val subsDeferred = CompletableDeferred<List<Purchase>>()
+        billing.queryPurchasesAsync(BillingClient.SkuType.SUBS) { result, purchases ->
             if (result.responseCode == BillingClient.BillingResponseCode.OK && purchases != null) {
                 subsDeferred.complete(purchases)
             } else {

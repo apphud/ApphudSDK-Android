@@ -9,9 +9,6 @@ import android.provider.Settings
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.ProcessLifecycleOwner
-import com.android.billingclient.api.BillingClient
-import com.android.billingclient.api.BillingClient.BillingResponseCode
-import com.android.billingclient.api.ProductDetails
 import com.apphud.sdk.body.*
 import com.apphud.sdk.domain.*
 import com.apphud.sdk.internal.BillingWrapper
@@ -85,7 +82,7 @@ internal object ApphudInternal {
     internal var apphudListener: ApphudListener? = null
     internal var notifiedAboutPaywallsDidFullyLoaded = false
     internal var purchasingProduct: ApphudProduct? = null
-    private var customProductsFetchedBlock: ((List<ProductDetails>) -> Unit)? = null
+    private var customProductsFetchedBlock: ((List<SkuDetails>) -> Unit)? = null
     private var offeringsPreparedCallbacks = mutableListOf<((ApphudError?) -> Unit)>()
     private var userRegisteredBlock: ((ApphudUser) -> Unit)? = null
     private var isActive = false
@@ -191,7 +188,7 @@ internal object ApphudInternal {
         cachedPlacements?.let { this.placements = it }
 
         this.userRegisteredBlock = callback
-        billing = BillingWrapper(context)
+        billing = BillingWrapper(activity)
         RequestManager.setParams(this.context, this.apiKey)
 
         loadProducts()
@@ -312,7 +309,7 @@ internal object ApphudInternal {
 
     private fun handlePaywallsAndProductsLoaded(customerError: ApphudError?) {
 
-        if (currentUser != null && paywalls.isNotEmpty() && productDetails.isNotEmpty()) {
+        if (currentUser != null && paywalls.isNotEmpty() && skuDetails.isNotEmpty()) {
             if (!notifiedAboutPaywallsDidFullyLoaded) {
                 apphudListener?.paywallsDidFullyLoad(paywalls)
                 apphudListener?.placementsDidFullyLoad(placements)
@@ -341,7 +338,7 @@ internal object ApphudInternal {
     }
 
     private fun handleCustomerError(customerError: ApphudError) {
-        if ( (currentUser == null || paywalls.isEmpty() || productDetails.isEmpty()) &&
+        if ( (currentUser == null || paywalls.isEmpty() || skuDetails.isEmpty()) &&
             (isActive && !refreshUserPending && customerError.networkIssue() && !ApphudUtils.isOnline(this.context))) {
             refreshUserPending = true
             coroutineScope.launch {

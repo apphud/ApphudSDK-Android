@@ -8,8 +8,8 @@ android {
     defaultConfig {
         applicationId "com.apphud.demo.mi"
         minSdkVersion 26
-        compileSdk 33
-        targetSdk 33
+        compileSdk 34
+        targetSdk 34
 
         versionName "1.0.0_mitest"
 

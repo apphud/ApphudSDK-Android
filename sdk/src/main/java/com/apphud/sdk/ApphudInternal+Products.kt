@@ -1,5 +1,7 @@
 package com.apphud.sdk
 
+import com.apphud.sdk.domain.ApphudGroup
+import com.apphud.sdk.domain.ApphudPaywall
 import com.apphud.sdk.managers.RequestManager
 import com.xiaomi.billingclient.api.BillingClient
 import com.xiaomi.billingclient.api.SkuDetails
@@ -34,7 +36,7 @@ internal fun ApphudInternal.shouldLoadProducts(): Boolean {
         ApphudProductsStatus.none -> true
         ApphudProductsStatus.loading -> false
         else -> {
-            productDetails.isEmpty() && productsLoadingCounts < MAX_PRODUCTS_RETRIES
+            skuDetails.isEmpty() && productsLoadingCounts < MAX_PRODUCTS_RETRIES
         }
     }
 }
@@ -58,7 +60,7 @@ internal fun ApphudInternal.loadProducts() {
                 }
 
                 mainScope.launch {
-                    notifyLoadingCompleted(null, productDetails, false, false)
+                    notifyLoadingCompleted(null, skuDetails, false, false)
                 }
             }
         }
@@ -90,7 +92,7 @@ private fun allAvailableProductIds(groups: List<ApphudGroup>, paywalls: List<App
 
 internal suspend fun ApphudInternal.fetchDetails(ids: List<String>): Int {
     // Assuming ProductDetails has a property 'id' that corresponds to the product ID
-    val existingIds = synchronized(productDetails) { productDetails.map { it.productId } }
+    val existingIds = synchronized(skuDetails) { skuDetails.map { it.sku } }
 
     val idsToFetch = ids.filterNot { existingIds.contains(it) }
 
@@ -108,15 +110,15 @@ internal suspend fun ApphudInternal.fetchDetails(ids: List<String>): Int {
     var responseCode = BillingClient.BillingResponseCode.OK
 
     coroutineScope {
-        val subsResult = async { billing.detailsEx(BillingClient.ProductType.SUBS, idsToFetch) }.await()
-        val inAppResult = async { billing.detailsEx(BillingClient.ProductType.INAPP, idsToFetch) }.await()
+        val subsResult = async { billing.detailsEx(BillingClient.SkuType.SUBS, idsToFetch) }.await()
+        val inAppResult = async { billing.detailsEx(BillingClient.SkuType.INAPP, idsToFetch) }.await()
 
         subsResult.first?.let { subsDetails ->
-            synchronized(productDetails) {
+            synchronized(skuDetails) {
                 // Add new subscription details if they're not already present
                 subsDetails.forEach { detail ->
-                    if (!productDetails.map { it.productId }.contains(detail.productId)) {
-                        productDetails.add(detail)
+                    if (!skuDetails.map { it.sku }.contains(detail.sku)) {
+                        skuDetails.add(detail)
                     }
                 }
             }
@@ -128,11 +130,11 @@ internal suspend fun ApphudInternal.fetchDetails(ids: List<String>): Int {
         }
 
         inAppResult.first?.let { inAppDetails ->
-            synchronized(productDetails) {
+            synchronized(skuDetails) {
                 // Add new in-app product details if they're not already present
                 inAppDetails.forEach { detail ->
-                    if (!productDetails.map { it.productId }.contains(detail.productId)) {
-                        productDetails.add(detail)
+                    if (!skuDetails.map { it.sku }.contains(detail.sku)) {
+                        skuDetails.add(detail)
                     }
                 }
             }

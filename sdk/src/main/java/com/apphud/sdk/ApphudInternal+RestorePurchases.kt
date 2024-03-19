@@ -59,9 +59,9 @@ internal fun ApphudInternal.syncPurchases(
                     var queriedPurchases = unvalidatedPurchs
 
                     ApphudLog.log("SyncPurchases: start")
-                    val subsResult = billing.queryPurchaseHistorySync(BillingClient.ProductType.SUBS)
-                    val inapsResult = billing.queryPurchaseHistorySync(BillingClient.ProductType.INAPP)
-                    var purchases = mutableListOf<PurchaseHistoryRecord>()
+                    val subsResult = billing.queryPurchaseHistorySync(BillingClient.SkuType.SUBS)
+                    val inapsResult = billing.queryPurchaseHistorySync(BillingClient.SkuType.INAPP)
+                    var purchases = mutableListOf<Purchase>()
                     purchases.addAll(processHistoryCallbackStatus(subsResult))
 
                     if (purchases.count() > 10 && queriedPurchases.isNullOrEmpty()) {
@@ -118,7 +118,7 @@ internal fun ApphudInternal.syncPurchases(
                             ApphudLog.log("SyncPurchases: All products details already loaded.")
                         }
 
-                        ApphudLog.log("Start syncing ${restoredPurchases.count()} in-app purchases: ${restoredPurchases.map { it.details.productId } }")
+                        ApphudLog.log("Start syncing ${restoredPurchases.count()} in-app purchases: ${restoredPurchases.map { it.details.sku } }")
 
                         if (prevPurchases.containsAll(restoredPurchases)) {
                             ApphudLog.log("SyncPurchases: Don't send equal purchases from prev state")
