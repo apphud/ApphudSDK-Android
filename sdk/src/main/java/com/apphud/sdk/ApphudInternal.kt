@@ -240,7 +240,6 @@ internal object ApphudInternal {
         customerError: ApphudError? = null,
     ) {
         var paywallsPrepared = true
-
         productDetailsLoaded?.let {
             productGroups = readGroupsFromCache()
             updateGroupsWithProductDetails(productGroups)
@@ -753,11 +752,14 @@ internal object ApphudInternal {
 
     private suspend fun fetchAndroidId(): String? =
         suspendCancellableCoroutine { continuation ->
-            val androidId: String? = Settings.Secure.getString(context.contentResolver, Settings.Secure.ANDROID_ID)
+            val androidId: String? = fetchAndroidIdSync()
             if (continuation.isActive) {
                 continuation.resume(androidId)
             }
         }
+
+    fun fetchAndroidIdSync(): String? =
+        Settings.Secure.getString(context.contentResolver, Settings.Secure.ANDROID_ID)
 
     fun getProductDetails(): List<ProductDetails> {
         synchronized(productDetails) {

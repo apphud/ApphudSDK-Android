@@ -11,6 +11,7 @@ import com.android.billingclient.api.ProductDetails
 import com.android.billingclient.api.Purchase
 import com.apphud.sdk.*
 import com.apphud.sdk.ApphudInternal.fallbackMode
+import com.apphud.sdk.ApphudInternal.fetchAndroidIdSync
 import com.apphud.sdk.body.*
 import com.apphud.sdk.client.*
 import com.apphud.sdk.client.dto.*
@@ -897,7 +898,13 @@ object RequestManager {
         val deviceIds = storage.deviceIdentifiers
         val idfa = deviceIds[0]
         val appSetId = deviceIds[1]
-        val androidId = deviceIds[2]
+        var androidId = deviceIds[2]
+
+        if (androidId.isEmpty()) {
+            fetchAndroidIdSync()?.let {
+                androidId = it
+            }
+        }
 
         return RegistrationBody(
             locale = Locale.getDefault().toString(),
