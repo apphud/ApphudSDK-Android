@@ -47,7 +47,7 @@ object SharedPreferencesStorage : Storage {
     private const val SKU_KEY = "skuKey"
     private const val SKU_TIMESTAMP_KEY = "skuTimestampKey"
     private const val LAST_REGISTRATION_KEY = "lastRegistrationKey"
-    private const val CURRENT_CACHE_VERSION = "1"
+    private const val CURRENT_CACHE_VERSION = "2"
 
     private val gson =
         GsonBuilder()

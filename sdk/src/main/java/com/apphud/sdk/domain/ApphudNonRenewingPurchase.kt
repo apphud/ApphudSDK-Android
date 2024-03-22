@@ -19,6 +19,11 @@ data class ApphudNonRenewingPurchase(
      For internal usage
      */
     val isTemporary: Boolean = false,
+
+    /*
+      Returns true if purchase was consumed
+     */
+    val isConsumable: Boolean = false,
 ) {
     companion object {
         fun createTemporary(productId: String): ApphudNonRenewingPurchase {

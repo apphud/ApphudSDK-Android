@@ -15,4 +15,5 @@ data class SubscriptionDto(
     val kind: String,
     val units_count: Int,
     val status: String,
+    val is_consumable: Boolean?,
 )
