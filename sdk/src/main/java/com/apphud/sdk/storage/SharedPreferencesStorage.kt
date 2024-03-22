@@ -47,6 +47,7 @@ object SharedPreferencesStorage : Storage {
     private const val SKU_KEY = "skuKey"
     private const val SKU_TIMESTAMP_KEY = "skuTimestampKey"
     private const val LAST_REGISTRATION_KEY = "lastRegistrationKey"
+    private const val CURRENT_CACHE_VERSION = "1"
 
     private val gson =
         GsonBuilder()
@@ -275,10 +276,31 @@ object SharedPreferencesStorage : Storage {
         appsflyer = null
         productGroups = null
         paywalls = null
+        placements = null
         productDetails = null
         properties = null
         adjust = null
     }
+
+    fun validateCaches() {
+        if (cacheVersion.isNullOrEmpty() || cacheVersion != CURRENT_CACHE_VERSION) {
+            ApphudLog.log("Invalid Cache Version. Clearing cached models.")
+            // drop models caches
+            apphudUser = null
+            productGroups = null
+            paywalls = null
+            placements = null
+            cacheVersion = CURRENT_CACHE_VERSION
+        }
+    }
+
+    override var cacheVersion: String?
+        get() = preferences.getString("APPHUD_CACHE_VERSION", null)
+        set(value) {
+            val editor = preferences.edit()
+            editor.putString("APPHUD_CACHE_VERSION", value)
+            editor.apply()
+        }
 
     fun cacheExpired(user: ApphudUser): Boolean {
         val timestamp = lastRegistration + (cacheTimeout * 1000)
