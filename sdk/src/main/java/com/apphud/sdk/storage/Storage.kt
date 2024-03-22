@@ -19,4 +19,5 @@ interface Storage {
     var placements: List<ApphudPlacement>?
     var productDetails: List<String>?
     var properties: HashMap<String, ApphudUserProperty>?
+    var cacheVersion: String?
 }

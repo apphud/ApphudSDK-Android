@@ -143,7 +143,7 @@ internal object ApphudInternal {
 
         this.context = context
         this.apiKey = apiKey
-
+        storage.validateCaches()
         val cachedUser = storage.apphudUser
         val cachedPaywalls = readPaywallsFromCache()
         val cachedPlacements = readPlacementsFromCache()
