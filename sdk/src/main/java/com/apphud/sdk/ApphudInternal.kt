@@ -143,7 +143,7 @@ internal object ApphudInternal {
 
         this.context = activity.applicationContext
         this.apiKey = apiKey
-
+        storage.validateCaches()
         val cachedUser = storage.apphudUser
         val cachedPaywalls = readPaywallsFromCache()
         val cachedPlacements = readPlacementsFromCache()
@@ -753,12 +753,16 @@ internal object ApphudInternal {
 
     private suspend fun fetchAndroidId(): String? =
         suspendCancellableCoroutine { continuation ->
-            val androidId: String? = Settings.Secure.getString(context.contentResolver, Settings.Secure.ANDROID_ID)
+            val androidId: String? = fetchAndroidIdSync()
             if (continuation.isActive) {
                 continuation.resume(androidId)
             }
         }
 
+    fun fetchAndroidIdSync(): String? =
+        Settings.Secure.getString(context.contentResolver, Settings.Secure.ANDROID_ID)
+
+        
     fun getSkuDetails(): List<SkuDetails> {
         synchronized(skuDetails) {
             return skuDetails.toCollection(mutableListOf())

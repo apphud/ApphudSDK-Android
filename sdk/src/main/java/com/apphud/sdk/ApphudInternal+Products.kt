@@ -83,7 +83,7 @@ private fun allAvailableProductIds(groups: List<ApphudGroup>, paywalls: List<App
     val ids = paywalls.map { p -> p.products?.map { it.productId } ?: listOf() }.flatten().toMutableList()
     val idsPaywall = groups.map { it -> it.products?.map { it.productId } ?: listOf() }.flatten()
     idsPaywall.forEach {
-        if (!ids.contains(it)) {
+        if (!ids.contains(it) && it != null) {
             ids.add(it)
         }
     }
