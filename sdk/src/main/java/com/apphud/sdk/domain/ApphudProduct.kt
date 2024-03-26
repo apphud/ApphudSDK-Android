@@ -53,7 +53,7 @@ data class ApphudProduct(
      getPaywalls method will return callback only when Google Play products are fetched and mapped with Apphud products.
      May be `null` if product identifier is invalid, or product is not available in Google Play.
      */
-    internal var productDetails: ProductDetails?,
+    var productDetails: ProductDetails?,
     /**
      * Placement Identifier, if any.
      */
