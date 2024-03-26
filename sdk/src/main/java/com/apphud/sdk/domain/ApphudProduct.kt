@@ -3,8 +3,8 @@ package com.apphud.sdk.domain
 import com.xiaomi.billingclient.api.BillingClient
 import com.xiaomi.billingclient.api.SkuDetails
 
-enum class ApphudProductType(){
-    SUBS(),
+enum class ApphudProductType {
+    SUBS,
     INAPP
 }
 
@@ -163,5 +163,4 @@ data class ApphudProduct (
     override fun toString(): String {
         return "ApphudProduct(id: ${id}, productId: ${productId}, name: ${name}, basePlanId: ${basePlanId}, productDetails: ${productId()}, placementIdentifier: ${placementIdentifier}, paywallIdenfitier: ${paywallIdentifier}, placementId: ${placementId}, paywallId: ${paywallId})"
     }
-
 }
