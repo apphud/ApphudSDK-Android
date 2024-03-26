@@ -2,7 +2,7 @@ package com.apphud.sdk.domain
 
 import com.android.billingclient.api.ProductDetails
 
-class PricePhase(phase: ProductDetails.PricingPhase) {
+class PriceInfo(phase: ProductDetails.PricingPhase) {
     val billing_cycle_count = phase.billingCycleCount
     val billing_period = phase.billingPeriod
     var price_amount_micros = phase.priceAmountMicros
