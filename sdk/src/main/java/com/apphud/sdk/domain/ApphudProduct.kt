@@ -5,6 +5,28 @@ import com.android.billingclient.api.ProductDetails
 import com.apphud.sdk.managers.priceAmountMicros
 import com.apphud.sdk.managers.priceCurrencyCode
 
+enum class ApphudProductType(){
+    SUBS(),
+    INAPP
+}
+
+enum class RecurrenceMode (val mode: Int){
+    FINITE_RECURRING(2),
+    INFINITE_RECURRING(1),
+    NON_RECURRING (3),
+    UNDEFINED (0);
+
+    companion object {
+        fun getRecurringMode(mode: Int): RecurrenceMode {
+            val result = RecurrenceMode.values().firstOrNull { it.mode == mode }
+            result?.let {
+                return it
+            }
+            return RecurrenceMode.UNDEFINED
+        }
+    }
+}
+
 data class ApphudProduct(
     /**
      * Product id
@@ -48,9 +70,9 @@ data class ApphudProduct(
      * For internal usage
      */
     internal var paywallId: String?,
-) :IApphudProduct {
+) {
 
-    override fun type(): ApphudProductType? {
+    fun type(): ApphudProductType? {
         productDetails?.let {
             if (it.productType == BillingClient.ProductType.SUBS) {
                 return ApphudProductType.SUBS
@@ -61,42 +83,42 @@ data class ApphudProduct(
         return null
     }
 
-    override fun productId(): String? {
+    fun productId(): String? {
         productDetails?.let {
             return it.productId
         }
         return null
     }
 
-    override fun title(): String? {
+    fun title(): String? {
         productDetails?.let {
             return it.title
         }
         return null
     }
 
-    override fun description(): String? {
+    fun description(): String? {
         productDetails?.let {
             return it.description
         }
         return null
     }
 
-    override fun priceCurrencyCode(): String? {
+    fun priceCurrencyCode(): String? {
         productDetails?.let {
             return it.priceCurrencyCode()
         }
         return null
     }
 
-    override fun priceAmountMicros(): String? {
+    fun priceAmountMicros(): String? {
         productDetails?.let {
             return it.priceAmountMicros().toString()
         }
         return null
     }
 
-    override fun oneTimePurchaseOfferDetails(): OneTimePurchaseOfferDetails? {
+    fun oneTimePurchaseOfferDetails(): OneTimePurchaseOfferDetails? {
         productDetails?.let {
             return OneTimePurchaseOfferDetails(
                 priceAmountMicros = it.oneTimePurchaseOfferDetails?.priceAmountMicros?:0L,
@@ -108,7 +130,7 @@ data class ApphudProduct(
         return null
     }
 
-    override fun subscriptionOfferDetails(): List<SubscriptionOfferDetails>? {
+    fun subscriptionOfferDetails(): List<SubscriptionOfferDetails>? {
         productDetails?.let {
             var result: MutableList<SubscriptionOfferDetails> = mutableListOf()
 
