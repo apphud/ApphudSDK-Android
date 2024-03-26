@@ -77,7 +77,7 @@ data class ApphudProduct(
             if (it.productType == BillingClient.ProductType.SUBS) {
                 return ApphudProductType.SUBS
             } else {
-                return ApphudProductType.SUBS
+                return ApphudProductType.INAPP
             }
         }
         return null
