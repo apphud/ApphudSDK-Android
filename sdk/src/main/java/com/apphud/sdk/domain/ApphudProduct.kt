@@ -20,7 +20,7 @@ enum class RecurrenceMode (val mode: Int){
             result?.let {
                 return it
             }
-            return RecurrenceMode.UNDEFINED
+            return UNDEFINED
         }
     }
 }
