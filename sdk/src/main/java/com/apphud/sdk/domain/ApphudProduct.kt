@@ -5,8 +5,8 @@ import com.android.billingclient.api.ProductDetails
 import com.apphud.sdk.managers.priceAmountMicros
 import com.apphud.sdk.managers.priceCurrencyCode
 
-enum class ApphudProductType(){
-    SUBS(),
+enum class ApphudProductType{
+    SUBS,
     INAPP
 }
 
@@ -22,7 +22,7 @@ enum class RecurrenceMode (val mode: Int){
             result?.let {
                 return it
             }
-            return RecurrenceMode.UNDEFINED
+            return UNDEFINED
         }
     }
 }
