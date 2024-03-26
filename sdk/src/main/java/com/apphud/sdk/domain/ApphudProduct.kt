@@ -3,6 +3,28 @@ package com.apphud.sdk.domain
 import com.xiaomi.billingclient.api.BillingClient
 import com.xiaomi.billingclient.api.SkuDetails
 
+enum class ApphudProductType(){
+    SUBS(),
+    INAPP
+}
+
+enum class RecurrenceMode (val mode: Int){
+    FINITE_RECURRING(2),
+    INFINITE_RECURRING(1),
+    NON_RECURRING (3),
+    UNDEFINED (0);
+
+    companion object {
+        fun getRecurringMode(mode: Int): RecurrenceMode {
+            val result = RecurrenceMode.values().firstOrNull { it.mode == mode }
+            result?.let {
+                return it
+            }
+            return RecurrenceMode.UNDEFINED
+        }
+    }
+}
+
 data class ApphudProduct (
     /**
      * Product id
@@ -29,7 +51,7 @@ data class ApphudProduct (
     getPaywalls method will return callback only when Google Play products are fetched and mapped with Apphud products.
     May be `null` if product identifier is invalid, or product is not available in Google Play.
      */
-    internal var skuDetails: SkuDetails?,
+    var skuDetails: SkuDetails?,
     /**
      * Placement Identifier, if any.
      */
@@ -46,9 +68,9 @@ data class ApphudProduct (
      * For internal usage
      */
     internal var paywallId: String? = null
-) :IApphudProduct {
+) {
 
-    override fun type() :ApphudProductType? {
+    fun type() :ApphudProductType? {
         skuDetails?.let {
             if (it?.type == BillingClient.SkuType.SUBS) {
                 return ApphudProductType.SUBS
@@ -59,42 +81,42 @@ data class ApphudProduct (
         return null
     }
 
-    override fun productId(): String? {
+    fun productId(): String? {
         skuDetails?.let {
             return it.sku
         }
         return null
     }
 
-    override fun title(): String? {
+    fun title(): String? {
         skuDetails?.let {
             return it.title
         }
         return null
     }
 
-    override fun description(): String? {
+    fun description(): String? {
         skuDetails?.let {
             return it.description
         }
         return null
     }
 
-    override fun priceCurrencyCode(): String? {
+    fun priceCurrencyCode(): String? {
         skuDetails?.let {
             return it.priceCurrencyCode
         }
         return null
     }
 
-    override fun priceAmountMicros(): String? {
+    fun priceAmountMicros(): String? {
         skuDetails?.let {
             return it.priceAmountMicros
         }
         return null
     }
 
-    override fun oneTimePurchaseOfferDetails(): OneTimePurchaseOfferDetails? {
+    fun oneTimePurchaseOfferDetails(): OneTimePurchaseOfferDetails? {
         skuDetails?.let {
             return OneTimePurchaseOfferDetails(
                 priceAmountMicros = it.oneTimePurchaseOfferDetails.priceAmountMicros,
@@ -106,7 +128,7 @@ data class ApphudProduct (
         return null
     }
 
-    override fun subscriptionOfferDetails(): List<SubscriptionOfferDetails>? {
+    fun subscriptionOfferDetails(): List<SubscriptionOfferDetails>? {
         skuDetails?.let {
             var result :MutableList<SubscriptionOfferDetails> = mutableListOf()
 
