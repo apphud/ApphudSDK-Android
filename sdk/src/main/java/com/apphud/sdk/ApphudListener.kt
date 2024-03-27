@@ -23,13 +23,13 @@ interface ApphudListener {
     fun apphudNonRenewingPurchasesUpdated(purchases: List<ApphudNonRenewingPurchase>) = Unit
 
     /**
-     Returns array of `ProductDetails` objects after they are fetched from Billing.
-     Note that you have to add all product identifiers in Apphud.
+    Returns array of `ProductDetails` objects after they are fetched from Billing.
+    Note that you have to add all product identifiers in Apphud.
      */
     fun apphudFetchProductDetails(details: List<ProductDetails>)
 
     /**
-     Called when user identifier was changed
+    Called when user identifier was changed
      */
     fun apphudDidChangeUserID(userId: String)
 
@@ -49,7 +49,7 @@ interface ApphudListener {
     fun userDidLoad(user: ApphudUser)
 
     /**
-     Called when paywalls are fully loaded with their inner ProductDetails.
+    Called when paywalls are fully loaded with their inner ProductDetails.
      */
     fun paywallsDidFullyLoad(paywalls: List<ApphudPaywall>)
 
