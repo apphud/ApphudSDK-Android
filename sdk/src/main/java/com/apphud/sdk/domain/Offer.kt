@@ -5,8 +5,8 @@ import com.android.billingclient.api.ProductDetails
 class Offer(productDetails: ProductDetails, offerTokenId: String) {
     val base_plan_id: String? = productDetails.subscriptionOfferDetails?.find { it.offerToken == offerTokenId }?.basePlanId
     val offer_id: String? = productDetails.subscriptionOfferDetails?.find { it.offerToken == offerTokenId }?.offerId
-    val pricing_phases: List<PricingPhase>? =
+    val pricing_phases: List<PriceInfo>? =
         productDetails.subscriptionOfferDetails?.find {
             it.offerToken == offerTokenId
-        }?.pricingPhases?.pricingPhaseList?.map { PricingPhase(it) }
+        }?.pricingPhases?.pricingPhaseList?.map { PriceInfo(it) }
 }

@@ -120,9 +120,9 @@ class BillingClientWrapper(
                     Log.e(
                         TAG,
                         "onProductDetailsResponse: " +
-                            "Found null or empty ProductDetails. " +
-                            "Check to see if the Products you requested are correctly " +
-                            "published in the Google Play Console.",
+                                "Found null or empty ProductDetails. " +
+                                "Check to see if the Products you requested are correctly " +
+                                "published in the Google Play Console.",
                     )
                 } else {
                     newMap =

@@ -6,9 +6,9 @@ import android.view.View
 import android.view.ViewGroup
 import android.widget.TextView
 import androidx.recyclerview.widget.RecyclerView
-import com.android.billingclient.api.BillingClient
 import com.apphud.demo.R
 import com.apphud.sdk.domain.ApphudProduct
+import com.apphud.sdk.domain.ApphudProductType
 
 class ProductsAdapter(private val productsViewModel: ProductsViewModel, private val context: Context?) : RecyclerView.Adapter<ProductsAdapter.BaseViewHolder<*>>() {
     var selectProduct: ((account: ApphudProduct) -> Unit)? = null
@@ -30,14 +30,10 @@ class ProductsAdapter(private val productsViewModel: ProductsViewModel, private 
         ) {
             productName.text = "Name: " + item.name + "\nProduct ID: " + item.productId + "\nBase Plan ID: " + item.basePlanId
 
-            item.productDetails?.let { details ->
-                if (details.productType == BillingClient.ProductType.SUBS) {
-                    productPrice.text = item.subscriptionOffers()?.firstOrNull()?.pricingPhases?.pricingPhaseList?.firstOrNull()?.formattedPrice ?: ""
-                } else {
-                    productPrice.text = details.oneTimePurchaseOfferDetails?.formattedPrice ?: ""
-                }
-            } ?: run {
-                productPrice.text = "ProductDetails N/A"
+            if (item.type() == ApphudProductType.SUBS) {
+                productPrice.text = item.subscriptionOfferDetails()?.firstOrNull()?.pricingPhases?.pricingPhaseList?.firstOrNull()?.formattedPrice ?: "N/A"
+            } else {
+                productPrice.text = item.oneTimePurchaseOfferDetails()?.formattedPrice ?: "N/A"
             }
 
             itemView.setOnClickListener {

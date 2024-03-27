@@ -1,5 +1,5 @@
 package com.apphud.demo.ui.utils
 
-import com.android.billingclient.api.ProductDetails
+import com.apphud.sdk.domain.SubscriptionOfferDetails
 
-class OffersViewModel(val offers: List<ProductDetails.SubscriptionOfferDetails>)
+class OffersViewModel(val offers: List<SubscriptionOfferDetails>)

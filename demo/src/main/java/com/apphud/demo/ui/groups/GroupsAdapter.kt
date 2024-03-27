@@ -6,10 +6,10 @@ import android.view.View
 import android.view.ViewGroup
 import android.widget.TextView
 import androidx.recyclerview.widget.RecyclerView
-import com.android.billingclient.api.BillingClient
 import com.apphud.demo.R
 import com.apphud.sdk.domain.ApphudGroup
 import com.apphud.sdk.domain.ApphudProduct
+import com.apphud.sdk.domain.ApphudProductType
 
 class GroupsAdapter(private val groupsViewModel: GroupsViewModel, private val context: Context?) : RecyclerView.Adapter<GroupsAdapter.BaseViewHolder<*>>() {
     var selectGroup: ((account: ApphudGroup) -> Unit)? = null
@@ -48,14 +48,10 @@ class GroupsAdapter(private val groupsViewModel: GroupsViewModel, private val co
             productName.text = item.name
             productId.text = item.productId
 
-            item.productDetails?.let { details ->
-                if (details.productType == BillingClient.ProductType.SUBS) {
-                    productPrice.text = details.subscriptionOfferDetails?.firstOrNull()?.pricingPhases?.pricingPhaseList?.firstOrNull()?.formattedPrice ?: ""
-                } else {
-                    productPrice.text = details.oneTimePurchaseOfferDetails?.formattedPrice ?: ""
-                }
-            } ?: run {
-                productPrice.text = ""
+            if (item.type() == ApphudProductType.SUBS) {
+                productPrice.text = item.subscriptionOfferDetails()?.firstOrNull()?.pricingPhases?.pricingPhaseList?.firstOrNull()?.formattedPrice ?: ""
+            } else {
+                productPrice.text = item.oneTimePurchaseOfferDetails()?.formattedPrice ?: ""
             }
 
             itemView.setOnClickListener {
