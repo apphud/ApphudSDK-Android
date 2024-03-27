@@ -43,6 +43,7 @@ class SubscriptionMapper {
                     productId = dto.product_id,
                     purchasedAt = purchase,
                     canceledAt = buildDate(dto.cancelled_at),
+                    isConsumable = dto.is_consumable ?: false,
                 )
         }
     }

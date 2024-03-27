@@ -80,8 +80,8 @@ class HttpRetryInterceptor : Interceptor {
             } finally {
                 tryCount++
 
-                if (!isSuccess && tryCount < MAX_COUNT) {
-                    response?.close()
+                if (!isSuccess && tryCount < MAX_COUNT && !(response?.code in 401..403)) {
+//                    response?.close()
                 }
             }
         }

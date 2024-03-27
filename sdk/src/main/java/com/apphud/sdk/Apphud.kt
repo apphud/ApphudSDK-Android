@@ -342,15 +342,11 @@ object Apphud {
     /**
      * Determines if the user has active premium access, which includes any active subscription
      * or non-renewing purchase (lifetime).
-     * Note: This method is not suitable for consumable in-app purchases, like coin packs.
-     * Use this method to check if the user has active premium access. If you have consumable
-     * purchases, consider using alternative methods, as this won't distinguish consumables
-     * from non-consumables.
      *
      * @return `true` if the user has an active subscription or non-renewing purchase, `false` otherwise.
      */
     fun hasPremiumAccess(): Boolean {
-        return hasActiveSubscription() || nonRenewingPurchases().firstOrNull { it.isActive() } != null
+        return hasActiveSubscription() || nonRenewingPurchases().firstOrNull { it.isActive() && !it.isConsumable } != null
     }
 
     /**
