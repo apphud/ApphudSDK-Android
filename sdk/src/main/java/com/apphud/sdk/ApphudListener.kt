@@ -18,15 +18,15 @@ interface ApphudListener {
     fun apphudSubscriptionsUpdated(subscriptions: List<ApphudSubscription>) = Unit
 
     /**
+     * Called when any of non renewing purchases changes. Called when purchase is made or has been refunded.
+     */
+    fun apphudNonRenewingPurchasesUpdated(purchases: List<ApphudNonRenewingPurchase>) = Unit
+    
+    /**
     Returns array of `ProductDetails` objects after they are fetched from Billing.
     Note that you have to add all product identifiers in Apphud.
      */
     fun apphudFetchProductDetails(details: List<ProductDetails>)
-
-    /**
-     * Called when any of non renewing purchases changes. Called when purchase is made or has been refunded.
-     */
-    fun apphudNonRenewingPurchasesUpdated(purchases: List<ApphudNonRenewingPurchase>) = Unit
 
     /**
      Called when user identifier was changed

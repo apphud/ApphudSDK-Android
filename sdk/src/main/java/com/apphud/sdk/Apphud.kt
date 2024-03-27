@@ -543,7 +543,6 @@ object Apphud {
         placementIdentifier: String? = null,
     ) = ApphudInternal.trackPurchase(purchase, productDetails, offerIdToken, paywallIdentifier, placementIdentifier)
 
-
     /**
      * Implements the 'Restore Purchases' mechanism. This method sends the current Play Market
      * Purchase Tokens to Apphud and returns subscription information.
