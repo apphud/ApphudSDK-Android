@@ -4,7 +4,12 @@ import com.apphud.sdk.ApphudInternal
 import com.apphud.sdk.ApphudInternal.FALLBACK_ERRORS
 import com.apphud.sdk.ApphudInternal.fallbackMode
 import com.apphud.sdk.ApphudLog
+import com.apphud.sdk.ApphudUtils
+import com.apphud.sdk.fallbackHost
 import com.apphud.sdk.processFallbackError
+import com.apphud.sdk.tryFallbackHost
+import com.apphud.sdk.withRemovedScheme
+import kotlinx.coroutines.launch
 import okhttp3.Interceptor
 import okhttp3.Request
 import okhttp3.Response
@@ -48,22 +53,22 @@ class HttpRetryInterceptor : Interceptor {
                     }
 
                     if (response.code in FALLBACK_ERRORS) {
-                        ApphudInternal.processFallbackError(request)
+                        ApphudInternal.processFallbackError(request, isTimeout = false)
                         if (ApphudInternal.fallbackMode) {
                             tryCount = MAX_COUNT
                         }
                     }
 
                     ApphudLog.logE(
-                        "Request (${request.url.encodedPath}) failed with code (${response.code}). Will retry in ${STEP / 1000} seconds ($tryCount).",
+                        "Request (${request.url}) failed with code (${response.code}). Will retry in ${STEP / 1000} seconds ($tryCount).",
                     )
 
                     Thread.sleep(STEP)
                 }
             } catch (e: SocketTimeoutException) {
-                ApphudInternal.processFallbackError(request)
+                ApphudInternal.processFallbackError(request, isTimeout = true)
                 ApphudLog.logE(
-                    "Request (${request.url.encodedPath}) failed with SocketTimeoutException. Will retry in ${STEP / 1000} seconds ($tryCount).",
+                    "Request (${request.url}) failed with SocketTimeoutException. Will retry in ${STEP / 1000} seconds ($tryCount).",
                 )
                 if (ApphudInternal.fallbackMode) {
                     throw e
@@ -72,9 +77,14 @@ class HttpRetryInterceptor : Interceptor {
             } catch (e: UnknownHostException) {
                 // do not retry when no internet connection issue
                 tryCount = MAX_COUNT
+                if (ApphudUtils.isOnline(ApphudInternal.context)) {
+                    ApphudInternal.coroutineScope.launch {
+                        tryFallbackHost()
+                    }
+                }
             } catch (e: Exception) {
                 ApphudLog.logE(
-                    "Request (${request.url.encodedPath}) failed with Exception. Will retry in ${STEP / 1000} seconds ($tryCount).",
+                    "Request (${request.url}) failed with Exception. Will retry in ${STEP / 1000} seconds ($tryCount).",
                 )
                 Thread.sleep(STEP)
             } finally {
@@ -82,6 +92,12 @@ class HttpRetryInterceptor : Interceptor {
 
                 if (!isSuccess && tryCount < MAX_COUNT && !(response?.code in 401..403)) {
 //                    response?.close()
+                }
+
+                if (fallbackHost != null && fallbackHost?.withRemovedScheme() != request.url.host) {
+                    // invalid host, need to abort these requests
+                    tryCount = MAX_COUNT
+                    throw UnknownHostException("APPHUD_HOST_CHANGED")
                 }
             }
         }
