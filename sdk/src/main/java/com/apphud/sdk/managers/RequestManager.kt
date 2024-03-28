@@ -217,7 +217,7 @@ object RequestManager {
                 completionHandler(null, ApphudError(message))
             }
         } catch (e: SocketTimeoutException) {
-            ApphudInternal.processFallbackError(request)
+            ApphudInternal.processFallbackError(request, isTimeout = true)
             val message = e.message ?: "Undefined error"
             completionHandler(null, ApphudError(message, null, APPHUD_ERROR_TIMEOUT))
         } catch (e: IOException) {
@@ -399,7 +399,7 @@ object RequestManager {
                     completionHandler(null, ApphudError("Registration failed"))
                 }
             } catch (e: SocketTimeoutException) {
-                ApphudInternal.processFallbackError(request)
+                ApphudInternal.processFallbackError(request, isTimeout = true)
                 val message = e.message ?: "Registration failed"
                 completionHandler(null, ApphudError(message, null, APPHUD_ERROR_TIMEOUT))
             } catch (ex: UnknownHostException) {
@@ -654,6 +654,26 @@ object RequestManager {
             } ?: run {
                 completionHandler(null, error)
             }
+        }
+    }
+
+    fun fetchFallbackHost(): String? {
+        val url = "https://apphud.blob.core.windows.net/apphud-gateway/fallback.txt"
+        val client = OkHttpClient()
+
+        // Build the request
+        val request = Request.Builder()
+            .url(url)
+            .build()
+
+        // Execute the request
+        val response = client.newCall(request).execute()
+
+        // Return the response body as a string if the request was successful
+        return if (response.isSuccessful) {
+            response.body?.string()
+        } else {
+            null
         }
     }
 

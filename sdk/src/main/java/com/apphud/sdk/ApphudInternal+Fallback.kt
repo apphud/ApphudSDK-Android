@@ -2,8 +2,10 @@ package com.apphud.sdk
 
 import android.content.Context
 import android.content.SharedPreferences
+import com.apphud.sdk.client.ApiClient
 import com.apphud.sdk.domain.ApphudUser
 import com.apphud.sdk.domain.FallbackJsonObject
+import com.apphud.sdk.managers.RequestManager
 import com.apphud.sdk.mappers.PaywallsMapper
 import com.apphud.sdk.parser.GsonParser
 import com.apphud.sdk.parser.Parser
@@ -14,16 +16,57 @@ import com.google.gson.reflect.TypeToken
 import kotlinx.coroutines.launch
 import okhttp3.Request
 import java.io.IOException
+import java.net.MalformedURLException
+import java.net.URL
+
+internal fun String.withRemovedScheme(): String {
+    return replace("https://", "")
+}
 
 private val gson = GsonBuilder().serializeNulls().create()
 private val parser: Parser = GsonParser(gson)
 private val paywallsMapper = PaywallsMapper(parser)
-
-internal fun ApphudInternal.processFallbackError(request: Request) {
+internal var fallbackHost: String? = null
+internal var processedFallbackData = false
+internal fun ApphudInternal.processFallbackError(request: Request, isTimeout: Boolean) {
     if ((request.url.encodedPath.endsWith("/customers") ||
-        request.url.encodedPath.endsWith("/subscriptions"))
-        && !fallbackMode) {
-        processFallbackData()
+        request.url.encodedPath.endsWith("/subscriptions") ||
+                request.url.encodedPath.endsWith("/products"))
+        && !processedFallbackData) {
+
+        if (fallbackHost?.withRemovedScheme() == request.url.host) {
+            processFallbackData()
+        } else {
+            coroutineScope.launch {
+                tryFallbackHost()
+                if (fallbackHost == null) {
+                    processFallbackData()
+                }
+            }
+        }
+    }
+}
+
+internal fun tryFallbackHost() {
+    val host = RequestManager.fetchFallbackHost()
+    host?.let {
+        if (isValidUrl(it)) {
+            fallbackHost = it
+            ApphudInternal.fallbackMode = true
+            ApiClient.host = fallbackHost!!
+            ApphudLog.logE("Fallback to host $fallbackHost")
+            ApphudInternal.isRegisteringUser = false
+            ApphudInternal.refreshPaywallsIfNeeded()
+        }
+    }
+}
+
+fun isValidUrl(urlString: String): Boolean {
+    return try {
+        URL(urlString)
+        true
+    } catch (e: MalformedURLException) {
+        false
     }
 }
 
@@ -37,6 +80,8 @@ private fun ApphudInternal.processFallbackData() {
                 )
             ApphudLog.log("Fallback: user created: $userId")
         }
+
+        processedFallbackData = true
 
         // read paywalls from cache
         var ids = paywalls.map { it.products?.map { it.productId } ?: listOf() }.flatten()
@@ -87,6 +132,7 @@ private fun getJsonDataFromAsset(
 
 internal fun ApphudInternal.disableFallback() {
     fallbackMode = false
+    processedFallbackData = false
     ApphudLog.log("Fallback: DISABLED")
     coroutineScope.launch(errorHandler) {
         if (productGroups.isEmpty()) { // if fallback raised on start, there no product groups, so reload products and details
