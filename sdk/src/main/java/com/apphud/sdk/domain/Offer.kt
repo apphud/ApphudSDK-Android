@@ -9,4 +9,3 @@ class Offer(skuDetails: SkuDetails, offerTokenId: String) {
         skuDetails.subscriptionOfferDetails?.find {
             it.offerToken == offerTokenId
         }?.pricingPhases?.pricingPhaseList?.map { PriceInfo(it) }
-}
