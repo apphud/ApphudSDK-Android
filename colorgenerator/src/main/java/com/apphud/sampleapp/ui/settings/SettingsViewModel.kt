@@ -1,4 +1,4 @@
-package com.apphud.sampleapp.ui.home
+package com.apphud.sampleapp.ui.settings
 
 import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData

@@ -1,4 +1,4 @@
-package com.apphud.sampleapp.ui.dashboard
+package com.apphud.sampleapp.ui.generator
 
 import android.os.Bundle
 import android.view.LayoutInflater

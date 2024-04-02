@@ -1,4 +1,4 @@
-package com.apphud.sampleapp.ui.home
+package com.apphud.sampleapp.ui.settings
 
 import android.os.Bundle
 import android.view.LayoutInflater
