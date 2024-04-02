@@ -29,8 +29,17 @@
         <item name="postSplashScreenTheme">@style/Theme.Apphud</item>
     </style>
 
-    <style name="Theme.Apphud.Main" parent="Theme.MaterialComponents.Light">
+    <style name="Theme.Apphud.Main" parent="Theme.AppCompat.Light">
         <item name="windowNoTitle">true</item>-
+        <item name="colorPrimary">@color/branding_blue</item>
+        <item name="colorPrimaryVariant">@color/branding_blue</item>
+        <item name="colorOnPrimary">@color/white</item>
+        <!-- Secondary brand color. -->
+        <item name="colorSecondary">@color/branding_blue</item>
+        <item name="colorSecondaryVariant">@color/branding_blue</item>
+        <item name="colorOnSecondary">@color/white</item>
+        <!-- Status bar color. -->
+        <item name="android:statusBarColor">?attr/colorPrimaryVariant</item>
     </style>
 
     <style name="button_blue" parent="@android:style/Widget.Button">

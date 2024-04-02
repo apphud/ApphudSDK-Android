@@ -13,7 +13,15 @@
     <string name="continue_text">Continue</string>
     <string name="get_started">Get Started</string>
     <string name="generate_more">Generate more</string>
-    <string name="you_have_text">You have %s generations left</string>
+    <string name="you_have_text">You have {{count}} generations left</string>
     <string name="copy_color">Copy Color</string>
     <string name="your_color_is">Your color is: </string>
+
+    <string name="app_version">App Version</string>
+    <string name="sdk_version">SDK Version</string>
+    <string name="restore_purchases">Restore Purchases</string>
+    <string name="premium_status">Premium Status</string>
+    <string name="premium_value">No Pro / Pro</string>
+    <string name="color">Color</string>
+    <string name="copied">Copied</string>
 </resources>
