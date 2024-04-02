@@ -1,6 +1,8 @@
 package com.apphud.sampleapp
 
+import android.annotation.SuppressLint
 import android.content.Intent
+import android.content.pm.ActivityInfo
 import android.os.Bundle
 import android.view.View
 import androidx.appcompat.app.AppCompatActivity
@@ -14,7 +16,8 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
 
-class SplashActivity : AppCompatActivity() {
+@SuppressLint("CustomSplashScreen")
+class SplashActivity : BaseActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         installSplashScreen()
 
@@ -24,7 +27,7 @@ class SplashActivity : AppCompatActivity() {
         window.decorView.apply {
             systemUiVisibility = View.SYSTEM_UI_FLAG_HIDE_NAVIGATION or View.SYSTEM_UI_FLAG_FULLSCREEN
         }
-        
+
         setContentView(R.layout.activity_splash)
         CoroutineScope(Dispatchers.IO).launch {
             delay(1000L)

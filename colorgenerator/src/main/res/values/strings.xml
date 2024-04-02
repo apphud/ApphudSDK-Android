@@ -1,6 +1,19 @@
 <resources>
     <string name="app_name">Color Generator</string>
-    <string name="title_home">Home</string>
-    <string name="title_dashboard">Dashboard</string>
-    <string name="title_notifications">Notifications</string>
+    <string name="title_settings">Settings</string>
+    <string name="title_generator">Generator</string>
+
+    <string name="onboarding_title_1">Welcome to Apphud Sample!</string>
+    <string name="onboarding_text_1">Learn how Apphud SDK is integrated</string>
+    <string name="onboarding_title_2">Color Generator</string>
+    <string name="onboarding_text_2">Generate Any Random Color</string>
+    <string name="onboarding_title_3">Unlimited generations</string>
+    <string name="onboarding_text_3">Create as much as you want</string>
+
+    <string name="continue_text">Continue</string>
+    <string name="get_started">Get Started</string>
+    <string name="generate_more">Generate more</string>
+    <string name="you_have_text">You have %s generations left</string>
+    <string name="copy_color">Copy Color</string>
+    <string name="your_color_is">Your color is: </string>
 </resources>
