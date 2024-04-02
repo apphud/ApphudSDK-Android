@@ -18,7 +18,7 @@ ext {
     PUBLISH_SCM_URL = 'https://github.com/apphud/ApphudSDK-Android/tree/master'
 }
 
-//apply from: "${rootProject.projectDir}/scripts/publish-module.gradle"
+apply from: "${rootProject.projectDir}/scripts/publish-module.gradle"
 
 android {
     defaultConfig {
@@ -59,15 +59,15 @@ android {
     }
 }
 
-afterEvaluate {
-    publishing {
-        publications {
-            release(MavenPublication) {
-                from components.release
-            }
-        }
-    }
-}
+//afterEvaluate {
+//    publishing {
+//        publications {
+//            release(MavenPublication) {
+//                from components.release
+//            }
+//        }
+//    }
+//}
 
 dependencies {
     implementation fileTree(dir: "libs", include: ["*.jar"])

@@ -1,7 +1,6 @@
 package com.apphud.sdk
 
 import com.android.billingclient.api.BillingClient
-import com.android.billingclient.api.ProductDetails
 import com.apphud.sdk.domain.ApphudGroup
 import com.apphud.sdk.domain.ApphudPaywall
 import com.apphud.sdk.managers.RequestManager
@@ -10,8 +9,6 @@ import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
-import java.util.concurrent.atomic.AtomicBoolean
-import java.util.concurrent.atomic.AtomicInteger
 
 internal var productsStatus = ApphudProductsStatus.none
 internal var productsResponseCode = BillingClient.BillingResponseCode.OK
@@ -60,12 +57,32 @@ internal fun ApphudInternal.loadProducts() {
                     productsLoadingCounts += 1
                 }
 
+//                retryProductsLoadIfNeeded()
+
                 mainScope.launch {
                     notifyLoadingCompleted(null, productDetails, false, false)
                 }
             }
         }
     }
+}
+
+internal fun ApphudInternal.retryProductsLoadIfNeeded() {
+    if (productDetails.isEmpty() && productsStatus == ApphudProductsStatus.failed && isRetriableErrorCode(
+            productsResponseCode) && isActive) {
+        val delay: Long = 500 * productsLoadingCounts.toLong()
+        ApphudLog.logE("Failed to load products from store (${ApphudBillingResponseCodes.getName(
+            productsResponseCode)}), will retry in ${delay} ms")
+        Thread.sleep(delay)
+        ApphudInternal.loadProducts()
+    }
+}
+
+private fun isRetriableErrorCode(code: Int): Boolean {
+    return listOf(BillingClient.BillingResponseCode.NETWORK_ERROR, BillingClient.BillingResponseCode.SERVICE_TIMEOUT,
+    BillingClient.BillingResponseCode.SERVICE_UNAVAILABLE, BillingClient.BillingResponseCode.BILLING_UNAVAILABLE,
+    BillingClient.BillingResponseCode.ERROR, BillingClient.BillingResponseCode.ITEM_ALREADY_OWNED,
+    BillingClient.BillingResponseCode.ITEM_NOT_OWNED).contains(code)
 }
 
 private suspend fun ApphudInternal.fetchProducts(): Int {
@@ -124,7 +141,6 @@ internal suspend fun ApphudInternal.fetchDetails(ids: List<String>): Int {
                 }
             }
         } ?: run {
-            ApphudLog.logE("Unable to load SUBS details: ${subsResult.second}", false)
             if (responseCode == BillingClient.BillingResponseCode.OK) {
                 responseCode = subsResult.second
             }
@@ -140,7 +156,6 @@ internal suspend fun ApphudInternal.fetchDetails(ids: List<String>): Int {
                 }
             }
         } ?: run {
-            ApphudLog.logE("Unable to load INAPP details: ${inAppResult.second}", false)
             if (responseCode == BillingClient.BillingResponseCode.OK) {
                 responseCode = inAppResult.second
             }

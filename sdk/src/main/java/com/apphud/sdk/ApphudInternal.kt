@@ -85,7 +85,7 @@ internal object ApphudInternal {
     private var customProductsFetchedBlock: ((List<ProductDetails>) -> Unit)? = null
     private var offeringsPreparedCallbacks = mutableListOf<((ApphudError?) -> Unit)>()
     private var userRegisteredBlock: ((ApphudUser) -> Unit)? = null
-    private var isActive = false
+    internal var isActive = false
     private var lifecycleEventObserver =
         LifecycleEventObserver { _, event ->
             when (event) {
@@ -332,7 +332,7 @@ internal object ApphudInternal {
                 ApphudLog.log("handle offeringsPreparedCallbacks with errors")
             }
             while (offeringsPreparedCallbacks.isNotEmpty()) {
-                val error = customerError ?: ApphudError("Registration failed", errorCode = productsResponseCode)
+                val error = customerError ?: ApphudError("Paywalls load error", errorCode = productsResponseCode)
                 val callback = offeringsPreparedCallbacks.removeFirst()
                 callback.invoke(error)
             }
@@ -427,12 +427,14 @@ internal object ApphudInternal {
     }
 
     internal fun performWhenOfferingsPrepared(callback: (ApphudError?) -> Unit) {
-        val willRefresh = refreshPaywallsIfNeeded()
-        val isWaitingForProducts = !finishedLoadingProducts()
-        if ((isWaitingForProducts || willRefresh) && !fallbackMode) {
-            offeringsPreparedCallbacks.add(callback)
-        } else {
-            callback.invoke(null)
+        mainScope.launch {
+            val willRefresh = refreshPaywallsIfNeeded()
+            val isWaitingForProducts = !finishedLoadingProducts()
+            if ((isWaitingForProducts || willRefresh) && !fallbackMode) {
+                offeringsPreparedCallbacks.add(callback)
+            } else {
+                callback.invoke(null)
+            }
         }
     }
 
