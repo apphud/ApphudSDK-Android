@@ -711,5 +711,14 @@ object Apphud {
     fun isFallbackMode(): Boolean {
         return ApphudInternal.fallbackMode
     }
+
+    /**
+     * Must be called before SDK initialization.
+     * Will make SDK to disregard cache and force refresh paywalls and placements.
+     * Call it only if keeping paywalls and placements up to date is critical for your app business.
+     */
+    fun invalidatePaywallsCache() {
+        ApphudInternal.ignoreCache = true
+    }
     //endregion
 }
