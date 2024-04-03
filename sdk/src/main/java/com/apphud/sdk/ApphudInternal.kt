@@ -45,6 +45,7 @@ internal object ApphudInternal {
     internal var paywalls = listOf<ApphudPaywall>()
     internal var placements = listOf<ApphudPlacement>()
     internal var isRegisteringUser = false
+    internal var allowsProductsRefresh = false
     internal var refreshUserPending = false
     private val handler: Handler = Handler(Looper.getMainLooper())
     private val pendingUserProperties = mutableMapOf<String, ApphudUserProperty>()
@@ -249,8 +250,14 @@ internal object ApphudInternal {
 
             synchronized(productDetails) {
                 // notify that productDetails are loaded
-                apphudListener?.apphudFetchProductDetails(productDetails)
-                customProductsFetchedBlock?.invoke(productDetails)
+                if (productDetails.isNotEmpty()) {
+                    allowsProductsRefresh = false
+                    apphudListener?.apphudFetchProductDetails(productDetails)
+                    customProductsFetchedBlock?.invoke(productDetails)
+                    coroutineScope.launch {
+                        RequestManager.paywallProductsLoaded(productDetails.count())
+                    }
+                }
             }
         }
 
@@ -317,7 +324,7 @@ internal object ApphudInternal {
                 apphudListener?.placementsDidFullyLoad(placements)
 
                 notifiedAboutPaywallsDidFullyLoaded = true
-                ApphudLog.log("Did Fully Load")
+                ApphudLog.logI("Paywalls and Placements ready")
             }
 
             if (offeringsPreparedCallbacks.isNotEmpty()) {

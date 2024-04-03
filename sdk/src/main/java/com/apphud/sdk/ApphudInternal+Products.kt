@@ -57,7 +57,9 @@ internal fun ApphudInternal.loadProducts() {
                     productsLoadingCounts += 1
                 }
 
-//                retryProductsLoadIfNeeded()
+                if (allowsProductsRefresh) {
+                    retryProductsLoadIfNeeded()
+                }
 
                 mainScope.launch {
                     notifyLoadingCompleted(null, productDetails, false, false)

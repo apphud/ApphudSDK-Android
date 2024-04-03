@@ -130,6 +130,7 @@ object Apphud {
      */
     suspend fun placements(): List<ApphudPlacement> =
         suspendCancellableCoroutine { continuation ->
+            ApphudInternal.allowsProductsRefresh = true
             ApphudInternal.performWhenOfferingsPrepared {
                 /* Error is not returned is suspending function.
                 If you want to handle error, use `fetchPlacements` method. */
@@ -230,6 +231,7 @@ object Apphud {
     )
     suspend fun paywalls(): List<ApphudPaywall> =
         suspendCancellableCoroutine { continuation ->
+            ApphudInternal.allowsProductsRefresh = true
             ApphudInternal.performWhenOfferingsPrepared {
                 /* Error is not returned is suspending function.
                 If you want to handle error, use `paywallsDidLoadCallback` method. */
