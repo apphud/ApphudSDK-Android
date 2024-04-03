@@ -37,7 +37,7 @@ internal object ApphudInternal {
         }
 
     internal val FALLBACK_ERRORS = listOf(APPHUD_ERROR_TIMEOUT, 500, 502, 503)
-
+    internal var ignoreCache: Boolean = false
     internal lateinit var billing: BillingWrapper
     internal val storage by lazy { SharedPreferencesStorage.getInstance(context) }
     internal var prevPurchases = mutableSetOf<PurchaseRecordDetails>()
@@ -45,6 +45,7 @@ internal object ApphudInternal {
     internal var paywalls = listOf<ApphudPaywall>()
     internal var placements = listOf<ApphudPlacement>()
     internal var isRegisteringUser = false
+    internal var allowsProductsRefresh = false
     internal var refreshUserPending = false
     private val handler: Handler = Handler(Looper.getMainLooper())
     private val pendingUserProperties = mutableMapOf<String, ApphudUserProperty>()
@@ -85,7 +86,7 @@ internal object ApphudInternal {
     private var customProductsFetchedBlock: ((List<ProductDetails>) -> Unit)? = null
     private var offeringsPreparedCallbacks = mutableListOf<((ApphudError?) -> Unit)>()
     private var userRegisteredBlock: ((ApphudUser) -> Unit)? = null
-    private var isActive = false
+    internal var isActive = false
     private var lifecycleEventObserver =
         LifecycleEventObserver { _, event ->
             when (event) {
@@ -144,9 +145,12 @@ internal object ApphudInternal {
         this.context = context
         this.apiKey = apiKey
         storage.validateCaches()
+        if (ignoreCache) {
+            ApphudLog.logI("Ignoring local paywalls cache")
+        }
         val cachedUser = storage.apphudUser
-        val cachedPaywalls = readPaywallsFromCache()
-        val cachedPlacements = readPlacementsFromCache()
+        val cachedPaywalls = if (ignoreCache) null else readPaywallsFromCache()
+        val cachedPlacements = if (ignoreCache) null else readPlacementsFromCache()
         val cachedGroups = readGroupsFromCache()
         val cachedDeviceId = storage.deviceId
         val cachedUserId = storage.userId
@@ -246,8 +250,14 @@ internal object ApphudInternal {
 
             synchronized(productDetails) {
                 // notify that productDetails are loaded
-                apphudListener?.apphudFetchProductDetails(productDetails)
-                customProductsFetchedBlock?.invoke(productDetails)
+                if (productDetails.isNotEmpty()) {
+                    allowsProductsRefresh = false
+                    apphudListener?.apphudFetchProductDetails(productDetails)
+                    customProductsFetchedBlock?.invoke(productDetails)
+                    coroutineScope.launch {
+                        RequestManager.paywallProductsLoaded(productDetails.count())
+                    }
+                }
             }
         }
 
@@ -314,7 +324,7 @@ internal object ApphudInternal {
                 apphudListener?.placementsDidFullyLoad(placements)
 
                 notifiedAboutPaywallsDidFullyLoaded = true
-                ApphudLog.log("Did Fully Load")
+                ApphudLog.logI("Paywalls and Placements ready")
             }
 
             if (offeringsPreparedCallbacks.isNotEmpty()) {
@@ -329,7 +339,7 @@ internal object ApphudInternal {
                 ApphudLog.log("handle offeringsPreparedCallbacks with errors")
             }
             while (offeringsPreparedCallbacks.isNotEmpty()) {
-                val error = customerError ?: ApphudError("Registration failed", errorCode = productsResponseCode)
+                val error = customerError ?: ApphudError("Paywalls load error", errorCode = productsResponseCode)
                 val callback = offeringsPreparedCallbacks.removeFirst()
                 callback.invoke(error)
             }
@@ -424,12 +434,14 @@ internal object ApphudInternal {
     }
 
     internal fun performWhenOfferingsPrepared(callback: (ApphudError?) -> Unit) {
-        val willRefresh = refreshPaywallsIfNeeded()
-        val isWaitingForProducts = !finishedLoadingProducts()
-        if ((isWaitingForProducts || willRefresh) && !fallbackMode) {
-            offeringsPreparedCallbacks.add(callback)
-        } else {
-            callback.invoke(null)
+        mainScope.launch {
+            val willRefresh = refreshPaywallsIfNeeded()
+            val isWaitingForProducts = !finishedLoadingProducts()
+            if ((isWaitingForProducts || willRefresh) && !fallbackMode) {
+                offeringsPreparedCallbacks.add(callback)
+            } else {
+                callback.invoke(null)
+            }
         }
     }
 

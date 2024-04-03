@@ -130,6 +130,7 @@ object Apphud {
      */
     suspend fun placements(): List<ApphudPlacement> =
         suspendCancellableCoroutine { continuation ->
+            ApphudInternal.allowsProductsRefresh = true
             ApphudInternal.performWhenOfferingsPrepared {
                 /* Error is not returned is suspending function.
                 If you want to handle error, use `fetchPlacements` method. */
@@ -230,6 +231,7 @@ object Apphud {
     )
     suspend fun paywalls(): List<ApphudPaywall> =
         suspendCancellableCoroutine { continuation ->
+            ApphudInternal.allowsProductsRefresh = true
             ApphudInternal.performWhenOfferingsPrepared {
                 /* Error is not returned is suspending function.
                 If you want to handle error, use `paywallsDidLoadCallback` method. */
@@ -710,6 +712,15 @@ object Apphud {
      */
     fun isFallbackMode(): Boolean {
         return ApphudInternal.fallbackMode
+    }
+
+    /**
+     * Must be called before SDK initialization.
+     * Will make SDK to disregard cache and force refresh paywalls and placements.
+     * Call it only if keeping paywalls and placements up to date is critical for your app business.
+     */
+    fun invalidatePaywallsCache() {
+        ApphudInternal.ignoreCache = true
     }
     //endregion
 }

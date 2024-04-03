@@ -740,6 +740,17 @@ object RequestManager {
         )
     }
 
+    fun paywallProductsLoaded(count: Int) {
+        trackPaywallEvent(
+            makePaywallEventBody(
+                name = "paywall_products_loaded",
+                paywallId = null,
+                placementId = null,
+                productId = "${count}",
+            ),
+        )
+    }
+
     fun paywallCheckoutInitiated(
         paywallId: String?,
         placementId: String?,
