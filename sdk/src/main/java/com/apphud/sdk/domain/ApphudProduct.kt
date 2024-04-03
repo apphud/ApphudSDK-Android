@@ -31,15 +31,15 @@ data class ApphudProduct (
      * */
     internal var id: String?,
     /**
-     Product Identifier from Google Play.
+    Product Identifier from Google Play.
      */
     var productId: String,
     /**
-     Product name from Apphud Dashboard
+    Product name from Apphud Dashboard
      */
     var name: String?,
     /**
-     Always `play_store` in Android SDK.
+    Always `play_store` in Android SDK.
      */
     var store: String,
     /**
@@ -57,7 +57,7 @@ data class ApphudProduct (
      */
     var placementIdentifier: String?,
     /**
-     User Generated Paywall Identifier
+    User Generated Paywall Identifier
      */
     var paywallIdentifier: String?,
     /**
@@ -119,11 +119,11 @@ data class ApphudProduct (
     fun oneTimePurchaseOfferDetails(): OneTimePurchaseOfferDetails? {
         skuDetails?.let {
             return OneTimePurchaseOfferDetails(
-                priceAmountMicros = it.oneTimePurchaseOfferDetails.priceAmountMicros,
-                formattedPrice = it.oneTimePurchaseOfferDetails.formattedPrice,
-                priceCurrencyCode = it.oneTimePurchaseOfferDetails.priceCurrencyCode,
-                offerIdToken = it.oneTimePurchaseOfferDetails.offerIdToken
-                )
+                priceAmountMicros = it.oneTimePurchaseOfferDetails?.priceAmountMicros?:0L,
+                formattedPrice = it.oneTimePurchaseOfferDetails?.formattedPrice,
+                priceCurrencyCode = it.oneTimePurchaseOfferDetails?.priceCurrencyCode,
+                offerIdToken = it.oneTimePurchaseOfferDetails?.offerIdToken
+            )
         }
         return null
     }
@@ -132,7 +132,7 @@ data class ApphudProduct (
         skuDetails?.let {
             var result :MutableList<SubscriptionOfferDetails> = mutableListOf()
 
-            for (offerDetails in it.subscriptionOfferDetails){
+            for (offerDetails in it.subscriptionOfferDetails?: listOf()){
 
                 var phases :MutableList<PricingPhase> = mutableListOf()
                 for (phase in offerDetails.pricingPhases.pricingPhaseList){
@@ -152,7 +152,7 @@ data class ApphudProduct (
                     offerId = offerDetails.offerId,
                     offerToken = offerDetails.offerToken,
                     offerTags = offerDetails.offerTags
-                    )
+                )
                 result.add(item)
             }
             return result
