@@ -50,6 +50,7 @@ internal object ApphudInternal {
     internal var sdkLaunchedAt: Long = System.currentTimeMillis()
     internal var firstCustomerLoadedTime: Long? = null
     internal var productsLoadedTime: Long? = null
+    internal var latestCustomerLoadError: ApphudError? = null
     private val handler: Handler = Handler(Looper.getMainLooper())
     private val pendingUserProperties = mutableMapOf<String, ApphudUserProperty>()
     private val userPropertiesRunnable =
@@ -105,8 +106,6 @@ internal object ApphudInternal {
                     ApphudLog.log("Application resumed")
                     coroutineScope.launch {
                         delay(1000L)
-
-                        RequestManager.fetchFallbackHost()
                         refreshPaywallsIfNeeded()
                     }
                     isActive = true
@@ -252,13 +251,22 @@ internal object ApphudInternal {
     ) {
         var paywallsPrepared = true
 
-        if (productDetails.isNotEmpty() && currentUser != null && firstCustomerLoadedTime != null && !notifiedAboutPaywallsDidFullyLoaded) {
+        customerError?.let { latestCustomerLoadError = it }
+
+        if (productDetails.isNotEmpty() && currentUser != null && paywalls.isNotEmpty() && firstCustomerLoadedTime != null && !notifiedAboutPaywallsDidFullyLoaded) {
             val totalLoad = (System.currentTimeMillis() - sdkLaunchedAt)
             val userLoad = (firstCustomerLoadedTime!! - sdkLaunchedAt)
             val productsLoaded = productsLoadedTime ?: 0
             ApphudLog.logI("SDK Benchmarks: User ${userLoad}ms, Products: ${productsLoaded}ms, Total: ${totalLoad}ms")
             coroutineScope.launch {
-                RequestManager.sendPaywallLogs(productDetails.count(), userLoad.toDouble(), productsLoaded.toDouble(), totalLoad.toDouble())
+                RequestManager.sendPaywallLogs(
+                    sdkLaunchedAt,
+                    productDetails.count(),
+                    userLoad.toDouble(),
+                    productsLoaded.toDouble(),
+                    totalLoad.toDouble(),
+                    latestCustomerLoadError?.message,
+                    productsResponseCode)
             }
         }
 
@@ -362,7 +370,7 @@ internal object ApphudInternal {
     }
 
     private fun handleCustomerError(customerError: ApphudError) {
-        if ((currentUser == null || productDetails.isEmpty()) && isActive && !refreshUserPending) {
+        if ((currentUser == null || productDetails.isEmpty() || paywalls.isEmpty()) && isActive && !refreshUserPending) {
             refreshUserPending = true
             coroutineScope.launch {
                 ApphudLog.logE("Customer Registration issue, will refresh in 2 seconds..")
@@ -468,7 +476,7 @@ internal object ApphudInternal {
         if (isRegisteringUser) {
 //            ApphudLog.logI("Already refreshing")
             isLoading = true
-        } else if (currentUser == null || fallbackMode || currentUser?.isTemporary == true) {
+        } else if (currentUser == null || fallbackMode || currentUser?.isTemporary == true || paywalls.isEmpty()) {
             ApphudLog.logI("Refreshing User")
             didRegisterCustomerAtThisLaunch = false
             refreshEntitlements(true)

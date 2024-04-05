@@ -7,6 +7,7 @@ import android.net.ConnectivityManager
 import android.net.NetworkCapabilities
 import android.os.Build
 import com.android.billingclient.api.BillingClient
+import com.android.billingclient.api.BillingClient.BillingResponseCode
 import com.android.billingclient.api.ProductDetails
 import com.android.billingclient.api.Purchase
 import com.apphud.sdk.*
@@ -741,9 +742,10 @@ object RequestManager {
         )
     }
 
-    fun sendPaywallLogs(count: Int, userBenchmark: Double, productsBenchmark: Double, totalBenchmark: Double) {
+    fun sendPaywallLogs(launchedAt: Long, count: Int, userBenchmark: Double, productsBenchmark: Double, totalBenchmark: Double,
+                        errorMessage: String?, productsResponseCode: Int) {
         trackPaywallEvent(
-            makePaywallLogsBody(count, userBenchmark, productsBenchmark, totalBenchmark)
+            makePaywallLogsBody(launchedAt, count, userBenchmark, productsBenchmark, totalBenchmark, errorMessage, productsResponseCode)
         )
     }
 
@@ -919,16 +921,24 @@ object RequestManager {
     }
 
     private fun makePaywallLogsBody(
+        launchedAt: Long,
         productsCount: Int,
         userLoadTime: Double,
         productsLoadTime: Double,
-        totalLoadTime: Double
+        totalLoadTime: Double,
+        errorMessage: String?,
+        productsResponseCode: Int
     ): PaywallEventBody {
         val properties = mutableMapOf<String, Any>()
+        properties["launched_at"] = launchedAt
         properties["total_load_time"] = totalLoadTime
         properties["user_load_time"] = userLoadTime
         properties["products_load_time"] = productsLoadTime
         properties["products_count"] = productsCount
+        errorMessage?.let {
+            properties["error_message"] = it
+        }
+        properties["billing_response_code"] = productsResponseCode
 
         return PaywallEventBody(
             name = "paywall_products_loaded",
