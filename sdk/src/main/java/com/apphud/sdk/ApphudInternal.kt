@@ -47,6 +47,9 @@ internal object ApphudInternal {
     internal var isRegisteringUser = false
     internal var allowsProductsRefresh = false
     internal var refreshUserPending = false
+    internal var sdkLaunchedAt: Long = System.currentTimeMillis()
+    internal var firstCustomerLoadedTime: Long? = null
+    internal var productsLoadedTime: Long? = null
     private val handler: Handler = Handler(Looper.getMainLooper())
     private val pendingUserProperties = mutableMapOf<String, ApphudUserProperty>()
     private val userPropertiesRunnable =
@@ -102,6 +105,8 @@ internal object ApphudInternal {
                     ApphudLog.log("Application resumed")
                     coroutineScope.launch {
                         delay(1000L)
+
+                        RequestManager.fetchFallbackHost()
                         refreshPaywallsIfNeeded()
                     }
                     isActive = true
@@ -134,6 +139,8 @@ internal object ApphudInternal {
             return
         }
         allowIdentifyUser = false
+
+        sdkLaunchedAt = System.currentTimeMillis()
 
         mainScope.launch {
             ProcessLifecycleOwner.get().lifecycle.addObserver(lifecycleEventObserver)
@@ -244,6 +251,17 @@ internal object ApphudInternal {
         customerError: ApphudError? = null,
     ) {
         var paywallsPrepared = true
+
+        if (productDetails.isNotEmpty() && currentUser != null && firstCustomerLoadedTime != null && !notifiedAboutPaywallsDidFullyLoaded) {
+            val totalLoad = (System.currentTimeMillis() - sdkLaunchedAt)
+            val userLoad = (firstCustomerLoadedTime!! - sdkLaunchedAt)
+            val productsLoaded = productsLoadedTime ?: 0
+            ApphudLog.logI("SDK Benchmarks: User ${userLoad}ms, Products: ${productsLoaded}ms, Total: ${totalLoad}ms")
+            coroutineScope.launch {
+                RequestManager.sendPaywallLogs(productDetails.count(), userLoad.toDouble(), productsLoaded.toDouble(), totalLoad.toDouble())
+            }
+        }
+
         productDetailsLoaded?.let {
             productGroups = readGroupsFromCache()
             updateGroupsWithProductDetails(productGroups)
@@ -254,9 +272,6 @@ internal object ApphudInternal {
                     allowsProductsRefresh = false
                     apphudListener?.apphudFetchProductDetails(productDetails)
                     customProductsFetchedBlock?.invoke(productDetails)
-                    coroutineScope.launch {
-                        RequestManager.paywallProductsLoaded(productDetails.count())
-                    }
                 }
             }
         }
@@ -334,7 +349,7 @@ internal object ApphudInternal {
                 val callback = offeringsPreparedCallbacks.removeFirst()
                 callback.invoke(null)
             }
-        } else if (customerError != null || productsResponseCode != BillingClient.BillingResponseCode.OK) {
+        } else if ((customerError != null && currentUser == null && paywalls.isEmpty()) || (productsResponseCode != BillingClient.BillingResponseCode.OK && productDetails.isEmpty())) {
             if (offeringsPreparedCallbacks.isNotEmpty()) {
                 ApphudLog.log("handle offeringsPreparedCallbacks with errors")
             }
@@ -347,11 +362,10 @@ internal object ApphudInternal {
     }
 
     private fun handleCustomerError(customerError: ApphudError) {
-        if ( (currentUser == null || paywalls.isEmpty() || productDetails.isEmpty()) &&
-            (isActive && !refreshUserPending && customerError.networkIssue() && !ApphudUtils.isOnline(this.context))) {
+        if ((currentUser == null || productDetails.isEmpty()) && isActive && !refreshUserPending) {
             refreshUserPending = true
             coroutineScope.launch {
-                ApphudLog.logE("Internet connection issue, will refresh in 2 seconds..")
+                ApphudLog.logE("Customer Registration issue, will refresh in 2 seconds..")
                 delay(2000L)
                 refreshPaywallsIfNeeded()
                 refreshUserPending = false
@@ -378,6 +392,9 @@ internal object ApphudInternal {
 
                     RequestManager.registration(!didRegisterCustomerAtThisLaunch, is_new, forceRegistration) { customer, error ->
                         customer?.let {
+                            if (currentUser == null) {
+                                firstCustomerLoadedTime = System.currentTimeMillis()
+                            }
                             currentUser = it
                             isRegisteringUser = false
                             storage.lastRegistration = System.currentTimeMillis()
@@ -778,6 +795,13 @@ internal object ApphudInternal {
             return productDetails.toCollection(mutableListOf())
         }
     }
+
+    fun getPaywalls(): List<ApphudPaywall> {
+        synchronized(paywalls) {
+            return paywalls.toCollection(mutableListOf())
+        }
+    }
+
     fun getPermissionGroups(): List<ApphudGroup> {
         var out: MutableList<ApphudGroup>
         synchronized(this.productGroups) {

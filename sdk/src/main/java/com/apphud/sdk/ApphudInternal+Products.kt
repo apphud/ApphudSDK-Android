@@ -95,7 +95,7 @@ private suspend fun ApphudInternal.fetchProducts(): Int {
             permissionGroupsCopy = groups
         }
     }
-    val ids = allAvailableProductIds(permissionGroupsCopy, paywalls)
+    val ids = allAvailableProductIds(permissionGroupsCopy, getPaywalls())
     return fetchDetails(ids)
 }
 
@@ -126,6 +126,8 @@ internal suspend fun ApphudInternal.fetchDetails(ids: List<String>): Int {
     if (productsStatus != ApphudProductsStatus.loading) {
         productsStatus = ApphudProductsStatus.loading
     }
+
+    val startTime = System.currentTimeMillis()
 
     var responseCode = BillingClient.BillingResponseCode.OK
 
@@ -163,6 +165,10 @@ internal suspend fun ApphudInternal.fetchDetails(ids: List<String>): Int {
             }
         }
     }
+
+    val benchmark = System.currentTimeMillis() - startTime
+
+    ApphudInternal.productsLoadedTime = benchmark
 
     return responseCode
 }

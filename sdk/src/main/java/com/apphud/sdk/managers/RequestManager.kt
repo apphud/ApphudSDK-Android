@@ -741,14 +741,9 @@ object RequestManager {
         )
     }
 
-    fun paywallProductsLoaded(count: Int) {
+    fun sendPaywallLogs(count: Int, userBenchmark: Double, productsBenchmark: Double, totalBenchmark: Double) {
         trackPaywallEvent(
-            makePaywallEventBody(
-                name = "paywall_products_loaded",
-                paywallId = null,
-                placementId = null,
-                productId = "${count}",
-            ),
+            makePaywallLogsBody(count, userBenchmark, productsBenchmark, totalBenchmark)
         )
     }
 
@@ -915,6 +910,28 @@ object RequestManager {
 
         return PaywallEventBody(
             name = name,
+            user_id = ApphudInternal.userId,
+            device_id = ApphudInternal.deviceId,
+            environment = if (applicationContext.isDebuggable()) "sandbox" else "production",
+            timestamp = System.currentTimeMillis(),
+            properties = properties.ifEmpty { null },
+        )
+    }
+
+    private fun makePaywallLogsBody(
+        productsCount: Int,
+        userLoadTime: Double,
+        productsLoadTime: Double,
+        totalLoadTime: Double
+    ): PaywallEventBody {
+        val properties = mutableMapOf<String, Any>()
+        properties["total_load_time"] = totalLoadTime
+        properties["user_load_time"] = userLoadTime
+        properties["products_load_time"] = productsLoadTime
+        properties["products_count"] = productsCount
+
+        return PaywallEventBody(
+            name = "paywall_products_loaded",
             user_id = ApphudInternal.userId,
             device_id = ApphudInternal.deviceId,
             environment = if (applicationContext.isDebuggable()) "sandbox" else "production",
