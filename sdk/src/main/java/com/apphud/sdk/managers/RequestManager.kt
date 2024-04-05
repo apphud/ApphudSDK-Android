@@ -7,6 +7,7 @@ import android.net.ConnectivityManager
 import android.net.NetworkCapabilities
 import android.os.Build
 import com.android.billingclient.api.BillingClient
+import com.android.billingclient.api.BillingClient.BillingResponseCode
 import com.android.billingclient.api.ProductDetails
 import com.android.billingclient.api.Purchase
 import com.apphud.sdk.*
@@ -741,14 +742,10 @@ object RequestManager {
         )
     }
 
-    fun paywallProductsLoaded(count: Int) {
+    fun sendPaywallLogs(launchedAt: Long, count: Int, userBenchmark: Double, productsBenchmark: Double, totalBenchmark: Double,
+                        errorMessage: String?, productsResponseCode: Int) {
         trackPaywallEvent(
-            makePaywallEventBody(
-                name = "paywall_products_loaded",
-                paywallId = null,
-                placementId = null,
-                productId = "${count}",
-            ),
+            makePaywallLogsBody(launchedAt, count, userBenchmark, productsBenchmark, totalBenchmark, errorMessage, productsResponseCode)
         )
     }
 
@@ -915,6 +912,36 @@ object RequestManager {
 
         return PaywallEventBody(
             name = name,
+            user_id = ApphudInternal.userId,
+            device_id = ApphudInternal.deviceId,
+            environment = if (applicationContext.isDebuggable()) "sandbox" else "production",
+            timestamp = System.currentTimeMillis(),
+            properties = properties.ifEmpty { null },
+        )
+    }
+
+    private fun makePaywallLogsBody(
+        launchedAt: Long,
+        productsCount: Int,
+        userLoadTime: Double,
+        productsLoadTime: Double,
+        totalLoadTime: Double,
+        errorMessage: String?,
+        productsResponseCode: Int
+    ): PaywallEventBody {
+        val properties = mutableMapOf<String, Any>()
+        properties["launched_at"] = launchedAt
+        properties["total_load_time"] = totalLoadTime
+        properties["user_load_time"] = userLoadTime
+        properties["products_load_time"] = productsLoadTime
+        properties["products_count"] = productsCount
+        errorMessage?.let {
+            properties["error_message"] = it
+        }
+        properties["billing_response_code"] = productsResponseCode
+
+        return PaywallEventBody(
+            name = "paywall_products_loaded",
             user_id = ApphudInternal.userId,
             device_id = ApphudInternal.deviceId,
             environment = if (applicationContext.isDebuggable()) "sandbox" else "production",
