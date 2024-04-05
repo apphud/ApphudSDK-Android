@@ -6,11 +6,16 @@ import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import android.widget.TextView
+import android.widget.Toast
 import androidx.fragment.app.Fragment
+import androidx.navigation.fragment.findNavController
 import androidx.recyclerview.widget.DividerItemDecoration
 import androidx.recyclerview.widget.RecyclerView
 import com.apphud.sampleapp.R
 import com.apphud.sampleapp.databinding.FragmentSettingsBinding
+import com.apphud.sampleapp.ui.utils.Placement
+import com.apphud.sampleapp.ui.utils.PurchaseManager
+import com.apphud.sampleapp.ui.utils.ResourceManager
 
 class SettingsFragment : Fragment() {
 
@@ -30,10 +35,24 @@ class SettingsFragment : Fragment() {
 
         val adapter = SettingsAdapter(settingsViewModel)
         adapter.restoreClick = {
-            //TODO Restore purchases
+            showProgress(true)
+            settingsViewModel.restorePurchases { isSuccess ->
+                showProgress(false)
+                activity?.let{ a->
+                    if(isSuccess){
+                        Toast.makeText(a, ResourceManager.getString(R.string.success), Toast.LENGTH_SHORT).show()
+                    } else {
+                        Toast.makeText(a, ResourceManager.getString(R.string.error), Toast.LENGTH_SHORT).show()
+                    }
+                }
+            }
         }
         adapter.premiumClick = {
-            //TODO Restore premium
+            PurchaseManager.isPremium()?.let{
+                if(!it){
+                    findNavController().navigate(SettingsFragmentDirections.actionNavigationSettingsToPaywallFragment2(Placement.settings.placementId))
+                }
+            }
         }
         binding.settingsList.adapter = adapter
 
@@ -44,6 +63,14 @@ class SettingsFragment : Fragment() {
         }
 
         return root
+    }
+
+    private fun showProgress(isVisible :Boolean){
+        if(isVisible){
+            _binding?.progressView?.visibility = View.VISIBLE
+        } else {
+            _binding?.progressView?.visibility = View.GONE
+        }
     }
 
     override fun onDestroyView() {

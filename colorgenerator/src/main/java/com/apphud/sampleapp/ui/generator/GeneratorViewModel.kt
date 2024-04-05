@@ -8,6 +8,7 @@ import com.apphud.sampleapp.ui.utils.PreferencesManager
 import com.apphud.sampleapp.ui.utils.ResourceManager
 import java.util.Random
 import com.apphud.sampleapp.R
+import com.apphud.sampleapp.ui.utils.PurchaseManager
 
 
 class GeneratorViewModel : ViewModel() {
@@ -15,8 +16,10 @@ class GeneratorViewModel : ViewModel() {
     private val _hexColor = MutableLiveData<String>()
     val hexColor: LiveData<String> = _hexColor
     var color :Int = PreferencesManager.color
-    var count :Int = /*PreferencesManager.count*/ 5
-    var isUnlimited = false
+    var count :Int = PreferencesManager.count
+    var isUnlimited = PurchaseManager.isPremium()?: false
+
+    var showPaywall: (()->Unit)? = null
 
     init {
         _hexColor.value = String.format("#%06X", 0xFFFFFF and color)
@@ -30,6 +33,8 @@ class GeneratorViewModel : ViewModel() {
                 count--
                 PreferencesManager.count = count
                 generate()
+            } else {
+                showPaywall?.invoke()
             }
         }
     }

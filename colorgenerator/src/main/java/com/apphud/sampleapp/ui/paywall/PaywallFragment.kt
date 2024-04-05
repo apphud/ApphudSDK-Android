@@ -16,6 +16,7 @@ import com.apphud.sampleapp.R
 import com.apphud.sampleapp.databinding.FragmentPaywallBinding
 import com.apphud.sampleapp.ui.onboarding.UnlimitedFragmentDirections
 import com.apphud.sampleapp.ui.utils.Placement
+import com.apphud.sampleapp.ui.utils.PurchaseManager
 import com.apphud.sampleapp.ui.utils.ResourceManager
 import com.apphud.sampleapp.ui.views.ProductButton
 import com.apphud.sdk.domain.ApphudProduct
@@ -88,9 +89,27 @@ class PaywallFragment: Fragment() {
     }
 
     private fun purchase(product: ApphudProduct){
-
+        showProgress(true)
+        activity?.let{ a->
+            PurchaseManager.purchaseProduct(a, product) { isSuccess, error ->
+                showProgress(false)
+                if(isSuccess){
+                    Toast.makeText(a, ResourceManager.getString(R.string.success), Toast.LENGTH_SHORT).show()
+                }
+                error?.let{
+                    Toast.makeText(a, it.message, Toast.LENGTH_SHORT).show()
+                }
+            }
+        }
     }
 
+    private fun showProgress(isVisible :Boolean){
+        if(isVisible){
+            _binding?.progressView?.visibility = View.VISIBLE
+        } else {
+            _binding?.progressView?.visibility = View.GONE
+        }
+    }
 
     override fun onDestroyView() {
         super.onDestroyView()

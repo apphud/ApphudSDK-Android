@@ -2,7 +2,10 @@ package com.apphud.sampleapp.ui.settings
 
 import com.apphud.sampleapp.BuildConfig
 import com.apphud.sampleapp.R
+import com.apphud.sampleapp.ui.utils.BaseViewModel
+import com.apphud.sampleapp.ui.utils.PurchaseManager
 import com.apphud.sampleapp.ui.utils.ResourceManager
+import kotlinx.coroutines.launch
 
 interface ISettingsItem {
     fun title(): String?
@@ -27,11 +30,19 @@ enum class SettingsButton :ISettingsItem {
     },
     premium {
         override fun title() = ResourceManager.getString(R.string.premium_status)
-        override fun value() = ResourceManager.getString(R.string.premium_value)
+        override fun value() = PurchaseManager.isPremium()?.let {
+            if(it){
+               ResourceManager.getString(R.string.premium_value_yes)
+            } else {
+                ResourceManager.getString(R.string.premium_value_no)
+            }
+        }?: run {
+            "${ResourceManager.getString(R.string.premium_value_yes)} / ${ResourceManager.getString(R.string.premium_value_no)}"
+        }
     }
 }
 
-class SettingsViewModel {
+class SettingsViewModel :BaseViewModel(){
     val items = mutableListOf<Any>()
 
     init {
@@ -47,5 +58,19 @@ class SettingsViewModel {
         items.add("offset")
         items.add(SettingsButton.restore)
         items.add(SettingsButton.premium)
+    }
+
+    fun restorePurchases(completionHandler :(isSuccess: Boolean) -> Unit) {
+        coroutineScope.launch (errorHandler){
+            PurchaseManager.restorePurchases { subscriptions, purchases, error ->
+                mainScope.launch {
+                    error?.let{
+                        completionHandler(false)
+                    }?: run {
+                        completionHandler(true)
+                    }
+                }
+            }
+        }
     }
 }

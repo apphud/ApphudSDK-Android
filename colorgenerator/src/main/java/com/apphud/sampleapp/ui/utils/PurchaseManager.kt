@@ -1,11 +1,16 @@
 package com.apphud.sampleapp.ui.utils
 
+import android.app.Activity
 import android.app.Application
 import android.util.Log
+import android.widget.Toast
 import com.android.billingclient.api.ProductDetails
 import com.apphud.sampleapp.BuildConfig
+import com.apphud.sampleapp.R
 import com.apphud.sdk.Apphud
+import com.apphud.sdk.ApphudError
 import com.apphud.sdk.ApphudListener
+import com.apphud.sdk.ApphudPurchasesRestoreCallback
 import com.apphud.sdk.ApphudUtils
 import com.apphud.sdk.domain.ApphudNonRenewingPurchase
 import com.apphud.sdk.domain.ApphudPaywall
@@ -111,4 +116,33 @@ object PurchaseManager {
         return null
     }
 
+    fun restorePurchases(completionHandler :(subscriptions: List<ApphudSubscription>?, purchases: List<ApphudNonRenewingPurchase>?, error: ApphudError?) -> Unit) {
+        if(isApphudReady){
+            Apphud.restorePurchases(object : ApphudPurchasesRestoreCallback {
+                override fun invoke(
+                    subscriptions: List<ApphudSubscription>?,
+                    purchases: List<ApphudNonRenewingPurchase>?,
+                    error: ApphudError?
+                ) {
+                    completionHandler(subscriptions, purchases, error)
+                }
+            })
+        }else{
+            completionHandler(null, null, ApphudError(ResourceManager.getString(R.string.error_default)))
+        }
+    }
+
+    fun purchaseProduct(activity: Activity, product: ApphudProduct, completionHandler:(isSuccess: Boolean, error: ApphudError?) -> Unit) {
+        if(isApphudReady){
+            Apphud.purchase(activity, product) { result ->
+                result.error?.let { err ->
+                    completionHandler(false, err)
+                } ?: run {
+                    completionHandler(true, null)
+                }
+            }
+        } else{
+            completionHandler(false, ApphudError(ResourceManager.getString(R.string.error_default)))
+        }
+    }
 }

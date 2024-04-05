@@ -1,8 +1,12 @@
 package com.apphud.sampleapp
 
+import android.animation.Animator
+import android.animation.AnimatorListenerAdapter
 import android.os.Bundle
 import android.view.MenuItem
+import android.view.View
 import androidx.navigation.NavController
+import androidx.navigation.NavDestination
 import androidx.navigation.findNavController
 import androidx.navigation.ui.AppBarConfiguration
 import androidx.navigation.ui.setupActionBarWithNavController
@@ -44,6 +48,26 @@ class MainActivity : BaseActivity() {
                     true
                 }
                 else -> true
+            }
+        }
+
+        navController.addOnDestinationChangedListener { _, nd: NavDestination, _ ->
+            when(nd.id){
+                R.id.paywallFragment2 -> {
+                    binding.navView.clearAnimation()
+                    binding.navView.animate().translationY(binding.navView.height.toFloat()).setDuration(300).setListener(object : AnimatorListenerAdapter() {
+                        override fun onAnimationEnd(animation: Animator) {
+                            binding.navView.visibility = View.GONE
+                        }
+                    })
+                } else -> {
+                binding.navView.clearAnimation()
+                binding.navView.animate().translationY(0F).setDuration(300).setListener(object : AnimatorListenerAdapter() {
+                    override fun onAnimationEnd(animation: Animator) {
+                        binding.navView.visibility = View.VISIBLE
+                    }
+                })
+            }
             }
         }
     }

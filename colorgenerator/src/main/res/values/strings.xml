@@ -21,11 +21,14 @@
     <string name="sdk_version">SDK Version</string>
     <string name="restore_purchases">Restore Purchases</string>
     <string name="premium_status">Premium Status</string>
-    <string name="premium_value">No Pro / Pro</string>
+    <string name="premium_value_yes">Pro</string>
+    <string name="premium_value_no">No Pro</string>
     <string name="color">Color</string>
     <string name="copied">Copied</string>
     <string name="copy_to_pasteboard">Copy to pasteboard</string>
 
     <string name="apphud_premium">Apphud Premium</string>
     <string name="error_default">Sorry, Something went wrong...</string>
+    <string name="success">Success</string>
+    <string name="error">Error</string>
 </resources>

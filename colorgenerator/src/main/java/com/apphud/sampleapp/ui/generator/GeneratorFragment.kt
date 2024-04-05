@@ -11,8 +11,11 @@ import android.view.ViewGroup
 import android.widget.Toast
 import androidx.fragment.app.Fragment
 import androidx.lifecycle.ViewModelProvider
+import androidx.navigation.fragment.findNavController
 import com.apphud.sampleapp.R
 import com.apphud.sampleapp.databinding.FragmentGeneratorBinding
+import com.apphud.sampleapp.ui.utils.Placement
+import com.apphud.sampleapp.ui.utils.PurchaseManager
 import com.apphud.sampleapp.ui.utils.ResourceManager
 
 class GeneratorFragment : Fragment() {
@@ -38,6 +41,10 @@ class GeneratorFragment : Fragment() {
             updateCounter()
         }
 
+        generatorViewModel.showPaywall = {
+            findNavController().navigate(GeneratorFragmentDirections.actionNavigationGeneratorToPaywallFragment2(Placement.main.placementId))
+        }
+
         binding.buttonGenerate.setOnClickListener {
             generatorViewModel.generateColor()
         }
@@ -51,12 +58,16 @@ class GeneratorFragment : Fragment() {
     }
 
     private fun copyToClipboard() {
-        val clipboard = requireActivity().getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
-        val clip = ClipData.newPlainText(ResourceManager.getString(R.string.color),  generatorViewModel.hexColor.value)
-        clipboard.setPrimaryClip(clip)
+        if(PurchaseManager.isPremium() == true){
+            val clipboard = requireActivity().getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+            val clip = ClipData.newPlainText(ResourceManager.getString(R.string.color),  generatorViewModel.hexColor.value)
+            clipboard.setPrimaryClip(clip)
 
-        activity?.let{
-            Toast.makeText(it, ResourceManager.getString(R.string.copied), Toast.LENGTH_SHORT).show()
+            activity?.let{
+                Toast.makeText(it, ResourceManager.getString(R.string.copied), Toast.LENGTH_SHORT).show()
+            }
+        } else {
+            findNavController().navigate(GeneratorFragmentDirections.actionNavigationGeneratorToPaywallFragment2(Placement.main.placementId))
         }
     }
 
