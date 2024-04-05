@@ -6,8 +6,12 @@ import androidx.fragment.app.Fragment
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
+import androidx.lifecycle.ViewModelProvider
+import androidx.navigation.fragment.findNavController
 import com.apphud.sampleapp.MainActivity
 import com.apphud.sampleapp.databinding.FragmentUnlimitedBinding
+import com.apphud.sampleapp.ui.paywall.PaywallViewModel
+import com.apphud.sampleapp.ui.utils.Placement
 
 class UnlimitedFragment :Fragment() {
 
@@ -22,11 +26,27 @@ class UnlimitedFragment :Fragment() {
         _binding = FragmentUnlimitedBinding.inflate(inflater, container, false)
         val root: View = binding.root
 
+        val viewModel = ViewModelProvider(this)[UnlimitedViewModel::class.java]
+        viewModel.isPremium.observe(viewLifecycleOwner) { isPremium ->
+            isPremium?.let{
+                binding.progressBar.visibility = View.INVISIBLE
+                binding.buttonContinue.visibility = View.VISIBLE
+            }?: run {
+                binding.progressBar.visibility = View.VISIBLE
+                binding.buttonContinue.visibility = View.INVISIBLE
+            }
+        }
+
         binding.buttonContinue.setOnClickListener {
             activity?.let{
-                val i = Intent(it, MainActivity::class.java)
-                startActivity(i)
-                it.finish()
+                if(viewModel.isPremium.value == true){
+                    val i = Intent(it, MainActivity::class.java)
+                    startActivity(i)
+                    it.finish()
+                } else {
+                    findNavController().navigate(UnlimitedFragmentDirections.actionUnlimitedFragmentToPaywallFragment(Placement.onboarding.placementId))
+
+                }
             }
         }
         return root

@@ -24,4 +24,8 @@
     <string name="premium_value">No Pro / Pro</string>
     <string name="color">Color</string>
     <string name="copied">Copied</string>
+    <string name="copy_to_pasteboard">Copy to pasteboard</string>
+
+    <string name="apphud_premium">Apphud Premium</string>
+    <string name="error_default">Sorry, Something went wrong...</string>
 </resources>

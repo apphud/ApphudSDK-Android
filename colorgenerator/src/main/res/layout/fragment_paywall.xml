@@ -9,7 +9,8 @@
     tools:context=".ui.onboarding.WelcomeFragment">
 
     <androidx.constraintlayout.widget.ConstraintLayout
-        android:background="@color/branding_blue_1"
+        android:id="@+id/mainLayout"
+        android:background="@color/white"
         android:layout_width="match_parent"
         android:layout_height="match_parent"
         android:layout_margin="16dp"
@@ -44,40 +45,89 @@
             android:layout_marginBottom="8dp"
             android:textColor="@color/black"
             android:gravity="center"
-            android:textSize="24sp"
+            android:textSize="32sp"
             android:fontFamily="sans-serif"
-            android:text="@string/onboarding_title_3"
+            android:text="@string/apphud_premium"
             app:layout_constraintEnd_toEndOf="parent"
             app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintBottom_toTopOf="@+id/text"/>
+            app:layout_constraintBottom_toTopOf="@+id/labelPaywall"/>
 
         <TextView
-            android:id="@+id/text"
+            android:id="@+id/labelPaywall"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:textColor="@color/black"
-            android:layout_marginBottom="96dp"
+            android:layout_marginBottom="32dp"
             android:layout_marginStart="10dp"
             android:layout_marginEnd="10dp"
             android:gravity="center"
             android:textSize="18sp"
             android:fontFamily="sans-serif"
-            android:text="@string/onboarding_text_3"
+            tools:text="Onboarding paywall"
             app:layout_constraintEnd_toEndOf="parent"
             app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintBottom_toTopOf="@+id/buttonContinue"/>
+            app:layout_constraintBottom_toTopOf="@+id/labelPromo1"/>
+
+        <TextView
+            android:id="@+id/labelPromo1"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:textColor="@color/black"
+            android:layout_marginStart="10dp"
+            android:layout_marginEnd="10dp"
+            android:drawablePadding="5dp"
+            android:drawableStart="@drawable/baseline_all_inclusive_24"
+            android:gravity="center"
+            android:textSize="18sp"
+            android:fontFamily="sans-serif-black"
+            android:text="@string/onboarding_title_3"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintBottom_toTopOf="@+id/labelPromo2"/>
+
+        <TextView
+            android:id="@+id/labelPromo2"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:textColor="@color/black"
+            android:layout_marginBottom="32dp"
+            android:layout_marginStart="10dp"
+            android:layout_marginEnd="10dp"
+            android:drawableStart="@drawable/baseline_local_fire_department_24"
+            android:gravity="center"
+            android:textSize="18sp"
+            android:fontFamily="sans-serif-black"
+            android:text="@string/copy_to_pasteboard"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintBottom_toTopOf="@+id/productsList"/>
 
         <ProgressBar
             android:id="@+id/progressBar"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:theme="@style/ProgressBarStyle"
-            android:visibility="visible"
+            android:visibility="gone"
             android:layout_marginBottom="6dp"
-            app:layout_constraintStart_toStartOf="@+id/buttonContinue"
-            app:layout_constraintBottom_toBottomOf="@+id/buttonContinue"
-            app:layout_constraintEnd_toEndOf="@+id/buttonContinue"
-            app:layout_constraintTop_toTopOf="@+id/buttonContinue"/>
+            app:layout_constraintTop_toTopOf="@+id/productsList"
+            app:layout_constraintBottom_toBottomOf="@+id/productsList"
+            app:layout_constraintEnd_toEndOf="@+id/productsList"
+            app:layout_constraintStart_toStartOf="@+id/productsList"/>
+
+        <LinearLayout
+            android:id="@+id/productsList"
+            android:layout_width="match_parent"
+            android:layout_height="0dp"
+            android:minHeight="112dp"
+            android:orientation="vertical"
+            android:layout_marginStart="16dp"
+            android:layout_marginEnd="16dp"
+            android:layout_marginBottom="24dp"
+            app:layoutManager="androidx.recyclerview.widget.LinearLayoutManager"
+            app:layout_constraintBottom_toTopOf="@+id/buttonContinue"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintStart_toStartOf="parent"
+            tools:listitem="@layout/list_item_settings_info"/>
 
         <Button
             android:id="@+id/buttonContinue"
@@ -85,7 +135,6 @@
             android:layout_width="match_parent"
             android:layout_height="56dp"
             android:layout_margin="16dp"
-            android:visibility="invisible"
             android:text="@string/continue_text"
             app:layout_constraintEnd_toEndOf="parent"
             app:layout_constraintStart_toStartOf="parent"

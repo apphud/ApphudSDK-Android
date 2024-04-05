@@ -78,4 +78,8 @@
         <item name="android:includeFontPadding">false</item>
     </style>
 
+    <style name="ProgressBarStyle">
+        <item name="colorAccent">@color/branding_blue</item>
+    </style>
+
 </resources>

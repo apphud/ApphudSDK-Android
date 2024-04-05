@@ -27,10 +27,10 @@ class GeneratorFragment : Fragment() {
         container: ViewGroup?,
         savedInstanceState: Bundle?
     ): View {
-        generatorViewModel = ViewModelProvider(this).get(GeneratorViewModel::class.java)
-
         _binding = FragmentGeneratorBinding.inflate(inflater, container, false)
         val root: View = binding.root
+
+        generatorViewModel = ViewModelProvider(this).get(GeneratorViewModel::class.java)
 
         generatorViewModel.hexColor.observe(viewLifecycleOwner) {
             binding.labelYourColor.text = "${resources.getText(R.string.your_color_is)} ${it}"
