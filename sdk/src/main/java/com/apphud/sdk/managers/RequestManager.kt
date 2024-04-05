@@ -661,20 +661,21 @@ object RequestManager {
         val url = "https://apphud.blob.core.windows.net/apphud-gateway/fallback.txt"
         val client = OkHttpClient()
 
-        // Build the request
-        val request = Request.Builder()
-            .url(url)
-            .build()
-
-        // Execute the request
-        val response = client.newCall(request).execute()
-
-        // Return the response body as a string if the request was successful
-        return if (response.isSuccessful) {
-            response.body?.string()
-        } else {
-            null
+        val request = Request.Builder().url(url).build()
+        var response: Response? = null
+        try{
+            response = client.newCall(request).execute()
+        } catch (ex: Exception) {
+            ApphudLog.logE("Unable to load fallback host")
         }
+
+        response?.let{
+            if(it.isSuccessful){
+                return it.body?.string()
+            }
+        }
+
+        return null
     }
 
     fun grantPromotional(

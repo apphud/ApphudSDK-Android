@@ -946,7 +946,10 @@ internal object ApphudInternal {
 
     // Find ProductDetails  ======================================
     internal fun getProductDetailsByProductId(productIdentifier: String): ProductDetails? {
-        val productDetail = productDetails.firstOrNull { it.productId == productIdentifier }
+        var productDetail: ProductDetails? = null
+        synchronized(productDetails){
+            productDetail = productDetails.firstOrNull { it.productId == productIdentifier }
+        }
         return productDetail
     }
     //endregion
