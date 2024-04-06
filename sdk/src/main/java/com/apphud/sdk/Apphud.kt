@@ -7,6 +7,7 @@ import com.android.billingclient.api.Purchase
 import com.apphud.sdk.domain.*
 import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlin.coroutines.resume
+import kotlin.math.max
 
 object Apphud {
     //region === Initialization ===
@@ -130,8 +131,7 @@ object Apphud {
      */
     suspend fun placements(): List<ApphudPlacement> =
         suspendCancellableCoroutine { continuation ->
-            ApphudInternal.allowsProductsRefresh = true
-            ApphudInternal.performWhenOfferingsPrepared {
+            ApphudInternal.performWhenOfferingsPrepared(retriesCount = APPHUD_DEFAULT_RETRIES) {
                 /* Error is not returned is suspending function.
                 If you want to handle error, use `fetchPlacements` method. */
                 continuation.resume(ApphudInternal.placements)
@@ -182,8 +182,8 @@ object Apphud {
      *
      *
      */
-    fun fetchPlacements(callback: (List<ApphudPlacement>, ApphudError?) -> Unit) {
-        ApphudInternal.performWhenOfferingsPrepared { callback(ApphudInternal.placements, it) }
+    fun fetchPlacements(maxRetries: Int = APPHUD_DEFAULT_RETRIES, callback: (List<ApphudPlacement>, ApphudError?) -> Unit) {
+        ApphudInternal.performWhenOfferingsPrepared(retriesCount = maxRetries) { callback(ApphudInternal.placements, it) }
     }
     @Deprecated(
         message = "This method has been renamed to fetchPlacements",
@@ -231,8 +231,7 @@ object Apphud {
     )
     suspend fun paywalls(): List<ApphudPaywall> =
         suspendCancellableCoroutine { continuation ->
-            ApphudInternal.allowsProductsRefresh = true
-            ApphudInternal.performWhenOfferingsPrepared {
+            ApphudInternal.performWhenOfferingsPrepared(retriesCount = APPHUD_DEFAULT_RETRIES) {
                 /* Error is not returned is suspending function.
                 If you want to handle error, use `paywallsDidLoadCallback` method. */
                 continuation.resume(ApphudInternal.paywalls)
@@ -289,8 +288,8 @@ object Apphud {
         "Deprecated in favor of Placements",
         ReplaceWith("this.placementsDidLoadCallback(callback)"),
     )
-    fun paywallsDidLoadCallback(callback: (List<ApphudPaywall>, ApphudError?) -> Unit) {
-        ApphudInternal.performWhenOfferingsPrepared { callback(ApphudInternal.paywalls, it) }
+    fun paywallsDidLoadCallback(maxRetries: Int = APPHUD_DEFAULT_RETRIES, callback: (List<ApphudPaywall>, ApphudError?) -> Unit) {
+        ApphudInternal.performWhenOfferingsPrepared(retriesCount = maxRetries) { callback(ApphudInternal.paywalls, it) }
     }
 
     /** Returns:

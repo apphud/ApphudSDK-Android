@@ -45,7 +45,6 @@ internal object ApphudInternal {
     internal var paywalls = listOf<ApphudPaywall>()
     internal var placements = listOf<ApphudPlacement>()
     internal var isRegisteringUser = false
-    internal var allowsProductsRefresh = false
     internal var refreshUserPending = false
     internal var sdkLaunchedAt: Long = System.currentTimeMillis()
     internal var firstCustomerLoadedTime: Long? = null
@@ -85,8 +84,10 @@ internal object ApphudInternal {
     internal lateinit var context: Context
     internal var currentUser: ApphudUser? = null
     internal var apphudListener: ApphudListener? = null
+    internal var userLoadRetryCount: Int = 1
     internal var notifiedAboutPaywallsDidFullyLoaded = false
     internal var purchasingProduct: ApphudProduct? = null
+    internal var maxProductRetriesCount: Int = APPHUD_DEFAULT_RETRIES
     private var customProductsFetchedBlock: ((List<ProductDetails>) -> Unit)? = null
     private var offeringsPreparedCallbacks = mutableListOf<((ApphudError?) -> Unit)>()
     private var userRegisteredBlock: ((ApphudUser) -> Unit)? = null
@@ -253,11 +254,11 @@ internal object ApphudInternal {
 
         customerError?.let { latestCustomerLoadError = it }
 
-        if (productDetails.isNotEmpty() && currentUser != null && paywalls.isNotEmpty() && firstCustomerLoadedTime != null && !notifiedAboutPaywallsDidFullyLoaded) {
+        if ((productDetails.isNotEmpty() || productDetailsLoaded != null) && currentUser != null && paywalls.isNotEmpty() && firstCustomerLoadedTime != null && !notifiedAboutPaywallsDidFullyLoaded) {
             val totalLoad = (System.currentTimeMillis() - sdkLaunchedAt)
             val userLoad = (firstCustomerLoadedTime!! - sdkLaunchedAt)
             val productsLoaded = productsLoadedTime ?: 0
-            ApphudLog.logI("SDK Benchmarks: User ${userLoad}ms, Products: ${productsLoaded}ms, Total: ${totalLoad}ms")
+            ApphudLog.logI("SDK Benchmarks: User ${userLoad}ms, Products: ${productsLoaded}ms, Total: ${totalLoad}ms, Apphud Error: ${latestCustomerLoadError?.message}, Billing Response Code: ${productsResponseCode}")
             coroutineScope.launch {
                 RequestManager.sendPaywallLogs(
                     sdkLaunchedAt,
@@ -277,7 +278,6 @@ internal object ApphudInternal {
             synchronized(productDetails) {
                 // notify that productDetails are loaded
                 if (productDetails.isNotEmpty()) {
-                    allowsProductsRefresh = false
                     apphudListener?.apphudFetchProductDetails(productDetails)
                     customProductsFetchedBlock?.invoke(productDetails)
                 }
@@ -370,11 +370,13 @@ internal object ApphudInternal {
     }
 
     private fun handleCustomerError(customerError: ApphudError) {
-        if ((currentUser == null || productDetails.isEmpty() || paywalls.isEmpty()) && isActive && !refreshUserPending) {
+        if ((currentUser == null || productDetails.isEmpty() || paywalls.isEmpty()) && isActive && !refreshUserPending && userLoadRetryCount < APPHUD_INFINITE_RETRIES) {
             refreshUserPending = true
             coroutineScope.launch {
-                ApphudLog.logE("Customer Registration issue, will refresh in 2 seconds..")
-                delay(2000L)
+                val delay = 500L * userLoadRetryCount
+                ApphudLog.logE("Customer Registration issue, will refresh in ${delay}ms")
+                delay(delay)
+                userLoadRetryCount += 1
                 refreshPaywallsIfNeeded()
                 refreshUserPending = false
             }
@@ -458,11 +460,12 @@ internal object ApphudInternal {
         }
     }
 
-    internal fun performWhenOfferingsPrepared(callback: (ApphudError?) -> Unit) {
+    internal fun performWhenOfferingsPrepared(retriesCount: Int = APPHUD_DEFAULT_RETRIES, callback: (ApphudError?) -> Unit) {
         mainScope.launch {
             val willRefresh = refreshPaywallsIfNeeded()
             val isWaitingForProducts = !finishedLoadingProducts()
             if ((isWaitingForProducts || willRefresh) && !fallbackMode) {
+                maxProductRetriesCount = retriesCount
                 offeringsPreparedCallbacks.add(callback)
             } else {
                 callback.invoke(null)
