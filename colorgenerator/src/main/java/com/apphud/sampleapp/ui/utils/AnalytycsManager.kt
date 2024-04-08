@@ -19,41 +19,31 @@ import kotlinx.coroutines.launch
 import org.json.JSONObject
 
 interface IntegrationInterface {
-    fun value(): String
     fun title(): String
-    fun isEnabled(): Boolean
 }
 
-enum class Integration(val value : String) :IntegrationInterface{
-    FACEBOOK("facebook"){
-        override fun value() = value
+enum class Integration :IntegrationInterface{
+    FACEBOOK{
         override fun title() = "Facebook"
-        override fun isEnabled() = true
     },
-    APPSFLYER("apps_flyer"){
-        override fun value() = value
+    APPSFLYER{
         override fun title() = "AppsFlyer"
-        override fun isEnabled() = true
     },
-    AMPLITUDE("amplitude"){
-        override fun value() = value
+    AMPLITUDE{
         override fun title() = "Amplitude"
-        override fun isEnabled() = true
     },
-    BRANCH("branch "){
-        override fun value() = value
+    BRANCH{
         override fun title() = "Branch"
-        override fun isEnabled() = true
     };
 }
 
 object AnalyticsManager {
 
     private var integrations = mapOf(
-        Integration.FACEBOOK to true,
-        Integration.APPSFLYER to true,
-        Integration.AMPLITUDE to true,
-        Integration.FACEBOOK to true
+        Integration.FACEBOOK to false,
+        Integration.APPSFLYER to false,
+        Integration.AMPLITUDE to false,
+        Integration.FACEBOOK to false
     )
 
     private fun isEnabled(integration :Integration) :Boolean {

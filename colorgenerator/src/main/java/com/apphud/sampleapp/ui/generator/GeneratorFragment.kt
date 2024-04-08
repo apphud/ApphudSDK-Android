@@ -4,6 +4,7 @@ import android.annotation.SuppressLint
 import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
+import android.content.Intent
 import android.os.Bundle
 import android.view.LayoutInflater
 import android.view.View
@@ -11,9 +12,9 @@ import android.view.ViewGroup
 import android.widget.Toast
 import androidx.fragment.app.Fragment
 import androidx.lifecycle.ViewModelProvider
-import androidx.navigation.fragment.findNavController
 import com.apphud.sampleapp.R
 import com.apphud.sampleapp.databinding.FragmentGeneratorBinding
+import com.apphud.sampleapp.ui.paywall.PaywallActivity
 import com.apphud.sampleapp.ui.utils.Placement
 import com.apphud.sampleapp.ui.utils.PurchaseManager
 import com.apphud.sampleapp.ui.utils.ResourceManager
@@ -42,7 +43,11 @@ class GeneratorFragment : Fragment() {
         }
 
         generatorViewModel.showPaywall = {
-            findNavController().navigate(GeneratorFragmentDirections.actionNavigationGeneratorToPaywallFragment2(Placement.main.placementId))
+            activity?.let{
+                val i = Intent(it, PaywallActivity::class.java)
+                i.putExtra("placement_id", Placement.main.placementId)
+                startActivity(i)
+            }
         }
 
         binding.buttonGenerate.setOnClickListener {
@@ -53,8 +58,12 @@ class GeneratorFragment : Fragment() {
             copyToClipboard()
         }
 
-        updateCounter()
         return root
+    }
+
+    override fun onStart() {
+        super.onStart()
+        updateCounter()
     }
 
     private fun copyToClipboard() {
@@ -67,7 +76,11 @@ class GeneratorFragment : Fragment() {
                 Toast.makeText(it, ResourceManager.getString(R.string.copied), Toast.LENGTH_SHORT).show()
             }
         } else {
-            findNavController().navigate(GeneratorFragmentDirections.actionNavigationGeneratorToPaywallFragment2(Placement.main.placementId))
+            activity?.let{
+                val i = Intent(it, PaywallActivity::class.java)
+                i.putExtra("placement_id", Placement.main.placementId)
+                startActivity(i)
+            }
         }
     }
 

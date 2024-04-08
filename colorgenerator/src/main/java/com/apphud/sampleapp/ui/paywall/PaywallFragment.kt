@@ -9,8 +9,6 @@ import android.view.ViewGroup
 import android.widget.Toast
 import androidx.fragment.app.Fragment
 import androidx.lifecycle.ViewModelProvider
-import androidx.navigation.fragment.findNavController
-import androidx.navigation.fragment.navArgs
 import com.apphud.sampleapp.MainActivity
 import com.apphud.sampleapp.R
 import com.apphud.sampleapp.databinding.FragmentPaywallBinding
@@ -22,12 +20,12 @@ import com.apphud.sdk.domain.ApphudProduct
 
 class PaywallFragment: Fragment() {
 
-    val args: PaywallFragmentArgs by navArgs()
-
     private var _binding: FragmentPaywallBinding? = null
     private val binding get() = _binding!!
 
     private lateinit var viewModel :PaywallViewModel
+
+    private var placementId: String = ""
 
     override fun onCreateView(
         inflater: LayoutInflater,
@@ -37,13 +35,19 @@ class PaywallFragment: Fragment() {
         _binding = FragmentPaywallBinding.inflate(inflater, container, false)
         val root: View = binding.root
 
+        activity?.let{
+            if(it.intent.hasExtra("placement_id")){
+                placementId = it.intent.getStringExtra("placement_id")?:""
+            }
+        }
+
         viewModel = ViewModelProvider(this)[PaywallViewModel::class.java]
         viewModel.productsList.observe(viewLifecycleOwner) { list ->
             list?.let{
                 binding.progressBar.visibility = View.GONE
                 if(it.isEmpty()){
                     Toast.makeText(context, ResourceManager.getString(R.string.error_default), Toast.LENGTH_SHORT).show()
-                    findNavController().popBackStack()
+                    activity?.finish()
                 } else {
                     activity?.let{ a->
                         for(product in list){
@@ -60,7 +64,7 @@ class PaywallFragment: Fragment() {
                 binding.progressBar.visibility = View.VISIBLE
             }
         }
-        viewModel.loadProducts(Placement.getPlacementByName(args.placementId))
+        viewModel.loadProducts(Placement.getPlacementByName(placementId))
 
         viewModel.screenColor.observe(viewLifecycleOwner) { color ->
             color?.let{
@@ -70,30 +74,30 @@ class PaywallFragment: Fragment() {
 
         binding.buttonContinue.setOnClickListener {
             activity?.let { a ->
-                when (Placement.getPlacementByName(args.placementId)) {
+                when (Placement.getPlacementByName(placementId)) {
                     Placement.onboarding -> {
                         val i = Intent(a, MainActivity::class.java)
                         startActivity(i)
                         a.finish()
                     }
                     Placement.main -> {
-                        findNavController().popBackStack()
+                        activity?.finish()
                     }
                     Placement.settings -> {
-                        findNavController().popBackStack()
+                        activity?.finish()
                     }
                 }
             }
         }
 
-        viewModel.placementShown(Placement.getPlacementByName(args.placementId))
+        viewModel.placementShown(Placement.getPlacementByName(placementId))
 
         return root
     }
 
     override fun onDestroy() {
         super.onDestroy()
-        viewModel.placementClosed(Placement.getPlacementByName(args.placementId))
+        viewModel.placementClosed(Placement.getPlacementByName(placementId))
     }
 
     private fun purchase(product: ApphudProduct){
@@ -103,6 +107,7 @@ class PaywallFragment: Fragment() {
                 showProgress(false)
                 if(isSuccess){
                     Toast.makeText(a, ResourceManager.getString(R.string.success), Toast.LENGTH_SHORT).show()
+                    activity?.finish()
                 }
                 error?.let{
                     Toast.makeText(a, it.message, Toast.LENGTH_SHORT).show()

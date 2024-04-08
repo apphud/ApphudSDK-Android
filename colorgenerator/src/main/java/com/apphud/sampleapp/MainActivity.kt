@@ -50,25 +50,5 @@ class MainActivity : BaseActivity() {
                 else -> true
             }
         }
-
-        navController.addOnDestinationChangedListener { _, nd: NavDestination, _ ->
-            when(nd.id){
-                R.id.paywallFragment2 -> {
-                    binding.navView.clearAnimation()
-                    binding.navView.animate().translationY(binding.navView.height.toFloat()).setDuration(300).setListener(object : AnimatorListenerAdapter() {
-                        override fun onAnimationEnd(animation: Animator) {
-                            binding.navView.visibility = View.GONE
-                        }
-                    })
-                } else -> {
-                binding.navView.clearAnimation()
-                binding.navView.animate().translationY(0F).setDuration(300).setListener(object : AnimatorListenerAdapter() {
-                    override fun onAnimationEnd(animation: Animator) {
-                        binding.navView.visibility = View.VISIBLE
-                    }
-                })
-            }
-            }
-        }
     }
 }

@@ -36,7 +36,7 @@ class ProductButton  (context: Context, attrs: AttributeSet?, @AttrRes defStyleA
             "N/A"
         }
 
-        binding.labelTitle.text = product.title()
+        binding.labelTitle.text = product.name
         binding.labelPrice.text = price
 
         invalidate()

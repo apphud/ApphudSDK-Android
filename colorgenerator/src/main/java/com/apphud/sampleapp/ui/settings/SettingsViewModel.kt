@@ -5,6 +5,7 @@ import com.apphud.sampleapp.R
 import com.apphud.sampleapp.ui.utils.BaseViewModel
 import com.apphud.sampleapp.ui.utils.PurchaseManager
 import com.apphud.sampleapp.ui.utils.ResourceManager
+import com.apphud.sdk.managers.HeadersInterceptor
 import kotlinx.coroutines.launch
 
 interface ISettingsItem {
@@ -19,7 +20,7 @@ enum class SettingsInfo :ISettingsItem {
     },
     sdkVersion {
         override fun title() = ResourceManager.getString(R.string.sdk_version)
-        override fun value() = "To do" //TODO Apphud SDK Version
+        override fun value() = HeadersInterceptor.X_SDK_VERSION
     }
 }
 

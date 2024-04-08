@@ -17,7 +17,10 @@ class GeneratorViewModel : ViewModel() {
     val hexColor: LiveData<String> = _hexColor
     var color :Int = PreferencesManager.color
     var count :Int = PreferencesManager.count
-    var isUnlimited = PurchaseManager.isPremium()?: false
+    var isUnlimited :Boolean = false
+        get() {
+            return PurchaseManager.isPremium()?: false
+        }
 
     var showPaywall: (()->Unit)? = null
 

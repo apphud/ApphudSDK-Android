@@ -36,25 +36,5 @@
         android:name="com.apphud.sampleapp.ui.onboarding.UnlimitedFragment"
         android:label="UnlimitedFragment"
         tools:layout="@layout/fragment_unlimited">
-        <action
-            android:id="@+id/action_unlimitedFragment_to_paywallFragment"
-            app:destination="@id/paywallFragment"
-            app:enterAnim="@anim/enter_from_right"
-            app:exitAnim="@anim/exit_to_left"
-            app:popEnterAnim="@anim/enter_from_left"
-            app:popExitAnim="@anim/exit_to_right"/>
-    </fragment>
-    <fragment
-        android:id="@+id/paywallFragment"
-        android:name="com.apphud.sampleapp.ui.paywall.PaywallFragment"
-        android:label="PaywallFragment"
-        tools:layout="@layout/fragment_paywall">
-        <argument
-            android:name="placement_id"
-            app:argType="string"
-            app:enterAnim="@anim/enter_from_right"
-            app:exitAnim="@anim/exit_to_left"
-            app:popEnterAnim="@anim/enter_from_left"
-            app:popExitAnim="@anim/exit_to_right"/>
     </fragment>
 </navigation>

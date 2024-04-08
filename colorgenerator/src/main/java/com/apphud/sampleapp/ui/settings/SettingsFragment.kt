@@ -1,6 +1,7 @@
 package com.apphud.sampleapp.ui.settings
 
 import android.annotation.SuppressLint
+import android.content.Intent
 import android.os.Bundle
 import android.view.LayoutInflater
 import android.view.View
@@ -8,11 +9,11 @@ import android.view.ViewGroup
 import android.widget.TextView
 import android.widget.Toast
 import androidx.fragment.app.Fragment
-import androidx.navigation.fragment.findNavController
 import androidx.recyclerview.widget.DividerItemDecoration
 import androidx.recyclerview.widget.RecyclerView
 import com.apphud.sampleapp.R
 import com.apphud.sampleapp.databinding.FragmentSettingsBinding
+import com.apphud.sampleapp.ui.paywall.PaywallActivity
 import com.apphud.sampleapp.ui.utils.Placement
 import com.apphud.sampleapp.ui.utils.PurchaseManager
 import com.apphud.sampleapp.ui.utils.ResourceManager
@@ -21,6 +22,8 @@ class SettingsFragment : Fragment() {
 
     private var _binding: FragmentSettingsBinding? = null
     private val binding get() = _binding!!
+
+    private lateinit var adapter :SettingsAdapter
 
     @SuppressLint("UseCompatLoadingForDrawables")
     override fun onCreateView(
@@ -33,11 +36,12 @@ class SettingsFragment : Fragment() {
 
         val settingsViewModel = SettingsViewModel()
 
-        val adapter = SettingsAdapter(settingsViewModel)
+        adapter = SettingsAdapter(settingsViewModel)
         adapter.restoreClick = {
             showProgress(true)
             settingsViewModel.restorePurchases { isSuccess ->
                 showProgress(false)
+                adapter.notifyDataSetChanged()
                 activity?.let{ a->
                     if(isSuccess){
                         Toast.makeText(a, ResourceManager.getString(R.string.success), Toast.LENGTH_SHORT).show()
@@ -48,9 +52,15 @@ class SettingsFragment : Fragment() {
             }
         }
         adapter.premiumClick = {
-            PurchaseManager.isPremium()?.let{
-                if(!it){
-                    findNavController().navigate(SettingsFragmentDirections.actionNavigationSettingsToPaywallFragment2(Placement.settings.placementId))
+            activity?.let { a ->
+                PurchaseManager.isPremium()?.let {
+                    if (!it) {
+                        val i = Intent(a, PaywallActivity::class.java)
+                        i.putExtra("placement_id", Placement.settings.placementId)
+                        startActivity(i)
+                    } else {
+                        Toast.makeText(a, ResourceManager.getString(R.string.you_are_premium), Toast.LENGTH_SHORT).show()
+                    }
                 }
             }
         }
@@ -63,6 +73,11 @@ class SettingsFragment : Fragment() {
         }
 
         return root
+    }
+
+    override fun onStart() {
+        super.onStart()
+        adapter.notifyDataSetChanged()
     }
 
     private fun showProgress(isVisible :Boolean){

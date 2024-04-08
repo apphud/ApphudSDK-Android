@@ -11,9 +11,6 @@
         android:name="com.apphud.sampleapp.ui.generator.GeneratorFragment"
         android:label="@string/title_generator"
         tools:layout="@layout/fragment_generator" >
-        <action
-            android:id="@+id/action_navigation_generator_to_paywallFragment2"
-            app:destination="@id/paywallFragment2"/>
     </fragment>
 
     <fragment
@@ -21,18 +18,6 @@
         android:name="com.apphud.sampleapp.ui.settings.SettingsFragment"
         android:label="@string/title_settings"
         tools:layout="@layout/fragment_settings" >
-        <action
-            android:id="@+id/action_navigation_settings_to_paywallFragment2"
-            app:destination="@id/paywallFragment2"/>
-    </fragment>
-    <fragment
-        android:id="@+id/paywallFragment2"
-        android:name="com.apphud.sampleapp.ui.paywall.PaywallFragment"
-        android:label="PaywallFragment"
-        tools:layout="@layout/fragment_paywall">
-        <argument
-            android:name="placement_id"
-            app:argType="string" />
     </fragment>
 
 </navigation>

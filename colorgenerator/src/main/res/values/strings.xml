@@ -31,6 +31,7 @@
     <string name="error_default">Sorry, Something went wrong...</string>
     <string name="success">Success</string>
     <string name="error">Error</string>
+    <string name="you_are_premium">You are premium!</string>
 
     <string name="facebook_app_id">2385075801820694</string>
     <string name="facebook_client_token">05f401e4f23e5621e4dd40b3417961fb</string>

@@ -7,10 +7,9 @@ import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import androidx.lifecycle.ViewModelProvider
-import androidx.navigation.fragment.findNavController
 import com.apphud.sampleapp.MainActivity
 import com.apphud.sampleapp.databinding.FragmentUnlimitedBinding
-import com.apphud.sampleapp.ui.paywall.PaywallViewModel
+import com.apphud.sampleapp.ui.paywall.PaywallActivity
 import com.apphud.sampleapp.ui.utils.Placement
 
 class UnlimitedFragment :Fragment() {
@@ -44,8 +43,10 @@ class UnlimitedFragment :Fragment() {
                     startActivity(i)
                     it.finish()
                 } else {
-                    findNavController().navigate(UnlimitedFragmentDirections.actionUnlimitedFragmentToPaywallFragment(Placement.onboarding.placementId))
-
+                    val i = Intent(it, PaywallActivity::class.java)
+                    i.putExtra("placement_id", Placement.onboarding.placementId)
+                    startActivity(i)
+                    it.finish()
                 }
             }
         }
