@@ -7,6 +7,7 @@ import com.android.billingclient.api.Purchase
 import com.apphud.sdk.domain.*
 import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlin.coroutines.resume
+import kotlin.math.max
 
 object Apphud {
     //region === Initialization ===
@@ -130,10 +131,10 @@ object Apphud {
      */
     suspend fun placements(): List<ApphudPlacement> =
         suspendCancellableCoroutine { continuation ->
-            ApphudInternal.allowsProductsRefresh = true
-            ApphudInternal.performWhenOfferingsPrepared {
+            fetchPlacements { _, _ ->
                 /* Error is not returned is suspending function.
-                If you want to handle error, use `fetchPlacements` method. */
+                    If you want to handle error, use `fetchPlacements` method.
+                */
                 continuation.resume(ApphudInternal.placements)
             }
         }
@@ -176,14 +177,14 @@ object Apphud {
      * an error will be returned along with the raw placements array.
      * This allows for handling situations where partial data is available.
      *
+     * @param maxRetries Number of retries Apphud performs before returning a result. Accepted values between 1 and 10. Default value is 3.
      * @param callback The callback function that is invoked with the list of `ApphudPlacement` objects.
      * Second parameter in callback represents optional error, which may be
      * on Google (BillingClient issue) or Apphud side.
      *
-     *
      */
-    fun fetchPlacements(callback: (List<ApphudPlacement>, ApphudError?) -> Unit) {
-        ApphudInternal.performWhenOfferingsPrepared { callback(ApphudInternal.placements, it) }
+    fun fetchPlacements(maxRetries: Int = APPHUD_DEFAULT_RETRIES, callback: (List<ApphudPlacement>, ApphudError?) -> Unit) {
+        ApphudInternal.performWhenOfferingsPrepared(retriesCount = maxRetries) { callback(ApphudInternal.placements, it) }
     }
     @Deprecated(
         message = "This method has been renamed to fetchPlacements",
@@ -231,8 +232,7 @@ object Apphud {
     )
     suspend fun paywalls(): List<ApphudPaywall> =
         suspendCancellableCoroutine { continuation ->
-            ApphudInternal.allowsProductsRefresh = true
-            ApphudInternal.performWhenOfferingsPrepared {
+            ApphudInternal.performWhenOfferingsPrepared(retriesCount = APPHUD_DEFAULT_RETRIES) {
                 /* Error is not returned is suspending function.
                 If you want to handle error, use `paywallsDidLoadCallback` method. */
                 continuation.resume(ApphudInternal.paywalls)
@@ -281,6 +281,7 @@ object Apphud {
      * an error will be returned along with the raw paywalls array.
      * This allows for handling situations where partial data is available.
      *
+     * @param maxRetries Number of retries Apphud performs before returning a result. Accepted values between 1 and 10. Default value is 3.
      * @param callback The callback function that is invoked with the list of `ApphudPaywall` objects.
      * Second parameter in callback represents optional error, which may be
      * on Google (BillingClient issue) or Apphud side.
@@ -289,8 +290,8 @@ object Apphud {
         "Deprecated in favor of Placements",
         ReplaceWith("this.placementsDidLoadCallback(callback)"),
     )
-    fun paywallsDidLoadCallback(callback: (List<ApphudPaywall>, ApphudError?) -> Unit) {
-        ApphudInternal.performWhenOfferingsPrepared { callback(ApphudInternal.paywalls, it) }
+    fun paywallsDidLoadCallback(maxRetries: Int = APPHUD_DEFAULT_RETRIES, callback: (List<ApphudPaywall>, ApphudError?) -> Unit) {
+        ApphudInternal.performWhenOfferingsPrepared(retriesCount = maxRetries) { callback(ApphudInternal.paywalls, it) }
     }
 
     /** Returns:
