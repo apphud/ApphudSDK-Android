@@ -14,6 +14,7 @@ import com.android.billingclient.api.ProductDetails
 import com.apphud.sdk.body.*
 import com.apphud.sdk.domain.*
 import com.apphud.sdk.internal.BillingWrapper
+import com.apphud.sdk.managers.HttpRetryInterceptor
 import com.apphud.sdk.managers.RequestManager
 import com.apphud.sdk.managers.RequestManager.applicationContext
 import com.apphud.sdk.storage.SharedPreferencesStorage
@@ -25,6 +26,7 @@ import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import java.util.*
 import kotlin.coroutines.resume
+import kotlin.math.min
 
 @SuppressLint("StaticFieldLeak")
 internal object ApphudInternal {
@@ -252,7 +254,10 @@ internal object ApphudInternal {
     ) {
         var paywallsPrepared = true
 
-        customerError?.let { latestCustomerLoadError = it }
+        customerError?.let {
+            ApphudLog.logE("Customer Registration Error: ${it}")
+            latestCustomerLoadError = it
+        }
 
         if ((productDetails.isNotEmpty() || productDetailsLoaded != null) && currentUser != null && paywalls.isNotEmpty() && firstCustomerLoadedTime != null && !notifiedAboutPaywallsDidFullyLoaded) {
             val totalLoad = (System.currentTimeMillis() - sdkLaunchedAt)
@@ -357,12 +362,13 @@ internal object ApphudInternal {
                 val callback = offeringsPreparedCallbacks.removeFirst()
                 callback.invoke(null)
             }
-        } else if ((customerError != null && currentUser == null && paywalls.isEmpty()) || (productsResponseCode != BillingClient.BillingResponseCode.OK && productDetails.isEmpty())) {
+        } else if (!isRegisteringUser &&
+            ((customerError != null && currentUser == null && paywalls.isEmpty()) || (productsResponseCode != BillingClient.BillingResponseCode.OK && productDetails.isEmpty()))) {
             if (offeringsPreparedCallbacks.isNotEmpty()) {
                 ApphudLog.log("handle offeringsPreparedCallbacks with errors")
             }
             while (offeringsPreparedCallbacks.isNotEmpty()) {
-                val error = customerError ?: ApphudError("Paywalls load error", errorCode = productsResponseCode)
+                val error = latestCustomerLoadError ?: customerError ?: ApphudError("Paywalls load error", errorCode = productsResponseCode)
                 val callback = offeringsPreparedCallbacks.removeFirst()
                 callback.invoke(error)
             }
@@ -405,6 +411,9 @@ internal object ApphudInternal {
                             if (currentUser == null) {
                                 firstCustomerLoadedTime = System.currentTimeMillis()
                             }
+
+                            HttpRetryInterceptor.MAX_COUNT = APPHUD_DEFAULT_RETRIES
+
                             currentUser = it
                             isRegisteringUser = false
                             storage.lastRegistration = System.currentTimeMillis()
@@ -427,8 +436,8 @@ internal object ApphudInternal {
                         } ?: run {
                             ApphudLog.logE("Registration failed ${error?.message}")
                             mainScope.launch {
-                                notifyLoadingCompleted(currentUser, null, false, false, error)
                                 isRegisteringUser = false
+                                notifyLoadingCompleted(currentUser, null, false, false, error)
                                 completionHandler?.invoke(currentUser, error)
                             }
                         }
@@ -461,11 +470,15 @@ internal object ApphudInternal {
     }
 
     internal fun performWhenOfferingsPrepared(retriesCount: Int = APPHUD_DEFAULT_RETRIES, callback: (ApphudError?) -> Unit) {
+        if (retriesCount in 1..10) {
+            HttpRetryInterceptor.MAX_COUNT = retriesCount
+            maxProductRetriesCount = retriesCount
+        }
+
         mainScope.launch {
             val willRefresh = refreshPaywallsIfNeeded()
             val isWaitingForProducts = !finishedLoadingProducts()
             if ((isWaitingForProducts || willRefresh) && !fallbackMode) {
-                maxProductRetriesCount = retriesCount
                 offeringsPreparedCallbacks.add(callback)
             } else {
                 callback.invoke(null)

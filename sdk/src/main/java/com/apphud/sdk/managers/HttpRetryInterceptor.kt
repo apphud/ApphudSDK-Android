@@ -1,5 +1,6 @@
 package com.apphud.sdk.managers
 
+import com.apphud.sdk.APPHUD_DEFAULT_RETRIES
 import com.apphud.sdk.ApphudInternal
 import com.apphud.sdk.ApphudInternal.FALLBACK_ERRORS
 import com.apphud.sdk.ApphudInternal.fallbackMode
@@ -21,7 +22,7 @@ import java.net.UnknownHostException
 class HttpRetryInterceptor : Interceptor {
     companion object {
         private var STEP = 1_000L
-        private var MAX_COUNT = 5
+        internal var MAX_COUNT = APPHUD_DEFAULT_RETRIES
     }
 
     @Throws(IOException::class)
@@ -75,12 +76,18 @@ class HttpRetryInterceptor : Interceptor {
                 }
                 Thread.sleep(STEP)
             } catch (e: UnknownHostException) {
-                // do not retry when no internet connection issue
-                tryCount = MAX_COUNT
+
+                // do not retry when there is internet connection, but still unknown host issue
                 if (ApphudUtils.isOnline(ApphudInternal.context)) {
+                    tryCount = MAX_COUNT
                     ApphudInternal.coroutineScope.launch {
                         tryFallbackHost()
                     }
+                } else {
+                    ApphudLog.logE(
+                        "Request (${request.url}) failed with UnknownHostException. Will retry in ${STEP / 1000} seconds ($tryCount).",
+                    )
+                    Thread.sleep(STEP)
                 }
             } catch (e: Exception) {
                 ApphudLog.logE(

@@ -131,9 +131,10 @@ object Apphud {
      */
     suspend fun placements(): List<ApphudPlacement> =
         suspendCancellableCoroutine { continuation ->
-            ApphudInternal.performWhenOfferingsPrepared(retriesCount = APPHUD_DEFAULT_RETRIES) {
+            fetchPlacements { _, _ ->
                 /* Error is not returned is suspending function.
-                If you want to handle error, use `fetchPlacements` method. */
+                    If you want to handle error, use `fetchPlacements` method.
+                */
                 continuation.resume(ApphudInternal.placements)
             }
         }
@@ -176,10 +177,10 @@ object Apphud {
      * an error will be returned along with the raw placements array.
      * This allows for handling situations where partial data is available.
      *
+     * @param maxRetries Number of retries Apphud performs before returning a result. Accepted values between 1 and 10. Default value is 3.
      * @param callback The callback function that is invoked with the list of `ApphudPlacement` objects.
      * Second parameter in callback represents optional error, which may be
      * on Google (BillingClient issue) or Apphud side.
-     *
      *
      */
     fun fetchPlacements(maxRetries: Int = APPHUD_DEFAULT_RETRIES, callback: (List<ApphudPlacement>, ApphudError?) -> Unit) {
@@ -280,6 +281,7 @@ object Apphud {
      * an error will be returned along with the raw paywalls array.
      * This allows for handling situations where partial data is available.
      *
+     * @param maxRetries Number of retries Apphud performs before returning a result. Accepted values between 1 and 10. Default value is 3.
      * @param callback The callback function that is invoked with the list of `ApphudPaywall` objects.
      * Second parameter in callback represents optional error, which may be
      * on Google (BillingClient issue) or Apphud side.

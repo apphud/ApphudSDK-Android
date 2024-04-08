@@ -41,14 +41,5 @@ class ApphudApplication : Application() {
         }
         Apphud.start(this, API_KEY)
         Apphud.collectDeviceIdentifiers()
-
-        applicationScope.launch {
-            val pl = Apphud.placements()
-            Log.d("ApphudLogs", "Placements coroutine loaded ${pl.map { it.identifier }}")
-        }
-
-        Apphud.fetchPlacements { pl, error ->
-            Log.d("ApphudLogs", "Placements fetched ${pl.map { it.identifier }}, error: ${error?.billingErrorTitle()}")
-        }
     }
 }
