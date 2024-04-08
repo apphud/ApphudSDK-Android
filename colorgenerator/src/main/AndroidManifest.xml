@@ -30,6 +30,16 @@
             android:name=".MainActivity"
             android:exported="false"
             android:theme="@style/Theme.Apphud.Main"/>
+
+        <!-- Facebook init -->
+        <meta-data android:name="com.facebook.sdk.ApplicationId" android:value="@string/facebook_app_id"/>
+        <meta-data android:name="com.facebook.sdk.ClientToken" android:value="@string/facebook_client_token"/>
+
+        <!-- Branch init -->
+        <meta-data android:name="io.branch.sdk.BranchKey" android:value="key_test_pf8A6wRjWrKDk9HpsJwaYdoiBEj3GLyZ" />
+        <meta-data android:name="io.branch.sdk.BranchKey.test" android:value="key_live_gp5F8BKiYzTFo6RhuHAg1jbhwujXTLzV" />
+        <meta-data android:name="io.branch.sdk.TestMode" android:value="true" />
+
     </application>
 
 </manifest>

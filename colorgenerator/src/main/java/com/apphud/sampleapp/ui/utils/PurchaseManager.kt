@@ -11,6 +11,8 @@ import com.apphud.sdk.Apphud
 import com.apphud.sdk.ApphudError
 import com.apphud.sdk.ApphudListener
 import com.apphud.sdk.ApphudPurchasesRestoreCallback
+import com.apphud.sdk.ApphudUserProperty
+import com.apphud.sdk.ApphudUserPropertyKey
 import com.apphud.sdk.ApphudUtils
 import com.apphud.sdk.domain.ApphudNonRenewingPurchase
 import com.apphud.sdk.domain.ApphudPaywall
@@ -88,6 +90,8 @@ object PurchaseManager {
         Apphud.setListener(listener)
         Apphud.start(application, API_KEY)
         Apphud.collectDeviceIdentifiers()
+
+        AnalyticsManager.initAnalytics(application)
     }
 
     suspend fun getPaywallProducts(placement: Placement) :List<ApphudProduct>{
@@ -144,5 +148,28 @@ object PurchaseManager {
         } else{
             completionHandler(false, ApphudError(ResourceManager.getString(R.string.error_default)))
         }
+    }
+
+    suspend fun placementShown(placement: Placement){
+        Apphud.placement(placement.placementId)?.paywall?.let{
+            Apphud.paywallShown(it)
+        }
+    }
+
+    suspend fun placementClosed(placement: Placement){
+        Apphud.placement(placement.placementId)?.paywall?.let{
+            Apphud.paywallShown(it)
+        }
+    }
+
+    fun addUserProperty(color: String, generationsCount: Int){
+        Apphud.setUserProperty(
+            key = ApphudUserPropertyKey.CustomProperty("copied_color"),
+            value = color,
+            setOnce = false
+        )
+        Apphud.incrementUserProperty(
+            key = ApphudUserPropertyKey.CustomProperty("generations_count"),
+            by = generationsCount)
     }
 }

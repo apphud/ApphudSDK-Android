@@ -8,6 +8,7 @@ import com.apphud.sampleapp.ui.utils.BaseViewModel
 import com.apphud.sampleapp.ui.utils.Placement
 import com.apphud.sampleapp.ui.utils.PurchaseManager
 import com.apphud.sampleapp.ui.utils.retryOperation
+import com.apphud.sdk.Apphud
 import com.apphud.sdk.domain.ApphudProduct
 import kotlinx.coroutines.launch
 
@@ -44,4 +45,17 @@ class PaywallViewModel() : BaseViewModel() {
             }
         }
     }
+
+    fun placementShown(placement: Placement){
+        coroutineScope.launch (errorHandler) {
+            PurchaseManager.placementShown(placement)
+        }
+    }
+
+    fun placementClosed(placement: Placement){
+        coroutineScope.launch (errorHandler) {
+            PurchaseManager.placementClosed(placement)
+        }
+    }
+
 }

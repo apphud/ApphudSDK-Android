@@ -14,7 +14,6 @@ import androidx.navigation.fragment.navArgs
 import com.apphud.sampleapp.MainActivity
 import com.apphud.sampleapp.R
 import com.apphud.sampleapp.databinding.FragmentPaywallBinding
-import com.apphud.sampleapp.ui.onboarding.UnlimitedFragmentDirections
 import com.apphud.sampleapp.ui.utils.Placement
 import com.apphud.sampleapp.ui.utils.PurchaseManager
 import com.apphud.sampleapp.ui.utils.ResourceManager
@@ -28,6 +27,8 @@ class PaywallFragment: Fragment() {
     private var _binding: FragmentPaywallBinding? = null
     private val binding get() = _binding!!
 
+    private lateinit var viewModel :PaywallViewModel
+
     override fun onCreateView(
         inflater: LayoutInflater,
         container: ViewGroup?,
@@ -36,7 +37,7 @@ class PaywallFragment: Fragment() {
         _binding = FragmentPaywallBinding.inflate(inflater, container, false)
         val root: View = binding.root
 
-        val viewModel = ViewModelProvider(this)[PaywallViewModel::class.java]
+        viewModel = ViewModelProvider(this)[PaywallViewModel::class.java]
         viewModel.productsList.observe(viewLifecycleOwner) { list ->
             list?.let{
                 binding.progressBar.visibility = View.GONE
@@ -85,7 +86,14 @@ class PaywallFragment: Fragment() {
             }
         }
 
+        viewModel.placementShown(Placement.getPlacementByName(args.placementId))
+
         return root
+    }
+
+    override fun onDestroy() {
+        super.onDestroy()
+        viewModel.placementClosed(Placement.getPlacementByName(args.placementId))
     }
 
     private fun purchase(product: ApphudProduct){

@@ -52,5 +52,13 @@ class GeneratorViewModel : ViewModel() {
         color = Color.argb(255, rnd.nextInt(256), rnd.nextInt(256), rnd.nextInt(256))
         _hexColor.value = String.format("#%06X", 0xFFFFFF and color)
         PreferencesManager.color = color
+
+        addUserProperty()
+    }
+
+    private fun addUserProperty(){
+        hexColor.value?.let{
+            PurchaseManager.addUserProperty(it, count)
+        }
     }
 }

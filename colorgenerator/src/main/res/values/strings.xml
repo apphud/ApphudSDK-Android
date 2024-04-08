@@ -31,4 +31,9 @@
     <string name="error_default">Sorry, Something went wrong...</string>
     <string name="success">Success</string>
     <string name="error">Error</string>
+
+    <string name="facebook_app_id">2385075801820694</string>
+    <string name="facebook_client_token">05f401e4f23e5621e4dd40b3417961fb</string>
+    <string name="apps_flyer_key">AbwD69b6Foj9WT3huU9emh</string>
+    <string name="amplitude_key">2c91017f55a0640cd7a9319c570b7c4f</string>
 </resources>
