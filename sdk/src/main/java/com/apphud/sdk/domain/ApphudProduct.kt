@@ -135,7 +135,7 @@ data class ApphudProduct (
             for (offerDetails in it.subscriptionOfferDetails?: listOf()){
 
                 var phases :MutableList<PricingPhase> = mutableListOf()
-                for (phase in offerDetails.pricingPhases.pricingPhaseList){
+                for (phase in offerDetails.pricingPhases.pricingPhaseList?: listOf()){
                     val item = PricingPhase(
                         billingPeriod = phase.billingPeriod,
                         priceCurrencyCode = phase.priceCurrencyCode,
