@@ -59,12 +59,34 @@ internal fun ApphudInternal.loadProducts() {
                     productsLoadingCounts += 1
                 }
 
+                if (allowsProductsRefresh) {
+                    retryProductsLoadIfNeeded()
+                }
+
                 mainScope.launch {
                     notifyLoadingCompleted(null, skuDetails, false, false)
                 }
             }
         }
     }
+}
+
+internal fun ApphudInternal.retryProductsLoadIfNeeded() {
+    if (productDetails.isEmpty() && productsStatus == ApphudProductsStatus.failed && isRetriableErrorCode(
+            productsResponseCode) && isActive) {
+        val delay: Long = 500 * productsLoadingCounts.toLong()
+        ApphudLog.logE("Failed to load products from store (${ApphudBillingResponseCodes.getName(
+            productsResponseCode)}), will retry in ${delay} ms")
+        Thread.sleep(delay)
+        ApphudInternal.loadProducts()
+    }
+}
+
+private fun isRetriableErrorCode(code: Int): Boolean {
+    return listOf(BillingClient.BillingResponseCode.NETWORK_ERROR, BillingClient.BillingResponseCode.SERVICE_TIMEOUT,
+    BillingClient.BillingResponseCode.SERVICE_UNAVAILABLE, BillingClient.BillingResponseCode.BILLING_UNAVAILABLE,
+    BillingClient.BillingResponseCode.ERROR, BillingClient.BillingResponseCode.ITEM_ALREADY_OWNED,
+    BillingClient.BillingResponseCode.ITEM_NOT_OWNED).contains(code)
 }
 
 private suspend fun ApphudInternal.fetchProducts(): Int {
@@ -75,7 +97,7 @@ private suspend fun ApphudInternal.fetchProducts(): Int {
             permissionGroupsCopy = groups
         }
     }
-    val ids = allAvailableProductIds(permissionGroupsCopy, paywalls)
+    val ids = allAvailableProductIds(permissionGroupsCopy, getPaywalls())
     return fetchDetails(ids)
 }
 
@@ -107,6 +129,8 @@ internal suspend fun ApphudInternal.fetchDetails(ids: List<String>): Int {
         productsStatus = ApphudProductsStatus.loading
     }
 
+    val startTime = System.currentTimeMillis()
+
     var responseCode = BillingClient.BillingResponseCode.OK
 
     coroutineScope {
@@ -123,7 +147,6 @@ internal suspend fun ApphudInternal.fetchDetails(ids: List<String>): Int {
                 }
             }
         } ?: run {
-            ApphudLog.logE("Unable to load SUBS details: ${subsResult.second}", false)
             if (responseCode == BillingClient.BillingResponseCode.OK) {
                 responseCode = subsResult.second
             }
@@ -139,12 +162,15 @@ internal suspend fun ApphudInternal.fetchDetails(ids: List<String>): Int {
                 }
             }
         } ?: run {
-            ApphudLog.logE("Unable to load INAPP details: ${inAppResult.second}", false)
             if (responseCode == BillingClient.BillingResponseCode.OK) {
                 responseCode = inAppResult.second
             }
         }
     }
+
+    val benchmark = System.currentTimeMillis() - startTime
+
+    ApphudInternal.productsLoadedTime = benchmark
 
     return responseCode
 }

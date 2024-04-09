@@ -127,9 +127,11 @@ class CustomerFragment : Fragment() {
     private fun getPaywalls() {
         Apphud.fetchPlacements { plms, error ->
             if (plms.isEmpty() && Apphud.isFallbackMode()) {
-                val paywall = Apphud.rawPaywalls().first()
-                val fallbackPlacement = ApphudPlacement.createCustom("fallback", paywall = paywall)
-                Log.d("ApphudLogs", "FALLBACK PLACEMENT: ${fallbackPlacement}")
+                val paywall = Apphud.rawPaywalls().firstOrNull()
+                paywall?.let {
+                    val fallbackPlacement = ApphudPlacement.createCustom("fallback", paywall = it)
+                    Log.d("ApphudLogs", "FALLBACK PLACEMENT: ${fallbackPlacement}")
+                }
             }
             if (error != null) {
                 Log.d("ApphudLogs", "Placements fetch error: ${error.billingErrorTitle()}")
