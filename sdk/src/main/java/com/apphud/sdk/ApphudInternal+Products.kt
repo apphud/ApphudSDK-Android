@@ -72,7 +72,7 @@ internal fun ApphudInternal.loadProducts() {
 }
 
 internal fun ApphudInternal.retryProductsLoadIfNeeded() {
-    if (productDetails.isEmpty() && productsStatus == ApphudProductsStatus.failed && isRetriableErrorCode(
+    if (skuDetails.isEmpty() && productsStatus == ApphudProductsStatus.failed && isRetriableErrorCode(
             productsResponseCode) && isActive) {
         val delay: Long = 500 * productsLoadingCounts.toLong()
         ApphudLog.logE("Failed to load products from store (${ApphudBillingResponseCodes.getName(
@@ -83,7 +83,7 @@ internal fun ApphudInternal.retryProductsLoadIfNeeded() {
 }
 
 private fun isRetriableErrorCode(code: Int): Boolean {
-    return listOf(BillingClient.BillingResponseCode.NETWORK_ERROR, BillingClient.BillingResponseCode.SERVICE_TIMEOUT,
+    return listOf(BillingClient.BillingResponseCode.NET_NOT_WORK, BillingClient.BillingResponseCode.SERVICE_TIMEOUT,
     BillingClient.BillingResponseCode.SERVICE_UNAVAILABLE, BillingClient.BillingResponseCode.BILLING_UNAVAILABLE,
     BillingClient.BillingResponseCode.ERROR, BillingClient.BillingResponseCode.ITEM_ALREADY_OWNED,
     BillingClient.BillingResponseCode.ITEM_NOT_OWNED).contains(code)

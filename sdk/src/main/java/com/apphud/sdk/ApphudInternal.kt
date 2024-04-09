@@ -252,7 +252,7 @@ internal object ApphudInternal {
         var paywallsPrepared = true
 customerError?.let { latestCustomerLoadError = it }
 
-        if (productDetails.isNotEmpty() && currentUser != null && paywalls.isNotEmpty() && firstCustomerLoadedTime != null && !notifiedAboutPaywallsDidFullyLoaded) {
+        if (skuDetails.isNotEmpty() && currentUser != null && paywalls.isNotEmpty() && firstCustomerLoadedTime != null && !notifiedAboutPaywallsDidFullyLoaded) {
             val totalLoad = (System.currentTimeMillis() - sdkLaunchedAt)
             val userLoad = (firstCustomerLoadedTime!! - sdkLaunchedAt)
             val productsLoaded = productsLoadedTime ?: 0
@@ -260,7 +260,7 @@ customerError?.let { latestCustomerLoadError = it }
             coroutineScope.launch {
                 RequestManager.sendPaywallLogs(
                     sdkLaunchedAt,
-                    productDetails.count(),
+                    skuDetails.count(),
                     userLoad.toDouble(),
                     productsLoaded.toDouble(),
                     totalLoad.toDouble(),
@@ -269,16 +269,15 @@ customerError?.let { latestCustomerLoadError = it }
             }
         }
 
-        productDetailsLoaded?.let {
+        skuDetailsLoaded?.let {
             productGroups = readGroupsFromCache()
-            updateGroupsWithProductDetails(productGroups)
+            updateGroupsWithSkuDetails(productGroups)
 
-            synchronized(productDetails) {
+            synchronized(skuDetails) {
                 // notify that productDetails are loaded
-                if (productDetails.isNotEmpty()) {
+                if (skuDetails.isNotEmpty()) {
                     allowsProductsRefresh = false
-                    apphudListener?.apphudFetchProductDetails(productDetails)
-                    customProductsFetchedBlock?.invoke(productDetails)
+                    customProductsFetchedBlock?.invoke(skuDetails)
                 }
             }
         }
@@ -356,7 +355,7 @@ customerError?.let { latestCustomerLoadError = it }
                 val callback = offeringsPreparedCallbacks.removeFirst()
                 callback.invoke(null)
             }
-        } else if ((customerError != null && currentUser == null && paywalls.isEmpty()) || (productsResponseCode != BillingClient.BillingResponseCode.OK && productDetails.isEmpty())) {
+        } else if ((customerError != null && currentUser == null && paywalls.isEmpty()) || (productsResponseCode != BillingClient.BillingResponseCode.OK && skuDetails.isEmpty())) {
             if (offeringsPreparedCallbacks.isNotEmpty()) {
                 ApphudLog.log("handle offeringsPreparedCallbacks with errors")
             }
@@ -369,7 +368,7 @@ customerError?.let { latestCustomerLoadError = it }
     }
 
     private fun handleCustomerError(customerError: ApphudError) {
-        if ((currentUser == null || productDetails.isEmpty() || paywalls.isEmpty()) && isActive && !refreshUserPending) {
+        if ((currentUser == null || skuDetails.isEmpty() || paywalls.isEmpty()) && isActive && !refreshUserPending) {
             refreshUserPending = true
             coroutineScope.launch {
                 ApphudLog.logE("Customer Registration issue, will refresh in 2 seconds..")
@@ -978,7 +977,7 @@ customerError?.let { latestCustomerLoadError = it }
 
     // Find SkuDetails  ======================================
     internal fun getSkuDetailsByProductId(productIdentifier: String): SkuDetails? {
-        var productDetail: ProductDetails? = null
+        var productDetail: SkuDetails? = null
          synchronized(skuDetails){
         	productDetail = skuDetails.firstOrNull { it.sku == productIdentifier }
         }
