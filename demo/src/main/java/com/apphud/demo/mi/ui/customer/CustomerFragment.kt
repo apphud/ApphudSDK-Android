@@ -16,6 +16,7 @@ import androidx.recyclerview.widget.RecyclerView
 import com.apphud.demo.mi.databinding.FragmentCustomerBinding
 import com.apphud.sdk.Apphud
 import com.apphud.sdk.ApphudListener
+import com.apphud.sdk.ApphudUtils
 import com.apphud.sdk.domain.ApphudNonRenewingPurchase
 import com.apphud.sdk.domain.ApphudPaywall
 import com.apphud.sdk.domain.ApphudPlacement
@@ -44,7 +45,7 @@ class CustomerFragment : Fragment() {
         val customerId: TextView = binding.customerId
         customerId.text = Apphud.userId()
 
-        binding.sdk.text = "v." + HeadersInterceptor.X_SDK_VERSION
+        binding.sdk.text = "v." + ApphudUtils.getSdkVersion()
 
         try {
             context?.let{

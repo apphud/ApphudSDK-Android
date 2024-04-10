@@ -31,6 +31,10 @@ object ApphudUtils {
         httpLogging = true
     }
 
+    fun getSdkVersion() : String{
+       return BuildConfig.VERSION_NAME
+    }
+
     internal fun setPackageName(packageName: String) {
         this.packageName = packageName
     }
