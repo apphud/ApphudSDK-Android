@@ -67,6 +67,10 @@ class HttpRetryInterceptor : Interceptor {
                     Thread.sleep(STEP)
                 }
             } catch (e: SocketTimeoutException) {
+                if (!ApphudInternal.shouldRetryException(e, request.url.encodedPath)) {
+                    throw e
+                }
+
                 ApphudInternal.processFallbackError(request, isTimeout = true)
                 ApphudLog.logE(
                     "Request (${request.url}) failed with SocketTimeoutException. Will retry in ${STEP / 1000} seconds ($tryCount).",
@@ -76,7 +80,9 @@ class HttpRetryInterceptor : Interceptor {
                 }
                 Thread.sleep(STEP)
             } catch (e: UnknownHostException) {
-
+                if (!ApphudInternal.shouldRetryException(e, request.url.encodedPath)) {
+                    throw e
+                }
                 // do not retry when there is internet connection, but still unknown host issue
                 if (ApphudUtils.isOnline(ApphudInternal.context)) {
                     tryCount = MAX_COUNT
@@ -90,6 +96,9 @@ class HttpRetryInterceptor : Interceptor {
                     Thread.sleep(STEP)
                 }
             } catch (e: Exception) {
+                if (!ApphudInternal.shouldRetryException(e, request.url.encodedPath)) {
+                    throw e
+                }
                 ApphudLog.logE(
                     "Request (${request.url}) failed with Exception. Will retry in ${STEP / 1000} seconds ($tryCount).",
                 )

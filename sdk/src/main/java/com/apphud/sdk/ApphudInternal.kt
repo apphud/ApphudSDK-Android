@@ -333,7 +333,7 @@ internal object ApphudInternal {
                 }
             }
 
-            if (!fromFallback && fallbackMode) {
+            if (!fromFallback && fallbackMode && !fromCache) {
                 disableFallback()
             }
         }
@@ -356,22 +356,24 @@ internal object ApphudInternal {
             }
 
             if (offeringsPreparedCallbacks.isNotEmpty()) {
-                ApphudLog.log("handle offeringsPreparedCallbacks")
+                ApphudLog.log("handle offeringsPreparedCallbacks latestError: ${latestCustomerLoadError}")
             }
             while (offeringsPreparedCallbacks.isNotEmpty()) {
                 val callback = offeringsPreparedCallbacks.removeFirst()
-                callback.invoke(null)
+                callback.invoke(latestCustomerLoadError)
             }
+            latestCustomerLoadError = null
         } else if (!isRegisteringUser &&
-            ((customerError != null && currentUser == null && paywalls.isEmpty()) || (productsResponseCode != BillingClient.BillingResponseCode.OK && productDetails.isEmpty()))) {
+            ((customerError != null && paywalls.isEmpty()) || (productsResponseCode != BillingClient.BillingResponseCode.OK && productDetails.isEmpty()))) {
             if (offeringsPreparedCallbacks.isNotEmpty()) {
                 ApphudLog.log("handle offeringsPreparedCallbacks with errors")
             }
+            val error = latestCustomerLoadError ?: customerError ?: ApphudError("Paywalls load error", errorCode = productsResponseCode)
             while (offeringsPreparedCallbacks.isNotEmpty()) {
-                val error = latestCustomerLoadError ?: customerError ?: ApphudError("Paywalls load error", errorCode = productsResponseCode)
                 val callback = offeringsPreparedCallbacks.removeFirst()
                 callback.invoke(error)
             }
+            latestCustomerLoadError = null
         }
     }
 
@@ -461,6 +463,17 @@ internal object ApphudInternal {
         }
     }
 
+    internal fun shouldRetryException(e: Exception, request: String): Boolean {
+        val maxWaitingThreshold = maxProductRetriesCount * APPHUD_DEFAULT_HTTP_TIMEOUT * 1000
+        val diff = System.currentTimeMillis() - sdkLaunchedAt
+        if (!didRegisterCustomerAtThisLaunch && !notifiedAboutPaywallsDidFullyLoaded && offeringsPreparedCallbacks.isNotEmpty()
+            && (request.endsWith("customers") || request.endsWith("products")) && diff > maxWaitingThreshold) {
+            ApphudLog.logE("Cannot wait anymore, returning User and Products callbacks")
+            return false
+        }
+        return true
+    }
+
     internal fun productsFetchCallback(callback: (List<ProductDetails>) -> Unit) {
         if (productDetails.isNotEmpty()) {
             callback.invoke(productDetails)
@@ -469,10 +482,10 @@ internal object ApphudInternal {
         }
     }
 
-    internal fun performWhenOfferingsPrepared(retriesCount: Int = APPHUD_DEFAULT_RETRIES, callback: (ApphudError?) -> Unit) {
-        if (retriesCount in 1..10) {
-            HttpRetryInterceptor.MAX_COUNT = retriesCount
-            maxProductRetriesCount = retriesCount
+    internal fun performWhenOfferingsPrepared(maxAttempts: Int?, callback: (ApphudError?) -> Unit) {
+        if (maxAttempts != null && (maxAttempts in 1..10)) {
+            HttpRetryInterceptor.MAX_COUNT = maxAttempts
+            maxProductRetriesCount = maxAttempts
         }
 
         mainScope.launch {

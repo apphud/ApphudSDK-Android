@@ -60,6 +60,7 @@ internal fun ApphudInternal.loadProducts() {
                 if (isRetriableProductsRequest() && productsLoadingCounts < maxProductRetriesCount) {
                     retryProductsLoad()
                 } else {
+                    ApphudLog.log("Finished Loading Product Details")
                     mainScope.launch {
                         notifyLoadingCompleted(null, productDetails, false, false)
                     }
@@ -71,7 +72,7 @@ internal fun ApphudInternal.loadProducts() {
 
 internal fun isRetriableProductsRequest(): Boolean {
     return ApphudInternal.productDetails.isEmpty() && productsStatus == ApphudProductsStatus.failed && isRetriableErrorCode(
-        productsResponseCode) && ApphudInternal.isActive
+        productsResponseCode) && ApphudInternal.isActive && !ApphudUtils.isEmulator()
 }
 
 internal fun ApphudInternal.retryProductsLoad() {

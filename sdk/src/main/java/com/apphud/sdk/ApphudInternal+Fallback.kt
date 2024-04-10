@@ -39,7 +39,7 @@ internal fun ApphudInternal.processFallbackError(request: Request, isTimeout: Bo
         } else {
             coroutineScope.launch {
                 tryFallbackHost()
-                if (fallbackHost == null) {
+                if (fallbackHost == null) {// || fallbackHost?.withRemovedScheme() == request.url.host) {
                     processFallbackData()
                 }
             }
@@ -100,6 +100,7 @@ private fun ApphudInternal.processFallbackData() {
 
         fallbackMode = true
         didRegisterCustomerAtThisLaunch = false
+//        isRegisteringUser = false
         ApphudLog.log("Fallback: ENABLED")
         coroutineScope.launch {
             fetchDetails(ids)
