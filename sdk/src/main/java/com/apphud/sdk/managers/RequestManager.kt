@@ -106,16 +106,16 @@ object RequestManager {
             logging.level = HttpLoggingInterceptor.Level.NONE
         }*/
 
-        var readTimeout: Long = ApiClient.readTimeout
+        var readTimeout: Long = APPHUD_DEFAULT_HTTP_TIMEOUT
         if (request.method == "POST" && request.url.toString().contains("subscriptions")) {
-            readTimeout = 30L
+            readTimeout = 20L
         }
 
         val builder =
             OkHttpClient.Builder()
                 .readTimeout(readTimeout, TimeUnit.SECONDS)
-                .writeTimeout(10, TimeUnit.SECONDS)
-                .connectTimeout(10, TimeUnit.SECONDS)
+                .writeTimeout(APPHUD_DEFAULT_HTTP_TIMEOUT, TimeUnit.SECONDS)
+                .connectTimeout(APPHUD_DEFAULT_HTTP_TIMEOUT, TimeUnit.SECONDS)
         if (retry) builder.addInterceptor(retryInterceptor)
         builder.addNetworkInterceptor(headersInterceptor)
         // builder.addNetworkInterceptor(logging)
@@ -436,7 +436,6 @@ object RequestManager {
                             continuation.resume(productsList)
                         }
                     } ?: run {
-                        ApphudLog.logE("Failed to load products")
                         if (continuation.isActive) {
                             continuation.resume(null)
                         }
