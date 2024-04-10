@@ -436,7 +436,6 @@ object RequestManager {
                             continuation.resume(productsList)
                         }
                     } ?: run {
-                        ApphudLog.logE("Failed to load products")
                         if (continuation.isActive) {
                             continuation.resume(null)
                         }
@@ -659,7 +658,7 @@ object RequestManager {
     }
 
     fun fetchFallbackHost(): String? {
-        val url = "https://log-prod.apphud.com/v1/subscriptions/fallback.txt"
+        val url = "https://apphud.blob.core.windows.net/apphud-gateway/fallback.txt"
         val client = OkHttpClient()
 
         val request = Request.Builder().url(url).build()

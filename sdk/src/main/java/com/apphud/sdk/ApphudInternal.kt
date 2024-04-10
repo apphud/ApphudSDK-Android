@@ -153,14 +153,14 @@ internal object ApphudInternal {
 
         this.context = context
         this.apiKey = apiKey
-        storage.validateCaches()
+        val isValid = storage.validateCaches()
         if (ignoreCache) {
             ApphudLog.logI("Ignoring local paywalls cache")
         }
-        val cachedUser = storage.apphudUser
-        val cachedPaywalls = if (ignoreCache) null else readPaywallsFromCache()
-        val cachedPlacements = if (ignoreCache) null else readPlacementsFromCache()
-        val cachedGroups = readGroupsFromCache()
+        val cachedUser = if (isValid) storage.apphudUser else null
+        val cachedPaywalls = if (ignoreCache || !isValid) null else readPaywallsFromCache()
+        val cachedPlacements = if (ignoreCache || !isValid) null else readPlacementsFromCache()
+        val cachedGroups = if (isValid) readGroupsFromCache() else mutableListOf()
         val cachedDeviceId = storage.deviceId
         val cachedUserId = storage.userId
 
@@ -253,7 +253,6 @@ internal object ApphudInternal {
         customerError: ApphudError? = null,
     ) {
         var paywallsPrepared = true
-
         customerError?.let {
             ApphudLog.logE("Customer Registration Error: ${it}")
             latestCustomerLoadError = it
@@ -296,8 +295,10 @@ internal object ApphudInternal {
             } else {
                 if (it.paywalls.isNotEmpty()) {
                     updateOfferingsFromCustomer = true
-                    cachePaywalls(it.paywalls)
-                    cachePlacements(it.placements)
+                    coroutineScope.launch {
+                        cachePaywalls(it.paywalls)
+                        cachePlacements(it.placements)
+                    }
                 } else {
                     /* Attention:
                      * If customer loaded without paywalls, do not reload paywalls from cache!
@@ -305,7 +306,14 @@ internal object ApphudInternal {
                      */
                     paywallsPrepared = false
                 }
-                storage.updateCustomer(it, apphudListener)
+                coroutineScope.launch {
+                    val changed = storage.updateCustomer(it)
+                    if (changed) {
+                        mainScope.launch {
+                            apphudListener?.apphudDidChangeUserID(it.userId)
+                        }
+                    }
+                }
             }
 
             if (updateOfferingsFromCustomer) {
@@ -327,7 +335,6 @@ internal object ApphudInternal {
                 apphudListener?.userDidLoad(it)
                 this.userRegisteredBlock?.invoke(it)
                 this.userRegisteredBlock = null
-
                 if (it.isTemporary == false && !fallbackMode) {
                     didRegisterCustomerAtThisLaunch = true
                 }
@@ -418,7 +425,9 @@ internal object ApphudInternal {
 
                             currentUser = it
                             isRegisteringUser = false
-                            storage.lastRegistration = System.currentTimeMillis()
+                            coroutineScope.launch {
+                                storage.lastRegistration = System.currentTimeMillis()
+                            }
 
                             mainScope.launch {
                                 notifyLoadingCompleted(it)
