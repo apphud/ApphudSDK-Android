@@ -417,8 +417,15 @@ object RequestManager {
 
     suspend fun allProducts(): List<ApphudGroup>? =
         suspendCancellableCoroutine { continuation ->
+
+            val properties = mutableMapOf<String, String>()
+            properties["request_time"] = System.currentTimeMillis().toString()
+            properties["device_id"] = ApphudInternal.deviceId
+            properties["user_id"] = ApphudInternal.userId
+
             val apphudUrl =
                 ApphudUrl.Builder()
+                    .params(properties)
                     .host(HeadersInterceptor.HOST)
                     .version(ApphudVersion.V2)
                     .path("products")
@@ -984,6 +991,8 @@ object RequestManager {
             need_paywalls = needPaywalls,
             need_placements = needPaywalls,
             first_seen = getInstallationDate(),
+            sdk_launched_at = ApphudInternal.sdkLaunchedAt,
+            request_time = System.currentTimeMillis()
         )
     }
 

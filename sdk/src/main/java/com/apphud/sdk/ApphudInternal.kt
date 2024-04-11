@@ -51,6 +51,7 @@ internal object ApphudInternal {
     internal var sdkLaunchedAt: Long = System.currentTimeMillis()
     internal var firstCustomerLoadedTime: Long? = null
     internal var productsLoadedTime: Long? = null
+    internal var trackedAnalytics = false
     internal var latestCustomerLoadError: ApphudError? = null
     private val handler: Handler = Handler(Looper.getMainLooper())
     private val pendingUserProperties = mutableMapOf<String, ApphudUserProperty>()
@@ -107,10 +108,6 @@ internal object ApphudInternal {
                 Lifecycle.Event.ON_START -> {
                     // do nothing
                     ApphudLog.log("Application resumed")
-                    coroutineScope.launch {
-                        delay(1000L)
-                        refreshPaywallsIfNeeded()
-                    }
                     isActive = true
                 }
                 Lifecycle.Event.ON_CREATE -> {
@@ -258,9 +255,12 @@ internal object ApphudInternal {
             latestCustomerLoadError = it
         }
 
-        if ((productDetails.isNotEmpty() || productDetailsLoaded != null) && currentUser != null && paywalls.isNotEmpty() && firstCustomerLoadedTime != null && !notifiedAboutPaywallsDidFullyLoaded) {
+        if ((productDetails.isNotEmpty() || productDetailsLoaded != null) &&
+            (firstCustomerLoadedTime != null || latestCustomerLoadError != null) &&
+            !trackedAnalytics) {
+            trackedAnalytics = true
             val totalLoad = (System.currentTimeMillis() - sdkLaunchedAt)
-            val userLoad = (firstCustomerLoadedTime!! - sdkLaunchedAt)
+            val userLoad = if (firstCustomerLoadedTime != null) (firstCustomerLoadedTime!! - sdkLaunchedAt) else 0
             val productsLoaded = productsLoadedTime ?: 0
             ApphudLog.logI("SDK Benchmarks: User ${userLoad}ms, Products: ${productsLoaded}ms, Total: ${totalLoad}ms, Apphud Error: ${latestCustomerLoadError?.message}, Billing Response Code: ${productsResponseCode}")
             coroutineScope.launch {
@@ -514,7 +514,7 @@ internal object ApphudInternal {
         if (isRegisteringUser) {
 //            ApphudLog.logI("Already refreshing")
             isLoading = true
-        } else if (currentUser == null || fallbackMode || currentUser?.isTemporary == true || paywalls.isEmpty()) {
+        } else if (currentUser == null || fallbackMode || currentUser?.isTemporary == true || paywalls.isEmpty() || latestCustomerLoadError != null) {
             ApphudLog.logI("Refreshing User")
             didRegisterCustomerAtThisLaunch = false
             refreshEntitlements(true)
