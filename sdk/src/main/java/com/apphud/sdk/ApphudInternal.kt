@@ -367,7 +367,7 @@ internal object ApphudInternal {
             }
             while (offeringsPreparedCallbacks.isNotEmpty()) {
                 val callback = offeringsPreparedCallbacks.removeFirst()
-                callback.invoke(latestCustomerLoadError)
+                callback.invoke(null)
             }
             latestCustomerLoadError = null
         } else if (!isRegisteringUser &&
