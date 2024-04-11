@@ -417,7 +417,7 @@ internal object ApphudInternal {
 
                     RequestManager.registration(!didRegisterCustomerAtThisLaunch, is_new, forceRegistration) { customer, error ->
                         customer?.let {
-                            if (currentUser == null) {
+                            if (firstCustomerLoadedTime == null) {
                                 firstCustomerLoadedTime = System.currentTimeMillis()
                             }
 
