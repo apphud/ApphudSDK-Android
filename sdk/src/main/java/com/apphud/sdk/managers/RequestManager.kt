@@ -106,16 +106,16 @@ object RequestManager {
             logging.level = HttpLoggingInterceptor.Level.NONE
         }*/
 
-        var readTimeout: Long = ApiClient.readTimeout
+        var readTimeout: Long = APPHUD_DEFAULT_HTTP_TIMEOUT
         if (request.method == "POST" && request.url.toString().contains("subscriptions")) {
-            readTimeout = 30L
+            readTimeout = 20L
         }
 
         val builder =
             OkHttpClient.Builder()
                 .readTimeout(readTimeout, TimeUnit.SECONDS)
-                .writeTimeout(10, TimeUnit.SECONDS)
-                .connectTimeout(10, TimeUnit.SECONDS)
+                .writeTimeout(APPHUD_DEFAULT_HTTP_TIMEOUT, TimeUnit.SECONDS)
+                .connectTimeout(APPHUD_DEFAULT_HTTP_TIMEOUT, TimeUnit.SECONDS)
         if (retry) builder.addInterceptor(retryInterceptor)
         builder.addNetworkInterceptor(headersInterceptor)
         // builder.addNetworkInterceptor(logging)
@@ -417,8 +417,15 @@ object RequestManager {
 
     suspend fun allProducts(): List<ApphudGroup>? =
         suspendCancellableCoroutine { continuation ->
+
+            val properties = mutableMapOf<String, String>()
+            properties["request_time"] = System.currentTimeMillis().toString()
+            properties["device_id"] = ApphudInternal.deviceId
+            properties["user_id"] = ApphudInternal.userId
+
             val apphudUrl =
                 ApphudUrl.Builder()
+                    .params(properties)
                     .host(HeadersInterceptor.HOST)
                     .version(ApphudVersion.V2)
                     .path("products")
@@ -436,7 +443,6 @@ object RequestManager {
                             continuation.resume(productsList)
                         }
                     } ?: run {
-                        ApphudLog.logE("Failed to load products")
                         if (continuation.isActive) {
                             continuation.resume(null)
                         }
@@ -985,6 +991,8 @@ object RequestManager {
             need_paywalls = needPaywalls,
             need_placements = needPaywalls,
             first_seen = getInstallationDate(),
+            sdk_launched_at = ApphudInternal.sdkLaunchedAt,
+            request_time = System.currentTimeMillis()
         )
     }
 

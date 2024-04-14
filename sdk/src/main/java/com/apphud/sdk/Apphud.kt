@@ -7,6 +7,7 @@ import com.android.billingclient.api.Purchase
 import com.apphud.sdk.domain.*
 import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlin.coroutines.resume
+import kotlin.math.max
 
 object Apphud {
     //region === Initialization ===
@@ -126,14 +127,15 @@ object Apphud {
      * If you want to obtain placements without waiting for `ProductDetails`
      * from Google Play, you can use `rawPlacements()` method.
      *
+     * @param maxAttempts Number of request attempts before throwing an error. Must be between 1 and 10. Default value is 3.
      * @return The list of `ApphudPlacement` objects.
      */
-    suspend fun placements(): List<ApphudPlacement> =
+    suspend fun placements(maxAttempts: Int? = null): List<ApphudPlacement> =
         suspendCancellableCoroutine { continuation ->
-            ApphudInternal.allowsProductsRefresh = true
-            ApphudInternal.performWhenOfferingsPrepared {
+            fetchPlacements(maxAttempts = maxAttempts) { _, _ ->
                 /* Error is not returned is suspending function.
-                If you want to handle error, use `fetchPlacements` method. */
+                    If you want to handle error, use `fetchPlacements` method.
+                */
                 continuation.resume(ApphudInternal.placements)
             }
         }
@@ -176,14 +178,14 @@ object Apphud {
      * an error will be returned along with the raw placements array.
      * This allows for handling situations where partial data is available.
      *
+     * @param maxAttempts Number of request attempts before throwing an error. Must be between 1 and 10. Default value is 3.
      * @param callback The callback function that is invoked with the list of `ApphudPlacement` objects.
      * Second parameter in callback represents optional error, which may be
      * on Google (BillingClient issue) or Apphud side.
      *
-     *
      */
-    fun fetchPlacements(callback: (List<ApphudPlacement>, ApphudError?) -> Unit) {
-        ApphudInternal.performWhenOfferingsPrepared { callback(ApphudInternal.placements, it) }
+    fun fetchPlacements(maxAttempts: Int? = null, callback: (List<ApphudPlacement>, ApphudError?) -> Unit) {
+        ApphudInternal.performWhenOfferingsPrepared(maxAttempts = maxAttempts) { callback(ApphudInternal.placements, it) }
     }
     @Deprecated(
         message = "This method has been renamed to fetchPlacements",
@@ -222,17 +224,16 @@ object Apphud {
      *
      * If you want to obtain paywalls without waiting for `ProductDetails` from
      * Google Play, you can use `rawPaywalls()` method.
-     *
+     * @param maxAttempts Number of request attempts before throwing an error. Must be between 1 and 10. Default value is 3.
      * @return The list of `ApphudPaywall` objects.
      */
     @Deprecated(
         "Deprecated in favor of Placements",
         ReplaceWith("this.placements()"),
     )
-    suspend fun paywalls(): List<ApphudPaywall> =
+    suspend fun paywalls(maxAttempts: Int? = null): List<ApphudPaywall> =
         suspendCancellableCoroutine { continuation ->
-            ApphudInternal.allowsProductsRefresh = true
-            ApphudInternal.performWhenOfferingsPrepared {
+            ApphudInternal.performWhenOfferingsPrepared(maxAttempts = maxAttempts) {
                 /* Error is not returned is suspending function.
                 If you want to handle error, use `paywallsDidLoadCallback` method. */
                 continuation.resume(ApphudInternal.paywalls)
@@ -281,6 +282,7 @@ object Apphud {
      * an error will be returned along with the raw paywalls array.
      * This allows for handling situations where partial data is available.
      *
+     * @param maxAttempts Number of request attempts before throwing an error. Must be between 1 and 10. Default value is 3.
      * @param callback The callback function that is invoked with the list of `ApphudPaywall` objects.
      * Second parameter in callback represents optional error, which may be
      * on Google (BillingClient issue) or Apphud side.
@@ -289,8 +291,8 @@ object Apphud {
         "Deprecated in favor of Placements",
         ReplaceWith("this.placementsDidLoadCallback(callback)"),
     )
-    fun paywallsDidLoadCallback(callback: (List<ApphudPaywall>, ApphudError?) -> Unit) {
-        ApphudInternal.performWhenOfferingsPrepared { callback(ApphudInternal.paywalls, it) }
+    fun paywallsDidLoadCallback(maxAttempts: Int? = null, callback: (List<ApphudPaywall>, ApphudError?) -> Unit) {
+        ApphudInternal.performWhenOfferingsPrepared(maxAttempts = maxAttempts) { callback(ApphudInternal.paywalls, it) }
     }
 
     /** Returns:

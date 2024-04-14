@@ -94,11 +94,9 @@ internal fun ApphudInternal.addAttribution(
         error?.let {
             ApphudLog.logE(it.message)
         } ?: run {
-            ApphudLog.log("before start attribution request: $body")
             body?.let {
                 coroutineScope.launch(errorHandler) {
                     RequestManager.send(it) { attribution, error ->
-                        ApphudLog.logI("Did send $attribution attribution data to Apphud")
                         mainScope.launch {
                             when (provider) {
                                 ApphudAttributionProvider.appsFlyer -> {
