@@ -72,11 +72,24 @@ class PaywallFragment: Fragment() {
             }
         }
 
+        viewModel.buttonTitle.observe(viewLifecycleOwner) { title ->
+            title?.let{
+                binding.buttonContinue.text = title
+            }
+        }
+
+        viewModel.subTitle.observe(viewLifecycleOwner) { text ->
+            text?.let{
+                binding.labelPaywall.text = text
+            }
+        }
+
         binding.buttonContinue.setOnClickListener {
             activity?.let { a ->
                 when (Placement.getPlacementByName(placementId)) {
                     Placement.onboarding -> {
                         val i = Intent(a, MainActivity::class.java)
+                        i.flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
                         startActivity(i)
                         a.finish()
                     }
@@ -90,6 +103,7 @@ class PaywallFragment: Fragment() {
             }
         }
 
+        viewModel.getPaywallInfo(Placement.getPlacementByName(placementId))
         viewModel.placementShown(Placement.getPlacementByName(placementId))
 
         return root

@@ -9,6 +9,7 @@
     tools:context=".ui.onboarding.OnBoarding1Fragment">
 
     <androidx.constraintlayout.widget.ConstraintLayout
+        android:id="@+id/colorLayout"
         android:background="@color/branding_blue_1"
         android:layout_width="match_parent"
         android:layout_height="match_parent"
@@ -67,26 +68,13 @@
             app:layout_constraintStart_toStartOf="parent"
             app:layout_constraintBottom_toTopOf="@+id/buttonContinue"/>
 
-        <ProgressBar
-            android:id="@+id/progressBar"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:theme="@style/ProgressBarStyle"
-            android:visibility="visible"
-            android:layout_marginBottom="6dp"
-            app:layout_constraintStart_toStartOf="@+id/buttonContinue"
-            app:layout_constraintBottom_toBottomOf="@+id/buttonContinue"
-            app:layout_constraintEnd_toEndOf="@+id/buttonContinue"
-            app:layout_constraintTop_toTopOf="@+id/buttonContinue"/>
-
         <Button
             android:id="@+id/buttonContinue"
             style="@style/button_blue"
             android:layout_width="match_parent"
             android:layout_height="56dp"
             android:layout_margin="16dp"
-            android:visibility="invisible"
-            android:text="@string/continue_text"
+            android:visibility="visible"
             app:layout_constraintEnd_toEndOf="parent"
             app:layout_constraintStart_toStartOf="parent"
             app:layout_constraintBottom_toBottomOf="parent"/>

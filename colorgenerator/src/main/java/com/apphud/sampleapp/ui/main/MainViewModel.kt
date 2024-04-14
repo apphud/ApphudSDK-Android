@@ -11,7 +11,7 @@ import com.apphud.sampleapp.R
 import com.apphud.sampleapp.ui.utils.PurchaseManager
 
 
-class GeneratorViewModel : ViewModel() {
+class MainViewModel : ViewModel() {
 
     private val _hexColor = MutableLiveData<String>()
     val hexColor: LiveData<String> = _hexColor

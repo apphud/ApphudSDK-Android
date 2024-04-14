@@ -2,11 +2,13 @@ package com.apphud.sampleapp.ui.settings
 
 import com.apphud.sampleapp.BuildConfig
 import com.apphud.sampleapp.R
+import com.apphud.sampleapp.ui.models.HasPremiumEvent
 import com.apphud.sampleapp.ui.utils.BaseViewModel
 import com.apphud.sampleapp.ui.utils.PurchaseManager
 import com.apphud.sampleapp.ui.utils.ResourceManager
 import com.apphud.sdk.managers.HeadersInterceptor
 import kotlinx.coroutines.launch
+import org.greenrobot.eventbus.EventBus
 
 interface ISettingsItem {
     fun title(): String?
@@ -69,6 +71,7 @@ class SettingsViewModel :BaseViewModel(){
                         completionHandler(false)
                     }?: run {
                         completionHandler(true)
+                        EventBus.getDefault().post(HasPremiumEvent())
                     }
                 }
             }

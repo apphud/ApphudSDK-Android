@@ -3,15 +3,16 @@ package com.apphud.sampleapp.ui.utils
 import android.app.Activity
 import android.app.Application
 import android.util.Log
-import android.widget.Toast
 import com.android.billingclient.api.ProductDetails
 import com.apphud.sampleapp.BuildConfig
 import com.apphud.sampleapp.R
+import com.apphud.sampleapp.ui.models.HasPremiumEvent
+import com.apphud.sampleapp.ui.models.PlacementJson
+import com.apphud.sampleapp.ui.models.Paywall
 import com.apphud.sdk.Apphud
 import com.apphud.sdk.ApphudError
 import com.apphud.sdk.ApphudListener
 import com.apphud.sdk.ApphudPurchasesRestoreCallback
-import com.apphud.sdk.ApphudUserProperty
 import com.apphud.sdk.ApphudUserPropertyKey
 import com.apphud.sdk.ApphudUtils
 import com.apphud.sdk.domain.ApphudNonRenewingPurchase
@@ -23,6 +24,7 @@ import com.apphud.sdk.domain.ApphudUser
 import com.google.gson.Gson
 import com.google.gson.GsonBuilder
 import com.google.gson.reflect.TypeToken
+import org.greenrobot.eventbus.EventBus
 
 enum class Placement (val placementId: String, val paywallId: String) {
     onboarding("pl_onboarding", "pw_onboarding"),
@@ -51,10 +53,12 @@ object PurchaseManager {
     val listener = object : ApphudListener {
             override fun apphudSubscriptionsUpdated(subscriptions: List<ApphudSubscription>) {
                 Log.d("ColorGenerator", "apphudSubscriptionsUpdated")
+                notifyAboutPremium()
             }
 
             override fun apphudNonRenewingPurchasesUpdated(purchases: List<ApphudNonRenewingPurchase>) {
                 Log.d("ColorGenerator", "apphudNonRenewingPurchasesUpdated")
+                notifyAboutPremium()
             }
 
             override fun apphudFetchProductDetails(details: List<ProductDetails>) {
@@ -95,45 +99,37 @@ object PurchaseManager {
     }
 
     suspend fun getPaywallProducts(placement: Placement) :List<ApphudProduct>{
-        var result :List<ApphudProduct> =  listOf()
-        if(isApphudReady){
-            result = Apphud.placement(placement.placementId )?.paywall?.products?: listOf()
-        }
-        return result
+        return Apphud.placement(placement.placementId )?.paywall?.products?: listOf()
     }
 
-    suspend fun getPaywallColor(placement: Placement) :String?{
-        var result :String? = null
-        if(isApphudReady){
-            Apphud.placement(placement.placementId)?.paywall?.json?.let{
-                val color :PaywallColor? = parser.fromJson<PaywallColor>(Gson().toJson(it), object : TypeToken<PaywallColor>() {}.type)
-                result = color?.color
-            }
+    suspend fun getPlacementInfo(placement: Placement) :PlacementJson?{
+        var placementJson :PlacementJson? = null
+        Apphud.placement(placement.placementId)?.paywall?.json?.let{
+            placementJson = parser.fromJson<PlacementJson>(Gson().toJson(it), object : TypeToken<PlacementJson>() {}.type)
         }
-        return result
+        return placementJson
+    }
+
+    private fun notifyAboutPremium(){
+        if(Apphud.hasPremiumAccess()){
+            EventBus.getDefault().post(HasPremiumEvent())
+        }
     }
 
     fun isPremium() :Boolean? {
-        if(isApphudReady){
-            return Apphud.hasPremiumAccess()
-        }
-        return null
+        return Apphud.hasPremiumAccess()
     }
 
     fun restorePurchases(completionHandler :(subscriptions: List<ApphudSubscription>?, purchases: List<ApphudNonRenewingPurchase>?, error: ApphudError?) -> Unit) {
-        if(isApphudReady){
-            Apphud.restorePurchases(object : ApphudPurchasesRestoreCallback {
-                override fun invoke(
-                    subscriptions: List<ApphudSubscription>?,
-                    purchases: List<ApphudNonRenewingPurchase>?,
-                    error: ApphudError?
-                ) {
-                    completionHandler(subscriptions, purchases, error)
-                }
-            })
-        }else{
-            completionHandler(null, null, ApphudError(ResourceManager.getString(R.string.error_default)))
-        }
+        Apphud.restorePurchases(object : ApphudPurchasesRestoreCallback {
+            override fun invoke(
+                subscriptions: List<ApphudSubscription>?,
+                purchases: List<ApphudNonRenewingPurchase>?,
+                error: ApphudError?
+            ) {
+                completionHandler(subscriptions, purchases, error)
+            }
+        })
     }
 
     fun purchaseProduct(activity: Activity, product: ApphudProduct, completionHandler:(isSuccess: Boolean, error: ApphudError?) -> Unit) {

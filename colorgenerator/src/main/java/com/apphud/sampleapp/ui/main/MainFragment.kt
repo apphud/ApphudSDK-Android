@@ -1,4 +1,4 @@
-package com.apphud.sampleapp.ui.generator
+package com.apphud.sampleapp.ui.main
 
 import android.annotation.SuppressLint
 import android.content.ClipData
@@ -13,17 +13,21 @@ import android.widget.Toast
 import androidx.fragment.app.Fragment
 import androidx.lifecycle.ViewModelProvider
 import com.apphud.sampleapp.R
-import com.apphud.sampleapp.databinding.FragmentGeneratorBinding
+import com.apphud.sampleapp.databinding.FragmentMainBinding
+import com.apphud.sampleapp.ui.models.HasPremiumEvent
 import com.apphud.sampleapp.ui.paywall.PaywallActivity
 import com.apphud.sampleapp.ui.utils.Placement
 import com.apphud.sampleapp.ui.utils.PurchaseManager
 import com.apphud.sampleapp.ui.utils.ResourceManager
+import org.greenrobot.eventbus.EventBus
+import org.greenrobot.eventbus.Subscribe
+import org.greenrobot.eventbus.ThreadMode
 
-class GeneratorFragment : Fragment() {
+class MainFragment : Fragment() {
 
-    private var _binding: FragmentGeneratorBinding? = null
+    private var _binding: FragmentMainBinding? = null
     private val binding get() = _binding!!
-    private lateinit var generatorViewModel: GeneratorViewModel
+    private lateinit var generatorViewModel: MainViewModel
 
     @SuppressLint("SetTextI18n")
     override fun onCreateView(
@@ -31,10 +35,10 @@ class GeneratorFragment : Fragment() {
         container: ViewGroup?,
         savedInstanceState: Bundle?
     ): View {
-        _binding = FragmentGeneratorBinding.inflate(inflater, container, false)
+        _binding = FragmentMainBinding.inflate(inflater, container, false)
         val root: View = binding.root
 
-        generatorViewModel = ViewModelProvider(this).get(GeneratorViewModel::class.java)
+        generatorViewModel = ViewModelProvider(this).get(MainViewModel::class.java)
 
         generatorViewModel.hexColor.observe(viewLifecycleOwner) {
             binding.labelYourColor.text = "${resources.getText(R.string.your_color_is)} ${it}"
@@ -63,6 +67,17 @@ class GeneratorFragment : Fragment() {
 
     override fun onStart() {
         super.onStart()
+        EventBus.getDefault().register(this)
+        updateCounter()
+    }
+
+    override fun onStop() {
+        EventBus.getDefault().unregister(this)
+        super.onStop()
+    }
+
+    @Subscribe(threadMode = ThreadMode.MAIN)
+    fun onHasPremiumEvent(event: HasPremiumEvent) {
         updateCounter()
     }
 

@@ -8,9 +8,9 @@
 
     <fragment
         android:id="@+id/navigation_generator"
-        android:name="com.apphud.sampleapp.ui.generator.GeneratorFragment"
+        android:name="com.apphud.sampleapp.ui.main.MainFragment"
         android:label="@string/title_generator"
-        tools:layout="@layout/fragment_generator" >
+        tools:layout="@layout/fragment_main" >
     </fragment>
 
     <fragment

@@ -7,9 +7,9 @@
 
     <fragment
         android:id="@+id/onboardingFragment"
-        android:name="com.apphud.sampleapp.ui.onboarding.WelcomeFragment"
+        android:name="com.apphud.sampleapp.ui.onboarding.OnBoarding1Fragment"
         android:label="fragment_onboarding"
-        tools:layout="@layout/fragment_welcome" >
+        tools:layout="@layout/fragment_onboarding_1" >
         <action
             android:id="@+id/action_onboardingFragment_to_introFragment"
             app:destination="@id/introFragment"
@@ -20,9 +20,9 @@
     </fragment>
     <fragment
         android:id="@+id/introFragment"
-        android:name="com.apphud.sampleapp.ui.onboarding.IntroFragment"
+        android:name="com.apphud.sampleapp.ui.onboarding.OnBoarding2Fragment"
         android:label="IntroFragment"
-        tools:layout="@layout/fragment_intro">
+        tools:layout="@layout/fragment_onboarding_2">
         <action
             android:id="@+id/action_introFragment_to_unlimitedFragment"
             app:destination="@id/unlimitedFragment"
@@ -33,8 +33,8 @@
     </fragment>
     <fragment
         android:id="@+id/unlimitedFragment"
-        android:name="com.apphud.sampleapp.ui.onboarding.UnlimitedFragment"
+        android:name="com.apphud.sampleapp.ui.onboarding.OnBoarding3Fragment"
         android:label="UnlimitedFragment"
-        tools:layout="@layout/fragment_unlimited">
+        tools:layout="@layout/fragment_onboarding_3">
     </fragment>
 </navigation>

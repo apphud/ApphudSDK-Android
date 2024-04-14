@@ -3,18 +3,31 @@ package com.apphud.sampleapp.ui.onboarding
 import android.util.Log
 import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData
+import com.apphud.sampleapp.ui.models.PlacementJson
 import com.apphud.sampleapp.ui.utils.BaseViewModel
+import com.apphud.sampleapp.ui.utils.Placement
 import com.apphud.sampleapp.ui.utils.PurchaseManager
 import com.apphud.sampleapp.ui.utils.retryOperation
 import kotlinx.coroutines.launch
 
-class UnlimitedViewModel :BaseViewModel(){
-    private val _isPremium = MutableLiveData<Boolean?>()
-    val isPremium: LiveData<Boolean?> = _isPremium
+class OnBoardingViewModel :BaseViewModel(){
+    private val _isReady = MutableLiveData<Boolean?>()
+    val isReady: LiveData<Boolean?> = _isReady
+    var onBoarding: PlacementJson? = null
 
     init {
-        _isPremium.value = null
+        _isReady.value = null
         checkPremium()
+    }
+
+    fun getOnboardingInfo(placement: Placement, completionHandler: (PlacementJson?) -> Unit){
+        coroutineScope.launch (errorHandler){
+            val info = PurchaseManager.getPlacementInfo(placement)
+            mainScope.launch {
+                onBoarding = info
+                completionHandler(onBoarding)
+            }
+        }
     }
 
     private fun checkPremium(){
@@ -25,15 +38,17 @@ class UnlimitedViewModel :BaseViewModel(){
                     operationFailed()
                     if(isFailed) {
                         mainScope.launch {
-                            _isPremium.value = false
+                            _isReady.value = false
                         }
                     }
                 } else {
                     mainScope.launch {
-                        _isPremium.value = PurchaseManager.isPremium()
+                        _isReady.value = true
                     }
                 }
             }
         }
     }
+
+    fun isPremium() = PurchaseManager.isPremium()
 }
