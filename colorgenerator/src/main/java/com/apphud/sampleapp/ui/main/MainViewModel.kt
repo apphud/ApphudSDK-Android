@@ -1,4 +1,4 @@
-package com.apphud.sampleapp.ui.generator
+package com.apphud.sampleapp.ui.main
 
 import android.graphics.Color
 import androidx.lifecycle.LiveData
