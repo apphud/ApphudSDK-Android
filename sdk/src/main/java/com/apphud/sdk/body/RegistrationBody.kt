@@ -21,5 +21,6 @@ data class RegistrationBody(
     val need_placements: Boolean,
     val first_seen: Long?,
     val sdk_launched_at: Long,
-    val request_time: Long
+    val request_time: Long,
+    val install_source: String
 )
