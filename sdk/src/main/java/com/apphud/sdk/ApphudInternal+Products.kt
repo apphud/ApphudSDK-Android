@@ -18,7 +18,7 @@ private val mutexProducts = Mutex()
 
 // to avoid Google servers spamming if there is no productDetails added at all
 internal var productsLoadingCounts: Int = 0
-const val MAX_PRODUCTS_RETRIES: Int = 100
+const val MAX_TOTAL_PRODUCTS_RETRIES: Int = 100
 
 internal enum class ApphudProductsStatus {
     none,
@@ -36,7 +36,7 @@ internal fun ApphudInternal.shouldLoadProducts(): Boolean {
         ApphudProductsStatus.none -> true
         ApphudProductsStatus.loading -> false
         else -> {
-            skuDetails.isEmpty() && productsLoadingCounts < MAX_PRODUCTS_RETRIES
+            productDetails.isEmpty() && productsLoadingCounts < MAX_TOTAL_PRODUCTS_RETRIES
         }
     }
 }
@@ -59,34 +59,40 @@ internal fun ApphudInternal.loadProducts() {
                     productsLoadingCounts += 1
                 }
 
-                if (allowsProductsRefresh) {
-                    retryProductsLoadIfNeeded()
-                }
-
-                mainScope.launch {
-                    notifyLoadingCompleted(null, skuDetails, false, false)
+                if (isRetriableProductsRequest() && productsLoadingCounts < maxProductRetriesCount) {
+                    retryProductsLoad()
+                } else {
+                    ApphudLog.log("Finished Loading Product Details")
+                    mainScope.launch {
+                        notifyLoadingCompleted(null, skuDetails, false, false)
+                    }
                 }
             }
         }
     }
 }
 
-internal fun ApphudInternal.retryProductsLoadIfNeeded() {
-    if (skuDetails.isEmpty() && productsStatus == ApphudProductsStatus.failed && isRetriableErrorCode(
-            productsResponseCode) && isActive) {
-        val delay: Long = 500 * productsLoadingCounts.toLong()
-        ApphudLog.logE("Failed to load products from store (${ApphudBillingResponseCodes.getName(
-            productsResponseCode)}), will retry in ${delay} ms")
-        Thread.sleep(delay)
-        ApphudInternal.loadProducts()
-    }
+internal fun isRetriableProductsRequest(): Boolean {
+    return ApphudInternal.productDetails.isEmpty() && productsStatus == ApphudProductsStatus.failed && isRetriableErrorCode(
+        productsResponseCode) && ApphudInternal.isActive && !ApphudUtils.isEmulator()
+}
+
+internal fun ApphudInternal.retryProductsLoad() {
+    val delay: Long = 500 * productsLoadingCounts.toLong()
+    ApphudLog.logE("Failed to load products from store (${ApphudBillingResponseCodes.getName(
+        productsResponseCode)}), will retry in ${delay} ms")
+    Thread.sleep(delay)
+    ApphudInternal.loadProducts()
 }
 
 private fun isRetriableErrorCode(code: Int): Boolean {
-    return listOf(BillingClient.BillingResponseCode.NET_NOT_WORK, BillingClient.BillingResponseCode.SERVICE_TIMEOUT,
-    BillingClient.BillingResponseCode.SERVICE_UNAVAILABLE, BillingClient.BillingResponseCode.BILLING_UNAVAILABLE,
-    BillingClient.BillingResponseCode.ERROR, BillingClient.BillingResponseCode.ITEM_ALREADY_OWNED,
-    BillingClient.BillingResponseCode.ITEM_NOT_OWNED).contains(code)
+    return listOf(
+        BillingClient.BillingResponseCode.NETWORK_ERROR,
+        BillingClient.BillingResponseCode.SERVICE_TIMEOUT,
+        BillingClient.BillingResponseCode.SERVICE_UNAVAILABLE,
+        BillingClient.BillingResponseCode.BILLING_UNAVAILABLE,
+        BillingClient.BillingResponseCode.ERROR
+    ).contains(code)
 }
 
 private suspend fun ApphudInternal.fetchProducts(): Int {
@@ -109,7 +115,7 @@ private fun allAvailableProductIds(groups: List<ApphudGroup>, paywalls: List<App
             ids.add(it)
         }
     }
-    return ids
+    return ids.toSet().toList()
 }
 
 internal suspend fun ApphudInternal.fetchDetails(ids: List<String>): Int {

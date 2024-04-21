@@ -244,10 +244,7 @@ object SharedPreferencesStorage : Storage {
             editor.apply()
         }
 
-    fun updateCustomer(
-        apphudUser: ApphudUser,
-        apphudListener: ApphudListener?,
-    ) {
+    fun updateCustomer(apphudUser: ApphudUser): Boolean {
         var userIdChanged = false
         this.apphudUser?.let {
             if (it.userId != apphudUser.userId) {
@@ -257,11 +254,7 @@ object SharedPreferencesStorage : Storage {
         this.apphudUser = apphudUser
         this.userId = apphudUser.userId
 
-        if (userIdChanged) {
-            apphudListener?.let {
-                apphudListener.apphudDidChangeUserID(apphudUser.userId)
-            }
-        }
+        return userIdChanged
     }
 
     fun clean() {
@@ -282,7 +275,7 @@ object SharedPreferencesStorage : Storage {
         adjust = null
     }
 
-    fun validateCaches() {
+    fun validateCaches(): Boolean {
         if (cacheVersion.isNullOrEmpty() || cacheVersion != CURRENT_CACHE_VERSION) {
             ApphudLog.log("Invalid Cache Version. Clearing cached models.")
             // drop models caches
@@ -291,7 +284,9 @@ object SharedPreferencesStorage : Storage {
             paywalls = null
             placements = null
             cacheVersion = CURRENT_CACHE_VERSION
+            return false
         }
+        return true
     }
 
     override var cacheVersion: String?

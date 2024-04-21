@@ -138,15 +138,6 @@ class CustomerFragment : Fragment() {
                 Log.d("ApphudLogs", "Placements fetch error: ${error.billingErrorTitle()}")
             }
         }
-
-        lifecycleScope.launch {
-            val paywalls = Apphud.paywalls()
-            Log.d("ApphudLogs", "PAYWALLS ARRAY = ${paywalls.map { it.identifier }.toString()}")
-        }
-        lifecycleScope.launch {
-            val placements = Apphud.placements()
-            Log.d("ApphudLogs", "PLACEMENTS ARRAY = ${placements.map { it.identifier }.toString()}")
-        }
     }
 
     private fun updateData() {
