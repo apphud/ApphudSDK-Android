@@ -29,6 +29,7 @@ import okhttp3.OkHttpClient
 import okhttp3.Request
 import okhttp3.RequestBody.Companion.toRequestBody
 import okhttp3.Response
+import okhttp3.logging.HttpLoggingInterceptor
 import okio.Buffer
 import org.json.JSONException
 import org.json.JSONObject
@@ -87,7 +88,7 @@ object RequestManager {
     ): OkHttpClient {
         val retryInterceptor = HttpRetryInterceptor()
         val headersInterceptor = HeadersInterceptor(apiKey)
-        /*val logging = HttpLoggingInterceptor {
+        val logging = HttpLoggingInterceptor {
             if (parser.isJson(it)) {
                 buildPrettyPrintedBy(it)?.let { formattedJsonString ->
                     ApphudLog.logI(formattedJsonString)
@@ -100,10 +101,10 @@ object RequestManager {
         }
 
         if (BuildConfig.DEBUG) {
-            logging.level = HttpLoggingInterceptor.Level.NONE //BODY
+            logging.level = HttpLoggingInterceptor.Level.BODY
         } else {
             logging.level = HttpLoggingInterceptor.Level.NONE
-        }*/
+        }
 
         var readTimeout: Long = APPHUD_DEFAULT_HTTP_TIMEOUT
         if (request.method == "POST" && request.url.toString().contains("subscriptions")) {
@@ -117,7 +118,7 @@ object RequestManager {
                 .connectTimeout(APPHUD_DEFAULT_HTTP_TIMEOUT, TimeUnit.SECONDS)
         if (retry) builder.addInterceptor(retryInterceptor)
         builder.addNetworkInterceptor(headersInterceptor)
-        // builder.addNetworkInterceptor(logging)
+        //builder.addNetworkInterceptor(logging)
 
         return builder.build()
     }

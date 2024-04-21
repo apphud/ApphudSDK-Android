@@ -282,7 +282,6 @@ internal object ApphudInternal {
             synchronized(skuDetails) {
                 // notify that productDetails are loaded
                 if (skuDetails.isNotEmpty()) {
-                    apphudListener?.apphudFetchProductDetails(productDetails)
                     customProductsFetchedBlock?.invoke(skuDetails)
                 }
             }
@@ -371,7 +370,7 @@ internal object ApphudInternal {
             }
             latestCustomerLoadError = null
         } else if (!isRegisteringUser &&
-            ((customerError != null && paywalls.isEmpty()) || (productsResponseCode != BillingClient.BillingResponseCode.OK && productDetails.isEmpty()))) {
+            ((customerError != null && paywalls.isEmpty()) || (productsResponseCode != BillingClient.BillingResponseCode.OK && skuDetails.isEmpty()))) {
             if (offeringsPreparedCallbacks.isNotEmpty()) {
                 ApphudLog.log("handle offeringsPreparedCallbacks with errors")
             }
@@ -483,7 +482,7 @@ internal object ApphudInternal {
         return true
     }
 
-    internal fun productsFetchCallback(callback: (List<ProductDetails>) -> Unit) {
+    internal fun productsFetchCallback(callback: (List<SkuDetails>) -> Unit) {
         if (skuDetails.isNotEmpty()) {
             callback.invoke(skuDetails)
         } else {

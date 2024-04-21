@@ -24,6 +24,7 @@ import com.apphud.sdk.domain.ApphudSubscription
 import com.apphud.sdk.domain.ApphudUser
 import com.apphud.sdk.managers.HeadersInterceptor
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
@@ -142,7 +143,7 @@ class CustomerFragment : Fragment() {
 
     private fun updateData() {
         _binding?.isPremiumValue?.text = if (Apphud.hasPremiumAccess()) "Premium" else "No Premium"
-        lifecycleScope.launch {
+        GlobalScope.launch {
             paywallsViewModel.updateData()
             withContext(Dispatchers.Main) {
                 viewAdapter.notifyDataSetChanged()

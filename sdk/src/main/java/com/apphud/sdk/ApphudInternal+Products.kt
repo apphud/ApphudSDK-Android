@@ -36,7 +36,7 @@ internal fun ApphudInternal.shouldLoadProducts(): Boolean {
         ApphudProductsStatus.none -> true
         ApphudProductsStatus.loading -> false
         else -> {
-            productDetails.isEmpty() && productsLoadingCounts < MAX_TOTAL_PRODUCTS_RETRIES
+            skuDetails.isEmpty() && productsLoadingCounts < MAX_TOTAL_PRODUCTS_RETRIES
         }
     }
 }
@@ -73,7 +73,7 @@ internal fun ApphudInternal.loadProducts() {
 }
 
 internal fun isRetriableProductsRequest(): Boolean {
-    return ApphudInternal.productDetails.isEmpty() && productsStatus == ApphudProductsStatus.failed && isRetriableErrorCode(
+    return ApphudInternal.skuDetails.isEmpty() && productsStatus == ApphudProductsStatus.failed && isRetriableErrorCode(
         productsResponseCode) && ApphudInternal.isActive && !ApphudUtils.isEmulator()
 }
 
@@ -87,7 +87,7 @@ internal fun ApphudInternal.retryProductsLoad() {
 
 private fun isRetriableErrorCode(code: Int): Boolean {
     return listOf(
-        BillingClient.BillingResponseCode.NETWORK_ERROR,
+        BillingClient.BillingResponseCode.NET_NOT_WORK,
         BillingClient.BillingResponseCode.SERVICE_TIMEOUT,
         BillingClient.BillingResponseCode.SERVICE_UNAVAILABLE,
         BillingClient.BillingResponseCode.BILLING_UNAVAILABLE,
