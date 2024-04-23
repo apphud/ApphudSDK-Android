@@ -908,6 +908,10 @@ internal object ApphudInternal {
     }
 
     //endregion//region === Secondary methods ===
+    internal fun supportSubscription(): Boolean{
+        return billing.supportSubscription()
+    }
+
     internal fun getPackageName(): String {
         return context.packageName
     }

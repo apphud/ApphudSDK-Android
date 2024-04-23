@@ -7,6 +7,8 @@ import com.xiaomi.billingclient.api.BillingClient
 import com.xiaomi.billingclient.api.Purchase
 import com.xiaomi.billingclient.api.SkuDetails
 import com.xiaomi.billingclient.api.SkuDetailsParams
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlin.concurrent.thread
 import kotlin.coroutines.resume
@@ -165,23 +167,33 @@ internal class SkuDetailsWrapper(
             val params = SkuDetailsParams.newBuilder().setSkusList(products).setType(type).build()
 
             thread(start = true, name = "queryAsync+$type") {
-                billing.querySkuDetailsAsync(params) { result, details ->
-                    when (result.isSuccess()) {
-                        true -> {
-                            ApphudLog.logI("Query SkuDetails success $type")
-                            if (continuation.isActive && !resumed) {
-                                resumed = true
-                                continuation.resume(Pair(details.orEmpty(), result.responseCode))
+                if(billing.isReady){
+                    billing.querySkuDetailsAsync(params) { result, details ->
+                        when (result.isSuccess()) {
+                            true -> {
+                                ApphudLog.logI("Query SkuDetails success $type")
+                                if (continuation.isActive && !resumed) {
+                                    resumed = true
+                                    continuation.resume(Pair(details, result.responseCode))
+                                }
                             }
-                        }
-                        else -> {
-                            result.logMessage("Query SkuDetails Async type: $type products: $products")
-                            if (continuation.isActive && !resumed) {
-                                resumed = true
-                                continuation.resume(Pair(null, result.responseCode))
+                            else -> {
+                                result.logMessage("Query SkuDetails Async type: $type products: $products")
+                                if (continuation.isActive && !resumed) {
+                                    resumed = true
+                                    continuation.resume(Pair(null, result.responseCode))
+                                }
                             }
                         }
                     }
+                    runBlocking {
+                        delay(4000)
+                        if (continuation.isActive && !resumed) {
+                            continuation.resume(Pair(null, PRODUCTS_DEFAULT_ERROR))
+                        }
+                    }
+                } else {
+                    ApphudLog.log("=====> Billing is not ready!")
                 }
             }
         }

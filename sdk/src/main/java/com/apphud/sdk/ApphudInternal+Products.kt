@@ -10,7 +10,6 @@ import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
-import java.util.concurrent.atomic.AtomicBoolean
 
 internal var productsStatus = ApphudProductsStatus.none
 internal var productsResponseCode = BillingClient.BillingResponseCode.OK
@@ -118,6 +117,7 @@ private fun allAvailableProductIds(groups: List<ApphudGroup>, paywalls: List<App
     return ids.toSet().toList()
 }
 
+internal const val PRODUCTS_DEFAULT_ERROR = -100
 internal suspend fun ApphudInternal.fetchDetails(ids: List<String>): Int {
     // Assuming ProductDetails has a property 'id' that corresponds to the product ID
     val existingIds = synchronized(skuDetails) { skuDetails.map { it.sku } }
@@ -129,8 +129,6 @@ internal suspend fun ApphudInternal.fetchDetails(ids: List<String>): Int {
         return APPHUD_NO_REQUEST
     }
 
-    ApphudLog.log("Fetching Product Details: ${idsToFetch.toString()}")
-
     if (productsStatus != ApphudProductsStatus.loading) {
         productsStatus = ApphudProductsStatus.loading
     }
@@ -140,10 +138,31 @@ internal suspend fun ApphudInternal.fetchDetails(ids: List<String>): Int {
     var responseCode = BillingClient.BillingResponseCode.OK
 
     coroutineScope {
-        val subsResult = async { billing.detailsEx(BillingClient.SkuType.SUBS, idsToFetch) }.await()
-        val inAppResult = async { billing.detailsEx(BillingClient.SkuType.INAPP, idsToFetch) }.await()
+        var subsResult :Pair<List<SkuDetails>?, Int> = Pair(listOf(), PRODUCTS_DEFAULT_ERROR)
+        var inAppResult :Pair<List<SkuDetails>?, Int> = Pair(listOf(), PRODUCTS_DEFAULT_ERROR)
+
+        for (i in 0..10) {
+            ApphudLog.log("=====> Attempt: ${i}")
+            var exit = true
+
+            if(subsResult.second == PRODUCTS_DEFAULT_ERROR){
+                subsResult = async { billing.detailsEx(BillingClient.SkuType.SUBS, idsToFetch) }.await()
+            }
+            if(inAppResult.second == PRODUCTS_DEFAULT_ERROR){
+                inAppResult = async { billing.detailsEx(BillingClient.SkuType.INAPP, idsToFetch) }.await()
+            }
+
+            if(subsResult.second == PRODUCTS_DEFAULT_ERROR || inAppResult.second == PRODUCTS_DEFAULT_ERROR){
+                exit = false
+            }
+
+            if(exit) {
+                break
+            }
+        }
 
         subsResult.first?.let { subsDetails ->
+            ApphudLog.log("=====> SUBS: ${subsDetails.map { it.sku }.joinToString()}")
             synchronized(skuDetails) {
                 // Add new subscription details if they're not already present
                 subsDetails.forEach { detail ->
@@ -160,6 +179,7 @@ internal suspend fun ApphudInternal.fetchDetails(ids: List<String>): Int {
 
         inAppResult.first?.let { inAppDetails ->
             synchronized(skuDetails) {
+                ApphudLog.log("=====> INAPPS: ${inAppDetails.map { it.sku }.joinToString()}")
                 // Add new in-app product details if they're not already present
                 inAppDetails.forEach { detail ->
                     if (!skuDetails.map { it.sku }.contains(detail.sku)) {

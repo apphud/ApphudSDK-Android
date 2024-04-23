@@ -1,6 +1,7 @@
 package com.apphud.sdk.internal
 
 import android.app.Activity
+import com.apphud.sdk.ApphudInternal
 import com.apphud.sdk.ApphudLog
 import com.apphud.sdk.ProductId
 import com.apphud.sdk.internal.callback_status.PurchaseHistoryCallbackStatus
@@ -175,6 +176,10 @@ internal class BillingWrapper(activity: Activity) : Closeable {
             if (!connectIfNeeded) return@launch
             return@launch consume.purchase(purchase)
         }
+    }
+
+    internal fun supportSubscription(): Boolean{
+        return billing.supportSubscription()
     }
 
     // Closeable

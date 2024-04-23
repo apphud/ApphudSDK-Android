@@ -302,6 +302,11 @@ object Apphud {
      */
     fun rawPaywalls(): List<ApphudPaywall> = ApphudInternal.paywalls
 
+    /** Returns:
+     * True if subscription feature is supported
+     */
+    fun supportSubscription(): Boolean = ApphudInternal.supportSubscription()
+
     /**
      * Call this method when your paywall screen is displayed to the user.
      * This is required for A/B testing analysis.
