@@ -65,7 +65,7 @@ class ProductsAdapter(private val productsViewModel: ProductsViewModel, private 
         holder: BaseViewHolder<*>,
         position: Int,
     ) {
-        val element = productsViewModel.items[position]
+        val element = productsViewModel.products.value?.get(position)
         when (holder) {
             is ApphudProductViewHolder -> holder.bind(element as ApphudProduct, position)
             else -> throw IllegalArgumentException()
@@ -73,11 +73,11 @@ class ProductsAdapter(private val productsViewModel: ProductsViewModel, private 
     }
 
     override fun getItemViewType(position: Int): Int {
-        return when (productsViewModel.items[position]) {
+        return when (productsViewModel.products.value?.get(position)) {
             is ApphudProduct -> TYPE_PRODUCT
             else -> throw IllegalArgumentException("Invalid type of data " + position)
         }
     }
 
-    override fun getItemCount() = productsViewModel.items.size
+    override fun getItemCount() = productsViewModel.products.value?.size?:0
 }

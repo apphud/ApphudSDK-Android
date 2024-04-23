@@ -48,6 +48,8 @@ class CustomerFragment : Fragment() {
 
         binding.sdk.text = "v." + ApphudUtils.getSdkVersion()
 
+        binding.iisSupportedSubsValue.text = if(Apphud.supportSubscription()) "Yes" else "No"
+
         try {
             context?.let{
                 val pInfo = it.packageManager.getPackageInfo( it.packageName, 0)
