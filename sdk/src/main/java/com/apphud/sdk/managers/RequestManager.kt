@@ -34,10 +34,13 @@ import okio.Buffer
 import org.json.JSONException
 import org.json.JSONObject
 import java.io.IOException
+import java.io.InterruptedIOException
+import java.net.ConnectException
 import java.net.SocketTimeoutException
 import java.net.URL
 import java.net.UnknownHostException
 import java.nio.charset.Charset
+import java.sql.Time
 import java.util.*
 import java.util.concurrent.TimeUnit
 import kotlin.coroutines.resume
@@ -63,6 +66,7 @@ object RequestManager {
     private var apiKey: String? = null
     lateinit var applicationContext: Context
     lateinit var storage: SharedPreferencesStorage
+    var previousException: java.lang.Exception? = null
 
     fun setParams(
         applicationContext: Context,
@@ -106,16 +110,13 @@ object RequestManager {
             logging.level = HttpLoggingInterceptor.Level.NONE
         }*/
 
-        var readTimeout: Long = APPHUD_DEFAULT_HTTP_TIMEOUT
-        if (request.method == "POST" && request.url.toString().contains("subscriptions")) {
-            readTimeout = 20L
-        }
+        val callTimeout = if (request.method == "POST" && request.url.toString().contains("subscriptions"))
+            20 else APPHUD_DEFAULT_HTTP_TIMEOUT
 
         val builder =
             OkHttpClient.Builder()
-                .readTimeout(readTimeout, TimeUnit.SECONDS)
-                .writeTimeout(APPHUD_DEFAULT_HTTP_TIMEOUT, TimeUnit.SECONDS)
-                .connectTimeout(APPHUD_DEFAULT_HTTP_TIMEOUT, TimeUnit.SECONDS)
+                .connectTimeout(APPHUD_DEFAULT_HTTP_CONNECT_TIMEOUT, TimeUnit.SECONDS)
+                .callTimeout(APPHUD_DEFAULT_HTTP_TIMEOUT, TimeUnit.SECONDS)
         if (retry) builder.addInterceptor(retryInterceptor)
         builder.addNetworkInterceptor(headersInterceptor)
         // builder.addNetworkInterceptor(logging)
@@ -221,9 +222,8 @@ object RequestManager {
             ApphudInternal.processFallbackError(request, isTimeout = true)
             val message = e.message ?: "Undefined error"
             completionHandler(null, ApphudError(message, null, APPHUD_ERROR_TIMEOUT))
-        } catch (e: IOException) {
-            val message = e.message ?: "Undefined error"
-            completionHandler(null, ApphudError(message))
+        } catch (e: Exception) {
+            completionHandler(null, ApphudError.from( e))
         }
     }
 
@@ -399,16 +399,18 @@ object RequestManager {
                 } ?: run {
                     completionHandler(null, ApphudError("Registration failed"))
                 }
+            } catch (e: ConnectException) {
+                val message = e.message ?: "Registration failed"
+                completionHandler(null, ApphudError(message, null, APPHUD_ERROR_NO_INTERNET))
             } catch (e: SocketTimeoutException) {
                 ApphudInternal.processFallbackError(request, isTimeout = true)
                 val message = e.message ?: "Registration failed"
-                completionHandler(null, ApphudError(message, null, APPHUD_ERROR_TIMEOUT))
+                completionHandler(null, ApphudError(message, null, APPHUD_ERROR_NO_INTERNET))
             } catch (ex: UnknownHostException) {
                 val message = ex.message ?: "Registration failed"
                 completionHandler(null, ApphudError(message, null, APPHUD_ERROR_NO_INTERNET))
             } catch (ex: Exception) {
-                val message = ex.message ?: "Registration failed"
-                completionHandler(null, ApphudError(message))
+                completionHandler(null, ApphudError.from(ex))
             }
         } else {
             completionHandler(currentUser, null)
@@ -723,8 +725,7 @@ object RequestManager {
                 completionHandler(null, ApphudError("Promotional request failed"))
             }
         } catch (ex: Exception) {
-            val message = ex.message ?: "Undefined error"
-            completionHandler(null, ApphudError(message))
+            completionHandler(null, ApphudError.from(ex))
         }
     }
 
@@ -749,9 +750,9 @@ object RequestManager {
     }
 
     fun sendPaywallLogs(launchedAt: Long, count: Int, userBenchmark: Double, productsBenchmark: Double, totalBenchmark: Double,
-                        errorMessage: String?, productsResponseCode: Int) {
+                        error: ApphudError?, productsResponseCode: Int) {
         trackPaywallEvent(
-            makePaywallLogsBody(launchedAt, count, userBenchmark, productsBenchmark, totalBenchmark, errorMessage, productsResponseCode)
+            makePaywallLogsBody(launchedAt, count, userBenchmark, productsBenchmark, totalBenchmark, error, productsResponseCode)
         )
     }
 
@@ -932,7 +933,7 @@ object RequestManager {
         userLoadTime: Double,
         productsLoadTime: Double,
         totalLoadTime: Double,
-        errorMessage: String?,
+        error: ApphudError?,
         productsResponseCode: Int
     ): PaywallEventBody {
         val properties = mutableMapOf<String, Any>()
@@ -941,8 +942,9 @@ object RequestManager {
         properties["user_load_time"] = userLoadTime
         properties["products_load_time"] = productsLoadTime
         properties["products_count"] = productsCount
-        errorMessage?.let {
-            properties["error_message"] = it
+        error?.let {
+            properties["error_code"] = it.errorCode ?: 0
+            properties["error_message"] = it.message
         }
         properties["billing_response_code"] = productsResponseCode
 

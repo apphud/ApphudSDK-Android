@@ -1,6 +1,8 @@
 package com.apphud.sdk.managers
 
 import com.apphud.sdk.APPHUD_DEFAULT_RETRIES
+import com.apphud.sdk.APPHUD_NO_TIME_TO_RETRY
+import com.apphud.sdk.ApphudError
 import com.apphud.sdk.ApphudInternal
 import com.apphud.sdk.ApphudInternal.FALLBACK_ERRORS
 import com.apphud.sdk.ApphudInternal.fallbackMode
@@ -31,6 +33,8 @@ class HttpRetryInterceptor : Interceptor {
         var response: Response? = null
         var isSuccess = false
         var tryCount: Int = 0
+
+
         while (!isSuccess && tryCount < MAX_COUNT) {
             try {
                 response = chain.proceed(request)
@@ -38,19 +42,17 @@ class HttpRetryInterceptor : Interceptor {
 
                 if (!isSuccess) {
 
-                    if (response != null) {
-                        val isBlocked = RequestManager.checkLock403(request, response)
-                        if (isBlocked) {
-                            return response
-                        }
-                        // do not retry 429
-                        if (response.code == 429) {
-                            STEP = 6_000L
-                            MAX_COUNT = 1
-                        } else if (response.code in 200..499) {
-                            // do not retry 200..499 http codes
-                            return response
-                        }
+                    val isBlocked = RequestManager.checkLock403(request, response)
+                    if (isBlocked) {
+                        return response
+                    }
+                    // do not retry 429
+                    if (response.code == 429) {
+                        STEP = 6_000L
+                        MAX_COUNT = 1
+                    } else if (response.code in 200..499) {
+                        // do not retry 200..499 http codes
+                        return response
                     }
 
                     if (response.code in FALLBACK_ERRORS) {
@@ -67,7 +69,10 @@ class HttpRetryInterceptor : Interceptor {
                     Thread.sleep(STEP)
                 }
             } catch (e: SocketTimeoutException) {
-                if (!ApphudInternal.shouldRetryException(e, request.url.encodedPath)) {
+
+                ApphudLog.logE("Request (${request.url}) failed with Exception ${e}")
+
+                if (!ApphudInternal.shouldRetryRequest(request.url.encodedPath)) {
                     throw e
                 }
 
@@ -78,11 +83,15 @@ class HttpRetryInterceptor : Interceptor {
                 if (ApphudInternal.fallbackMode) {
                     throw e
                 }
+                RequestManager.previousException = e
                 Thread.sleep(STEP)
             } catch (e: UnknownHostException) {
-                if (!ApphudInternal.shouldRetryException(e, request.url.encodedPath)) {
+                ApphudLog.logE("Request (${request.url}) failed with Exception ${e}")
+
+                if (!ApphudInternal.shouldRetryRequest(request.url.encodedPath)) {
                     throw e
                 }
+                RequestManager.previousException = e
                 // do not retry when there is internet connection, but still unknown host issue
                 if (ApphudUtils.isOnline(ApphudInternal.context)) {
                     tryCount = MAX_COUNT
@@ -96,12 +105,14 @@ class HttpRetryInterceptor : Interceptor {
                     Thread.sleep(STEP)
                 }
             } catch (e: Exception) {
-                if (!ApphudInternal.shouldRetryException(e, request.url.encodedPath)) {
+
+                ApphudLog.logE("Request (${request.url}) failed with Exception ${e}")
+
+                if (!ApphudInternal.shouldRetryRequest(request.url.encodedPath)) {
                     throw e
                 }
-                ApphudLog.logE(
-                    "Request (${request.url}) failed with Exception. Will retry in ${STEP / 1000} seconds ($tryCount).",
-                )
+                RequestManager.previousException = e
+
                 Thread.sleep(STEP)
             } finally {
                 tryCount++
@@ -120,13 +131,15 @@ class HttpRetryInterceptor : Interceptor {
         if (!isSuccess) {
             ApphudLog.logE("Reached max number (${MAX_COUNT}) of (${request.url.encodedPath}) request retries. Exiting..")
         }
-        if (response != null) {
+         if (response != null) {
             return response
-        } else {
+        } else if (ApphudInternal.shouldRetryRequest(request.url.encodedPath)) {
             ApphudLog.log("Performing one more request ${request.url.encodedPath}")
             return chain.proceed(request)
-        }
+        } else if (request.url.encodedPath.endsWith("customers") || request.url.encodedPath.endsWith("products")){
+             throw RequestManager.previousException ?: Exception(APPHUD_NO_TIME_TO_RETRY)
+        } else {
+             return chain.proceed(request)
+         }
     }
-
-
 }
