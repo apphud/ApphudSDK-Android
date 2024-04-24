@@ -187,8 +187,9 @@ internal class SkuDetailsWrapper(
                         }
                     }
                     runBlocking {
-                        delay(4000)
+                        delay(3000)
                         if (continuation.isActive && !resumed) {
+                            resumed = true
                             continuation.resume(Pair(null, PRODUCTS_DEFAULT_ERROR))
                         }
                     }
