@@ -71,4 +71,14 @@ object ApphudUtils {
                 || Build.PRODUCT.contains("vbox86p")
                 || Build.PRODUCT.contains("emulator")
                 || Build.PRODUCT.contains("simulator")
+
+    fun getInstallerPackageName(context: Context): String? {
+        kotlin.runCatching {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R)
+                return context.packageManager.getInstallSourceInfo(packageName).installingPackageName
+            @Suppress("DEPRECATION")
+            return context.packageManager.getInstallerPackageName(packageName)
+        }
+        return null
+    }
 }
