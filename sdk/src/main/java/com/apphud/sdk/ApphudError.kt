@@ -1,7 +1,11 @@
 package com.apphud.sdk
 
 import com.xiaomi.billingclient.api.BillingClient
-
+import com.apphud.sdk.managers.RequestManager
+import java.io.InterruptedIOException
+import java.net.ConnectException
+import java.net.SocketTimeoutException
+import java.net.UnknownHostException
 
 data class ApphudError(
     override val message: String,
@@ -12,8 +16,38 @@ data class ApphudError(
     /**
      * Additional error code.
      * */
-    var errorCode: Int? = null,
+    var errorCode: Int? = null
 ) : Error(message) {
+
+    companion object {
+        fun from(exception: Exception): ApphudError {
+            var message = exception.message
+            var errorCode: Int? = null
+            if (exception.message == APPHUD_NO_TIME_TO_RETRY || (exception is InterruptedIOException)) {
+                if (RequestManager.previousException != null) {
+                    errorCode = errorCodeFrom(RequestManager.previousException!!)
+                    message = RequestManager.previousException!!.message
+                } else {
+                    message = APPHUD_NO_TIME_TO_RETRY
+                    errorCode = APPHUD_ERROR_MAX_TIMEOUT_REACHED
+                }
+            } else {
+                errorCodeFrom(exception)
+            }
+
+            return ApphudError(message ?: "Undefined Error", null, errorCode)
+        }
+
+        fun errorCodeFrom(exception: java.lang.Exception): Int? {
+            return if (exception is SocketTimeoutException || exception is ConnectException || exception is UnknownHostException) {
+                APPHUD_ERROR_NO_INTERNET
+            } else {
+                null
+            }
+        }
+    }
+
+
 
     /**
      * Returns true if given error is due to Internet connectivity issues.
@@ -60,10 +94,14 @@ data class ApphudError(
     }
 }
 
+const val APPHUD_ERROR_MAX_TIMEOUT_REACHED = -996
 const val APPHUD_ERROR_TIMEOUT = 408
 const val APPHUD_ERROR_NO_INTERNET = -999
+const val APPHUD_NO_TIME_TO_RETRY = "APPHUD_NO_TIME_TO_RETRY"
 const val APPHUD_NO_REQUEST = -998
 const val APPHUD_PURCHASE_PENDING = -997
 const val APPHUD_DEFAULT_RETRIES: Int = 3
 const val APPHUD_INFINITE_RETRIES: Int = 999_999
 const val APPHUD_DEFAULT_HTTP_TIMEOUT: Long = 7L
+const val APPHUD_DEFAULT_HTTP_CONNECT_TIMEOUT: Long = 6L
+const val APPHUD_DEFAULT_MAX_TIMEOUT: Long = 10L

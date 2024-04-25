@@ -7,11 +7,14 @@ import com.xiaomi.billingclient.api.BillingClient
 import com.xiaomi.billingclient.api.SkuDetails
 import kotlinx.coroutines.async
 import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 
 internal var productsStatus = ApphudProductsStatus.none
+internal var respondedWithProducts = false
+private  var loadingStoreProducts = false
 internal var productsResponseCode = BillingClient.BillingResponseCode.OK
 private val mutexProducts = Mutex()
 
@@ -46,9 +49,21 @@ internal fun ApphudInternal.loadProducts() {
     productsStatus = ApphudProductsStatus.loading
     ApphudLog.logI("Loading ProductDetails from the Store")
 
+    coroutineScope.launch {
+        delay(APPHUD_DEFAULT_MAX_TIMEOUT*1000)
+        if (loadingStoreProducts) {
+            delay(5000)
+        }
+        if (!respondedWithProducts) {
+            ApphudLog.logI("Force respondWithProducts")
+            respondWithProducts()
+        }
+    }
+
     coroutineScope.launch(errorHandler) {
         mutexProducts.withLock {
             async {
+
                 val result = fetchProducts()
                 productsResponseCode = result
                 productsStatus = if (result == BillingClient.BillingResponseCode.OK) ApphudProductsStatus.loaded else
@@ -62,12 +77,17 @@ internal fun ApphudInternal.loadProducts() {
                     retryProductsLoad()
                 } else {
                     ApphudLog.log("Finished Loading Product Details")
-                    mainScope.launch {
-                        notifyLoadingCompleted(null, skuDetails, false, false)
-                    }
+                    respondWithProducts()
                 }
             }
         }
+    }
+}
+
+private fun respondWithProducts() {
+    respondedWithProducts = true
+    ApphudInternal.mainScope.launch {
+        ApphudInternal.notifyLoadingCompleted(null, ApphudInternal.skuDetails, false, false)
     }
 }
 
@@ -126,9 +146,12 @@ internal suspend fun ApphudInternal.fetchDetails(ids: List<String>): Int {
 
     // If none ids to load, return immediately
     if (idsToFetch.isEmpty()) {
+        ApphudLog.log("NO REQUEST TO FETCH PRODUCT DETAILS")
         return APPHUD_NO_REQUEST
     }
 
+    ApphudLog.log("Fetching Product Details: ${idsToFetch.toString()}")
+    loadingStoreProducts = true
     if (productsStatus != ApphudProductsStatus.loading) {
         productsStatus = ApphudProductsStatus.loading
     }
@@ -195,7 +218,7 @@ internal suspend fun ApphudInternal.fetchDetails(ids: List<String>): Int {
     }
 
     val benchmark = System.currentTimeMillis() - startTime
-
+    loadingStoreProducts = false
     ApphudInternal.productsLoadedTime = benchmark
 
     return responseCode
