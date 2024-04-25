@@ -379,12 +379,12 @@ internal object ApphudInternal {
 
             latestCustomerLoadError = null
         } else {
-            ApphudLog.log("Not yet ready for callbacks invoke: isRegisteringUser: ${isRegisteringUser}, currentUserExist: ${currentUser != null} customerError: ${customerError}, latestCustomerError: ${latestCustomerLoadError}, paywallsEmpty: ${paywalls.isEmpty()}, productsResponseCode = ${productsResponseCode}, productDetailsEmpty: ${productDetails.isEmpty()} }")
+//            ApphudLog.log("Not yet ready for callbacks invoke: isRegisteringUser: ${isRegisteringUser}, currentUserExist: ${currentUser != null} customerError: ${customerError}, latestCustomerError: ${latestCustomerLoadError}, paywallsEmpty: ${paywalls.isEmpty()}, productsResponseCode = ${productsResponseCode}, productDetailsEmpty: ${productDetails.isEmpty()} }")
         }
     }
 
     private fun trackAnalytics() {
-        if (trackedAnalytics) return
+        if (trackedAnalytics) { return }
 
         trackedAnalytics = true
         val totalLoad = (System.currentTimeMillis() - sdkLaunchedAt)
@@ -492,7 +492,7 @@ internal object ApphudInternal {
 
     internal fun forceNotifyAllLoaded() {
         coroutineScope.launch {
-            delay((APPHUD_DEFAULT_MAX_TIMEOUT * 1000 * 1.5).toLong())
+            delay(((maxProductRetriesCount + 1) * 1000 * APPHUD_DEFAULT_HTTP_TIMEOUT).toLong())
             mainScope.launch {
                 if (!notifiedAboutPaywallsDidFullyLoaded || offeringsPreparedCallbacks.isNotEmpty()) {
                     ApphudLog.logE("Force Notify About Current State")
@@ -509,16 +509,14 @@ internal object ApphudInternal {
     }
 
     internal fun shouldRetryRequest(request: String): Boolean {
-        val maxInitialWaitingTimeout = APPHUD_DEFAULT_MAX_TIMEOUT * 1000
-        val percentageFromMaxTimeout = APPHUD_DEFAULT_HTTP_TIMEOUT * 1000
+        val percentageFromMaxTimeout = APPHUD_DEFAULT_HTTP_TIMEOUT * 1000 * maxProductRetriesCount
         val diff = System.currentTimeMillis() - sdkLaunchedAt
 
         // if paywalls callback not yet invoked and there are pending callbacks, and it's a customers request
-        // and more than (APPHUD_DEFAULT_HTTP_TIMEOUT) seconds of (APPHUD_DEFAULT_MAX_TIMEOUT) secs
-        // max Waiting Time is gone, then it's no time for extra retry.
+        // and more than (APPHUD_DEFAULT_HTTP_TIMEOUT) seconds lapsed then no time for extra retry.
         if (!didRegisterCustomerAtThisLaunch && !notifiedAboutPaywallsDidFullyLoaded && offeringsPreparedCallbacks.isNotEmpty()
             && (request.endsWith("customers") || request.endsWith("products")) && diff > percentageFromMaxTimeout) {
-            ApphudLog.log("MAX TIMEOUT ALMOST REACHED")
+            ApphudLog.log("MAX TIMEOUT REACHED")
             return false
         }
         return true

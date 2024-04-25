@@ -81,10 +81,4 @@ object ApphudUtils {
         }
         return null
     }
-
-    fun isFromPlayMarket() :Boolean{
-        val installer = getInstallerPackageName(ApphudInternal.context)
-        ApphudLog.log("Installer: ${installer}")
-        return installer == "com.android.vending"
-    }
 }

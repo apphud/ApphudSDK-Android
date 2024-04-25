@@ -995,7 +995,7 @@ object RequestManager {
             first_seen = getInstallationDate(),
             sdk_launched_at = ApphudInternal.sdkLaunchedAt,
             request_time = System.currentTimeMillis(),
-            install_source = if(ApphudUtils.isFromPlayMarket()) "google_play" else "unknown"
+            install_source = ApphudUtils.getInstallerPackageName(this.applicationContext) ?: "unknown"
         )
     }
 
