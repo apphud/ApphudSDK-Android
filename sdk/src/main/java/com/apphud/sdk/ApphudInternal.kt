@@ -92,8 +92,9 @@ internal object ApphudInternal {
     internal var purchasingProduct: ApphudProduct? = null
     internal var maxProductRetriesCount: Int = APPHUD_DEFAULT_RETRIES
     private var customProductsFetchedBlock: ((List<ProductDetails>) -> Unit)? = null
-    private var offeringsPreparedCallbacks = mutableListOf<((ApphudError?) -> Unit)>()
+    private var offeringsPreparedCallbacks = mutableListOf<((ApphudError?) -> Unit)?>()
     private var userRegisteredBlock: ((ApphudUser) -> Unit)? = null
+    private var notifiedPaywallsAndPlacementsHandled = false
     internal var isActive = false
     private var lifecycleEventObserver =
         LifecycleEventObserver { _, event ->
@@ -202,10 +203,12 @@ internal object ApphudInternal {
         RequestManager.setParams(this.context, this.apiKey)
 
         loadProducts()
+        forceNotifyAllLoaded()
 
         val needRegistration = needRegistration(credentialsChanged, cachedPaywalls, cachedUser)
 
         if (needRegistration) {
+            isRegisteringUser = true
             registration(this.userId, this.deviceId, true, null)
         } else {
             mainScope.launch {
@@ -258,21 +261,7 @@ internal object ApphudInternal {
         if ((productDetails.isNotEmpty() || productDetailsLoaded != null) &&
             (firstCustomerLoadedTime != null || latestCustomerLoadError != null) &&
             !trackedAnalytics) {
-            trackedAnalytics = true
-            val totalLoad = (System.currentTimeMillis() - sdkLaunchedAt)
-            val userLoad = if (firstCustomerLoadedTime != null) (firstCustomerLoadedTime!! - sdkLaunchedAt) else 0
-            val productsLoaded = productsLoadedTime ?: 0
-            ApphudLog.logI("SDK Benchmarks: User ${userLoad}ms, Products: ${productsLoaded}ms, Total: ${totalLoad}ms, Apphud Error: ${latestCustomerLoadError?.message}, Billing Response Code: ${productsResponseCode}")
-            coroutineScope.launch {
-                RequestManager.sendPaywallLogs(
-                    sdkLaunchedAt,
-                    productDetails.count(),
-                    userLoad.toDouble(),
-                    productsLoaded.toDouble(),
-                    totalLoad.toDouble(),
-                    latestCustomerLoadError?.message,
-                    productsResponseCode)
-            }
+            trackAnalytics()
         }
 
         productDetailsLoaded?.let {
@@ -353,7 +342,7 @@ internal object ApphudInternal {
 
     private fun handlePaywallsAndProductsLoaded(customerError: ApphudError?) {
 
-        if (currentUser != null && paywalls.isNotEmpty() && productDetails.isNotEmpty()) {
+        if (currentUser != null && paywalls.isNotEmpty() && productDetails.isNotEmpty() && !isRegisteringUser) {
             if (!notifiedAboutPaywallsDidFullyLoaded) {
                 apphudListener?.paywallsDidFullyLoad(paywalls)
                 apphudListener?.placementsDidFullyLoad(placements)
@@ -367,8 +356,12 @@ internal object ApphudInternal {
             }
             while (offeringsPreparedCallbacks.isNotEmpty()) {
                 val callback = offeringsPreparedCallbacks.removeFirst()
-                callback.invoke(null)
+                callback?.invoke(null)
             }
+
+            notifiedPaywallsAndPlacementsHandled = true
+            trackAnalytics()
+
             latestCustomerLoadError = null
         } else if (!isRegisteringUser &&
             ((customerError != null && paywalls.isEmpty()) || (productsResponseCode != BillingClient.BillingResponseCode.OK && productDetails.isEmpty()))) {
@@ -378,9 +371,35 @@ internal object ApphudInternal {
             val error = latestCustomerLoadError ?: customerError ?: ApphudError("Paywalls load error", errorCode = productsResponseCode)
             while (offeringsPreparedCallbacks.isNotEmpty()) {
                 val callback = offeringsPreparedCallbacks.removeFirst()
-                callback.invoke(error)
+                callback?.invoke(error)
             }
+
+            notifiedPaywallsAndPlacementsHandled = true
+            trackAnalytics()
+
             latestCustomerLoadError = null
+        } else {
+//            ApphudLog.log("Not yet ready for callbacks invoke: isRegisteringUser: ${isRegisteringUser}, currentUserExist: ${currentUser != null} customerError: ${customerError}, latestCustomerError: ${latestCustomerLoadError}, paywallsEmpty: ${paywalls.isEmpty()}, productsResponseCode = ${productsResponseCode}, productDetailsEmpty: ${productDetails.isEmpty()} }")
+        }
+    }
+
+    private fun trackAnalytics() {
+        if (trackedAnalytics) { return }
+
+        trackedAnalytics = true
+        val totalLoad = (System.currentTimeMillis() - sdkLaunchedAt)
+        val userLoad = if (firstCustomerLoadedTime != null) (firstCustomerLoadedTime!! - sdkLaunchedAt) else 0
+        val productsLoaded = productsLoadedTime ?: 0
+        ApphudLog.logI("SDK Benchmarks: User ${userLoad}ms, Products: ${productsLoaded}ms, Total: ${totalLoad}ms, Apphud Error: ${latestCustomerLoadError?.message}, Billing Response Code: ${productsResponseCode}, ErrorCode: ${latestCustomerLoadError?.errorCode}")
+        coroutineScope.launch {
+            RequestManager.sendPaywallLogs(
+                sdkLaunchedAt,
+                productDetails.count(),
+                userLoad.toDouble(),
+                productsLoaded.toDouble(),
+                totalLoad.toDouble(),
+                latestCustomerLoadError,
+                productsResponseCode)
         }
     }
 
@@ -406,7 +425,6 @@ internal object ApphudInternal {
         forceRegistration: Boolean = false,
         completionHandler: ((ApphudUser?, ApphudError?) -> Unit)?,
     ) {
-        isRegisteringUser = true
         coroutineScope.launch(errorHandler) {
             mutex.withLock {
                 if (currentUser == null || forceRegistration) {
@@ -472,12 +490,33 @@ internal object ApphudInternal {
         }
     }
 
-    internal fun shouldRetryException(e: Exception, request: String): Boolean {
-        val maxWaitingThreshold = maxProductRetriesCount * APPHUD_DEFAULT_HTTP_TIMEOUT * 1000
+    internal fun forceNotifyAllLoaded() {
+        coroutineScope.launch {
+            delay(((maxProductRetriesCount + 1) * 1000 * APPHUD_DEFAULT_HTTP_TIMEOUT).toLong())
+            mainScope.launch {
+                if (!notifiedAboutPaywallsDidFullyLoaded || offeringsPreparedCallbacks.isNotEmpty()) {
+                    ApphudLog.logE("Force Notify About Current State")
+                    notifyLoadingCompleted(
+                        currentUser,
+                        productDetails,
+                        false,
+                        false,
+                        latestCustomerLoadError
+                    )
+                }
+            }
+        }
+    }
+
+    internal fun shouldRetryRequest(request: String): Boolean {
+        val percentageFromMaxTimeout = APPHUD_DEFAULT_HTTP_TIMEOUT * 1000 * maxProductRetriesCount
         val diff = System.currentTimeMillis() - sdkLaunchedAt
+
+        // if paywalls callback not yet invoked and there are pending callbacks, and it's a customers request
+        // and more than (APPHUD_DEFAULT_HTTP_TIMEOUT) seconds lapsed then no time for extra retry.
         if (!didRegisterCustomerAtThisLaunch && !notifiedAboutPaywallsDidFullyLoaded && offeringsPreparedCallbacks.isNotEmpty()
-            && (request.endsWith("customers") || request.endsWith("products")) && diff > maxWaitingThreshold) {
-            ApphudLog.logE("Cannot wait anymore, returning User and Products callbacks")
+            && (request.endsWith("customers") || request.endsWith("products")) && diff > percentageFromMaxTimeout) {
+            ApphudLog.log("MAX TIMEOUT REACHED")
             return false
         }
         return true
@@ -493,7 +532,6 @@ internal object ApphudInternal {
 
     internal fun performWhenOfferingsPrepared(maxAttempts: Int?, callback: (ApphudError?) -> Unit) {
         if (maxAttempts != null && (maxAttempts in 1..10)) {
-            HttpRetryInterceptor.MAX_COUNT = maxAttempts
             maxProductRetriesCount = maxAttempts
         }
 
@@ -512,7 +550,7 @@ internal object ApphudInternal {
         var isLoading = false
 
         if (isRegisteringUser) {
-//            ApphudLog.logI("Already refreshing")
+            // already loading
             isLoading = true
         } else if (currentUser == null || fallbackMode || currentUser?.isTemporary == true || paywalls.isEmpty() || latestCustomerLoadError != null) {
             ApphudLog.logI("Refreshing User")
