@@ -1,6 +1,7 @@
 package com.apphud.demo.mi
 
 import android.os.Bundle
+import android.util.Log
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import androidx.appcompat.widget.Toolbar
@@ -20,25 +21,26 @@ class MainActivity : AppCompatActivity() {
     private lateinit var binding: ActivityMainBinding
     private lateinit var me: MainActivity
 
-    var API_KEY = "app_oBcXz2z9j8spKPL2T7sZwQaQN5Jzme"
+    var API_KEY = "app_4sY9cLggXpMDDQMmvc5wXUPGReMp8G"
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         me = this
 
-        //TODO: Working with stage api, remove this code for production
-        if (BuildConfig.DEBUG) {
-            ApiClient.host = "https://api.apphudstage.com"
-        }
-
         Apphud.enableDebugLogs()
-        // Apphud.optOutOfTracking()
         if (BuildConfig.DEBUG) {
             ApphudUtils.enableAllLogs()
         }
         Apphud.start(this, API_KEY)
         Apphud.collectDeviceIdentifiers()
+        
+        Apphud.fetchPlacements { pl, error ->
+            Log.d("ApphudLogs", "Apphud.fetchPlacements = ${pl.count()} error: ${error}")
+        }
 
+        Apphud.fetchProducts { details, error ->
+            Log.d("ApphudLogs", "Apphud.fetchProducts = ${details.count()}, error: ${error}")
+        }
 
         binding = ActivityMainBinding.inflate(layoutInflater)
         setContentView(binding.root)

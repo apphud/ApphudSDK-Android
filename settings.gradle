@@ -1,3 +1,4 @@
 include ':sdk'
 include ':demo'
+include ':colorgenerator'
 rootProject.name = "Apphud"

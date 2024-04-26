@@ -2,6 +2,7 @@ package com.apphud.sdk
 
 import android.app.Activity
 import com.apphud.sdk.domain.*
+import com.xiaomi.billingclient.api.SkuDetails
 import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlin.coroutines.resume
 import kotlin.math.max
@@ -343,6 +344,22 @@ object Apphud {
      */
     fun permissionGroups(): List<ApphudGroup> {
         return ApphudInternal.getPermissionGroups()
+    }
+
+    /**
+     * Returns an array of `SkuDetails` objects, whose identifiers you added in Apphud > Product Hub > Products.
+     * It is recommended not to use this method directly, but to use `placements()` or `paywalls()` instead.
+     * @param maxAttempts Number of request attempts before throwing an error. Must be between 1 and 10. Default value is 3.
+     * @param callback The callback function that is invoked with the list of `SkuDetails` objects.
+     * Second parameter in callback represents optional error, which may be
+     * on BillingClient or Apphud side.
+     */
+    @Deprecated(
+        "Use \"paywalls()\" method instead.",
+        ReplaceWith("this.paywalls()"),
+    )
+    fun fetchProducts(maxAttempts: Int? = null, callback: (List<SkuDetails>, ApphudError?) -> Unit) {
+        ApphudInternal.performWhenOfferingsPrepared(maxAttempts = maxAttempts) { callback(ApphudInternal.getSkuDetails(), it) }
     }
 
     //endregion
