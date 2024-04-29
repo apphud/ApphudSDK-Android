@@ -17,6 +17,7 @@ object Apphud {
      *
      * @param context The application context.
      * @param apiKey Your API key. This is a required parameter.
+     * @param observerMode (Optional). Pass true if you're using SDK only in analytics mode and not operating with Paywalls and Placements.
      * @param callback (Optional) A callback function that is invoked with the `ApphudUser`
      *                 object after the SDK initialization is complete. __Note__: Do not store
      *                 `ApphudUser`
@@ -25,8 +26,9 @@ object Apphud {
     fun start(
         context: Context,
         apiKey: ApiKey,
+        observerMode: Boolean = false,
         callback: ((ApphudUser) -> Unit)? = null,
-    ) = start(context, apiKey, null, null, callback)
+    ) = start(context, apiKey, null,  null, observerMode, callback)
 
     /**
      * Initializes Apphud SDK. You should call it during app launch.
@@ -35,6 +37,7 @@ object Apphud {
      * @param apiKey Your API key. This is a required parameter.
      * @param userId (Optional) A unique user identifier. If null is passed, a UUID will be
      *               generated and used as the user identifier.
+     * @param observerMode (Optional). Pass true if you're using SDK only in analytics mode and not operating with Paywalls and Placements.
      * @param callback (Optional) A callback function that is invoked with the `ApphudUser`
      *                 object after the SDK initialization is complete. __Note__: Do not store
      *                 `ApphudUser`
@@ -44,8 +47,9 @@ object Apphud {
         context: Context,
         apiKey: ApiKey,
         userId: UserId? = null,
+        observerMode: Boolean = false,
         callback: ((ApphudUser) -> Unit)? = null,
-    ) = start(context, apiKey, userId, null, callback)
+    ) = start(context, apiKey, userId, null, observerMode, callback)
 
     /**
      * Initializes the Apphud SDK. This method should be called during the app launch.
@@ -59,6 +63,7 @@ object Apphud {
      *                 parameter with caution. Passing different device IDs
      *                 can result in the creation of multiple user records in Apphud for the same
      *                 actual user. Best practice is to always pass null.
+     * @param observerMode (Optional). Pass true if you're using SDK only in analytics mode and not operating with Paywalls and Placements.
      * @param callback (Optional) A callback function that is invoked with the `ApphudUser`
      *                 object after the SDK initialization is complete. __Note__: Do not store
      *                 `ApphudUser`
@@ -69,10 +74,11 @@ object Apphud {
         apiKey: ApiKey,
         userId: UserId? = null,
         deviceId: DeviceId? = null,
+        observerMode: Boolean = false,
         callback: ((ApphudUser) -> Unit)? = null,
     ) {
         ApphudUtils.setPackageName(context.packageName)
-        ApphudInternal.initialize(context, apiKey, userId, deviceId, callback)
+        ApphudInternal.initialize(context, apiKey, userId, deviceId, observerMode, callback)
     }
 
     /**

@@ -96,6 +96,7 @@ internal object ApphudInternal {
     private var userRegisteredBlock: ((ApphudUser) -> Unit)? = null
     private var notifiedPaywallsAndPlacementsHandled = false
     internal var isActive = false
+    internal var observerMode = false
     private var lifecycleEventObserver =
         LifecycleEventObserver { _, event ->
             when (event) {
@@ -125,6 +126,7 @@ internal object ApphudInternal {
         apiKey: ApiKey,
         inputUserId: UserId?,
         inputDeviceId: DeviceId?,
+        observerMode: Boolean,
         callback: ((ApphudUser) -> Unit)?,
     ) {
         if (!allowIdentifyUser) {
@@ -139,7 +141,7 @@ internal object ApphudInternal {
             return
         }
         allowIdentifyUser = false
-
+        this.observerMode = observerMode
         sdkLaunchedAt = System.currentTimeMillis()
 
         mainScope.launch {
@@ -156,8 +158,8 @@ internal object ApphudInternal {
             ApphudLog.logI("Ignoring local paywalls cache")
         }
         val cachedUser = if (isValid) storage.apphudUser else null
-        val cachedPaywalls = if (ignoreCache || !isValid) null else readPaywallsFromCache()
-        val cachedPlacements = if (ignoreCache || !isValid) null else readPlacementsFromCache()
+        val cachedPaywalls = if (ignoreCache || !isValid || observerMode) null else readPaywallsFromCache()
+        val cachedPlacements = if (ignoreCache || !isValid || observerMode) null else readPlacementsFromCache()
         val cachedGroups = if (isValid) readGroupsFromCache() else mutableListOf()
         val cachedDeviceId = storage.deviceId
         val cachedUserId = storage.userId
@@ -258,7 +260,7 @@ internal object ApphudInternal {
             latestCustomerLoadError = it
         }
 
-        if ((productDetails.isNotEmpty() || productDetailsLoaded != null) &&
+        if (observerMode && (productDetails.isNotEmpty() || productDetailsLoaded != null) &&
             (firstCustomerLoadedTime != null || latestCustomerLoadError != null) &&
             !trackedAnalytics) {
             trackAnalytics()
@@ -404,7 +406,7 @@ internal object ApphudInternal {
     }
 
     private fun handleCustomerError(customerError: ApphudError) {
-        if ((currentUser == null || productDetails.isEmpty() || paywalls.isEmpty()) && isActive && !refreshUserPending && userLoadRetryCount < APPHUD_INFINITE_RETRIES) {
+        if ((currentUser == null || productDetails.isEmpty() || (paywalls.isEmpty() && !observerMode)) && isActive && !refreshUserPending && userLoadRetryCount < APPHUD_INFINITE_RETRIES) {
             refreshUserPending = true
             coroutineScope.launch {
                 val delay = 500L * userLoadRetryCount
@@ -552,7 +554,7 @@ internal object ApphudInternal {
         if (isRegisteringUser) {
             // already loading
             isLoading = true
-        } else if (currentUser == null || fallbackMode || currentUser?.isTemporary == true || paywalls.isEmpty() || latestCustomerLoadError != null) {
+        } else if (currentUser == null || fallbackMode || currentUser?.isTemporary == true || (paywalls.isEmpty() && !observerMode) || latestCustomerLoadError != null) {
             ApphudLog.logI("Refreshing User")
             didRegisterCustomerAtThisLaunch = false
             refreshEntitlements(true)
