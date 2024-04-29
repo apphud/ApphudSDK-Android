@@ -24,7 +24,9 @@ android {
         Properties properties = new Properties()
         properties.load(project.rootProject.file('local.properties').newDataInputStream())
         manifestPlaceholders = [facebookAppId: "${properties.getProperty('facebook_app_id')}",
-                                facebookClientToken: "${properties.getProperty('facebook_client_token')}"]
+                                facebookClientToken: "${properties.getProperty('facebook_client_token')}",
+                                branchKeyTest: "${properties.getProperty('branch_key_test')}",
+                                branchKeyLive: "${properties.getProperty('branch_key_live')}"]
     }
 
     signingConfigs {

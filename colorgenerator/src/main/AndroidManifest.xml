@@ -40,10 +40,10 @@
             android:value="${facebookClientToken}" /> <!-- Branch init -->
         <meta-data
             android:name="io.branch.sdk.BranchKey"
-            android:value="key_test_pf8A6wRjWrKDk9HpsJwaYdoiBEj3GLyZ" />
+            android:value="${branchKeyLive}"/>
         <meta-data
             android:name="io.branch.sdk.BranchKey.test"
-            android:value="key_live_gp5F8BKiYzTFo6RhuHAg1jbhwujXTLzV" />
+            android:value="${branchKeyTest}" />
         <meta-data
             android:name="io.branch.sdk.TestMode"
             android:value="true" />
