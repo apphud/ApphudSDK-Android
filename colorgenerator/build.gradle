@@ -20,6 +20,11 @@ android {
         versionName "1.0"
         signingConfig signingConfigs.debug
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
+
+        Properties properties = new Properties()
+        properties.load(project.rootProject.file('local.properties').newDataInputStream())
+        manifestPlaceholders = [facebookAppId: "${properties.getProperty('facebook_app_id')}",
+                                facebookClientToken: "${properties.getProperty('facebook_client_token')}"]
     }
 
     signingConfigs {
@@ -42,9 +47,13 @@ android {
             minifyEnabled true
             proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
             signingConfig signingConfigs.release
+            buildConfigField("String","APPS_FLYER_KEY", "\"${apps_flyer_key}\"")
+            buildConfigField("String","ANMPLITUDE_KEY", "\"${amplitude_key}\"")
         }
         debug {
             signingConfig signingConfigs.debug
+            buildConfigField("String","APPS_FLYER_KEY", "\"${apps_flyer_key}\"")
+            buildConfigField("String","ANMPLITUDE_KEY", "\"${amplitude_key}\"")
         }
     }
 

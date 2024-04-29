@@ -4,7 +4,7 @@ import com.apphud.sampleapp.BuildConfig
 import com.apphud.sampleapp.R
 import com.apphud.sampleapp.ui.models.HasPremiumEvent
 import com.apphud.sampleapp.ui.utils.BaseViewModel
-import com.apphud.sampleapp.ui.utils.PurchaseManager
+import com.apphud.sampleapp.ui.utils.ApphudSdkManager
 import com.apphud.sampleapp.ui.utils.ResourceManager
 import com.apphud.sdk.managers.HeadersInterceptor
 import kotlinx.coroutines.launch
@@ -33,7 +33,7 @@ enum class SettingsButton :ISettingsItem {
     },
     premium {
         override fun title() = ResourceManager.getString(R.string.premium_status)
-        override fun value() = PurchaseManager.isPremium()?.let {
+        override fun value() = ApphudSdkManager.isPremium()?.let {
             if(it){
                ResourceManager.getString(R.string.premium_value_yes)
             } else {
@@ -65,7 +65,7 @@ class SettingsViewModel :BaseViewModel(){
 
     fun restorePurchases(completionHandler :(isSuccess: Boolean) -> Unit) {
         coroutineScope.launch (errorHandler){
-            PurchaseManager.restorePurchases { subscriptions, purchases, error ->
+            ApphudSdkManager.restorePurchases { subscriptions, purchases, error ->
                 mainScope.launch {
                     error?.let{
                         completionHandler(false)

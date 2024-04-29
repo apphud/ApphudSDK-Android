@@ -6,6 +6,7 @@ import com.amplitude.android.Amplitude
 import com.amplitude.android.Configuration
 import com.amplitude.android.DefaultTrackingOptions
 import com.amplitude.common.Logger
+import com.apphud.sampleapp.BuildConfig
 import com.apphud.sampleapp.R
 import com.apphud.sdk.Apphud
 import com.apphud.sdk.ApphudAttributionProvider
@@ -89,7 +90,7 @@ object AnalyticsManager {
                     }
                 }
                 AppsFlyerLib.getInstance().setDebugLog(true)
-                AppsFlyerLib.getInstance().init(ResourceManager.getString(R.string.apps_flyer_key), listener, application)
+                AppsFlyerLib.getInstance().init(BuildConfig.APPS_FLYER_KEY, listener, application)
                 AppsFlyerLib.getInstance().start(application)
             }
 
@@ -98,7 +99,7 @@ object AnalyticsManager {
                 Log.d("ColorGenerator", "Init integration: AMPLITUDE")
                 val amplitude = Amplitude(
                     Configuration(
-                        apiKey = ResourceManager.getString(R.string.amplitude_key),
+                        apiKey = BuildConfig.ANMPLITUDE_KEY,
                         context = application,
                         defaultTracking = DefaultTrackingOptions(
                             screenViews = true

@@ -8,7 +8,6 @@ import com.apphud.sampleapp.BuildConfig
 import com.apphud.sampleapp.R
 import com.apphud.sampleapp.ui.models.HasPremiumEvent
 import com.apphud.sampleapp.ui.models.PlacementJson
-import com.apphud.sampleapp.ui.models.Paywall
 import com.apphud.sdk.Apphud
 import com.apphud.sdk.ApphudError
 import com.apphud.sdk.ApphudListener
@@ -42,7 +41,7 @@ enum class Placement (val placementId: String, val paywallId: String) {
     }
 }
 
-object PurchaseManager {
+object ApphudSdkManager {
     private val API_KEY = "app_q1opvXjFE1ADcjrGnvNnFVYu1tzh6d"
     private lateinit var application :Application
 

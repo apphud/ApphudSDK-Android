@@ -7,8 +7,7 @@ import androidx.fragment.app.Fragment
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
-import com.apphud.sampleapp.MainActivity
-import com.apphud.sampleapp.OnboardingActivity
+import com.apphud.sampleapp.ui.main.MainActivity
 import com.apphud.sampleapp.databinding.FragmentOnboarding3Binding
 import com.apphud.sampleapp.ui.paywall.PaywallActivity
 import com.apphud.sampleapp.ui.utils.Placement

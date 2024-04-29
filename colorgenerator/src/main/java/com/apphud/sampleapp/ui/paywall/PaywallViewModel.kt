@@ -4,7 +4,7 @@ import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData
 import com.apphud.sampleapp.ui.utils.BaseViewModel
 import com.apphud.sampleapp.ui.utils.Placement
-import com.apphud.sampleapp.ui.utils.PurchaseManager
+import com.apphud.sampleapp.ui.utils.ApphudSdkManager
 import com.apphud.sdk.domain.ApphudProduct
 import kotlinx.coroutines.launch
 
@@ -29,7 +29,7 @@ class PaywallViewModel() : BaseViewModel() {
 
     fun getPaywallInfo(placement: Placement){
         coroutineScope.launch (errorHandler){
-            val info = PurchaseManager.getPlacementInfo(placement)
+            val info = ApphudSdkManager.getPlacementInfo(placement)
             mainScope.launch {
                 info?.let{
                     _buttonTitle.value = it.paywall.buttonTitle
@@ -43,20 +43,20 @@ class PaywallViewModel() : BaseViewModel() {
     fun loadProducts(placement: Placement){
         coroutineScope.launch (errorHandler){
             mainScope.launch {
-                _productsList.value = PurchaseManager.getPaywallProducts(placement)
+                _productsList.value = ApphudSdkManager.getPaywallProducts(placement)
             }
         }
     }
 
     fun placementShown(placement: Placement){
         coroutineScope.launch (errorHandler) {
-            PurchaseManager.placementShown(placement)
+            ApphudSdkManager.placementShown(placement)
         }
     }
 
     fun placementClosed(placement: Placement){
         coroutineScope.launch (errorHandler) {
-            PurchaseManager.placementClosed(placement)
+            ApphudSdkManager.placementClosed(placement)
         }
     }
 

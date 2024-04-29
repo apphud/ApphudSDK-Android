@@ -6,7 +6,7 @@ import androidx.lifecycle.MutableLiveData
 import com.apphud.sampleapp.ui.models.PlacementJson
 import com.apphud.sampleapp.ui.utils.BaseViewModel
 import com.apphud.sampleapp.ui.utils.Placement
-import com.apphud.sampleapp.ui.utils.PurchaseManager
+import com.apphud.sampleapp.ui.utils.ApphudSdkManager
 import com.apphud.sampleapp.ui.utils.retryOperation
 import kotlinx.coroutines.launch
 
@@ -22,7 +22,7 @@ class OnBoardingViewModel :BaseViewModel(){
 
     fun getOnboardingInfo(placement: Placement, completionHandler: (PlacementJson?) -> Unit){
         coroutineScope.launch (errorHandler){
-            val info = PurchaseManager.getPlacementInfo(placement)
+            val info = ApphudSdkManager.getPlacementInfo(placement)
             mainScope.launch {
                 onBoarding = info
                 completionHandler(onBoarding)
@@ -33,7 +33,7 @@ class OnBoardingViewModel :BaseViewModel(){
     private fun checkPremium(){
         coroutineScope.launch (errorHandler){
             retryOperation(10) {
-                if (!PurchaseManager.isApphudReady) {
+                if (!ApphudSdkManager.isApphudReady) {
                     Log.d("ColorGenerator", "Try number $tryNumber")
                     operationFailed()
                     if(isFailed) {
@@ -50,5 +50,5 @@ class OnBoardingViewModel :BaseViewModel(){
         }
     }
 
-    fun isPremium() = PurchaseManager.isPremium()
+    fun isPremium() = ApphudSdkManager.isPremium()
 }

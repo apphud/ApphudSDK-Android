@@ -1,16 +1,14 @@
-package com.apphud.sampleapp
+package com.apphud.sampleapp.ui.main
 
-import android.animation.Animator
-import android.animation.AnimatorListenerAdapter
 import android.os.Bundle
 import android.view.MenuItem
-import android.view.View
 import androidx.navigation.NavController
-import androidx.navigation.NavDestination
 import androidx.navigation.findNavController
 import androidx.navigation.ui.AppBarConfiguration
 import androidx.navigation.ui.setupActionBarWithNavController
 import androidx.navigation.ui.setupWithNavController
+import com.apphud.sampleapp.BaseActivity
+import com.apphud.sampleapp.R
 import com.apphud.sampleapp.databinding.ActivityMainBinding
 
 class MainActivity : BaseActivity() {
@@ -25,7 +23,10 @@ class MainActivity : BaseActivity() {
         setContentView(binding.root)
 
         navController = findNavController(R.id.nav_host_fragment_activity_main)
-        val appBarConfiguration = AppBarConfiguration(setOf(R.id.navigation_generator, R.id.navigation_settings))
+        val appBarConfiguration = AppBarConfiguration(setOf(
+            R.id.navigation_generator,
+            R.id.navigation_settings
+        ))
 
         setSupportActionBar(binding.toolbar)
         supportActionBar?.hide()

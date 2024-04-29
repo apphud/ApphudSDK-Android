@@ -7,10 +7,8 @@ import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import androidx.navigation.fragment.findNavController
-import com.apphud.sampleapp.OnboardingActivity
 import com.apphud.sampleapp.databinding.FragmentOnboarding1Binding
 import com.apphud.sampleapp.ui.utils.Placement
-import com.apphud.sampleapp.ui.utils.PurchaseManager
 
 class OnBoarding1Fragment :Fragment() {
 

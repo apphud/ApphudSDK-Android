@@ -15,7 +15,7 @@ import com.apphud.sampleapp.R
 import com.apphud.sampleapp.databinding.FragmentSettingsBinding
 import com.apphud.sampleapp.ui.paywall.PaywallActivity
 import com.apphud.sampleapp.ui.utils.Placement
-import com.apphud.sampleapp.ui.utils.PurchaseManager
+import com.apphud.sampleapp.ui.utils.ApphudSdkManager
 import com.apphud.sampleapp.ui.utils.ResourceManager
 
 class SettingsFragment : Fragment() {
@@ -53,7 +53,7 @@ class SettingsFragment : Fragment() {
         }
         adapter.premiumClick = {
             activity?.let { a ->
-                PurchaseManager.isPremium()?.let {
+                ApphudSdkManager.isPremium()?.let {
                     if (!it) {
                         val i = Intent(a, PaywallActivity::class.java)
                         i.putExtra("placement_id", Placement.settings.placementId)

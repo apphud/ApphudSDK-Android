@@ -25,4 +25,7 @@ internal fun mkRegistrationBody(
     need_placements = true,
     android_id = "",
     first_seen = null,
+    sdk_launched_at = 0L,
+    request_time = 0L,
+    install_source = ""
 )

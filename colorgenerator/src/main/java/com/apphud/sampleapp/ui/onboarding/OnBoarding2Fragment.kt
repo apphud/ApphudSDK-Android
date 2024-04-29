@@ -7,7 +7,6 @@ import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import androidx.navigation.fragment.findNavController
-import com.apphud.sampleapp.OnboardingActivity
 import com.apphud.sampleapp.databinding.FragmentOnboarding2Binding
 
 class OnBoarding2Fragment :Fragment() {

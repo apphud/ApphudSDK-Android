@@ -8,7 +8,7 @@ import com.apphud.sampleapp.ui.utils.PreferencesManager
 import com.apphud.sampleapp.ui.utils.ResourceManager
 import java.util.Random
 import com.apphud.sampleapp.R
-import com.apphud.sampleapp.ui.utils.PurchaseManager
+import com.apphud.sampleapp.ui.utils.ApphudSdkManager
 
 
 class MainViewModel : ViewModel() {
@@ -19,7 +19,7 @@ class MainViewModel : ViewModel() {
     var count :Int = PreferencesManager.count
     var isUnlimited :Boolean = false
         get() {
-            return PurchaseManager.isPremium()?: false
+            return ApphudSdkManager.isPremium()?: false
         }
 
     var showPaywall: (()->Unit)? = null
@@ -61,7 +61,7 @@ class MainViewModel : ViewModel() {
 
     private fun addUserProperty(){
         hexColor.value?.let{
-            PurchaseManager.addUserProperty(it, count)
+            ApphudSdkManager.addUserProperty(it, count)
         }
     }
 }

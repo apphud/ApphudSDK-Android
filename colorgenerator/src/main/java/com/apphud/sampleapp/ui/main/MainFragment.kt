@@ -17,7 +17,7 @@ import com.apphud.sampleapp.databinding.FragmentMainBinding
 import com.apphud.sampleapp.ui.models.HasPremiumEvent
 import com.apphud.sampleapp.ui.paywall.PaywallActivity
 import com.apphud.sampleapp.ui.utils.Placement
-import com.apphud.sampleapp.ui.utils.PurchaseManager
+import com.apphud.sampleapp.ui.utils.ApphudSdkManager
 import com.apphud.sampleapp.ui.utils.ResourceManager
 import org.greenrobot.eventbus.EventBus
 import org.greenrobot.eventbus.Subscribe
@@ -82,7 +82,7 @@ class MainFragment : Fragment() {
     }
 
     private fun copyToClipboard() {
-        if(PurchaseManager.isPremium() == true){
+        if(ApphudSdkManager.isPremium() == true){
             val clipboard = requireActivity().getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
             val clip = ClipData.newPlainText(ResourceManager.getString(R.string.color),  generatorViewModel.hexColor.value)
             clipboard.setPrimaryClip(clip)

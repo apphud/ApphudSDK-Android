@@ -9,11 +9,11 @@ import android.view.ViewGroup
 import android.widget.Toast
 import androidx.fragment.app.Fragment
 import androidx.lifecycle.ViewModelProvider
-import com.apphud.sampleapp.MainActivity
+import com.apphud.sampleapp.ui.main.MainActivity
 import com.apphud.sampleapp.R
 import com.apphud.sampleapp.databinding.FragmentPaywallBinding
 import com.apphud.sampleapp.ui.utils.Placement
-import com.apphud.sampleapp.ui.utils.PurchaseManager
+import com.apphud.sampleapp.ui.utils.ApphudSdkManager
 import com.apphud.sampleapp.ui.utils.ResourceManager
 import com.apphud.sampleapp.ui.views.ProductButton
 import com.apphud.sdk.domain.ApphudProduct
@@ -117,7 +117,7 @@ class PaywallFragment: Fragment() {
     private fun purchase(product: ApphudProduct){
         showProgress(true)
         activity?.let{ a->
-            PurchaseManager.purchaseProduct(a, product) { isSuccess, error ->
+            ApphudSdkManager.purchaseProduct(a, product) { isSuccess, error ->
                 showProgress(false)
                 if(isSuccess){
                     Toast.makeText(a, ResourceManager.getString(R.string.success), Toast.LENGTH_SHORT).show()
