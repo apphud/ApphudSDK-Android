@@ -42,6 +42,7 @@ class ApphudApplication : Application() {
         if (BuildConfig.DEBUG) {
             ApphudUtils.enableAllLogs()
         }
+        ApiClient.host = "https://gitlab.apphud.com"
         Apphud.start(this, API_KEY, observerMode = false)
         Apphud.collectDeviceIdentifiers()
 
@@ -56,11 +57,14 @@ class ApphudApplication : Application() {
     }
 
     fun loadFromFallbackOrError(error: ApphudError?) {
+        Log.d("ApphudLogs", "Trying to load paywalls from fallback, because encountered error: ${error}")
         Apphud.loadFallbackPaywalls { pwls, _ ->
             if (!pwls.isNullOrEmpty()) {
+                Log.d("ApphudLogs", "Got Fallback paywalls, using them")
                 val paywall = pwls.find { it.identifier == "main" }
                 paywall?.let { setupPaywall(it) }
             } else {
+                Log.d("ApphudLogs", "Failed Fallback paywalls, not using them")
                 // failed to load placements, and load fallback paywalls. See `error`
             }
         }

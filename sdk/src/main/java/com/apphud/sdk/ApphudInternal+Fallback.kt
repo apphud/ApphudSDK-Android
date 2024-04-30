@@ -35,12 +35,12 @@ internal fun ApphudInternal.processFallbackError(request: Request, isTimeout: Bo
         && !processedFallbackData) {
 
         if (fallbackHost?.withRemovedScheme() == request.url.host) {
-            processFallbackData()
+            processFallbackData { _, _ -> }
         } else {
             coroutineScope.launch {
                 tryFallbackHost()
                 if (fallbackHost == null || fallbackHost?.withRemovedScheme() == request.url.host) {
-                    processFallbackData()
+                    processFallbackData { _, _ -> }
                 }
             }
         }
@@ -84,7 +84,7 @@ internal fun ApphudInternal.processFallbackData(callback: PaywallCallback) {
         processedFallbackData = true
 
         // read paywalls from cache
-        var ids = paywalls.map { it.products?.map { it.productId } ?: listOf() }.flatten()
+        var ids = getPaywalls().map { it.products?.map { it.productId } ?: listOf() }.flatten()
         if (ids.isEmpty()) {
             // read from json file
             val jsonFileString = getJsonDataFromAsset(context, "apphud_paywalls_fallback.json")

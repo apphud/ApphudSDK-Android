@@ -468,7 +468,7 @@ internal object ApphudInternal {
                             ApphudLog.logE("Registration failed ${error?.message}")
                             mainScope.launch {
                                 isRegisteringUser = false
-                                notifyLoadingCompleted(currentUser, null, false, currentUser.isTemporary ?: false, error)
+                                notifyLoadingCompleted(currentUser, null, false, currentUser?.isTemporary ?: false, error)
                                 completionHandler?.invoke(currentUser, error)
                             }
                         }
