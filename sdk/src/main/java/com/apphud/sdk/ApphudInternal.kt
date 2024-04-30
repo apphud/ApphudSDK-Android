@@ -444,6 +444,14 @@ internal object ApphudInternal {
                             HttpRetryInterceptor.MAX_COUNT = APPHUD_DEFAULT_RETRIES
 
                             currentUser = it
+                            if (it.paywalls.isNotEmpty()) {
+                                synchronized(paywalls) {
+                                    paywalls = it.paywalls
+                                }
+                                synchronized(placements) {
+                                    placements = it.placements
+                                }
+                            }
                             isRegisteringUser = false
                             coroutineScope.launch {
                                 storage.lastRegistration = System.currentTimeMillis()
