@@ -70,7 +70,7 @@ fun isValidUrl(urlString: String): Boolean {
     }
 }
 
-private fun ApphudInternal.processFallbackData() {
+internal fun ApphudInternal.processFallbackData(callback: PaywallCallback) {
     try {
         if (currentUser == null) {
             currentUser =
@@ -96,7 +96,13 @@ private fun ApphudInternal.processFallbackData() {
             cachePaywalls(paywallToParse)
         }
 
-        if (ids.isEmpty()) { return }
+        if (ids.isEmpty()) {
+            val error = ApphudError("Invalid Paywalls Fallback File")
+            mainScope.launch {
+                callback(null, error)
+            }
+            return
+        }
 
         fallbackMode = true
         didRegisterCustomerAtThisLaunch = false
@@ -110,10 +116,15 @@ private fun ApphudInternal.processFallbackData() {
                     productDetailsLoaded = productDetails,
                     fromFallback = true,
                 )
+                callback(getPaywalls(), null)
             }
         }
     } catch (ex: Exception) {
+        val error = ApphudError("Fallback Mode Failed: ${ex.message}")
         ApphudLog.logE("Fallback Mode Failed: ${ex.message}")
+        mainScope.launch {
+            callback(null, error)
+        }
     }
 }
 
@@ -132,6 +143,7 @@ private fun getJsonDataFromAsset(
 }
 
 internal fun ApphudInternal.disableFallback() {
+    if (currentUser?.isTemporary == true) { return }
     fallbackMode = false
     processedFallbackData = false
     ApphudLog.log("Fallback: DISABLED")

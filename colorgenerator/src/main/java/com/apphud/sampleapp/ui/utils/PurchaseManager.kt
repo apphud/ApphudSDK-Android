@@ -89,7 +89,6 @@ object PurchaseManager {
 
         if (BuildConfig.DEBUG) {
             Apphud.enableDebugLogs()
-            ApphudUtils.enableDebugLogs()
         }
         Apphud.setListener(listener)
         Apphud.start(application, API_KEY)
@@ -116,7 +115,7 @@ object PurchaseManager {
         }
     }
 
-    fun isPremium() :Boolean? {
+    fun isPremium() :Boolean {
         return Apphud.hasPremiumAccess()
     }
 

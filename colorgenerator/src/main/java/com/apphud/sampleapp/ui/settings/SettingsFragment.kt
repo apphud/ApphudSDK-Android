@@ -53,7 +53,7 @@ class SettingsFragment : Fragment() {
         }
         adapter.premiumClick = {
             activity?.let { a ->
-                PurchaseManager.isPremium()?.let {
+                PurchaseManager.isPremium().let {
                     if (!it) {
                         val i = Intent(a, PaywallActivity::class.java)
                         i.putExtra("placement_id", Placement.settings.placementId)
