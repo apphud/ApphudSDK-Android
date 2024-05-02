@@ -7,14 +7,13 @@ import com.apphud.sampleapp.ui.utils.Placement
 import com.apphud.sampleapp.ui.utils.ApphudSdkManager
 import com.apphud.sdk.domain.ApphudProduct
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 
 class PaywallViewModel() : BaseViewModel() {
 
     private val _screenColor = MutableLiveData<String?>()
     val screenColor: LiveData<String?> = _screenColor
-
-    private val _productsList = MutableLiveData<List<ApphudProduct>?>()
-    val productsList: LiveData<List<ApphudProduct>?> = _productsList
 
     private val _buttonTitle = MutableLiveData<String?>()
     val buttonTitle: LiveData<String?> = _buttonTitle
@@ -22,8 +21,10 @@ class PaywallViewModel() : BaseViewModel() {
     private val _subTitle = MutableLiveData<String?>()
     val subTitle: LiveData<String?> = _subTitle
 
+    val productsList: MutableList<ApphudProduct> = mutableListOf()
+    var selectedProduct :ApphudProduct? = null
+
     init {
-        _productsList.value = null
         _screenColor.value = "#ffffff"
     }
 
@@ -40,10 +41,18 @@ class PaywallViewModel() : BaseViewModel() {
         }
     }
 
-    fun loadProducts(placement: Placement){
+    val mutex = Mutex()
+    fun loadProducts(placement: Placement, completionHandler: (haveProducts: Boolean) -> Unit){
         coroutineScope.launch (errorHandler){
-            mainScope.launch {
-                _productsList.value = ApphudSdkManager.getPaywallProducts(placement)
+            mutex.withLock {
+                productsList.clear()
+                productsList.addAll(ApphudSdkManager.getPaywallProducts(placement))
+                if(selectedProduct == null && productsList.isNotEmpty()){
+                    selectedProduct = productsList[0]
+                }
+                mainScope.launch {
+                    completionHandler.invoke(productsList.isNotEmpty())
+                }
             }
         }
     }

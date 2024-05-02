@@ -28,29 +28,19 @@ class OnBoarding1Fragment :Fragment() {
 
     override fun onStart() {
         super.onStart()
+        (activity as OnboardingActivity).viewModel.getOnboardingInfo(Placement.onboarding){ info ->
+            info?.let{ i->
+                val screenInfo = i.onboarding.firstOrNull{it.id == "onboarding_screen_1"}
+                screenInfo?.let{
+                    binding.colorLayout.setBackgroundColor(Color.parseColor(it.color))
+                    binding.buttonContinue.text = it.buttonTitle
 
-        (activity as OnboardingActivity).viewModel.isReady.observe(viewLifecycleOwner) { isReady ->
-            isReady?.let{
-                binding.progressBar.visibility = View.INVISIBLE
-                binding.buttonContinue.visibility = View.VISIBLE
-
-                (activity as OnboardingActivity).viewModel.getOnboardingInfo(Placement.onboarding){ info ->
-                    info?.let{ i->
-                        val screenInfo = i.onboarding.firstOrNull{it.id == "onboarding_screen_1"}
-                        screenInfo?.let{
-                            binding.colorLayout.setBackgroundColor(Color.parseColor(it.color))
-                            binding.buttonContinue.text = it.buttonTitle
-
-                            binding.buttonContinue.setOnClickListener {
-                                findNavController().navigate(OnBoarding1FragmentDirections.actionOnboardingFragmentToIntroFragment())
-                            }
-                        }
-                    }
                 }
-            }?: run {
-                binding.progressBar.visibility = View.VISIBLE
-                binding.buttonContinue.visibility = View.INVISIBLE
             }
+        }
+
+        binding.buttonContinue.setOnClickListener {
+            findNavController().navigate(OnBoarding1FragmentDirections.actionOnboardingFragmentToIntroFragment())
         }
     }
 

@@ -27,10 +27,11 @@ class OnBoarding2Fragment :Fragment() {
             screenInfo?.let {
                 binding.colorLayout.setBackgroundColor(Color.parseColor(it.color))
                 binding.buttonContinue.text = it.buttonTitle
-                binding.buttonContinue.setOnClickListener {
-                    findNavController().navigate(OnBoarding2FragmentDirections.actionIntroFragmentToUnlimitedFragment())
-                }
             }
+        }
+
+        binding.buttonContinue.setOnClickListener {
+            findNavController().navigate(OnBoarding2FragmentDirections.actionIntroFragmentToUnlimitedFragment())
         }
 
         return root

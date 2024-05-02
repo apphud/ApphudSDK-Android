@@ -102,24 +102,26 @@
             app:layout_constraintStart_toStartOf="parent"
             app:layout_constraintBottom_toTopOf="@+id/productsList"/>
 
-        <ProgressBar
-            android:id="@+id/progressBar"
+        <TextView
+            android:id="@+id/labelLoading"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:theme="@style/ProgressBarStyle"
-            android:visibility="gone"
-            android:layout_marginBottom="6dp"
+            android:textColor="@color/black"
+            android:gravity="center"
+            android:textSize="18sp"
+            android:fontFamily="sans-serif"
+            android:text="@string/loading"
             app:layout_constraintTop_toTopOf="@+id/productsList"
             app:layout_constraintBottom_toBottomOf="@+id/productsList"
             app:layout_constraintEnd_toEndOf="@+id/productsList"
             app:layout_constraintStart_toStartOf="@+id/productsList"/>
 
-        <LinearLayout
+
+        <androidx.recyclerview.widget.RecyclerView
             android:id="@+id/productsList"
             android:layout_width="match_parent"
-            android:layout_height="0dp"
+            android:layout_height="128dp"
             android:minHeight="112dp"
-            android:orientation="vertical"
             android:layout_marginStart="16dp"
             android:layout_marginEnd="16dp"
             android:layout_marginBottom="24dp"
@@ -127,7 +129,7 @@
             app:layout_constraintBottom_toTopOf="@+id/buttonContinue"
             app:layout_constraintEnd_toEndOf="parent"
             app:layout_constraintStart_toStartOf="parent"
-            tools:listitem="@layout/list_item_settings_info"/>
+            tools:listitem="@layout/list_item_product"/>
 
         <Button
             android:id="@+id/buttonContinue"
@@ -136,6 +138,7 @@
             android:layout_height="56dp"
             android:layout_margin="16dp"
             android:text="@string/continue_text"
+            android:enabled="false"
             app:layout_constraintEnd_toEndOf="parent"
             app:layout_constraintStart_toStartOf="parent"
             app:layout_constraintBottom_toBottomOf="parent"/>
@@ -163,6 +166,5 @@
 
 
     </androidx.constraintlayout.widget.ConstraintLayout>
-
 
 </androidx.constraintlayout.widget.ConstraintLayout>

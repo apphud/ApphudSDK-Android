@@ -1,29 +1,33 @@
 package com.apphud.sampleapp.ui.paywall
 
-import android.content.Intent
 import android.graphics.Color
 import android.os.Bundle
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
+import android.widget.TextView
 import android.widget.Toast
-import androidx.fragment.app.Fragment
 import androidx.lifecycle.ViewModelProvider
-import com.apphud.sampleapp.ui.main.MainActivity
+import androidx.recyclerview.widget.RecyclerView
+import com.apphud.sampleapp.BaseFragment
 import com.apphud.sampleapp.R
 import com.apphud.sampleapp.databinding.FragmentPaywallBinding
+import com.apphud.sampleapp.ui.models.ProductsReadyEvent
 import com.apphud.sampleapp.ui.utils.Placement
 import com.apphud.sampleapp.ui.utils.ApphudSdkManager
 import com.apphud.sampleapp.ui.utils.ResourceManager
-import com.apphud.sampleapp.ui.views.ProductButton
 import com.apphud.sdk.domain.ApphudProduct
+import com.apphud.sdk.domain.ApphudProductType
+import org.greenrobot.eventbus.Subscribe
+import org.greenrobot.eventbus.ThreadMode
 
-class PaywallFragment: Fragment() {
+class PaywallFragment: BaseFragment() {
 
     private var _binding: FragmentPaywallBinding? = null
     private val binding get() = _binding!!
 
     private lateinit var viewModel :PaywallViewModel
+    private lateinit var adapter : ProductsAdapter
 
     private var placementId: String = ""
 
@@ -42,29 +46,15 @@ class PaywallFragment: Fragment() {
         }
 
         viewModel = ViewModelProvider(this)[PaywallViewModel::class.java]
-        viewModel.productsList.observe(viewLifecycleOwner) { list ->
-            list?.let{
-                binding.progressBar.visibility = View.GONE
-                if(it.isEmpty()){
-                    Toast.makeText(context, ResourceManager.getString(R.string.error_default), Toast.LENGTH_SHORT).show()
-                    activity?.finish()
-                } else {
-                    activity?.let{ a->
-                        for(product in list){
-                            val button = ProductButton(a)
-                            button.setProduct(product)
-                            button.setOnClickListener {
-                                purchase(product)
-                            }
-                            binding.productsList.addView(button)
-                        }
-                    }
-                }
-            }?: run {
-                binding.progressBar.visibility = View.VISIBLE
-            }
+        adapter = ProductsAdapter(viewModel)
+        adapter.productSelected = {
+            viewModel.selectedProduct = it
+            adapter.notifyDataSetChanged()
         }
-        viewModel.loadProducts(Placement.getPlacementByName(placementId))
+        binding.productsList.adapter = adapter
+        viewModel.loadProducts(Placement.getPlacementByName(placementId)){ haveProducts ->
+            validate(haveProducts)
+        }
 
         viewModel.screenColor.observe(viewLifecycleOwner) { color ->
             color?.let{
@@ -85,21 +75,8 @@ class PaywallFragment: Fragment() {
         }
 
         binding.buttonContinue.setOnClickListener {
-            activity?.let { a ->
-                when (Placement.getPlacementByName(placementId)) {
-                    Placement.onboarding -> {
-                        val i = Intent(a, MainActivity::class.java)
-                        i.flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
-                        startActivity(i)
-                        a.finish()
-                    }
-                    Placement.main -> {
-                        activity?.finish()
-                    }
-                    Placement.settings -> {
-                        activity?.finish()
-                    }
-                }
+            viewModel.selectedProduct?.let{
+                purchase(it)
             }
         }
 
@@ -107,6 +84,19 @@ class PaywallFragment: Fragment() {
         viewModel.placementShown(Placement.getPlacementByName(placementId))
 
         return root
+    }
+
+    private fun validate(hasProducts: Boolean){
+        binding.labelLoading.visibility = if(hasProducts) View.GONE else View.VISIBLE
+        binding.buttonContinue.isEnabled = hasProducts
+        adapter.notifyDataSetChanged()
+    }
+
+    @Subscribe(threadMode = ThreadMode.MAIN)
+    fun onEvent(event: ProductsReadyEvent) {
+        viewModel.loadProducts(Placement.getPlacementByName(placementId)){ haveProducts ->
+            validate(haveProducts)
+        }
     }
 
     override fun onDestroy() {
@@ -141,5 +131,91 @@ class PaywallFragment: Fragment() {
     override fun onDestroyView() {
         super.onDestroyView()
         _binding = null
+    }
+}
+
+class ProductsAdapter(private val viewModel: PaywallViewModel) : RecyclerView.Adapter<ProductsAdapter.BaseViewHolder<*>>() {
+    var productSelected: ((ApphudProduct)->Unit)? = null
+
+    abstract class BaseViewHolder<T>(itemView: View) : RecyclerView.ViewHolder(itemView) {
+        abstract fun bind(item: T)
+    }
+
+    companion object {
+        private const val TYPE_PRODUCT = 0
+    }
+
+    class ViewHolder(val item: View) : RecyclerView.ViewHolder(item)
+
+    inner class ProductViewHolder(itemView: View) : BaseViewHolder<ApphudProduct>(itemView) {
+        private val labelTitle: TextView = itemView.findViewById(R.id.labelTitle)
+        private val labelPrice: TextView = itemView.findViewById(R.id.labelPrice)
+        private val layoutHolder: View = itemView.findViewById(R.id.layoutHolder)
+        override fun bind(product: ApphudProduct) {
+            if(product == viewModel.selectedProduct){
+                layoutHolder.setBackgroundResource(R.drawable.list_item_background_selected)
+            } else {
+                layoutHolder.setBackgroundResource(R.drawable.list_item_background_unselected)
+            }
+            var price = if(product.type() == ApphudProductType.SUBS){
+                product.subscriptionOfferDetails()?.let {
+                    if(it.isNotEmpty()){
+                        val period = period(it[0].pricingPhases?.pricingPhaseList?.get(0)?.billingPeriod?:"")
+                        val result =  it[0].pricingPhases?.pricingPhaseList?.get(0)?.formattedPrice?:"N/A"
+                        result + period
+                    } else {
+                        ResourceManager.getString(R.string.loading)
+                    }
+                }?: ResourceManager.getString(R.string.loading)
+            } else {
+                ResourceManager.getString(R.string.loading)
+            }
+
+            labelTitle.text = product.name
+            labelPrice.text = price
+
+            itemView.setOnClickListener {
+                productSelected?.invoke(product)
+            }
+        }
+
+        private fun period (value :String) :String{
+            return when(value){
+                "P1W" -> "/week"
+                "P1Y"-> "/year"
+                else -> ""
+            }
+        }
+    }
+
+    override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): BaseViewHolder<*> {
+        return when (viewType) {
+            TYPE_PRODUCT -> {
+                val view = LayoutInflater.from(parent.context)
+                    .inflate(R.layout.list_item_product, parent, false)
+                ProductViewHolder(view)
+            }
+            else -> throw IllegalArgumentException("Invalid view type")
+        }
+    }
+
+    override fun onBindViewHolder(holder: BaseViewHolder<*>, position: Int) {
+        val element = viewModel.productsList[position]
+        when (holder) {
+            is ProductViewHolder -> holder.bind(element as ApphudProduct)
+            else -> throw IllegalArgumentException()
+        }
+    }
+
+    override fun getItemViewType(position: Int): Int {
+        val comparable = viewModel.productsList[position]
+        return when (comparable) {
+            is ApphudProduct -> TYPE_PRODUCT
+            else -> throw IllegalArgumentException("Invalid type of data " + position)
+        }
+    }
+
+    override fun getItemCount() :Int{
+        return viewModel.productsList.size
     }
 }

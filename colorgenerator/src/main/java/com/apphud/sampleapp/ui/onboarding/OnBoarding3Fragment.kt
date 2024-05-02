@@ -30,18 +30,19 @@ class OnBoarding3Fragment :Fragment() {
             screenInfo?.let {
                 binding.colorLayout.setBackgroundColor(Color.parseColor(it.color))
                 binding.buttonContinue.text = it.buttonTitle
-                binding.buttonContinue.setOnClickListener {
-                    activity?.let{
-                        if((activity as OnboardingActivity).viewModel.isPremium()== true){
-                            val i = Intent(it, MainActivity::class.java)
-                            startActivity(i)
-                            it.finish()
-                        } else {
-                            val i = Intent(it, PaywallActivity::class.java)
-                            i.putExtra("placement_id", Placement.onboarding.placementId)
-                            startActivity(i)
-                        }
-                    }
+            }
+        }
+
+        binding.buttonContinue.setOnClickListener {
+            activity?.let{
+                if((activity as OnboardingActivity).viewModel.isPremium()== true){
+                    val i = Intent(it, MainActivity::class.java)
+                    startActivity(i)
+                    it.finish()
+                } else {
+                    val i = Intent(it, PaywallActivity::class.java)
+                    i.putExtra("placement_id", Placement.onboarding.placementId)
+                    startActivity(i)
                 }
             }
         }

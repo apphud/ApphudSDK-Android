@@ -8,6 +8,7 @@ import com.apphud.sampleapp.BuildConfig
 import com.apphud.sampleapp.R
 import com.apphud.sampleapp.ui.models.HasPremiumEvent
 import com.apphud.sampleapp.ui.models.PlacementJson
+import com.apphud.sampleapp.ui.models.ProductsReadyEvent
 import com.apphud.sdk.Apphud
 import com.apphud.sdk.ApphudError
 import com.apphud.sdk.ApphudListener
@@ -70,14 +71,17 @@ object ApphudSdkManager {
 
             override fun userDidLoad(user: ApphudUser) {
                 Log.d("ColorGenerator", "userDidLoad(): ${user.userId}")
+                notifyAboutProducts()
             }
 
             override fun paywallsDidFullyLoad(paywalls: List<ApphudPaywall>) {
                 Log.d("ColorGenerator", "paywallsDidFullyLoad()")
+                notifyAboutProducts()
             }
 
             override fun placementsDidFullyLoad(placements: List<ApphudPlacement>) {
                 Log.d("ColorGenerator", "placementsDidFullyLoad()")
+                notifyAboutProducts()
                 isApphudReady = true
             }
         }
@@ -113,6 +117,10 @@ object ApphudSdkManager {
         if(Apphud.hasPremiumAccess()){
             EventBus.getDefault().post(HasPremiumEvent())
         }
+    }
+
+    private fun notifyAboutProducts(){
+        EventBus.getDefault().post(ProductsReadyEvent())
     }
 
     fun isPremium() :Boolean? {
