@@ -26,6 +26,7 @@ import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import java.util.*
 import kotlin.coroutines.resume
+import kotlin.math.max
 import kotlin.math.min
 
 @SuppressLint("StaticFieldLeak")
@@ -49,6 +50,7 @@ internal object ApphudInternal {
     internal var isRegisteringUser = false
     internal var refreshUserPending = false
     internal var sdkLaunchedAt: Long = System.currentTimeMillis()
+    internal var offeringsCalledAt: Long = System.currentTimeMillis()
     internal var firstCustomerLoadedTime: Long? = null
     internal var productsLoadedTime: Long? = null
     internal var trackedAnalytics = false
@@ -142,7 +144,6 @@ internal object ApphudInternal {
         }
         allowIdentifyUser = false
         this.observerMode = observerMode
-        sdkLaunchedAt = System.currentTimeMillis()
 
         mainScope.launch {
             ProcessLifecycleOwner.get().lifecycle.addObserver(lifecycleEventObserver)
@@ -157,12 +158,15 @@ internal object ApphudInternal {
         if (ignoreCache) {
             ApphudLog.logI("Ignoring local paywalls cache")
         }
+
         val cachedUser = if (isValid) storage.apphudUser else null
         val cachedPaywalls = if (ignoreCache || !isValid || observerMode) null else readPaywallsFromCache()
         val cachedPlacements = if (ignoreCache || !isValid || observerMode) null else readPlacementsFromCache()
         val cachedGroups = if (isValid) readGroupsFromCache() else mutableListOf()
         val cachedDeviceId = storage.deviceId
         val cachedUserId = storage.userId
+
+        sdkLaunchedAt = System.currentTimeMillis()
 
         val generatedUUID = UUID.randomUUID().toString()
 
@@ -200,9 +204,13 @@ internal object ApphudInternal {
         cachedPaywalls?.let { this.paywalls = it }
         cachedPlacements?.let { this.placements = it }
 
+        ApphudLog.log("Finished loading models")
+
         this.userRegisteredBlock = callback
         billing = BillingWrapper(context)
         RequestManager.setParams(this.context, this.apiKey)
+
+        ApphudLog.log("Starting Requests")
 
         loadProducts()
         forceNotifyAllLoaded()
@@ -255,15 +263,21 @@ internal object ApphudInternal {
         customerError: ApphudError? = null,
     ) {
         var paywallsPrepared = true
+
         customerError?.let {
             ApphudLog.logE("Customer Registration Error: ${it}")
             latestCustomerLoadError = it
         }
 
+        if (latestCustomerLoadError == null && RequestManager.previousException != null) {
+            latestCustomerLoadError = ApphudError.from(RequestManager.previousException!!)
+            RequestManager.previousException = null
+        }
+
         if (observerMode && (productDetails.isNotEmpty() || productDetailsLoaded != null) &&
             (firstCustomerLoadedTime != null || latestCustomerLoadError != null) &&
             !trackedAnalytics) {
-            trackAnalytics()
+            trackAnalytics(latestCustomerLoadError == null)
         }
 
         productDetailsLoaded?.let {
@@ -362,7 +376,7 @@ internal object ApphudInternal {
             }
 
             notifiedPaywallsAndPlacementsHandled = true
-            trackAnalytics()
+            trackAnalytics(true)
 
             latestCustomerLoadError = null
         } else if (!isRegisteringUser &&
@@ -370,14 +384,14 @@ internal object ApphudInternal {
             if (offeringsPreparedCallbacks.isNotEmpty()) {
                 ApphudLog.log("handle offeringsPreparedCallbacks with errors")
             }
-            val error = latestCustomerLoadError ?: customerError ?: ApphudError("Paywalls load error", errorCode = productsResponseCode)
+            val error = latestCustomerLoadError ?: customerError ?: (if (productsResponseCode == APPHUD_NO_REQUEST) ApphudError("Paywalls load error", errorCode = productsResponseCode) else ApphudError("Google Billing error", errorCode = productsResponseCode))
             while (offeringsPreparedCallbacks.isNotEmpty()) {
                 val callback = offeringsPreparedCallbacks.removeFirst()
                 callback?.invoke(error)
             }
 
             notifiedPaywallsAndPlacementsHandled = true
-            trackAnalytics()
+            trackAnalytics(false)
 
             latestCustomerLoadError = null
         } else {
@@ -385,7 +399,7 @@ internal object ApphudInternal {
         }
     }
 
-    private fun trackAnalytics() {
+    private fun trackAnalytics(success: Boolean) {
         if (trackedAnalytics) { return }
 
         trackedAnalytics = true
@@ -401,7 +415,8 @@ internal object ApphudInternal {
                 productsLoaded.toDouble(),
                 totalLoad.toDouble(),
                 latestCustomerLoadError,
-                productsResponseCode)
+                productsResponseCode,
+                success)
         }
     }
 
@@ -512,15 +527,23 @@ internal object ApphudInternal {
     }
 
     internal fun shouldRetryRequest(request: String): Boolean {
-        val diff = (System.currentTimeMillis() - sdkLaunchedAt)/1000.0
+        val diff = (System.currentTimeMillis() - max(offeringsCalledAt, sdkLaunchedAt))/1000.0
 
         // if paywalls callback not yet invoked and there are pending callbacks, and it's a customers request
         // and more than preferred timeout seconds lapsed then no time for extra retry.
-        if (!didRegisterCustomerAtThisLaunch && !notifiedAboutPaywallsDidFullyLoaded && offeringsPreparedCallbacks.isNotEmpty()
-            && (request.endsWith("customers") || request.endsWith("products")) && diff > preferredTimeout) {
-            ApphudLog.log("MAX TIMEOUT REACHED")
-            return false
+        if (diff > preferredTimeout && offeringsPreparedCallbacks.isNotEmpty() && !notifiedAboutPaywallsDidFullyLoaded) {
+            if (request.endsWith("products")) {
+                ApphudLog.log("MAX TIMEOUT REACHED FOR $request")
+                return false
+            } else if (request.endsWith("customers") && !didRegisterCustomerAtThisLaunch) {
+                ApphudLog.log("MAX TIMEOUT REACHED FOR $request")
+                return false
+            } else if (request.endsWith("billing")) {
+                ApphudLog.log("MAX TIMEOUT REACHED FOR $request")
+                return false
+            }
         }
+
         return true
     }
 
@@ -533,8 +556,10 @@ internal object ApphudInternal {
     }
 
     internal fun performWhenOfferingsPrepared(preferredTimeout: Double?, callback: (ApphudError?) -> Unit) {
-        if (preferredTimeout != null && preferredTimeout > APPHUD_DEFAULT_MAX_TIMEOUT.toDouble()) {
-            this.preferredTimeout = preferredTimeout
+        if (preferredTimeout != null) {
+            this.preferredTimeout = max(preferredTimeout!!, APPHUD_DEFAULT_MAX_TIMEOUT.toDouble())
+            this.offeringsCalledAt = System.currentTimeMillis()
+            currentPoductsLoadingCounts = 0
         }
 
         mainScope.launch {

@@ -6,6 +6,7 @@ import com.apphud.sdk.ApphudError
 import com.apphud.sdk.ApphudInternal
 import com.apphud.sdk.ApphudInternal.FALLBACK_ERRORS
 import com.apphud.sdk.ApphudInternal.fallbackMode
+import com.apphud.sdk.ApphudInternal.shouldRetryRequest
 import com.apphud.sdk.ApphudLog
 import com.apphud.sdk.ApphudUtils
 import com.apphud.sdk.fallbackHost
@@ -35,7 +36,7 @@ class HttpRetryInterceptor : Interceptor {
         var tryCount: Int = 0
 
 
-        while (!isSuccess && tryCount < MAX_COUNT) {
+        while (!isSuccess && (tryCount < MAX_COUNT || shouldRetryRequest(request.url.encodedPath))) {
             try {
                 response = chain.proceed(request)
                 isSuccess = response.isSuccessful
@@ -83,7 +84,9 @@ class HttpRetryInterceptor : Interceptor {
                 if (ApphudInternal.fallbackMode) {
                     throw e
                 }
-                RequestManager.previousException = e
+                if (request.url.encodedPath.endsWith("customers")) {
+                    RequestManager.previousException = e
+                }
                 Thread.sleep(STEP)
             } catch (e: UnknownHostException) {
                 ApphudLog.logE("Request (${request.url}) failed with Exception ${e}")
@@ -91,7 +94,9 @@ class HttpRetryInterceptor : Interceptor {
                 if (!ApphudInternal.shouldRetryRequest(request.url.encodedPath)) {
                     throw e
                 }
-                RequestManager.previousException = e
+                if (request.url.encodedPath.endsWith("customers")) {
+                    RequestManager.previousException = e
+                }
                 // do not retry when there is internet connection, but still unknown host issue
                 if (ApphudUtils.isOnline(ApphudInternal.context)) {
                     tryCount = MAX_COUNT
@@ -111,15 +116,15 @@ class HttpRetryInterceptor : Interceptor {
                 if (!ApphudInternal.shouldRetryRequest(request.url.encodedPath)) {
                     throw e
                 }
-                RequestManager.previousException = e
+                if (e is IOException && e.message == "Canceled") {
+                    // do not update previous exception
+                } else if (request.url.encodedPath.endsWith("customers")) {
+                    RequestManager.previousException = e
+                }
 
                 Thread.sleep(STEP)
             } finally {
                 tryCount++
-
-                if (!isSuccess && tryCount < MAX_COUNT && !(response?.code in 401..403)) {
-//                    response?.close()
-                }
 
                 if (fallbackHost != null && fallbackHost?.withRemovedScheme() != request.url.host) {
                     // invalid host, need to abort these requests

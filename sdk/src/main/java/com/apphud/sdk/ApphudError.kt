@@ -21,6 +21,7 @@ data class ApphudError(
 
     companion object {
         fun from(exception: Exception): ApphudError {
+            ApphudLog.log("Apphud Error from Exception: ${exception}")
             var message = exception.message
             var errorCode: Int? = null
             if (exception.message == APPHUD_NO_TIME_TO_RETRY || (exception is InterruptedIOException)) {
@@ -32,7 +33,7 @@ data class ApphudError(
                     errorCode = APPHUD_ERROR_MAX_TIMEOUT_REACHED
                 }
             } else {
-                errorCodeFrom(exception)
+                errorCode = errorCodeFrom(exception)
             }
 
             return ApphudError(message ?: "Undefined Error", null, errorCode)

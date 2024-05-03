@@ -39,7 +39,31 @@ class ApphudApplication : Application() {
         if (BuildConfig.DEBUG) {
             ApphudUtils.enableAllLogs()
         }
+        Apphud.invalidatePaywallsCache()
         Apphud.start(this, API_KEY, observerMode = false)
         Apphud.collectDeviceIdentifiers()
+
+        fetchPlacements()
+    }
+
+    fun fetchPlacements() {
+        Apphud.fetchPlacements(preferredTimeout = 10.0) { apphudPlacements, apphudError ->
+            var hasProducts = false
+            apphudPlacements.forEach {pl ->
+                pl.paywall?.products?.forEach { p ->
+                    if (p.productDetails != null) {
+                        hasProducts = true
+                    }
+                }
+            }
+
+            Log.d("ApphudLogs", "Apphud.fetchPlacements = ${apphudPlacements.map { it.identifier }}, hasDetails = $hasProducts, error = ${apphudError} google billing issue = ${apphudError?.billingErrorTitle()}")
+
+            if (apphudError != null && apphudError.billingErrorTitle() != null) {
+                // ask user to sign in to Google Billing or try again later.
+            } else {
+                Apphud.
+            }
+        }
     }
 }

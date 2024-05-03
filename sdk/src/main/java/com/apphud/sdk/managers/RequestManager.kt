@@ -111,12 +111,12 @@ object RequestManager {
         }*/
 
         val callTimeout = if (request.method == "POST" && request.url.toString().contains("subscriptions"))
-            20 else APPHUD_DEFAULT_HTTP_TIMEOUT
+            20 else 0
 
         val builder =
             OkHttpClient.Builder()
                 .connectTimeout(APPHUD_DEFAULT_HTTP_CONNECT_TIMEOUT, TimeUnit.SECONDS)
-                .callTimeout(APPHUD_DEFAULT_HTTP_TIMEOUT, TimeUnit.SECONDS)
+                .callTimeout(callTimeout.toLong(), TimeUnit.SECONDS)
         if (retry) builder.addInterceptor(retryInterceptor)
         builder.addNetworkInterceptor(headersInterceptor)
         // builder.addNetworkInterceptor(logging)
@@ -754,9 +754,9 @@ object RequestManager {
     }
 
     fun sendPaywallLogs(launchedAt: Long, count: Int, userBenchmark: Double, productsBenchmark: Double, totalBenchmark: Double,
-                        error: ApphudError?, productsResponseCode: Int) {
+                        error: ApphudError?, productsResponseCode: Int, success: Boolean) {
         trackPaywallEvent(
-            makePaywallLogsBody(launchedAt, count, userBenchmark, productsBenchmark, totalBenchmark, error, productsResponseCode)
+            makePaywallLogsBody(launchedAt, count, userBenchmark, productsBenchmark, totalBenchmark, error, productsResponseCode, success)
         )
     }
 
@@ -938,7 +938,8 @@ object RequestManager {
         productsLoadTime: Double,
         totalLoadTime: Double,
         error: ApphudError?,
-        productsResponseCode: Int
+        productsResponseCode: Int,
+        success: Boolean
     ): PaywallEventBody {
         val properties = mutableMapOf<String, Any>()
         properties["launched_at"] = launchedAt
@@ -946,6 +947,8 @@ object RequestManager {
         properties["user_load_time"] = userLoadTime
         properties["products_load_time"] = productsLoadTime
         properties["products_count"] = productsCount
+        properties["result"] = if (success) "no_issues" else "has_issues"
+        properties["api_key"] = apiKey ?: ""
         error?.let {
             properties["error_code"] = it.errorCode ?: 0
             properties["error_message"] = it.message

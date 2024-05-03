@@ -21,7 +21,8 @@ internal var productsResponseCode = BillingClient.BillingResponseCode.OK
 private val mutexProducts = Mutex()
 
 // to avoid Google servers spamming if there is no productDetails added at all
-internal var productsLoadingCounts: Int = 0
+internal var currentPoductsLoadingCounts: Int = 0
+internal var totalPoductsLoadingCounts: Int = 0
 const val MAX_TOTAL_PRODUCTS_RETRIES: Int = 100
 
 internal enum class ApphudProductsStatus {
@@ -40,13 +41,18 @@ internal fun ApphudInternal.shouldLoadProducts(): Boolean {
         ApphudProductsStatus.none -> true
         ApphudProductsStatus.loading -> false
         else -> {
-            productDetails.isEmpty() && productsLoadingCounts < MAX_TOTAL_PRODUCTS_RETRIES
+            productDetails.isEmpty() && totalPoductsLoadingCounts < MAX_TOTAL_PRODUCTS_RETRIES
         }
     }
 }
 
 internal fun ApphudInternal.loadProducts() {
-    if (!shouldLoadProducts()) { return }
+    if (!shouldLoadProducts()) {
+        if (totalPoductsLoadingCounts >= MAX_TOTAL_PRODUCTS_RETRIES) {
+            respondWithProducts()
+        }
+        return
+    }
 
     productsStatus = ApphudProductsStatus.loading
     ApphudLog.logI("Loading ProductDetails from the Store")
@@ -59,10 +65,11 @@ internal fun ApphudInternal.loadProducts() {
                 ApphudProductsStatus.failed
 
             if (productsResponseCode != APPHUD_NO_REQUEST) {
-                productsLoadingCounts += 1
+                totalPoductsLoadingCounts += 1
+                currentPoductsLoadingCounts += 1
             }
 
-            if (isRetriableProductsRequest() && shouldRetryRequest("products")) {
+            if (isRetriableProductsRequest() && shouldRetryRequest("billing") && currentPoductsLoadingCounts < APPHUD_DEFAULT_RETRIES) {
                 retryProductsLoad()
             } else {
                 ApphudLog.log("Finished Loading Product Details")
@@ -85,7 +92,7 @@ internal fun isRetriableProductsRequest(): Boolean {
 }
 
 internal fun retryProductsLoad() {
-    val delay: Long = 300 * productsLoadingCounts.toLong()
+    val delay: Long = 300
     ApphudLog.logE("Failed to load products from store (${ApphudBillingResponseCodes.getName(
         productsResponseCode)}), will retry in $delay ms")
     Thread.sleep(delay)
