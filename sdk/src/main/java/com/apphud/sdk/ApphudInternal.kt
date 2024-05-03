@@ -338,8 +338,13 @@ internal object ApphudInternal {
             userId = it.userId
 
             // TODO: should be called only if something changed
-            apphudListener?.apphudNonRenewingPurchasesUpdated(currentUser!!.purchases)
-            apphudListener?.apphudSubscriptionsUpdated(currentUser!!.subscriptions)
+            coroutineScope.launch {
+                delay(500)
+                mainScope.launch {
+                    apphudListener?.apphudNonRenewingPurchasesUpdated(currentUser!!.purchases)
+                    apphudListener?.apphudSubscriptionsUpdated(currentUser!!.subscriptions)
+                }
+            }
 
             if (!didRegisterCustomerAtThisLaunch) {
                 apphudListener?.userDidLoad(it)
