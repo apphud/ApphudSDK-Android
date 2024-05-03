@@ -73,7 +73,7 @@ internal fun ApphudInternal.loadProducts() {
                 productsLoadingCounts += 1
             }
 
-            if (isRetriableProductsRequest() && (productsLoadingCounts < maxProductRetriesCount || shouldRetryRequest("products"))) {
+            if (isRetriableProductsRequest() && shouldRetryRequest("products")) {
                 retryProductsLoad()
             } else {
                 ApphudLog.log("Finished Loading Product Details")

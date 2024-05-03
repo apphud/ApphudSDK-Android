@@ -90,7 +90,7 @@ internal object ApphudInternal {
     internal var userLoadRetryCount: Int = 1
     internal var notifiedAboutPaywallsDidFullyLoaded = false
     internal var purchasingProduct: ApphudProduct? = null
-    internal var maxProductRetriesCount: Int = APPHUD_DEFAULT_RETRIES
+    internal var preferredTimeout: Double = 999_999.0
     private var customProductsFetchedBlock: ((List<ProductDetails>) -> Unit)? = null
     private var offeringsPreparedCallbacks = mutableListOf<((ApphudError?) -> Unit)?>()
     private var userRegisteredBlock: ((ApphudUser) -> Unit)? = null
@@ -494,7 +494,8 @@ internal object ApphudInternal {
 
     internal fun forceNotifyAllLoaded() {
         coroutineScope.launch {
-            delay(((maxProductRetriesCount + 1) * 1000 * APPHUD_DEFAULT_HTTP_TIMEOUT).toLong())
+            if (preferredTimeout > 60) { return@launch }
+            delay((preferredTimeout * 1000.0).toLong())
             mainScope.launch {
                 if (!notifiedAboutPaywallsDidFullyLoaded || offeringsPreparedCallbacks.isNotEmpty()) {
                     ApphudLog.logE("Force Notify About Current State")
@@ -511,13 +512,12 @@ internal object ApphudInternal {
     }
 
     internal fun shouldRetryRequest(request: String): Boolean {
-        val percentageFromMaxTimeout = APPHUD_DEFAULT_HTTP_TIMEOUT * 1000 * maxProductRetriesCount * 1.5
-        val diff = System.currentTimeMillis() - sdkLaunchedAt
+        val diff = (System.currentTimeMillis() - sdkLaunchedAt)/1000.0
 
         // if paywalls callback not yet invoked and there are pending callbacks, and it's a customers request
         // and more than (APPHUD_DEFAULT_HTTP_TIMEOUT) seconds lapsed then no time for extra retry.
         if (!didRegisterCustomerAtThisLaunch && !notifiedAboutPaywallsDidFullyLoaded && offeringsPreparedCallbacks.isNotEmpty()
-            && (request.endsWith("customers") || request.endsWith("products")) && diff > percentageFromMaxTimeout) {
+            && (request.endsWith("customers") || request.endsWith("products")) && diff > preferredTimeout) {
             ApphudLog.log("MAX TIMEOUT REACHED")
             return false
         }
@@ -532,9 +532,9 @@ internal object ApphudInternal {
         }
     }
 
-    internal fun performWhenOfferingsPrepared(maxAttempts: Int?, callback: (ApphudError?) -> Unit) {
-        if (maxAttempts != null && (maxAttempts in 1..10)) {
-            maxProductRetriesCount = maxAttempts
+    internal fun performWhenOfferingsPrepared(preferredTimeout: Double?, callback: (ApphudError?) -> Unit) {
+        if (preferredTimeout != null && preferredTimeout > APPHUD_DEFAULT_HTTP_TIMEOUT.toDouble()) {
+            this.preferredTimeout = preferredTimeout
         }
 
         mainScope.launch {
