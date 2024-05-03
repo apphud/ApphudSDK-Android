@@ -2,6 +2,7 @@ package com.apphud.sdk
 
 import android.content.Context
 import android.content.SharedPreferences
+import com.android.billingclient.api.BillingClient.BillingResponseCode
 import com.apphud.sdk.client.ApiClient
 import com.apphud.sdk.domain.ApphudUser
 import com.apphud.sdk.domain.FallbackJsonObject
@@ -110,7 +111,7 @@ internal fun ApphudInternal.processFallbackData(callback: PaywallCallback) {
         ApphudLog.log("Fallback: ENABLED")
         coroutineScope.launch {
             val responseCode = fetchDetails(ids)
-            val error = (if (responseCode == APPHUD_NO_REQUEST) ApphudError("Paywalls load error", errorCode = responseCode) else ApphudError("Google Billing error", errorCode = responseCode))
+            val error = if (responseCode == BillingResponseCode.OK) null else (if (responseCode == APPHUD_NO_REQUEST) ApphudError("Paywalls load error", errorCode = responseCode) else ApphudError("Google Billing error", errorCode = responseCode))
             mainScope.launch {
                 notifyLoadingCompleted(
                     customerLoaded = currentUser,

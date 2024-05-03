@@ -377,7 +377,7 @@ internal object ApphudInternal {
             }
             while (offeringsPreparedCallbacks.isNotEmpty()) {
                 val callback = offeringsPreparedCallbacks.removeFirst()
-                callback?.invoke(latestCustomerLoadError)
+                callback?.invoke(null)
             }
 
             notifiedPaywallsAndPlacementsHandled = true
@@ -385,11 +385,11 @@ internal object ApphudInternal {
 
             latestCustomerLoadError = null
         } else if (!isRegisteringUser &&
-            ((customerError != null && paywalls.isEmpty()) || (productsResponseCode != BillingClient.BillingResponseCode.OK && productDetails.isEmpty()))) {
-            if (offeringsPreparedCallbacks.isNotEmpty()) {
-                ApphudLog.log("handle offeringsPreparedCallbacks with errors")
-            }
+            ((customerError != null && paywalls.isEmpty()) || (productsStatus != ApphudProductsStatus.loading && productsResponseCode != BillingClient.BillingResponseCode.OK && productDetails.isEmpty()))) {
             val error = latestCustomerLoadError ?: customerError ?: (if (productsResponseCode == APPHUD_NO_REQUEST) ApphudError("Paywalls load error", errorCode = productsResponseCode) else ApphudError("Google Billing error", errorCode = productsResponseCode))
+            if (offeringsPreparedCallbacks.isNotEmpty()) {
+                ApphudLog.log("handle offeringsPreparedCallbacks with error ${error}")
+            }
             while (offeringsPreparedCallbacks.isNotEmpty()) {
                 val callback = offeringsPreparedCallbacks.removeFirst()
                 callback?.invoke(error)

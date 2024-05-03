@@ -51,12 +51,12 @@ class ApphudApplication : Application() {
 
     fun fetchPlacements() {
         Apphud.fetchPlacements { apphudPlacements, apphudError ->
+
+            val hasInternet = ApphudUtils.hasInternetConnection(this)
+            Log.d("ApphudLogsDemo", "Internet connected: $hasInternet")
+
             if (apphudPlacements.isNotEmpty() && apphudError == null) {
                 Log.d("ApphudLogsDemo", "Placements are loaded, all good.")
-            } else if (apphudPlacements.isNotEmpty() && apphudError?.networkIssue() == true) {
-                Log.d("ApphudLogsDemo", "Placements are loaded from cache, however there is Internet connection issue, ask user to connect to the Internet. ProductDetails may exist in the ApphudProducts.")
-                // Developer can retry fetchPlacements() immediately or after user taps "Try again" button in your custom UI.
-                fetchPlacements()
             } else if (apphudError?.billingErrorTitle() != null) {
                 Log.d("ApphudLogsDemo", "Placements are loaded, however there is Google Billing Issue (${apphudError.billingErrorTitle()}): ask user to sign in to Google Play and try again later.")
                 // Developer can retry fetchPlacements() immediately or after user taps "Try again" button in your custom UI.

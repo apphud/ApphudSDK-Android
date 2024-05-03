@@ -98,7 +98,7 @@ class HttpRetryInterceptor : Interceptor {
                     RequestManager.previousException = e
                 }
                 // do not retry when there is internet connection, but still unknown host issue
-                if (ApphudUtils.isOnline(ApphudInternal.context)) {
+                if (ApphudUtils.hasInternetConnection(ApphudInternal.context)) {
                     tryCount = MAX_COUNT
                     ApphudInternal.coroutineScope.launch {
                         tryFallbackHost()

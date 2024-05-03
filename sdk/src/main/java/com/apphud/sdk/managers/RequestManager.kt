@@ -947,13 +947,15 @@ object RequestManager {
         properties["user_load_time"] = userLoadTime
         properties["products_load_time"] = productsLoadTime
         properties["products_count"] = productsCount
-        properties["result"] = if (success) "no_issues" else "has_issues"
+        properties["result"] = if (success && productsResponseCode == 0 && productsCount > 0 && error == null) "no_issues" else "has_issues"
         properties["api_key"] = apiKey ?: ""
         error?.let {
             properties["error_code"] = it.errorCode ?: 0
             properties["error_message"] = it.message
         }
-        properties["billing_response_code"] = productsResponseCode
+        if (productsResponseCode != 0) {
+            properties["billing_error_code"] = productsResponseCode
+        }
 
         return PaywallEventBody(
             name = "paywall_products_loaded",
