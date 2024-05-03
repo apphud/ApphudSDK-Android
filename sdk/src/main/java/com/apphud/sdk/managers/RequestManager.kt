@@ -111,7 +111,7 @@ object RequestManager {
         }*/
 
         val callTimeout = if (request.method == "POST" && request.url.toString().contains("subscriptions"))
-            20 else 0
+            30 else 0
 
         val builder =
             OkHttpClient.Builder()
