@@ -134,7 +134,7 @@ object Apphud {
      * from Google Play, you can use `rawPlacements()` method.
      *
      * @param preferredTimeout The duration, in seconds, after which the SDK will cease retry attempts
-     * in case of failures and will return an error. The minimum allowable value is 7.0 seconds.
+     * in case of failures and will return an error. The minimum allowable value is 10.0 seconds.
      * If not explicitly set, the default behavior has no timeouts (infinite retries).
      * @return The list of `ApphudPlacement` objects.
      */
@@ -187,7 +187,7 @@ object Apphud {
      * This allows for handling situations where partial data is available.
      *
      * @param preferredTimeout The duration, in seconds, after which the SDK will cease retry attempts
-     * in case of failures and will return an error. The minimum allowable value is 7.0 seconds.
+     * in case of failures and will return an error. The minimum allowable value is 10.0 seconds.
      * If not explicitly set, the default behavior has no timeouts (infinite retries).
      * @param callback The callback function that is invoked with the list of `ApphudPlacement` objects.
      * Second parameter in callback represents optional error, which may be
@@ -235,7 +235,7 @@ object Apphud {
      * If you want to obtain paywalls without waiting for `ProductDetails` from
      * Google Play, you can use `rawPaywalls()` method.
      * @param preferredTimeout The duration, in seconds, after which the SDK will cease retry attempts
-     * in case of failures and will return an error. The minimum allowable value is 7.0 seconds.
+     * in case of failures and will return an error. The minimum allowable value is 10.0 seconds.
      * If not explicitly set, the default behavior has no timeouts (infinite retries).
      * @return The list of `ApphudPaywall` objects.
      */
@@ -295,7 +295,7 @@ object Apphud {
      * This allows for handling situations where partial data is available.
      *
      * @param preferredTimeout The duration, in seconds, after which the SDK will cease retry attempts
-     * in case of failures and will return an error. The minimum allowable value is 7.0 seconds.
+     * in case of failures and will return an error. The minimum allowable value is 10.0 seconds.
      * If not explicitly set, the default behavior has no timeouts (infinite retries).
      * @param callback The callback function that is invoked with the list of `ApphudPaywall` objects.
      * Second parameter in callback represents optional error, which may be

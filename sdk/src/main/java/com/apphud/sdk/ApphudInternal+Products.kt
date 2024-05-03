@@ -51,17 +51,6 @@ internal fun ApphudInternal.loadProducts() {
     productsStatus = ApphudProductsStatus.loading
     ApphudLog.logI("Loading ProductDetails from the Store")
 
-    coroutineScope.launch {
-        delay(APPHUD_DEFAULT_MAX_TIMEOUT*1000)
-        if (loadingStoreProducts) {
-            delay(5000)
-        }
-        if (!respondedWithProducts) {
-            ApphudLog.logI("Force respondWithProducts")
-            respondWithProducts()
-        }
-    }
-
     coroutineScope.launch(errorHandler) {
         mutexProducts.withLock {
             val result = fetchProducts()
@@ -96,7 +85,7 @@ internal fun isRetriableProductsRequest(): Boolean {
 }
 
 internal fun retryProductsLoad() {
-    val delay: Long = 500 * productsLoadingCounts.toLong()
+    val delay: Long = 300 * productsLoadingCounts.toLong()
     ApphudLog.logE("Failed to load products from store (${ApphudBillingResponseCodes.getName(
         productsResponseCode)}), will retry in $delay ms")
     Thread.sleep(delay)
@@ -107,6 +96,7 @@ private fun isRetriableErrorCode(code: Int): Boolean {
     return listOf(
         BillingClient.BillingResponseCode.NETWORK_ERROR,
         BillingClient.BillingResponseCode.SERVICE_TIMEOUT,
+        BillingClient.BillingResponseCode.SERVICE_DISCONNECTED,
         BillingClient.BillingResponseCode.SERVICE_UNAVAILABLE,
         BillingClient.BillingResponseCode.BILLING_UNAVAILABLE,
         BillingClient.BillingResponseCode.ERROR,
@@ -131,6 +121,7 @@ private suspend fun ApphudInternal.fetchProducts(): Int {
     }
 
     if (permissionGroupsCopy.isEmpty() && getPaywalls().isEmpty()) {
+        ApphudLog.log("Awaiting for user registration before proceeding to products load")
         awaitUserRegistered()
     }
 

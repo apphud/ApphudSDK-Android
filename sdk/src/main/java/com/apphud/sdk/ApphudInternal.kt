@@ -495,7 +495,7 @@ internal object ApphudInternal {
     internal fun forceNotifyAllLoaded() {
         coroutineScope.launch {
             if (preferredTimeout > 60) { return@launch }
-            delay((preferredTimeout * 1000.0).toLong())
+            delay((preferredTimeout * 1000.0 * 1.5).toLong())
             mainScope.launch {
                 if (!notifiedAboutPaywallsDidFullyLoaded || offeringsPreparedCallbacks.isNotEmpty()) {
                     ApphudLog.logE("Force Notify About Current State")
@@ -515,7 +515,7 @@ internal object ApphudInternal {
         val diff = (System.currentTimeMillis() - sdkLaunchedAt)/1000.0
 
         // if paywalls callback not yet invoked and there are pending callbacks, and it's a customers request
-        // and more than (APPHUD_DEFAULT_HTTP_TIMEOUT) seconds lapsed then no time for extra retry.
+        // and more than preferred timeout seconds lapsed then no time for extra retry.
         if (!didRegisterCustomerAtThisLaunch && !notifiedAboutPaywallsDidFullyLoaded && offeringsPreparedCallbacks.isNotEmpty()
             && (request.endsWith("customers") || request.endsWith("products")) && diff > preferredTimeout) {
             ApphudLog.log("MAX TIMEOUT REACHED")
@@ -533,7 +533,7 @@ internal object ApphudInternal {
     }
 
     internal fun performWhenOfferingsPrepared(preferredTimeout: Double?, callback: (ApphudError?) -> Unit) {
-        if (preferredTimeout != null && preferredTimeout > APPHUD_DEFAULT_HTTP_TIMEOUT.toDouble()) {
+        if (preferredTimeout != null && preferredTimeout > APPHUD_DEFAULT_MAX_TIMEOUT.toDouble()) {
             this.preferredTimeout = preferredTimeout
         }
 
