@@ -569,8 +569,8 @@ internal object ApphudInternal {
     }
 
     internal fun performWhenOfferingsPrepared(preferredTimeout: Double?, callback: (ApphudError?) -> Unit) {
-        if (preferredTimeout != null) {
-            this.preferredTimeout = max(preferredTimeout!!, APPHUD_DEFAULT_MAX_TIMEOUT)
+        preferredTimeout?.let{
+            this.preferredTimeout = max(it, APPHUD_DEFAULT_MAX_TIMEOUT)
             this.offeringsCalledAt = System.currentTimeMillis()
             currentPoductsLoadingCounts = 0
         }
