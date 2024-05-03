@@ -1,0 +1,1 @@
+[{"navFile":"src/main/res/navigation/mobile_navigation.xml","javaFiles":[]},{"navFile":"src/main/res/navigation/onboarding_navigation.xml","javaFiles":["com.apphud.sampleapp.ui.onboarding.OnBoarding1FragmentDirections","com.apphud.sampleapp.ui.onboarding.OnBoarding2FragmentDirections"]}]

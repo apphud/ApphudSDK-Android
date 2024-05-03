@@ -3,13 +3,16 @@ package com.apphud.sdk
 import com.android.billingclient.api.BillingClient
 import com.apphud.sdk.domain.ApphudGroup
 import com.apphud.sdk.domain.ApphudPaywall
+import com.apphud.sdk.domain.ApphudUser
 import com.apphud.sdk.managers.RequestManager
 import kotlinx.coroutines.async
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
+import kotlin.coroutines.resume
 
 internal var productsStatus = ApphudProductsStatus.none
 internal var respondedWithProducts = false
@@ -61,23 +64,20 @@ internal fun ApphudInternal.loadProducts() {
 
     coroutineScope.launch(errorHandler) {
         mutexProducts.withLock {
-            async {
+            val result = fetchProducts()
+            productsResponseCode = result
+            productsStatus = if (result == BillingClient.BillingResponseCode.OK) ApphudProductsStatus.loaded else
+                ApphudProductsStatus.failed
 
-                val result = fetchProducts()
-                productsResponseCode = result
-                productsStatus = if (result == BillingClient.BillingResponseCode.OK) ApphudProductsStatus.loaded else
-                    ApphudProductsStatus.failed
+            if (productsResponseCode != APPHUD_NO_REQUEST) {
+                productsLoadingCounts += 1
+            }
 
-                if (productsResponseCode != APPHUD_NO_REQUEST) {
-                    productsLoadingCounts += 1
-                }
-
-                if (isRetriableProductsRequest() && productsLoadingCounts < maxProductRetriesCount) {
-                    retryProductsLoad()
-                } else {
-                    ApphudLog.log("Finished Loading Product Details")
-                    respondWithProducts()
-                }
+            if (isRetriableProductsRequest() && (productsLoadingCounts < maxProductRetriesCount || shouldRetryRequest("products"))) {
+                retryProductsLoad()
+            } else {
+                ApphudLog.log("Finished Loading Product Details")
+                respondWithProducts()
             }
         }
     }
@@ -95,10 +95,10 @@ internal fun isRetriableProductsRequest(): Boolean {
         productsResponseCode) && ApphudInternal.isActive && !ApphudUtils.isEmulator()
 }
 
-internal fun ApphudInternal.retryProductsLoad() {
+internal fun retryProductsLoad() {
     val delay: Long = 500 * productsLoadingCounts.toLong()
     ApphudLog.logE("Failed to load products from store (${ApphudBillingResponseCodes.getName(
-        productsResponseCode)}), will retry in ${delay} ms")
+        productsResponseCode)}), will retry in $delay ms")
     Thread.sleep(delay)
     ApphudInternal.loadProducts()
 }
@@ -109,9 +109,17 @@ private fun isRetriableErrorCode(code: Int): Boolean {
         BillingClient.BillingResponseCode.SERVICE_TIMEOUT,
         BillingClient.BillingResponseCode.SERVICE_UNAVAILABLE,
         BillingClient.BillingResponseCode.BILLING_UNAVAILABLE,
-        BillingClient.BillingResponseCode.ERROR
+        BillingClient.BillingResponseCode.ERROR,
+        APPHUD_NO_REQUEST
     ).contains(code)
 }
+
+private suspend fun awaitUserRegistered(): ApphudUser? =
+    suspendCancellableCoroutine { continuation ->
+        ApphudInternal.performWhenUserRegistered {
+            continuation.resume(ApphudInternal.currentUser)
+        }
+    }
 
 private suspend fun ApphudInternal.fetchProducts(): Int {
     var permissionGroupsCopy = getPermissionGroups()
@@ -121,6 +129,11 @@ private suspend fun ApphudInternal.fetchProducts(): Int {
             permissionGroupsCopy = groups
         }
     }
+
+    if (permissionGroupsCopy.isEmpty() && getPaywalls().isEmpty()) {
+        awaitUserRegistered()
+    }
+
     val ids = allAvailableProductIds(permissionGroupsCopy, getPaywalls())
     return fetchDetails(ids)
 }

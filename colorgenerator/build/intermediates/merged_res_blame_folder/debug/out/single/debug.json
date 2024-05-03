@@ -1,0 +1,258 @@
+[
+    {
+        "merged": "com.apphud.sampleapp.colorgenerator-merged_res-60:/mipmap-anydpi-v26_ic_launcher_round.xml.flat",
+        "source": "com.apphud.sampleapp.colorgenerator-main-62:/mipmap-anydpi-v26/ic_launcher_round.xml"
+    },
+    {
+        "merged": "com.apphud.sampleapp.colorgenerator-merged_res-60:/layout_fragment_onboarding_2.xml.flat",
+        "source": "com.apphud.sampleapp.colorgenerator-main-62:/layout/fragment_onboarding_2.xml"
+    },
+    {
+        "merged": "com.apphud.sampleapp.colorgenerator-merged_res-60:/drawable_ic_launcher_foreground.xml.flat",
+        "source": "com.apphud.sampleapp.colorgenerator-main-62:/drawable/ic_launcher_foreground.xml"
+    },
+    {
+        "merged": "com.apphud.sampleapp.colorgenerator-merged_res-60:/layout_activity_paywall.xml.flat",
+        "source": "com.apphud.sampleapp.colorgenerator-main-62:/layout/activity_paywall.xml"
+    },
+    {
+        "merged": "com.apphud.sampleapp.colorgenerator-merged_res-60:/layout_activity_main.xml.flat",
+        "source": "com.apphud.sampleapp.colorgenerator-main-62:/layout/activity_main.xml"
+    },
+    {
+        "merged": "com.apphud.sampleapp.colorgenerator-merged_res-60:/drawable_splash_screen.xml.flat",
+        "source": "com.apphud.sampleapp.colorgenerator-main-62:/drawable/splash_screen.xml"
+    },
+    {
+        "merged": "com.apphud.sampleapp.colorgenerator-merged_res-60:/menu_bottom_nav_menu.xml.flat",
+        "source": "com.apphud.sampleapp.colorgenerator-main-62:/menu/bottom_nav_menu.xml"
+    },
+    {
+        "merged": "com.apphud.sampleapp.colorgenerator-merged_res-60:/mipmap-xhdpi_ic_launcher.webp.flat",
+        "source": "com.apphud.sampleapp.colorgenerator-main-62:/mipmap-xhdpi/ic_launcher.webp"
+    },
+    {
+        "merged": "com.apphud.sampleapp.colorgenerator-merged_res-60:/drawable_baseline_color_lens_24.xml.flat",
+        "source": "com.apphud.sampleapp.colorgenerator-main-62:/drawable/baseline_color_lens_24.xml"
+    },
+    {
+        "merged": "com.apphud.sampleapp.colorgenerator-merged_res-60:/drawable_button_brown.xml.flat",
+        "source": "com.apphud.sampleapp.colorgenerator-main-62:/drawable/button_brown.xml"
+    },
+    {
+        "merged": "com.apphud.sampleapp.colorgenerator-merged_res-60:/layout_fragment_settings.xml.flat",
+        "source": "com.apphud.sampleapp.colorgenerator-main-62:/layout/fragment_settings.xml"
+    },
+    {
+        "merged": "com.apphud.sampleapp.colorgenerator-merged_res-60:/mipmap-hdpi_ic_launcher.webp.flat",
+        "source": "com.apphud.sampleapp.colorgenerator-main-62:/mipmap-hdpi/ic_launcher.webp"
+    },
+    {
+        "merged": "com.apphud.sampleapp.colorgenerator-merged_res-60:/layout_fragment_notifications.xml.flat",
+        "source": "com.apphud.sampleapp.colorgenerator-main-62:/layout/fragment_notifications.xml"
+    },
+    {
+        "merged": "com.apphud.sampleapp.colorgenerator-merged_res-60:/mipmap-xxxhdpi_ic_launcher_round.webp.flat",
+        "source": "com.apphud.sampleapp.colorgenerator-main-62:/mipmap-xxxhdpi/ic_launcher_round.webp"
+    },
+    {
+        "merged": "com.apphud.sampleapp.colorgenerator-merged_res-60:/mipmap-mdpi_ic_launcher_round.webp.flat",
+        "source": "com.apphud.sampleapp.colorgenerator-main-62:/mipmap-mdpi/ic_launcher_round.webp"
+    },
+    {
+        "merged": "com.apphud.sampleapp.colorgenerator-merged_res-60:/layout_list_item_offset.xml.flat",
+        "source": "com.apphud.sampleapp.colorgenerator-main-62:/layout/list_item_offset.xml"
+    },
+    {
+        "merged": "com.apphud.sampleapp.colorgenerator-merged_res-60:/mipmap-xxhdpi_ic_launcher_foreground.webp.flat",
+        "source": "com.apphud.sampleapp.colorgenerator-main-62:/mipmap-xxhdpi/ic_launcher_foreground.webp"
+    },
+    {
+        "merged": "com.apphud.sampleapp.colorgenerator-merged_res-60:/drawable_baseline_settings_24.xml.flat",
+        "source": "com.apphud.sampleapp.colorgenerator-main-62:/drawable/baseline_settings_24.xml"
+    },
+    {
+        "merged": "com.apphud.sampleapp.colorgenerator-merged_res-60:/layout_fragment_onboarding_3.xml.flat",
+        "source": "com.apphud.sampleapp.colorgenerator-main-62:/layout/fragment_onboarding_3.xml"
+    },
+    {
+        "merged": "com.apphud.sampleapp.colorgenerator-merged_res-60:/layout_list_item_settings_info_single.xml.flat",
+        "source": "com.apphud.sampleapp.colorgenerator-main-62:/layout/list_item_settings_info_single.xml"
+    },
+    {
+        "merged": "com.apphud.sampleapp.colorgenerator-merged_res-60:/layout_view_product_button.xml.flat",
+        "source": "com.apphud.sampleapp.colorgenerator-main-62:/layout/view_product_button.xml"
+    },
+    {
+        "merged": "com.apphud.sampleapp.colorgenerator-merged_res-60:/layout_fragment_onboarding_1.xml.flat",
+        "source": "com.apphud.sampleapp.colorgenerator-main-62:/layout/fragment_onboarding_1.xml"
+    },
+    {
+        "merged": "com.apphud.sampleapp.colorgenerator-merged_res-60:/drawable_baseline_local_fire_department_24.xml.flat",
+        "source": "com.apphud.sampleapp.colorgenerator-main-62:/drawable/baseline_local_fire_department_24.xml"
+    },
+    {
+        "merged": "com.apphud.sampleapp.colorgenerator-merged_res-60:/layout_list_item_settings_info.xml.flat",
+        "source": "com.apphud.sampleapp.colorgenerator-main-62:/layout/list_item_settings_info.xml"
+    },
+    {
+        "merged": "com.apphud.sampleapp.colorgenerator-merged_res-60:/anim_exit_to_top.xml.flat",
+        "source": "com.apphud.sampleapp.colorgenerator-main-62:/anim/exit_to_top.xml"
+    },
+    {
+        "merged": "com.apphud.sampleapp.colorgenerator-merged_res-60:/anim_exit_to_right.xml.flat",
+        "source": "com.apphud.sampleapp.colorgenerator-main-62:/anim/exit_to_right.xml"
+    },
+    {
+        "merged": "com.apphud.sampleapp.colorgenerator-merged_res-60:/mipmap-anydpi-v26_ic_launcher.xml.flat",
+        "source": "com.apphud.sampleapp.colorgenerator-main-62:/mipmap-anydpi-v26/ic_launcher.xml"
+    },
+    {
+        "merged": "com.apphud.sampleapp.colorgenerator-merged_res-60:/layout_fragment_main.xml.flat",
+        "source": "com.apphud.sampleapp.colorgenerator-main-62:/layout/fragment_main.xml"
+    },
+    {
+        "merged": "com.apphud.sampleapp.colorgenerator-merged_res-60:/layout_list_item_settings_info_top.xml.flat",
+        "source": "com.apphud.sampleapp.colorgenerator-main-62:/layout/list_item_settings_info_top.xml"
+    },
+    {
+        "merged": "com.apphud.sampleapp.colorgenerator-merged_res-60:/layout_list_item_settings_button_top.xml.flat",
+        "source": "com.apphud.sampleapp.colorgenerator-main-62:/layout/list_item_settings_button_top.xml"
+    },
+    {
+        "merged": "com.apphud.sampleapp.colorgenerator-merged_res-60:/layout_activity_splash.xml.flat",
+        "source": "com.apphud.sampleapp.colorgenerator-main-62:/layout/activity_splash.xml"
+    },
+    {
+        "merged": "com.apphud.sampleapp.colorgenerator-merged_res-60:/drawable_divider.xml.flat",
+        "source": "com.apphud.sampleapp.colorgenerator-main-62:/drawable/divider.xml"
+    },
+    {
+        "merged": "com.apphud.sampleapp.colorgenerator-merged_res-60:/drawable_baseline_all_inclusive_24.xml.flat",
+        "source": "com.apphud.sampleapp.colorgenerator-main-62:/drawable/baseline_all_inclusive_24.xml"
+    },
+    {
+        "merged": "com.apphud.sampleapp.colorgenerator-merged_res-60:/drawable_baseline_chevron_right_24.xml.flat",
+        "source": "com.apphud.sampleapp.colorgenerator-main-62:/drawable/baseline_chevron_right_24.xml"
+    },
+    {
+        "merged": "com.apphud.sampleapp.colorgenerator-merged_res-60:/mipmap-mdpi_ic_launcher.webp.flat",
+        "source": "com.apphud.sampleapp.colorgenerator-main-62:/mipmap-mdpi/ic_launcher.webp"
+    },
+    {
+        "merged": "com.apphud.sampleapp.colorgenerator-merged_res-60:/drawable_list_item_background_top_12.xml.flat",
+        "source": "com.apphud.sampleapp.colorgenerator-main-62:/drawable/list_item_background_top_12.xml"
+    },
+    {
+        "merged": "com.apphud.sampleapp.colorgenerator-merged_res-60:/drawable_button_blue.xml.flat",
+        "source": "com.apphud.sampleapp.colorgenerator-main-62:/drawable/button_blue.xml"
+    },
+    {
+        "merged": "com.apphud.sampleapp.colorgenerator-merged_res-60:/drawable_background_rounded.xml.flat",
+        "source": "com.apphud.sampleapp.colorgenerator-main-62:/drawable/background_rounded.xml"
+    },
+    {
+        "merged": "com.apphud.sampleapp.colorgenerator-merged_res-60:/anim_exit_to_left.xml.flat",
+        "source": "com.apphud.sampleapp.colorgenerator-main-62:/anim/exit_to_left.xml"
+    },
+    {
+        "merged": "com.apphud.sampleapp.colorgenerator-merged_res-60:/layout_list_item_settings_button_bottom.xml.flat",
+        "source": "com.apphud.sampleapp.colorgenerator-main-62:/layout/list_item_settings_button_bottom.xml"
+    },
+    {
+        "merged": "com.apphud.sampleapp.colorgenerator-merged_res-60:/navigation_onboarding_navigation.xml.flat",
+        "source": "com.apphud.sampleapp.colorgenerator-main-62:/navigation/onboarding_navigation.xml"
+    },
+    {
+        "merged": "com.apphud.sampleapp.colorgenerator-merged_res-60:/mipmap-xxxhdpi_ic_launcher_foreground.webp.flat",
+        "source": "com.apphud.sampleapp.colorgenerator-main-62:/mipmap-xxxhdpi/ic_launcher_foreground.webp"
+    },
+    {
+        "merged": "com.apphud.sampleapp.colorgenerator-merged_res-60:/mipmap-xhdpi_ic_launcher_round.webp.flat",
+        "source": "com.apphud.sampleapp.colorgenerator-main-62:/mipmap-xhdpi/ic_launcher_round.webp"
+    },
+    {
+        "merged": "com.apphud.sampleapp.colorgenerator-merged_res-60:/mipmap-hdpi_ic_launcher_round.webp.flat",
+        "source": "com.apphud.sampleapp.colorgenerator-main-62:/mipmap-hdpi/ic_launcher_round.webp"
+    },
+    {
+        "merged": "com.apphud.sampleapp.colorgenerator-merged_res-60:/layout_list_item_settings_button_single.xml.flat",
+        "source": "com.apphud.sampleapp.colorgenerator-main-62:/layout/list_item_settings_button_single.xml"
+    },
+    {
+        "merged": "com.apphud.sampleapp.colorgenerator-merged_res-60:/layout_activity_onboarding.xml.flat",
+        "source": "com.apphud.sampleapp.colorgenerator-main-62:/layout/activity_onboarding.xml"
+    },
+    {
+        "merged": "com.apphud.sampleapp.colorgenerator-merged_res-60:/mipmap-xxhdpi_ic_launcher_round.webp.flat",
+        "source": "com.apphud.sampleapp.colorgenerator-main-62:/mipmap-xxhdpi/ic_launcher_round.webp"
+    },
+    {
+        "merged": "com.apphud.sampleapp.colorgenerator-merged_res-60:/navigation_mobile_navigation.xml.flat",
+        "source": "com.apphud.sampleapp.colorgenerator-main-62:/navigation/mobile_navigation.xml"
+    },
+    {
+        "merged": "com.apphud.sampleapp.colorgenerator-merged_res-60:/anim_enter_from_left.xml.flat",
+        "source": "com.apphud.sampleapp.colorgenerator-main-62:/anim/enter_from_left.xml"
+    },
+    {
+        "merged": "com.apphud.sampleapp.colorgenerator-merged_res-60:/layout_list_item_settings_info_bottom.xml.flat",
+        "source": "com.apphud.sampleapp.colorgenerator-main-62:/layout/list_item_settings_info_bottom.xml"
+    },
+    {
+        "merged": "com.apphud.sampleapp.colorgenerator-merged_res-60:/mipmap-mdpi_ic_launcher_foreground.webp.flat",
+        "source": "com.apphud.sampleapp.colorgenerator-main-62:/mipmap-mdpi/ic_launcher_foreground.webp"
+    },
+    {
+        "merged": "com.apphud.sampleapp.colorgenerator-merged_res-60:/drawable_list_item_background_bottom_12.xml.flat",
+        "source": "com.apphud.sampleapp.colorgenerator-main-62:/drawable/list_item_background_bottom_12.xml"
+    },
+    {
+        "merged": "com.apphud.sampleapp.colorgenerator-merged_res-60:/mipmap-xxhdpi_ic_launcher.webp.flat",
+        "source": "com.apphud.sampleapp.colorgenerator-main-62:/mipmap-xxhdpi/ic_launcher.webp"
+    },
+    {
+        "merged": "com.apphud.sampleapp.colorgenerator-merged_res-60:/mipmap-hdpi_ic_launcher_foreground.webp.flat",
+        "source": "com.apphud.sampleapp.colorgenerator-main-62:/mipmap-hdpi/ic_launcher_foreground.webp"
+    },
+    {
+        "merged": "com.apphud.sampleapp.colorgenerator-merged_res-60:/mipmap-xhdpi_ic_launcher_foreground.webp.flat",
+        "source": "com.apphud.sampleapp.colorgenerator-main-62:/mipmap-xhdpi/ic_launcher_foreground.webp"
+    },
+    {
+        "merged": "com.apphud.sampleapp.colorgenerator-merged_res-60:/anim_enter_from_bottom.xml.flat",
+        "source": "com.apphud.sampleapp.colorgenerator-main-62:/anim/enter_from_bottom.xml"
+    },
+    {
+        "merged": "com.apphud.sampleapp.colorgenerator-merged_res-60:/layout_list_item_settings_button.xml.flat",
+        "source": "com.apphud.sampleapp.colorgenerator-main-62:/layout/list_item_settings_button.xml"
+    },
+    {
+        "merged": "com.apphud.sampleapp.colorgenerator-merged_res-60:/drawable_list_item_background_12.xml.flat",
+        "source": "com.apphud.sampleapp.colorgenerator-main-62:/drawable/list_item_background_12.xml"
+    },
+    {
+        "merged": "com.apphud.sampleapp.colorgenerator-merged_res-60:/drawable_ic_launcher_background.xml.flat",
+        "source": "com.apphud.sampleapp.colorgenerator-main-62:/drawable/ic_launcher_background.xml"
+    },
+    {
+        "merged": "com.apphud.sampleapp.colorgenerator-merged_res-60:/mipmap-xxxhdpi_ic_launcher.webp.flat",
+        "source": "com.apphud.sampleapp.colorgenerator-main-62:/mipmap-xxxhdpi/ic_launcher.webp"
+    },
+    {
+        "merged": "com.apphud.sampleapp.colorgenerator-merged_res-60:/anim_exit_to_bottom.xml.flat",
+        "source": "com.apphud.sampleapp.colorgenerator-main-62:/anim/exit_to_bottom.xml"
+    },
+    {
+        "merged": "com.apphud.sampleapp.colorgenerator-merged_res-60:/anim_enter_from_top.xml.flat",
+        "source": "com.apphud.sampleapp.colorgenerator-main-62:/anim/enter_from_top.xml"
+    },
+    {
+        "merged": "com.apphud.sampleapp.colorgenerator-merged_res-60:/layout_fragment_paywall.xml.flat",
+        "source": "com.apphud.sampleapp.colorgenerator-main-62:/layout/fragment_paywall.xml"
+    },
+    {
+        "merged": "com.apphud.sampleapp.colorgenerator-merged_res-60:/anim_enter_from_right.xml.flat",
+        "source": "com.apphud.sampleapp.colorgenerator-main-62:/anim/enter_from_right.xml"
+    }
+]

@@ -1,0 +1,19 @@
+{
+    "logs": [
+        {
+            "outputFile": "com.apphud.sampleapp.colorgenerator-mergeDebugResources-58:/values-h720dp-v13/values-h720dp-v13.xml",
+            "map": [
+                {
+                    "source": "/Users/ren6/.gradle/caches/transforms-3/0cfb787aae1117b7f42fc4cf7ecb7c5f/transformed/appcompat-1.6.1/res/values-h720dp-v13/values-h720dp-v13.xml",
+                    "from": {
+                        "startLines": "2",
+                        "startColumns": "4",
+                        "startOffsets": "55",
+                        "endColumns": "66",
+                        "endOffsets": "117"
+                    }
+                }
+            ]
+        }
+    ]
+}

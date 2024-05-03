@@ -1,0 +1,19 @@
+{
+    "logs": [
+        {
+            "outputFile": "com.apphud.sampleapp.colorgenerator-mergeDebugResources-58:/values-w320dp-land-v13/values-w320dp-land-v13.xml",
+            "map": [
+                {
+                    "source": "/Users/ren6/.gradle/caches/transforms-3/a5b0b705f0b0afe651cfc40781a6e6a7/transformed/material-1.11.0/res/values-w320dp-land-v13/values-w320dp-land-v13.xml",
+                    "from": {
+                        "startLines": "2,3",
+                        "startColumns": "4,4",
+                        "startOffsets": "55,110",
+                        "endColumns": "54,61",
+                        "endOffsets": "105,167"
+                    }
+                }
+            ]
+        }
+    ]
+}

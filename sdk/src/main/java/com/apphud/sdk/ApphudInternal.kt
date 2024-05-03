@@ -511,7 +511,7 @@ internal object ApphudInternal {
     }
 
     internal fun shouldRetryRequest(request: String): Boolean {
-        val percentageFromMaxTimeout = APPHUD_DEFAULT_HTTP_TIMEOUT * 1000 * maxProductRetriesCount
+        val percentageFromMaxTimeout = APPHUD_DEFAULT_HTTP_TIMEOUT * 1000 * maxProductRetriesCount * 1.5
         val diff = System.currentTimeMillis() - sdkLaunchedAt
 
         // if paywalls callback not yet invoked and there are pending callbacks, and it's a customers request
