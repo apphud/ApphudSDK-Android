@@ -50,7 +50,7 @@ class ApphudApplication : Application() {
     }
 
     fun fetchPlacements() {
-        Apphud.fetchPlacements(preferredTimeout = 10.0) { apphudPlacements, apphudError ->
+        Apphud.fetchPlacements { apphudPlacements, apphudError ->
             if (apphudPlacements.isNotEmpty() && apphudError == null) {
                 Log.d("ApphudLogsDemo", "Placements are loaded, all good.")
             } else if (apphudPlacements.isNotEmpty() && apphudError?.networkIssue() == true) {
@@ -58,7 +58,7 @@ class ApphudApplication : Application() {
                 // Developer can retry fetchPlacements() immediately or after user taps "Try again" button in your custom UI.
                 fetchPlacements()
             } else if (apphudError?.billingErrorTitle() != null) {
-                Log.d("ApphudLogsDemo", "Placements are loaded, however there is Google Billing Issue: ask user to sign in to Google Play and try again later.")
+                Log.d("ApphudLogsDemo", "Placements are loaded, however there is Google Billing Issue (${apphudError.billingErrorTitle()}): ask user to sign in to Google Play and try again later.")
                 // Developer can retry fetchPlacements() immediately or after user taps "Try again" button in your custom UI.
                 fetchPlacements()
             } else if (apphudError?.networkIssue() == true) {
@@ -72,7 +72,7 @@ class ApphudApplication : Application() {
                         Log.d("ApphudLogsDemo", "Fallback paywalls are loaded from JSON, use them instead of placements")
                         // Grab the paywall and display it
                     } else if (fallbackError?.billingErrorTitle() != null) {
-                        Log.d("ApphudLogsDemo", "Fallback Google Billing Issue: ask user to sign in to Google Play and try again later.")
+                        Log.d("ApphudLogsDemo", "Fallback Google Billing Issue (${fallbackError.billingErrorTitle()}): ask user to sign in to Google Play and try again later.")
                         // Developer can retry fetchPlacements() immediately or after user taps "Try again" button in your custom UI.
                         fetchPlacements()
                     } else {

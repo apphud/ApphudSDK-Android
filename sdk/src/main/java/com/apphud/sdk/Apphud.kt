@@ -133,12 +133,13 @@ object Apphud {
      * If you want to obtain placements without waiting for `ProductDetails`
      * from Google Play, you can use `rawPlacements()` method.
      *
-     * @param preferredTimeout The duration, in seconds, after which the SDK will cease retry attempts
-     * in case of failures and will return an error. The minimum allowable value is 10.0 seconds.
-     * If not explicitly set, the default behavior has no timeouts (infinite retries).
+     * @param preferredTimeout The approximate duration, in seconds, after which the SDK will cease
+     * retry attempts to Apphud backend in case of failures and return an error.
+     * The default and minimum value for this parameter is 10.0 seconds.
+     * This parameter doesn't affect fetching products from Google Play.
      * @return The list of `ApphudPlacement` objects.
      */
-    suspend fun placements(preferredTimeout: Double? = null): List<ApphudPlacement> =
+    suspend fun placements(preferredTimeout: Double = APPHUD_DEFAULT_MAX_TIMEOUT): List<ApphudPlacement> =
         suspendCancellableCoroutine { continuation ->
             fetchPlacements(preferredTimeout = preferredTimeout) { _, _ ->
                 /* Error is not returned is suspending function.
@@ -186,15 +187,16 @@ object Apphud {
      * an error will be returned along with the raw placements array.
      * This allows for handling situations where partial data is available.
      *
-     * @param preferredTimeout The duration, in seconds, after which the SDK will cease retry attempts
-     * in case of failures and will return an error. The minimum allowable value is 10.0 seconds.
-     * If not explicitly set, the default behavior has no timeouts (infinite retries).
+     * @param preferredTimeout The approximate duration, in seconds, after which the SDK will cease
+     * retry attempts to Apphud backend in case of failures and return an error.
+     * The default and minimum value for this parameter is 10.0 seconds.
+     * This parameter doesn't affect fetching products from Google Play.
      * @param callback The callback function that is invoked with the list of `ApphudPlacement` objects.
      * Second parameter in callback represents optional error, which may be
      * on Google (BillingClient issue) or Apphud side.
      *
      */
-    fun fetchPlacements(preferredTimeout: Double? = null, callback: (List<ApphudPlacement>, ApphudError?) -> Unit) {
+    fun fetchPlacements(preferredTimeout: Double = APPHUD_DEFAULT_MAX_TIMEOUT, callback: (List<ApphudPlacement>, ApphudError?) -> Unit) {
         ApphudInternal.performWhenOfferingsPrepared(preferredTimeout = preferredTimeout) { callback(ApphudInternal.placements, it) }
     }
     @Deprecated(
@@ -234,16 +236,17 @@ object Apphud {
      *
      * If you want to obtain paywalls without waiting for `ProductDetails` from
      * Google Play, you can use `rawPaywalls()` method.
-     * @param preferredTimeout The duration, in seconds, after which the SDK will cease retry attempts
-     * in case of failures and will return an error. The minimum allowable value is 10.0 seconds.
-     * If not explicitly set, the default behavior has no timeouts (infinite retries).
+     * @param preferredTimeout The approximate duration, in seconds, after which the SDK will cease
+     * retry attempts to Apphud backend in case of failures and return an error.
+     * The default and minimum value for this parameter is 10.0 seconds.
+     * This parameter doesn't affect fetching products from Google Play.
      * @return The list of `ApphudPaywall` objects.
      */
     @Deprecated(
         "Deprecated in favor of Placements",
         ReplaceWith("this.placements()"),
     )
-    suspend fun paywalls(preferredTimeout: Double? = null): List<ApphudPaywall> =
+    suspend fun paywalls(preferredTimeout: Double = APPHUD_DEFAULT_MAX_TIMEOUT): List<ApphudPaywall> =
         suspendCancellableCoroutine { continuation ->
             ApphudInternal.performWhenOfferingsPrepared(preferredTimeout = preferredTimeout) {
                 /* Error is not returned is suspending function.
@@ -294,9 +297,10 @@ object Apphud {
      * an error will be returned along with the raw paywalls array.
      * This allows for handling situations where partial data is available.
      *
-     * @param preferredTimeout The duration, in seconds, after which the SDK will cease retry attempts
-     * in case of failures and will return an error. The minimum allowable value is 10.0 seconds.
-     * If not explicitly set, the default behavior has no timeouts (infinite retries).
+     * @param preferredTimeout The approximate duration, in seconds, after which the SDK will cease
+     * retry attempts to Apphud backend in case of failures and return an error.
+     * The default and minimum value for this parameter is 10.0 seconds.
+     * This parameter doesn't affect fetching products from Google Play.
      * @param callback The callback function that is invoked with the list of `ApphudPaywall` objects.
      * Second parameter in callback represents optional error, which may be
      * on Google (BillingClient issue) or Apphud side.
@@ -305,7 +309,7 @@ object Apphud {
         "Deprecated in favor of Placements",
         ReplaceWith("this.placementsDidLoadCallback(callback)"),
     )
-    fun paywallsDidLoadCallback(preferredTimeout: Double? = null, callback: (List<ApphudPaywall>, ApphudError?) -> Unit) {
+    fun paywallsDidLoadCallback(preferredTimeout: Double = APPHUD_DEFAULT_MAX_TIMEOUT, callback: (List<ApphudPaywall>, ApphudError?) -> Unit) {
         ApphudInternal.performWhenOfferingsPrepared(preferredTimeout = preferredTimeout) { callback(ApphudInternal.paywalls, it) }
     }
 
