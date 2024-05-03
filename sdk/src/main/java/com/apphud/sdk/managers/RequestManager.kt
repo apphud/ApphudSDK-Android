@@ -948,6 +948,7 @@ object RequestManager {
         properties["products_load_time"] = productsLoadTime
         properties["products_count"] = productsCount
         properties["result"] = if (success && productsResponseCode == 0 && productsCount > 0 && error == null) "no_issues" else "has_issues"
+        properties["offerings_callback"] = if (success) "no_offerings_error" else "has_offerings_error"
         properties["api_key"] = apiKey ?: ""
         error?.let {
             properties["error_code"] = it.errorCode ?: 0
