@@ -8,6 +8,7 @@ typealias DeviceId = String
 typealias GroupId = String
 typealias ProductId = String
 
+typealias VoidCallback1 = (Void) -> Unit
 typealias Callback1<T> = (T) -> Unit
 typealias Callback2<T1, T2> = (T1, T2) -> Unit
 typealias CustomerCallback = Callback1<ApphudUser>

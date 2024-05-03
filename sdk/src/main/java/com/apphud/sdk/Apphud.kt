@@ -731,6 +731,16 @@ object Apphud {
     }
 
     /**
+     * Explicitly loads fallback paywalls from the json file, if it was added to the project assets.
+     * By default, SDK automatically tries to load paywalls from the JSON file, if possible.
+     * However, developer can also call this method directly for more control.
+     * For more details, visit https://docs.apphud.com/docs/paywalls#set-up-fallback-mode
+     */
+    fun loadFallbackPaywalls(callback: (List<ApphudPaywall>?, ApphudError?) -> Unit) {
+        ApphudInternal.processFallbackData(callback)
+    }
+
+    /**
      * Must be called before SDK initialization.
      * Will make SDK to disregard cache and force refresh paywalls and placements.
      * Call it only if keeping paywalls and placements up to date is critical for your app business.

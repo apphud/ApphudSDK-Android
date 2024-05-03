@@ -324,9 +324,14 @@ internal object ApphudInternal {
             if (updateOfferingsFromCustomer) {
                 paywalls = it.paywalls
                 placements = it.placements
-            } else if (paywallsPrepared || fromFallback) {
+            } else if (!ignoreCache && (paywallsPrepared || fromFallback)) {
                 readPaywallsFromCache()?.let { cached -> paywalls = cached }
                 readPlacementsFromCache()?.let { cached -> placements = cached }
+
+                if (paywalls.isEmpty() && it.paywalls.isNotEmpty()) {
+                    paywalls = it.paywalls
+                    placements = it.placements
+                }
             }
 
             currentUser = it
@@ -345,7 +350,7 @@ internal object ApphudInternal {
                 }
             }
 
-            if (!fromFallback && fallbackMode && !fromCache) {
+            if (it.isTemporary != true && fallbackMode && !fromCache) {
                 disableFallback()
             }
         }
@@ -372,7 +377,7 @@ internal object ApphudInternal {
             }
             while (offeringsPreparedCallbacks.isNotEmpty()) {
                 val callback = offeringsPreparedCallbacks.removeFirst()
-                callback?.invoke(null)
+                callback?.invoke(latestCustomerLoadError)
             }
 
             notifiedPaywallsAndPlacementsHandled = true
@@ -459,6 +464,14 @@ internal object ApphudInternal {
                             HttpRetryInterceptor.MAX_COUNT = APPHUD_DEFAULT_RETRIES
 
                             currentUser = it
+                            if (it.paywalls.isNotEmpty()) {
+                                synchronized(paywalls) {
+                                    paywalls = it.paywalls
+                                }
+                                synchronized(placements) {
+                                    placements = it.placements
+                                }
+                            }
                             isRegisteringUser = false
                             coroutineScope.launch {
                                 storage.lastRegistration = System.currentTimeMillis()
@@ -483,7 +496,7 @@ internal object ApphudInternal {
                             ApphudLog.logE("Registration failed ${error?.message}")
                             mainScope.launch {
                                 isRegisteringUser = false
-                                notifyLoadingCompleted(currentUser, null, false, false, error)
+                                notifyLoadingCompleted(currentUser, null, true, currentUser?.isTemporary ?: false, error)
                                 completionHandler?.invoke(currentUser, error)
                             }
                         }

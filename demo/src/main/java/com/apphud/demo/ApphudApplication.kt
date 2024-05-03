@@ -5,12 +5,15 @@ import android.content.Context
 import android.util.Log
 import androidx.lifecycle.lifecycleScope
 import com.apphud.sdk.Apphud
+import com.apphud.sdk.ApphudError
 import com.apphud.sdk.ApphudUtils
 import com.apphud.sdk.client.ApiClient
+import com.apphud.sdk.domain.ApphudPaywall
 import com.apphud.sdk.domain.ApphudPlacement
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.GlobalScope
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.launch
 
 class ApphudApplication : Application() {
@@ -37,9 +40,9 @@ class ApphudApplication : Application() {
     override fun onCreate() {
         super.onCreate()
         if (BuildConfig.DEBUG) {
-            ApphudUtils.enableAllLogs()
+            ApphudUtils.enableDebugLogs()
         }
-        Apphud.invalidatePaywallsCache()
+//        Apphud.invalidatePaywallsCache()
         Apphud.start(this, API_KEY, observerMode = false)
         Apphud.collectDeviceIdentifiers()
 
@@ -48,21 +51,36 @@ class ApphudApplication : Application() {
 
     fun fetchPlacements() {
         Apphud.fetchPlacements(preferredTimeout = 10.0) { apphudPlacements, apphudError ->
-            var hasProducts = false
-            apphudPlacements.forEach {pl ->
-                pl.paywall?.products?.forEach { p ->
-                    if (p.productDetails != null) {
-                        hasProducts = true
+            if (apphudPlacements.isNotEmpty() && apphudError == null) {
+                Log.d("ApphudLogsDemo", "Placements are loaded, all good.")
+            } else if (apphudPlacements.isNotEmpty() && apphudError?.networkIssue() == true) {
+                Log.d("ApphudLogsDemo", "Placements are loaded from cache, however there is Internet connection issue, ask user to connect to the Internet. ProductDetails may exist in the ApphudProducts.")
+                // Developer can retry fetchPlacements() immediately or after user taps "Try again" button in your custom UI.
+                fetchPlacements()
+            } else if (apphudError?.billingErrorTitle() != null) {
+                Log.d("ApphudLogsDemo", "Placements are loaded, however there is Google Billing Issue: ask user to sign in to Google Play and try again later.")
+                // Developer can retry fetchPlacements() immediately or after user taps "Try again" button in your custom UI.
+                fetchPlacements()
+            } else if (apphudError?.networkIssue() == true) {
+                Log.d("ApphudLogsDemo", "Failed to load placements due to Internet connection issue, ask user to connect to the Internet and try again later.")
+                // Developer can retry fetchPlacements() immediately or after user taps "Try again" button in your custom UI.
+                fetchPlacements()
+            } else {
+                // unknown error, try to load fallback paywalls
+                Apphud.loadFallbackPaywalls { paywalls, fallbackError ->
+                    if (!paywalls.isNullOrEmpty() && fallbackError?.billingErrorTitle() == null) {
+                        Log.d("ApphudLogsDemo", "Fallback paywalls are loaded from JSON, use them instead of placements")
+                        // Grab the paywall and display it
+                    } else if (fallbackError?.billingErrorTitle() != null) {
+                        Log.d("ApphudLogsDemo", "Fallback Google Billing Issue: ask user to sign in to Google Play and try again later.")
+                        // Developer can retry fetchPlacements() immediately or after user taps "Try again" button in your custom UI.
+                        fetchPlacements()
+                    } else {
+                        Log.d("ApphudLogsDemo", "Fallback paywalls not setup.")
+                        // Developer can retry fetchPlacements() immediately or after user taps "Try again" button in your custom UI.
+                        fetchPlacements()
                     }
                 }
-            }
-
-            Log.d("ApphudLogs", "Apphud.fetchPlacements = ${apphudPlacements.map { it.identifier }}, hasDetails = $hasProducts, error = ${apphudError} google billing issue = ${apphudError?.billingErrorTitle()}")
-
-            if (apphudError != null && apphudError.billingErrorTitle() != null) {
-                // ask user to sign in to Google Billing or try again later.
-            } else {
-                Apphud.
             }
         }
     }

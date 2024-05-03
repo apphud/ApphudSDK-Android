@@ -1,4 +1,4 @@
-#Mon Apr 29 15:36:37 ICT 2024
+#Fri May 03 13:37:42 ICT 2024
 base.0=/Users/ren6/projects/ApphudSDK-Android/colorgenerator/build/intermediates/dex/debug/mergeExtDexDebug/classes.dex
 base.1=/Users/ren6/projects/ApphudSDK-Android/colorgenerator/build/intermediates/dex/debug/mergeProjectDexDebug/0/classes.dex
 base.2=/Users/ren6/projects/ApphudSDK-Android/colorgenerator/build/intermediates/dex/debug/mergeProjectDexDebug/10/classes.dex

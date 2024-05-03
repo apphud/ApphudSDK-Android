@@ -54,7 +54,7 @@ data class ApphudError(
      * Returns true if given error is due to Internet connectivity issues.
      */
     fun networkIssue(): Boolean {
-        return errorCode == APPHUD_ERROR_NO_INTERNET || errorCode == APPHUD_ERROR_TIMEOUT
+        return errorCode == APPHUD_ERROR_NO_INTERNET
     }
 
     /*
