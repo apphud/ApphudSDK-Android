@@ -347,8 +347,10 @@ object RequestManager {
                 }
             }
 
+            val loadPaywallsAndPlacements = needPaywalls && !ApphudInternal.observerMode
+
             if (currentUser == null || forceRegistration) {
-                registration(needPaywalls, isNew, forceRegistration) { customer, error ->
+                registration(loadPaywallsAndPlacements, isNew, forceRegistration) { customer, error ->
                     if (continuation.isActive) {
                         continuation.resume(customer)
                     }
@@ -380,7 +382,9 @@ object RequestManager {
                     .path("customers")
                     .build()
 
-            val request = buildPostRequest(URL(apphudUrl.url), mkRegistrationBody(needPaywalls, isNew))
+            val loadPaywallsAndPlacements = needPaywalls && !ApphudInternal.observerMode
+
+            val request = buildPostRequest(URL(apphudUrl.url), mkRegistrationBody(loadPaywallsAndPlacements, isNew))
             val httpClient = getOkHttpClient(request, !fallbackMode)
             try {
                 val serverResponse = performRequestSync(httpClient, request)
@@ -995,7 +999,8 @@ object RequestManager {
             first_seen = getInstallationDate(),
             sdk_launched_at = ApphudInternal.sdkLaunchedAt,
             request_time = System.currentTimeMillis(),
-            install_source = ApphudUtils.getInstallerPackageName(this.applicationContext) ?: "unknown"
+            install_source = ApphudUtils.getInstallerPackageName(this.applicationContext) ?: "unknown",
+            observer_mode = ApphudInternal.observerMode
         )
     }
 
