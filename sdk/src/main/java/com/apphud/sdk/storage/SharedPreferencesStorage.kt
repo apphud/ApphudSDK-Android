@@ -276,7 +276,8 @@ object SharedPreferencesStorage : Storage {
     }
 
     fun validateCaches(): Boolean {
-        if (cacheVersion.isNullOrEmpty() || cacheVersion != CURRENT_CACHE_VERSION) {
+        val version = cacheVersion
+        if (version.isNullOrEmpty() || version != CURRENT_CACHE_VERSION) {
             ApphudLog.log("Invalid Cache Version. Clearing cached models.")
             // drop models caches
             apphudUser = null

@@ -21,6 +21,7 @@ data class ApphudError(
 
     companion object {
         fun from(exception: Exception): ApphudError {
+            ApphudLog.log("Apphud Error from Exception: ${exception}")
             var message = exception.message
             var errorCode: Int? = null
             if (exception.message == APPHUD_NO_TIME_TO_RETRY || (exception is InterruptedIOException)) {
@@ -32,7 +33,7 @@ data class ApphudError(
                     errorCode = APPHUD_ERROR_MAX_TIMEOUT_REACHED
                 }
             } else {
-                errorCodeFrom(exception)
+                errorCode = errorCodeFrom(exception)
             }
 
             return ApphudError(message ?: "Undefined Error", null, errorCode)
@@ -53,7 +54,7 @@ data class ApphudError(
      * Returns true if given error is due to Internet connectivity issues.
      */
     fun networkIssue(): Boolean {
-        return errorCode == APPHUD_ERROR_NO_INTERNET || errorCode == APPHUD_ERROR_TIMEOUT
+        return errorCode == APPHUD_ERROR_NO_INTERNET
     }
 
     /*
@@ -102,6 +103,6 @@ const val APPHUD_NO_REQUEST = -998
 const val APPHUD_PURCHASE_PENDING = -997
 const val APPHUD_DEFAULT_RETRIES: Int = 3
 const val APPHUD_INFINITE_RETRIES: Int = 999_999
-const val APPHUD_DEFAULT_HTTP_TIMEOUT: Long = 7L
-const val APPHUD_DEFAULT_HTTP_CONNECT_TIMEOUT: Long = 6L
-const val APPHUD_DEFAULT_MAX_TIMEOUT: Long = 10L
+const val APPHUD_DEFAULT_HTTP_TIMEOUT: Long = 6L
+const val APPHUD_DEFAULT_HTTP_CONNECT_TIMEOUT: Long = 5L
+const val APPHUD_DEFAULT_MAX_TIMEOUT: Double = 10.0
