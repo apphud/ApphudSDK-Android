@@ -204,13 +204,9 @@ internal object ApphudInternal {
         cachedPaywalls?.let { this.paywalls = it }
         cachedPlacements?.let { this.placements = it }
 
-        ApphudLog.log("Finished loading models")
-
         this.userRegisteredBlock = callback
         billing = BillingWrapper(context)
         RequestManager.setParams(this.context, this.apiKey)
-
-        ApphudLog.log("Starting Requests")
 
         loadProducts()
         forceNotifyAllLoaded()
