@@ -117,6 +117,7 @@ internal fun ApphudInternal.processFallbackData(callback: PaywallCallback) {
                     customerLoaded = currentUser,
                     productDetailsLoaded = productDetails,
                     fromFallback = true,
+                    fromCache = true
                 )
                 callback(getPaywalls(), error)
             }

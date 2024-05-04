@@ -1,6 +1,7 @@
 package com.apphud.sdk
 
 import com.android.billingclient.api.BillingClient
+import com.android.billingclient.api.BillingClient.BillingResponseCode
 import com.apphud.sdk.domain.ApphudGroup
 import com.apphud.sdk.domain.ApphudPaywall
 import com.apphud.sdk.domain.ApphudUser
@@ -153,8 +154,11 @@ internal suspend fun ApphudInternal.fetchDetails(ids: List<String>): Int {
 
     val idsToFetch = ids.filterNot { existingIds.contains(it) }
 
-    // If none ids to load, return immediately
-    if (idsToFetch.isEmpty()) {
+    if (existingIds.isNotEmpty() && idsToFetch.isEmpty()) {
+        // All Ids already loaded, return OK
+        return BillingResponseCode.OK
+    }  else if (idsToFetch.isEmpty()) {
+        // If none ids to load, return immediately
         ApphudLog.log("NO REQUEST TO FETCH PRODUCT DETAILS")
         return APPHUD_NO_REQUEST
     }

@@ -50,6 +50,7 @@ class ApphudApplication : Application() {
     }
 
     fun fetchPlacements() {
+        Log.d("ApphudLogsDemo", "Fetching Placements Started")
         Apphud.fetchPlacements { apphudPlacements, apphudError ->
 
             val hasInternet = ApphudUtils.hasInternetConnection(this)
@@ -66,17 +67,17 @@ class ApphudApplication : Application() {
                 // Developer can retry fetchPlacements() immediately or after user taps "Try again" button in your custom UI.
                 fetchPlacements()
             } else {
-                // unknown error, try to load fallback paywalls
+                // unknown or server-side error, try to load fallback paywalls
                 Apphud.loadFallbackPaywalls { paywalls, fallbackError ->
                     if (!paywalls.isNullOrEmpty() && fallbackError?.billingErrorTitle() == null) {
                         Log.d("ApphudLogsDemo", "Fallback paywalls are loaded from JSON, use them instead of placements")
                         // Grab the paywall and display it
                     } else if (fallbackError?.billingErrorTitle() != null) {
-                        Log.d("ApphudLogsDemo", "Fallback Google Billing Issue (${fallbackError.billingErrorTitle()}): ask user to sign in to Google Play and try again later.")
+                        Log.d("ApphudLogsDemo", "Fallback paywalls are loaded, however there is Google Billing Issue (${fallbackError.billingErrorTitle()}): ask user to sign in to Google Play and try again later.")
                         // Developer can retry fetchPlacements() immediately or after user taps "Try again" button in your custom UI.
                         fetchPlacements()
                     } else {
-                        Log.d("ApphudLogsDemo", "Fallback paywalls not setup.")
+                        Log.d("ApphudLogsDemo", "Fallback paywalls JSON is missing or invalid.")
                         // Developer can retry fetchPlacements() immediately or after user taps "Try again" button in your custom UI.
                         fetchPlacements()
                     }

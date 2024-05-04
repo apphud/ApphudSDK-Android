@@ -38,6 +38,7 @@ class HttpRetryInterceptor : Interceptor {
 
         while (!isSuccess && (tryCount < MAX_COUNT || shouldRetryRequest(request.url.encodedPath))) {
             try {
+                if (response != null) { response.close() }
                 response = chain.proceed(request)
                 isSuccess = response.isSuccessful
 
@@ -51,8 +52,8 @@ class HttpRetryInterceptor : Interceptor {
                     if (response.code == 429) {
                         STEP = 6_000L
                         MAX_COUNT = 1
-                    } else if (response.code in 200..499) {
-                        // do not retry 200..499 http codes
+                    } else if (response.code in 200..402) {
+                        // do not retry 200..401 http codes
                         return response
                     }
 

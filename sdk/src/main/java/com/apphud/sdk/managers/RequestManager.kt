@@ -688,6 +688,8 @@ object RequestManager {
             }
         }
 
+        ApphudLog.logE("Fallback host not available")
+
         return null
     }
 

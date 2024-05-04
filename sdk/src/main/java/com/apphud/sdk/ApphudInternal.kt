@@ -39,7 +39,7 @@ internal object ApphudInternal {
             error.message?.let { ApphudLog.logE("Coroutine exception: " + it) }
         }
 
-    internal val FALLBACK_ERRORS = listOf(APPHUD_ERROR_TIMEOUT, 500, 502, 503)
+    internal val FALLBACK_ERRORS = listOf(APPHUD_ERROR_TIMEOUT, 404, 500, 502, 503)
     internal var ignoreCache: Boolean = false
     internal lateinit var billing: BillingWrapper
     internal val storage by lazy { SharedPreferencesStorage.getInstance(context) }
@@ -324,7 +324,7 @@ internal object ApphudInternal {
             if (updateOfferingsFromCustomer) {
                 paywalls = it.paywalls
                 placements = it.placements
-            } else if (!ignoreCache && (paywallsPrepared || fromFallback)) {
+            } else if ((!ignoreCache && paywallsPrepared) || fromFallback || fallbackMode) {
                 readPaywallsFromCache()?.let { cached -> paywalls = cached }
                 readPlacementsFromCache()?.let { cached -> placements = cached }
 
