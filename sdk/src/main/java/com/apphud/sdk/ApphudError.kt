@@ -19,6 +19,10 @@ data class ApphudError(
     var errorCode: Int? = null
 ) : Error(message) {
 
+    fun description(): String {
+        return message + (if (errorCode != null) " [${errorCode!!}]"  else "") + (if (secondErrorMessage != null) " [$secondErrorMessage!!]" else "")
+    }
+
     companion object {
         fun from(exception: Exception): ApphudError {
             ApphudLog.log("Apphud Error from Exception: ${exception}")
