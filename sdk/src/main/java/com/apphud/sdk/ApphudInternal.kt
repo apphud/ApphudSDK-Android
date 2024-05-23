@@ -277,6 +277,12 @@ internal object ApphudInternal {
         }
 
         productDetailsLoaded?.let {
+            it.forEach { detail ->
+                if (!productDetails.map { it.productId }.contains(detail.productId)) {
+                    productDetails.add(detail)
+                }
+            }
+
             productGroups = readGroupsFromCache()
             updateGroupsWithProductDetails(productGroups)
 
@@ -337,8 +343,10 @@ internal object ApphudInternal {
             coroutineScope.launch {
                 delay(500)
                 mainScope.launch {
-                    apphudListener?.apphudNonRenewingPurchasesUpdated(currentUser!!.purchases)
-                    apphudListener?.apphudSubscriptionsUpdated(currentUser!!.subscriptions)
+                    currentUser?.let{ user ->
+                        apphudListener?.apphudNonRenewingPurchasesUpdated(user.purchases)
+                        apphudListener?.apphudSubscriptionsUpdated(user.subscriptions)
+                    }
                 }
             }
 
@@ -363,8 +371,7 @@ internal object ApphudInternal {
     }
 
     private fun handlePaywallsAndProductsLoaded(customerError: ApphudError?) {
-
-        if (currentUser != null && paywalls.isNotEmpty() && productDetails.isNotEmpty() && !isRegisteringUser) {
+        if (currentUser != null && paywalls.isNotEmpty() && productDetails.isNotEmpty()) {
             if (!notifiedAboutPaywallsDidFullyLoaded) {
                 apphudListener?.paywallsDidFullyLoad(paywalls)
                 apphudListener?.placementsDidFullyLoad(placements)
@@ -473,12 +480,14 @@ internal object ApphudInternal {
                                     placements = it.placements
                                 }
                             }
+
+                            isRegisteringUser = false
+
                             coroutineScope.launch {
                                 storage.lastRegistration = System.currentTimeMillis()
                             }
 
                             mainScope.launch {
-                                isRegisteringUser = false
                                 notifyLoadingCompleted(it)
                                 completionHandler?.invoke(it, null)
 
