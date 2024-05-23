@@ -371,7 +371,7 @@ internal object ApphudInternal {
     }
 
     private fun handlePaywallsAndProductsLoaded(customerError: ApphudError?) {
-        if (currentUser != null && paywalls.isNotEmpty() && productDetails.isNotEmpty()) {
+        if (currentUser != null && paywalls.isNotEmpty() && productDetails.isNotEmpty() && !isRegisteringUser) {
             if (!notifiedAboutPaywallsDidFullyLoaded) {
                 apphudListener?.paywallsDidFullyLoad(paywalls)
                 apphudListener?.placementsDidFullyLoad(placements)
@@ -481,13 +481,12 @@ internal object ApphudInternal {
                                 }
                             }
 
-                            isRegisteringUser = false
-
                             coroutineScope.launch {
                                 storage.lastRegistration = System.currentTimeMillis()
                             }
 
                             mainScope.launch {
+                                isRegisteringUser = false
                                 notifyLoadingCompleted(it)
                                 completionHandler?.invoke(it, null)
 
