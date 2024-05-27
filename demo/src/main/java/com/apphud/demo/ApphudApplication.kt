@@ -68,7 +68,7 @@ class ApphudApplication : Application() {
 
             val hasInternet = ApphudUtils.hasInternetConnection(this)
             Log.d("ApphudLogsDemo", "Internet connected: $hasInternet")
-z
+
             if (apphudPlacements.isNotEmpty() && apphudError == null) {
                 Log.d("ApphudLogsDemo", "Placements are loaded, all good.")
                 // ---->> SUCCESS HERE

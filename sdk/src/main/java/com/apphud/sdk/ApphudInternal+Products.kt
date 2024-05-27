@@ -2,6 +2,7 @@ package com.apphud.sdk
 
 import com.android.billingclient.api.BillingClient
 import com.android.billingclient.api.BillingClient.BillingResponseCode
+import com.android.billingclient.api.ProductDetails
 import com.apphud.sdk.domain.ApphudGroup
 import com.apphud.sdk.domain.ApphudPaywall
 import com.apphud.sdk.domain.ApphudUser
@@ -20,6 +21,7 @@ internal var respondedWithProducts = false
 private  var loadingStoreProducts = false
 internal var productsResponseCode = BillingClient.BillingResponseCode.OK
 private val mutexProducts = Mutex()
+private var loadedDetails = mutableListOf<ProductDetails>()
 
 // to avoid Google servers spamming if there is no productDetails added at all
 internal var currentPoductsLoadingCounts: Int = 0
@@ -83,7 +85,7 @@ internal fun ApphudInternal.loadProducts() {
 private fun respondWithProducts() {
     respondedWithProducts = true
     ApphudInternal.mainScope.launch {
-        ApphudInternal.notifyLoadingCompleted(null, ApphudInternal.productDetails, false, false)
+        ApphudInternal.notifyLoadingCompleted(null, loadedDetails, false, false)
     }
 }
 
@@ -149,6 +151,7 @@ private fun allAvailableProductIds(groups: List<ApphudGroup>, paywalls: List<App
 }
 
 internal suspend fun ApphudInternal.fetchDetails(ids: List<String>): Int {
+    loadedDetails.clear()
     // Assuming ProductDetails has a property 'id' that corresponds to the product ID
     val existingIds = synchronized(productDetails) { productDetails.map { it.productId } }
 
@@ -178,11 +181,11 @@ internal suspend fun ApphudInternal.fetchDetails(ids: List<String>): Int {
         val inAppResult = async { billing.detailsEx(BillingClient.ProductType.INAPP, idsToFetch) }.await()
 
         subsResult.first?.let { subsDetails ->
-            synchronized(productDetails) {
+            synchronized(loadedDetails) {
                 // Add new subscription details if they're not already present
                 subsDetails.forEach { detail ->
-                    if (!productDetails.map { it.productId }.contains(detail.productId)) {
-                        productDetails.add(detail)
+                    if (!loadedDetails.map { it.productId }.contains(detail.productId)) {
+                        loadedDetails.add(detail)
                     }
                 }
             }
@@ -193,11 +196,11 @@ internal suspend fun ApphudInternal.fetchDetails(ids: List<String>): Int {
         }
 
         inAppResult.first?.let { inAppDetails ->
-            synchronized(productDetails) {
+            synchronized(loadedDetails) {
                 // Add new in-app product details if they're not already present
                 inAppDetails.forEach { detail ->
-                    if (!productDetails.map { it.productId }.contains(detail.productId)) {
-                        productDetails.add(detail)
+                    if (!loadedDetails.map { it.productId }.contains(detail.productId)) {
+                        loadedDetails.add(detail)
                     }
                 }
             }
