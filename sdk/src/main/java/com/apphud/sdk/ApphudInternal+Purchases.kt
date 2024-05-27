@@ -34,7 +34,7 @@ internal fun ApphudInternal.purchase(
     val productToPurchase =
         apphudProduct
             ?: productId?.let { pId ->
-                val products = paywalls.map { it.products ?: listOf() }.flatten().distinctBy { it.id }
+                val products = productGroups.map { it.products ?: listOf() }.flatten().distinctBy { it.id }
                 products.firstOrNull { it.productId == pId }
             }
 
