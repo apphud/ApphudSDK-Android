@@ -5,6 +5,7 @@ import android.net.ConnectivityManager
 import android.net.NetworkCapabilities
 import android.os.Build
 
+
 /**
  * This class will contain some utils, more will be added in the future.
  */
@@ -36,21 +37,18 @@ object ApphudUtils {
         this.packageName = packageName
     }
 
-    fun isOnline(context: Context): Boolean {
+    fun hasInternetConnection(context: Context): Boolean {
         val connectivityManager =
             context.getSystemService(Context.CONNECTIVITY_SERVICE) as? ConnectivityManager
-        if (connectivityManager != null) {
-            val capabilities =
-                connectivityManager.getNetworkCapabilities(connectivityManager.activeNetwork)
-            if (capabilities != null) {
-                if (capabilities.hasTransport(NetworkCapabilities.TRANSPORT_CELLULAR)) {
-                    return true
-                } else if (capabilities.hasTransport(NetworkCapabilities.TRANSPORT_WIFI)) {
-                    return true
-                }
-            }
+        return if (connectivityManager != null) {
+            val network = connectivityManager.activeNetwork
+            val capabilities = connectivityManager
+                .getNetworkCapabilities(network)
+            capabilities != null && capabilities.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET) &&
+                    capabilities.hasCapability(NetworkCapabilities.NET_CAPABILITY_VALIDATED)
+        } else {
+            false
         }
-        return false
     }
 
     fun isEmulator() : Boolean

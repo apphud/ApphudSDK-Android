@@ -1,24 +1,31 @@
 package com.apphud.sdk
 
 import com.android.billingclient.api.BillingClient
+import com.android.billingclient.api.BillingClient.BillingResponseCode
+import com.android.billingclient.api.ProductDetails
 import com.apphud.sdk.domain.ApphudGroup
 import com.apphud.sdk.domain.ApphudPaywall
+import com.apphud.sdk.domain.ApphudUser
 import com.apphud.sdk.managers.RequestManager
 import kotlinx.coroutines.async
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
+import kotlin.coroutines.resume
 
 internal var productsStatus = ApphudProductsStatus.none
 internal var respondedWithProducts = false
 private  var loadingStoreProducts = false
 internal var productsResponseCode = BillingClient.BillingResponseCode.OK
 private val mutexProducts = Mutex()
+private var loadedDetails = mutableListOf<ProductDetails>()
 
 // to avoid Google servers spamming if there is no productDetails added at all
-internal var productsLoadingCounts: Int = 0
+internal var currentPoductsLoadingCounts: Int = 0
+internal var totalPoductsLoadingCounts: Int = 0
 const val MAX_TOTAL_PRODUCTS_RETRIES: Int = 100
 
 internal enum class ApphudProductsStatus {
@@ -37,47 +44,39 @@ internal fun ApphudInternal.shouldLoadProducts(): Boolean {
         ApphudProductsStatus.none -> true
         ApphudProductsStatus.loading -> false
         else -> {
-            productDetails.isEmpty() && productsLoadingCounts < MAX_TOTAL_PRODUCTS_RETRIES
+            productDetails.isEmpty() && totalPoductsLoadingCounts < MAX_TOTAL_PRODUCTS_RETRIES
         }
     }
 }
 
 internal fun ApphudInternal.loadProducts() {
-    if (!shouldLoadProducts()) { return }
+    if (!shouldLoadProducts()) {
+        if (totalPoductsLoadingCounts >= MAX_TOTAL_PRODUCTS_RETRIES) {
+            respondWithProducts()
+        }
+        return
+    }
 
     productsStatus = ApphudProductsStatus.loading
     ApphudLog.logI("Loading ProductDetails from the Store")
 
-    coroutineScope.launch {
-        delay(APPHUD_DEFAULT_MAX_TIMEOUT*1000)
-        if (loadingStoreProducts) {
-            delay(5000)
-        }
-        if (!respondedWithProducts) {
-            ApphudLog.logI("Force respondWithProducts")
-            respondWithProducts()
-        }
-    }
-
     coroutineScope.launch(errorHandler) {
         mutexProducts.withLock {
-            async {
+            val result = fetchProducts()
+            productsResponseCode = result
+            productsStatus = if (result == BillingClient.BillingResponseCode.OK) ApphudProductsStatus.loaded else
+                ApphudProductsStatus.failed
 
-                val result = fetchProducts()
-                productsResponseCode = result
-                productsStatus = if (result == BillingClient.BillingResponseCode.OK) ApphudProductsStatus.loaded else
-                    ApphudProductsStatus.failed
+            if (productsResponseCode != APPHUD_NO_REQUEST) {
+                totalPoductsLoadingCounts += 1
+                currentPoductsLoadingCounts += 1
+            }
 
-                if (productsResponseCode != APPHUD_NO_REQUEST) {
-                    productsLoadingCounts += 1
-                }
-
-                if (isRetriableProductsRequest() && productsLoadingCounts < maxProductRetriesCount) {
-                    retryProductsLoad()
-                } else {
-                    ApphudLog.log("Finished Loading Product Details")
-                    respondWithProducts()
-                }
+            if (isRetriableProductsRequest() && shouldRetryRequest("billing") && currentPoductsLoadingCounts < APPHUD_DEFAULT_RETRIES) {
+                retryProductsLoad()
+            } else {
+                ApphudLog.log("Finished Loading Product Details")
+                respondWithProducts()
             }
         }
     }
@@ -86,7 +85,7 @@ internal fun ApphudInternal.loadProducts() {
 private fun respondWithProducts() {
     respondedWithProducts = true
     ApphudInternal.mainScope.launch {
-        ApphudInternal.notifyLoadingCompleted(null, ApphudInternal.productDetails, false, false)
+        ApphudInternal.notifyLoadingCompleted(null, loadedDetails, false, false)
     }
 }
 
@@ -95,10 +94,10 @@ internal fun isRetriableProductsRequest(): Boolean {
         productsResponseCode) && ApphudInternal.isActive && !ApphudUtils.isEmulator()
 }
 
-internal fun ApphudInternal.retryProductsLoad() {
-    val delay: Long = 500 * productsLoadingCounts.toLong()
+internal fun retryProductsLoad() {
+    val delay: Long = 300
     ApphudLog.logE("Failed to load products from store (${ApphudBillingResponseCodes.getName(
-        productsResponseCode)}), will retry in ${delay} ms")
+        productsResponseCode)}), will retry in $delay ms")
     Thread.sleep(delay)
     ApphudInternal.loadProducts()
 }
@@ -107,11 +106,20 @@ private fun isRetriableErrorCode(code: Int): Boolean {
     return listOf(
         BillingClient.BillingResponseCode.NETWORK_ERROR,
         BillingClient.BillingResponseCode.SERVICE_TIMEOUT,
+        BillingClient.BillingResponseCode.SERVICE_DISCONNECTED,
         BillingClient.BillingResponseCode.SERVICE_UNAVAILABLE,
         BillingClient.BillingResponseCode.BILLING_UNAVAILABLE,
-        BillingClient.BillingResponseCode.ERROR
+        BillingClient.BillingResponseCode.ERROR,
+        APPHUD_NO_REQUEST
     ).contains(code)
 }
+
+private suspend fun awaitUserRegistered(): ApphudUser? =
+    suspendCancellableCoroutine { continuation ->
+        ApphudInternal.performWhenUserRegistered {
+            continuation.resume(ApphudInternal.currentUser)
+        }
+    }
 
 private suspend fun ApphudInternal.fetchProducts(): Int {
     var permissionGroupsCopy = getPermissionGroups()
@@ -121,6 +129,12 @@ private suspend fun ApphudInternal.fetchProducts(): Int {
             permissionGroupsCopy = groups
         }
     }
+
+    if (permissionGroupsCopy.isEmpty() && getPaywalls().isEmpty()) {
+        ApphudLog.log("Awaiting for user registration before proceeding to products load")
+        awaitUserRegistered()
+    }
+
     val ids = allAvailableProductIds(permissionGroupsCopy, getPaywalls())
     return fetchDetails(ids)
 }
@@ -137,13 +151,17 @@ private fun allAvailableProductIds(groups: List<ApphudGroup>, paywalls: List<App
 }
 
 internal suspend fun ApphudInternal.fetchDetails(ids: List<String>): Int {
+    loadedDetails.clear()
     // Assuming ProductDetails has a property 'id' that corresponds to the product ID
     val existingIds = synchronized(productDetails) { productDetails.map { it.productId } }
 
     val idsToFetch = ids.filterNot { existingIds.contains(it) }
 
-    // If none ids to load, return immediately
-    if (idsToFetch.isEmpty()) {
+    if (existingIds.isNotEmpty() && idsToFetch.isEmpty()) {
+        // All Ids already loaded, return OK
+        return BillingResponseCode.OK
+    }  else if (idsToFetch.isEmpty()) {
+        // If none ids to load, return immediately
         ApphudLog.log("NO REQUEST TO FETCH PRODUCT DETAILS")
         return APPHUD_NO_REQUEST
     }
@@ -163,11 +181,11 @@ internal suspend fun ApphudInternal.fetchDetails(ids: List<String>): Int {
         val inAppResult = async { billing.detailsEx(BillingClient.ProductType.INAPP, idsToFetch) }.await()
 
         subsResult.first?.let { subsDetails ->
-            synchronized(productDetails) {
+            synchronized(loadedDetails) {
                 // Add new subscription details if they're not already present
                 subsDetails.forEach { detail ->
-                    if (!productDetails.map { it.productId }.contains(detail.productId)) {
-                        productDetails.add(detail)
+                    if (!loadedDetails.map { it.productId }.contains(detail.productId)) {
+                        loadedDetails.add(detail)
                     }
                 }
             }
@@ -178,11 +196,11 @@ internal suspend fun ApphudInternal.fetchDetails(ids: List<String>): Int {
         }
 
         inAppResult.first?.let { inAppDetails ->
-            synchronized(productDetails) {
+            synchronized(loadedDetails) {
                 // Add new in-app product details if they're not already present
                 inAppDetails.forEach { detail ->
-                    if (!productDetails.map { it.productId }.contains(detail.productId)) {
-                        productDetails.add(detail)
+                    if (!loadedDetails.map { it.productId }.contains(detail.productId)) {
+                        loadedDetails.add(detail)
                     }
                 }
             }
