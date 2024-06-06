@@ -175,4 +175,47 @@ object ApphudSdkManager {
             key = ApphudUserPropertyKey.CustomProperty("generations_count"),
             by = generationsCount)
     }
+
+    /*var attempt = 0
+    fun fetchPlacements() {
+        if (attempt > 10) {
+            Log.d("ApphudLogsDemo", "Too many attempts. Try to load placements again only when paywall is going to be shown")
+            return
+        }
+        attempt += 1
+
+        Log.d("ApphudLogsDemo", "Fetching Placements Started")
+        Apphud.fetchPlacements { apphudPlacements, apphudError ->
+
+            if (apphudPlacements.isNotEmpty() && apphudError == null) {
+                Log.d("ApphudLogsDemo", "Placements are loaded, all good.")
+                // ---->> SUCCESS HERE
+            } else if (apphudError?.billingErrorTitle() != null) {
+                Log.d("ApphudLogsDemo", "Placements are loaded, however there is Google Billing Issue (${apphudError.billingErrorTitle()}): ask user to sign in to Google Play and try again later.")
+                // Developer can retry fetchPlacements() immediately or after user taps "Try again" button in your custom UI.
+                fetchPlacements()
+            } else if (apphudError?.networkIssue() == true) {
+                Log.d("ApphudLogsDemo", "Failed to load placements due to Internet connection issue, ask user to connect to the Internet and try again later.")
+                // Developer can retry fetchPlacements() immediately or after user taps "Try again" button in your custom UI.
+                fetchPlacements()
+            } else {
+                // unknown or server-side error, try to load fallback paywalls
+                Apphud.loadFallbackPaywalls { paywalls, fallbackError ->
+                    if (!paywalls.isNullOrEmpty() && fallbackError?.billingErrorTitle() == null) {
+                        Log.d("ApphudLogsDemo", "Fallback paywalls are loaded from JSON, use them instead of placements")
+                        // Grab the paywall and display it
+                        // ---->> FALLBACK PAYWALLS HERE, USE PAYWALLS WITHOUT PLACEMENTS
+                    } else if (fallbackError?.billingErrorTitle() != null) {
+                        Log.d("ApphudLogsDemo", "Fallback paywalls are loaded, however there is Google Billing Issue (${fallbackError.billingErrorTitle()}): ask user to sign in to Google Play and try again later.")
+                        // Developer can retry fetchPlacements() immediately or after user taps "Try again" button in your custom UI.
+                        fetchPlacements()
+                    } else {
+                        Log.d("ApphudLogsDemo", "Fallback paywalls JSON is missing or invalid.")
+                        // Developer can retry fetchPlacements() immediately or after user taps "Try again" button in your custom UI.
+                        fetchPlacements()
+                    }
+                }
+            }
+        }
+    }*/
 }
