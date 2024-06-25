@@ -109,11 +109,9 @@ private fun ApphudInternal.purchaseInternal(
                 is PurchaseCallbackStatus.Error -> {
                     val message = "Sending to server, but failed to acknowledge purchase with code: ${status.error}" + apphudProduct?.let { " [Apphud product ID: " + it.id + "]" }
                     ApphudLog.log(message = message, sendLogToServer = true)
-                    sendCheckToApphud(purchase, apphudProduct, offerIdToken, oldToken, callback)
                 }
                 is PurchaseCallbackStatus.Success -> {
                     ApphudLog.log("Purchase successfully acknowledged")
-                    sendCheckToApphud(purchase, apphudProduct, offerIdToken, oldToken, callback)
                 }
             }
         }
@@ -125,11 +123,9 @@ private fun ApphudInternal.purchaseInternal(
                 is PurchaseCallbackStatus.Error -> {
                     val message = "Sending to server, but failed to consume purchase with error: ${status.error}" + apphudProduct?.let { " [Apphud product ID: " + it.id + "]" }
                     ApphudLog.log(message = message, sendLogToServer = true)
-                    sendCheckToApphud(purchase, apphudProduct, offerIdToken, oldToken, callback)
                 }
                 is PurchaseCallbackStatus.Success -> {
                     ApphudLog.log("Purchase successfully consumed: ${status.message}")
-                    sendCheckToApphud(purchase, apphudProduct, offerIdToken, oldToken, callback)
                 }
             }
         }
@@ -183,22 +179,15 @@ private fun ApphudInternal.purchaseInternal(
                             }
                             Purchase.PurchaseState.PURCHASED -> {
                                 billing.purchasesCallback = null
+                                sendCheckToApphud(it, apphudProduct, offerIdToken, oldToken, callback)
+
                                 when (detailsType) {
                                     BillingClient.ProductType.SUBS -> {
                                         if (!it.isAcknowledged) {
                                             ApphudLog.log("Start subs purchase acknowledge")
                                             billing.acknowledge(it)
-                                        } else {
-                                            sendCheckToApphud(
-                                                it,
-                                                apphudProduct,
-                                                offerIdToken,
-                                                oldToken,
-                                                callback
-                                            )
                                         }
                                     }
-
                                     BillingClient.ProductType.INAPP -> {
                                         if (consumableInappProduct) {
                                             ApphudLog.log("Start inapp consume purchase")
@@ -207,19 +196,6 @@ private fun ApphudInternal.purchaseInternal(
                                             ApphudLog.log("Start inapp purchase acknowledge")
                                             billing.acknowledge(it)
                                         }
-                                    }
-
-                                    else -> {
-                                        val message = "Invalid Product Type"
-                                        ApphudLog.log(message)
-                                        callback?.invoke(
-                                            ApphudPurchaseResult(
-                                                null,
-                                                null,
-                                                it,
-                                                ApphudError(message)
-                                            )
-                                        )
                                     }
                                 }
                             } else -> {
