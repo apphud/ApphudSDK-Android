@@ -1,26 +1,52 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
 
-    <uses-permission android:name="com.google.android.gms.permission.AD_ID"/>
-
     <application
-        android:name=".ApphudApplication"
+        android:name=".ColorGeneratorApplication"
         android:allowBackup="true"
         android:icon="@mipmap/ic_launcher"
         android:label="@string/app_name"
         android:roundIcon="@mipmap/ic_launcher_round"
         android:supportsRtl="true"
-        android:theme="@style/Theme.DemoApp">
+        android:theme="@style/Theme.App.Starting">
         <activity
-            android:name=".MainActivity"
-            android:noHistory = "true"
+            android:name=".SplashActivity"
             android:exported="true"
-            android:theme="@style/Theme.DemoApp.NoActionBar">
+            android:theme="@style/Theme.App.Starting">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
+
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
+        <activity
+            android:name=".ui.onboarding.OnboardingActivity"
+            android:exported="false"
+            android:theme="@style/Theme.Apphud" />
+        <activity
+            android:name=".ui.main.MainActivity"
+            android:exported="false"
+            android:theme="@style/Theme.Apphud.Main" />
+        <activity
+            android:name=".ui.paywall.PaywallActivity"
+            android:exported="false"
+            android:theme="@style/Theme.Apphud.Main"/>
+
+        <meta-data
+            android:name="com.facebook.sdk.ApplicationId"
+            android:value="${facebookAppId}" />  <!-- Facebook init -->
+        <meta-data
+            android:name="com.facebook.sdk.ClientToken"
+            android:value="${facebookClientToken}" /> <!-- Branch init -->
+        <meta-data
+            android:name="io.branch.sdk.BranchKey"
+            android:value="${branchKeyLive}"/>
+        <meta-data
+            android:name="io.branch.sdk.BranchKey.test"
+            android:value="${branchKeyTest}" />
+        <meta-data
+            android:name="io.branch.sdk.TestMode"
+            android:value="true" />
     </application>
 
 </manifest>

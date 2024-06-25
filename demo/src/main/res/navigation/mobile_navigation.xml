@@ -1,52 +1,23 @@
 <?xml version="1.0" encoding="utf-8"?>
-<navigation xmlns:android="http://schemas.android.com/apk/res/android"
+<navigation
+    xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     xmlns:tools="http://schemas.android.com/tools"
     android:id="@+id/mobile_navigation"
-    app:startDestination="@+id/nav_customer">
+    app:startDestination="@+id/navigation_generator">
 
     <fragment
-        android:id="@+id/nav_customer"
-        android:name="com.apphud.demo.ui.customer.CustomerFragment"
-        android:label="@string/menu_customer"
-        tools:layout="@layout/fragment_customer" >
-        <action
-            android:id="@+id/action_nav_customer_to_productsFragment"
-            app:destination="@id/productsFragment" />
+        android:id="@+id/navigation_generator"
+        android:name="com.apphud.sampleapp.ui.main.MainFragment"
+        android:label="@string/title_generator"
+        tools:layout="@layout/fragment_main" >
     </fragment>
 
     <fragment
-        android:id="@+id/nav_groups"
-        android:name="com.apphud.demo.ui.groups.GroupsFragment"
-        android:label="@string/menu_groups"
-        tools:layout="@layout/fragment_groups" />
-
-    <fragment
-        android:id="@+id/nav_purchases"
-        android:name="com.apphud.demo.ui.purchases.PurchasesFragment"
-        android:label="@string/menu_purchases"
-        tools:layout="@layout/fragment_purchases" />
-
-    <fragment
-        android:id="@+id/productsFragment"
-        android:name="com.apphud.demo.ui.products.ProductsFragment"
-        android:label="@string/menu_products"
-        tools:layout="@layout/fragment_products" >
-        <argument
-            android:name="paywallId"
-            app:argType="string"
-            app:nullable="true" />
-        <argument
-            android:name="placementId"
-            app:argType="string"
-            app:nullable="true" />
-    </fragment>
-
-    <fragment
-        android:id="@+id/nav_billing"
-        android:name="com.apphud.demo.ui.billing.BillingFragment"
-        android:label="@string/menu_billing"
-        tools:layout="@layout/fragment_billing" >
+        android:id="@+id/navigation_settings"
+        android:name="com.apphud.sampleapp.ui.settings.SettingsFragment"
+        android:label="@string/title_settings"
+        tools:layout="@layout/fragment_settings" >
     </fragment>
 
 </navigation>
