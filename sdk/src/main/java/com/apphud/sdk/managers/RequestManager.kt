@@ -30,6 +30,7 @@ import okhttp3.OkHttpClient
 import okhttp3.Request
 import okhttp3.RequestBody.Companion.toRequestBody
 import okhttp3.Response
+import okhttp3.logging.HttpLoggingInterceptor
 import okio.Buffer
 import org.json.JSONException
 import org.json.JSONObject
@@ -105,7 +106,7 @@ object RequestManager {
         }
 
         if (BuildConfig.DEBUG) {
-            logging.level = HttpLoggingInterceptor.Level.NONE //BODY
+            logging.level = HttpLoggingInterceptor.Level.BODY //BODY
         } else {
             logging.level = HttpLoggingInterceptor.Level.NONE
         }*/
@@ -115,11 +116,12 @@ object RequestManager {
 
         val builder =
             OkHttpClient.Builder()
-                .connectTimeout(APPHUD_DEFAULT_HTTP_CONNECT_TIMEOUT, TimeUnit.SECONDS)
+                //.connectTimeout(APPHUD_DEFAULT_HTTP_CONNECT_TIMEOUT, TimeUnit.SECONDS)
                 .callTimeout(callTimeout.toLong(), TimeUnit.SECONDS)
         if (retry) builder.addInterceptor(retryInterceptor)
+        builder.addInterceptor(ConnectInterceptor())
         builder.addNetworkInterceptor(headersInterceptor)
-        // builder.addNetworkInterceptor(logging)
+        //builder.addNetworkInterceptor(logging)
 
         return builder.build()
     }
