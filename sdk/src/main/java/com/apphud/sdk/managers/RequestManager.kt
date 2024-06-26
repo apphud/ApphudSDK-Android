@@ -68,6 +68,7 @@ object RequestManager {
     lateinit var applicationContext: Context
     lateinit var storage: SharedPreferencesStorage
     var previousException: java.lang.Exception? = null
+    var retries: Int = 0
 
     fun setParams(
         applicationContext: Context,
@@ -931,7 +932,7 @@ object RequestManager {
             device_id = ApphudInternal.deviceId,
             environment = if (applicationContext.isDebuggable()) "sandbox" else "production",
             timestamp = System.currentTimeMillis(),
-            properties = properties.ifEmpty { null },
+            properties = properties.ifEmpty { null }
         )
     }
 
@@ -961,6 +962,9 @@ object RequestManager {
         if (productsResponseCode != 0) {
             properties["billing_error_code"] = productsResponseCode
         }
+        if(retries > 0) {
+            properties["retries"] = retries
+        }
 
         return PaywallEventBody(
             name = "paywall_products_loaded",
@@ -968,7 +972,7 @@ object RequestManager {
             device_id = ApphudInternal.deviceId,
             environment = if (applicationContext.isDebuggable()) "sandbox" else "production",
             timestamp = System.currentTimeMillis(),
-            properties = properties.ifEmpty { null },
+            properties = properties.ifEmpty { null }
         )
     }
 
