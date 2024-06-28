@@ -30,6 +30,7 @@ import okhttp3.OkHttpClient
 import okhttp3.Request
 import okhttp3.RequestBody.Companion.toRequestBody
 import okhttp3.Response
+import okhttp3.logging.HttpLoggingInterceptor
 import okio.Buffer
 import org.json.JSONException
 import org.json.JSONObject
@@ -67,6 +68,7 @@ object RequestManager {
     lateinit var applicationContext: Context
     lateinit var storage: SharedPreferencesStorage
     var previousException: java.lang.Exception? = null
+    var retries: Int = 0
 
     fun setParams(
         applicationContext: Context,
@@ -105,7 +107,7 @@ object RequestManager {
         }
 
         if (BuildConfig.DEBUG) {
-            logging.level = HttpLoggingInterceptor.Level.NONE //BODY
+            logging.level = HttpLoggingInterceptor.Level.BODY //BODY
         } else {
             logging.level = HttpLoggingInterceptor.Level.NONE
         }*/
@@ -115,11 +117,12 @@ object RequestManager {
 
         val builder =
             OkHttpClient.Builder()
-                .connectTimeout(APPHUD_DEFAULT_HTTP_CONNECT_TIMEOUT, TimeUnit.SECONDS)
+                //.connectTimeout(APPHUD_DEFAULT_HTTP_CONNECT_TIMEOUT, TimeUnit.SECONDS)
                 .callTimeout(callTimeout.toLong(), TimeUnit.SECONDS)
         if (retry) builder.addInterceptor(retryInterceptor)
+        builder.addInterceptor(ConnectInterceptor())
         builder.addNetworkInterceptor(headersInterceptor)
-        // builder.addNetworkInterceptor(logging)
+        //builder.addNetworkInterceptor(logging)
 
         return builder.build()
     }
@@ -929,7 +932,7 @@ object RequestManager {
             device_id = ApphudInternal.deviceId,
             environment = if (applicationContext.isDebuggable()) "sandbox" else "production",
             timestamp = System.currentTimeMillis(),
-            properties = properties.ifEmpty { null },
+            properties = properties.ifEmpty { null }
         )
     }
 
@@ -959,6 +962,9 @@ object RequestManager {
         if (productsResponseCode != 0) {
             properties["billing_error_code"] = productsResponseCode
         }
+        if(retries > 0) {
+            properties["retries"] = retries
+        }
 
         return PaywallEventBody(
             name = "paywall_products_loaded",
@@ -966,7 +972,7 @@ object RequestManager {
             device_id = ApphudInternal.deviceId,
             environment = if (applicationContext.isDebuggable()) "sandbox" else "production",
             timestamp = System.currentTimeMillis(),
-            properties = properties.ifEmpty { null },
+            properties = properties.ifEmpty { null }
         )
     }
 

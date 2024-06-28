@@ -486,6 +486,7 @@ internal object ApphudInternal {
                             }
 
                             mainScope.launch {
+                                // finish registering only here to avoid bug
                                 isRegisteringUser = false
                                 notifyLoadingCompleted(it)
                                 completionHandler?.invoke(it, null)

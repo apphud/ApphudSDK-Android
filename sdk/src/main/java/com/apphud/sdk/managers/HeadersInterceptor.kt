@@ -7,6 +7,7 @@ import okhttp3.Interceptor
 import okhttp3.Request
 import okhttp3.Response
 import java.io.IOException
+import java.util.UUID
 
 class HeadersInterceptor(private val apiKey: String?) : Interceptor {
     companion object Shared {
@@ -15,6 +16,8 @@ class HeadersInterceptor(private val apiKey: String?) : Interceptor {
         val HOST: String get() = ApiClient.host
         var isBlocked: Boolean = false
     }
+
+    val uuidKey = UUID.randomUUID().toString()
 
     @Throws(IOException::class)
     override fun intercept(chain: Interceptor.Chain): Response {
@@ -29,6 +32,7 @@ class HeadersInterceptor(private val apiKey: String?) : Interceptor {
                 .header("X-Store", "play_store")
                 .header("X-SDK", X_SDK)
                 .header("X-SDK-VERSION", X_SDK_VERSION)
+                .header("Idempotency-Key", uuidKey)
                 .build()
 
         return chain.proceed(userAgentRequest)

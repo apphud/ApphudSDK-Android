@@ -125,6 +125,11 @@ class HttpRetryInterceptor : Interceptor {
 
                 Thread.sleep(STEP)
             } finally {
+                if (request.url.encodedPath.endsWith("customers")) {
+                    if(RequestManager.retries < tryCount) {
+                        RequestManager.retries = tryCount
+                    }
+                }
                 tryCount++
 
                 if (fallbackHost != null && fallbackHost?.withRemovedScheme() != request.url.host) {
@@ -146,6 +151,6 @@ class HttpRetryInterceptor : Interceptor {
              throw RequestManager.previousException ?: Exception(APPHUD_NO_TIME_TO_RETRY)
         } else {
              return chain.proceed(request)
-         }
+        }
     }
 }
