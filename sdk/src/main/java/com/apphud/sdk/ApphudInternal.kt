@@ -481,12 +481,13 @@ internal object ApphudInternal {
                                 }
                             }
 
-                            isRegisteringUser = false
                             coroutineScope.launch {
                                 storage.lastRegistration = System.currentTimeMillis()
                             }
 
                             mainScope.launch {
+                                // finish registering only here to avoid bug
+                                isRegisteringUser = false
                                 notifyLoadingCompleted(it)
                                 completionHandler?.invoke(it, null)
 
