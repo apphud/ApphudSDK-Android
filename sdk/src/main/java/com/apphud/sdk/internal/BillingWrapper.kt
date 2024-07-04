@@ -3,19 +3,23 @@ package com.apphud.sdk.internal
 import android.app.Activity
 import android.content.Context
 import com.android.billingclient.api.*
+import com.apphud.sdk.ApphudInternal
 import com.apphud.sdk.ApphudLog
 import com.apphud.sdk.ProductId
+import com.apphud.sdk.handlePurchaseWithoutCallbacks
+import com.apphud.sdk.internal.callback_status.PurchaseCallbackStatus
 import com.apphud.sdk.internal.callback_status.PurchaseHistoryCallbackStatus
 import com.apphud.sdk.internal.callback_status.PurchaseRestoredCallbackStatus
+import com.apphud.sdk.isSuccess
+import com.apphud.sdk.logMessage
+import com.apphud.sdk.response
 import kotlinx.coroutines.*
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import java.io.Closeable
 import kotlin.coroutines.resume
 
-/**
- * Обертка над платежной системой Google
- */
+
 internal class BillingWrapper(context: Context) : Closeable {
     private val builder =
         BillingClient
@@ -23,12 +27,10 @@ internal class BillingWrapper(context: Context) : Closeable {
             .enablePendingPurchases()
     private val purchases = PurchasesUpdated(builder)
 
+    var obfuscatedAccountId: String? = null
     private val billing = builder.build()
     private val prod = ProductDetailsWrapper(billing)
-    private val flow = FlowWrapper(billing)
-    private val consume = ConsumeWrapper(billing)
     private val history = HistoryWrapper(billing)
-    private val acknowledge = AcknowledgeWrapper(billing)
 
     private val mutex = Mutex()
 
@@ -93,18 +95,6 @@ internal class BillingWrapper(context: Context) : Closeable {
             purchases.callback = value
         }
 
-    var acknowledgeCallback: AcknowledgeCallback? = null
-        set(value) {
-            field = value
-            acknowledge.callBack = value
-        }
-
-    var consumeCallback: ConsumeCallback? = null
-        set(value) {
-            field = value
-            consume.callBack = value
-        }
-
     suspend fun queryPurchasesSync(): Pair<List<Purchase>?, Int> {
         val connectIfNeeded = connectIfNeeded()
         if (!connectIfNeeded) return Pair(null, connectionResponse)
@@ -138,7 +128,7 @@ internal class BillingWrapper(context: Context) : Closeable {
         return prod.restoreSync(type, products)
     }
 
-    fun purchase(
+    suspend fun purchase(
         activity: Activity,
         details: ProductDetails,
         offerToken: String?,
@@ -146,35 +136,184 @@ internal class BillingWrapper(context: Context) : Closeable {
         replacementMode: Int?,
         deviceId: String? = null,
     ) {
-        GlobalScope.launch {
-            val connectIfNeeded = connectIfNeeded()
-            if (!connectIfNeeded) return@launch
-            return@launch flow.purchases(activity, details, offerToken, oldToken, replacementMode, deviceId)
+        val connectIfNeeded = connectIfNeeded()
+        if (!connectIfNeeded) {
+            ApphudLog.logE("No connection")
+            return
+        }
+        obfuscatedAccountId =
+            deviceId?.let {
+                val regex = Regex("[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}")
+                if (regex.matches(input = it)) {
+                    it
+                } else {
+                    null
+                }
+            }
+
+        try {
+            val params: BillingFlowParams =
+                if (offerToken != null) {
+                    if (oldToken != null) {
+                        upDowngradeBillingFlowParamsBuilder(details, offerToken, oldToken, replacementMode)
+                    } else {
+                        billingFlowParamsBuilder(details, offerToken)
+                    }
+                } else {
+                    billingFlowParamsBuilder(details)
+                }
+
+            billing.launchBillingFlow(activity, params)
+                .also {
+                    when (it.isSuccess()) {
+                        true -> {
+                            ApphudLog.log("Success response launch Billing Flow")
+                        }
+                        else -> {
+                            val message = "Failed launch Billing Flow"
+                            it.logMessage(message)
+                        }
+                    }
+                }
+        } catch (ex: Exception) {
+            ex.message?.let { ApphudLog.logE(it) }
         }
     }
 
-    fun acknowledge(purchase: Purchase) {
-        GlobalScope.launch {
-            val connectIfNeeded = connectIfNeeded()
-            if (!connectIfNeeded) return@launch
-            return@launch acknowledge.purchase(purchase)
+    suspend fun acknowledge(purchase: Purchase, callBack: AcknowledgeCallback?) {
+        val connectIfNeeded = connectIfNeeded()
+        if (!connectIfNeeded) {
+            callBack?.invoke(PurchaseCallbackStatus.Error("No connection"), purchase)
+            return
+        }
+
+        val token = purchase.purchaseToken
+
+        if (token.isEmpty() || token.isBlank()) {
+            throw IllegalArgumentException("Token empty or blank")
+        }
+
+        val params =
+            AcknowledgePurchaseParams.newBuilder()
+                .setPurchaseToken(token)
+                .build()
+        billing.acknowledgePurchase(params) { result: BillingResult ->
+            result.response("purchase acknowledge is failed",
+                { callBack?.invoke(PurchaseCallbackStatus.Error(result.responseCode.toString()), purchase) },
+                { callBack?.invoke(PurchaseCallbackStatus.Success(), purchase)?: run {
+                        ApphudInternal.handlePurchaseWithoutCallbacks(purchase)
+                    }
+                },
+            )
         }
     }
 
-    fun consume(purchase: Purchase) {
-        GlobalScope.launch {
-            val connectIfNeeded = connectIfNeeded()
-            if (!connectIfNeeded) return@launch
-            return@launch consume.purchase(purchase)
+    suspend fun consume(purchase: Purchase, callBack: ConsumeCallback?) {
+        val connectIfNeeded = connectIfNeeded()
+        if (!connectIfNeeded) {
+            callBack?.invoke(PurchaseCallbackStatus.Error("No connection"), purchase)
+            return
         }
+        val token = purchase.purchaseToken
+        val params =
+            ConsumeParams.newBuilder()
+                .setPurchaseToken(token)
+                .build()
+        billing.consumeAsync(params) { result, value ->
+            result.response(
+                message = "failed response with value: $value",
+                error = { callBack?.invoke(PurchaseCallbackStatus.Error(value), purchase) },
+                success = {
+                    callBack?.invoke(PurchaseCallbackStatus.Success(value), purchase) ?: run {
+                        ApphudInternal.handlePurchaseWithoutCallbacks(purchase)
+                    }
+                },
+            )
+        }
+    }
+
+    /**
+     * BillingFlowParams Builder for upgrades and downgrades.
+     *
+     * @param productDetails ProductDetails object returned by the library.
+     * @param offerToken offer id token
+     * @param oldToken the purchase token of the subscription purchase being upgraded or downgraded.
+     *
+     * @return [BillingFlowParams].
+     */
+    private fun upDowngradeBillingFlowParamsBuilder(
+        productDetails: ProductDetails,
+        offerToken: String,
+        oldToken: String,
+        replacementMode: Int?,
+    ): BillingFlowParams {
+        val pMode = replacementMode ?: BillingFlowParams.ProrationMode.IMMEDIATE_AND_CHARGE_FULL_PRICE
+        return BillingFlowParams.newBuilder().setProductDetailsParamsList(
+            listOf(
+                BillingFlowParams.ProductDetailsParams.newBuilder()
+                    .setProductDetails(productDetails)
+                    .setOfferToken(offerToken)
+                    .build(),
+            ),
+        ).setSubscriptionUpdateParams(
+            BillingFlowParams.SubscriptionUpdateParams.newBuilder()
+                .setOldPurchaseToken(oldToken)
+                .setReplaceProrationMode(
+                    pMode,
+                )
+                .build(),
+        )
+            .apply { obfuscatedAccountId?.let { setObfuscatedAccountId(it) } }
+            .build()
+    }
+
+    /**
+     * BillingFlowParams Builder for normal purchases.
+     *
+     * @param productDetails ProductDetails object returned by the library.
+     * @param offerToken  offer id token
+     *
+     * @return [BillingFlowParams].
+     */
+    private fun billingFlowParamsBuilder(
+        productDetails: ProductDetails,
+        offerToken: String,
+    ): BillingFlowParams {
+        return BillingFlowParams.newBuilder().setProductDetailsParamsList(
+            listOf(
+                BillingFlowParams.ProductDetailsParams.newBuilder()
+                    .setProductDetails(productDetails)
+                    .setOfferToken(offerToken)
+                    .build(),
+            ),
+        )
+            .apply { obfuscatedAccountId?.let { setObfuscatedAccountId(it) } }
+            .build()
+    }
+
+    /**
+     * BillingFlowParams Builder for normal purchases.
+     *
+     * @param productDetails ProductDetails object returned by the library.
+     *
+     * @return [BillingFlowParams].
+     */
+    private fun billingFlowParamsBuilder(productDetails: ProductDetails): BillingFlowParams {
+        return BillingFlowParams.newBuilder().setProductDetailsParamsList(
+            listOf(
+                BillingFlowParams.ProductDetailsParams.newBuilder()
+                    .setProductDetails(productDetails)
+                    .build(),
+            ),
+        )
+            .apply { obfuscatedAccountId?.let { setObfuscatedAccountId(it) } }
+            .build()
     }
 
     // Closeable
     override fun close() {
         billing.endConnection()
         prod.use { }
-        consume.use { }
         history.use { }
-        acknowledge.use { }
     }
 }
