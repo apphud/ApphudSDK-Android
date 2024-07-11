@@ -163,7 +163,6 @@ internal class BillingWrapper(context: Context) : Closeable {
                 } else {
                     billingFlowParamsBuilder(details)
                 }
-
             billing.launchBillingFlow(activity, params)
                 .also {
                     when (it.isSuccess()) {

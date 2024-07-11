@@ -547,19 +547,17 @@ object Apphud {
      * This method submits the successful purchase information to Apphud.
      * Pass `paywallIdentifier` and `placementIdentifier` for A/B test analysis in Observer Mode.
      *
-     * @param purchase The `Purchase` object representing the successful purchase.
-     * @param productDetails The `ProductDetails` object associated with the purchase.
+     * @param product_id The Google Play product ID of the item to purchase.
      * @param offerIdToken The identifier of the subscription's offer token.
      * @param paywallIdentifier (Optional) The identifier of the paywall.
      * @param placementIdentifier (Optional) The identifier of the placement.
      */
     fun trackPurchase(
-        purchase: Purchase,
-        productDetails: ProductDetails,
+        productId: String,
         offerIdToken: String?,
         paywallIdentifier: String? = null,
         placementIdentifier: String? = null,
-    ) = ApphudInternal.trackPurchase(purchase, productDetails, offerIdToken, paywallIdentifier, placementIdentifier)
+    ) = ApphudInternal.trackPurchase(productId, offerIdToken, paywallIdentifier, placementIdentifier)
 
     /**
      * Implements the 'Restore Purchases' mechanism. This method sends the current Play Market
