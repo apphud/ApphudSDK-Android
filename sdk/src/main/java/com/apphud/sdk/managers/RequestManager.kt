@@ -956,7 +956,7 @@ object RequestManager {
             properties["billing_error_code"] = productsResponseCode
         }
         if(retries > 0) {
-            properties["retries"] = retries
+            properties["failed_attempts"] = retries
         }
 
         return PaywallEventBody(
