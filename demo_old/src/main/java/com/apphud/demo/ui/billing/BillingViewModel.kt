@@ -175,7 +175,7 @@ class BillingViewModel : ViewModel() {
                 purchase?.let { p ->
                     if (p.purchaseState == Purchase.PurchaseState.PURCHASED) {
                         Log.d(TAG, "Purchase SUCCESS notify Apphud")
-                        Apphud.trackPurchase(p, productDetails, offerIdToken)
+                        Apphud.trackPurchase(productDetails.productId, offerIdToken)
                     } else {
                         Log.e(TAG, "Purchase SUCCESS but purchase state is " + p.purchaseState)
                     }

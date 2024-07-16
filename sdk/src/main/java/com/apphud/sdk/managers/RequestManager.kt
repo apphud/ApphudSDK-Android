@@ -469,8 +469,8 @@ object RequestManager {
 
     fun purchased(
         purchase: Purchase,
-        apphudProduct: ApphudProduct?,
         productDetails: ProductDetails?,
+        productBundleId: String?,
         paywallId: String?,
         placementId: String?,
         offerToken: String?,
@@ -489,20 +489,7 @@ object RequestManager {
                 .path("subscriptions")
                 .build()
 
-        val purchaseBody =
-            apphudProduct?.let {
-                makePurchaseBody(purchase, it.productDetails, it.paywallId, it.placementId, it.id, offerToken, oldToken)
-            }?: run {
-                makePurchaseBody(purchase, productDetails, paywallId, placementId, null, offerToken, oldToken)
-            }
-
-        if (purchaseBody == null) {
-            val message =
-                "ProductsDetails and ApphudProduct can not be null at the same time"
-            ApphudLog.logE(message = message)
-            completionHandler.invoke(null, ApphudError(message))
-            return
-        }
+        val purchaseBody = makePurchaseBody(purchase, productDetails, paywallId, placementId, productBundleId, offerToken, oldToken)
 
         val request = buildPostRequest(URL(apphudUrl.url), purchaseBody)
 
@@ -1053,7 +1040,7 @@ object RequestManager {
                 listOf(
                     PurchaseItemBody(
                         order_id = purchase.orderId,
-                        product_id = productDetails?.let { productDetails.productId } ?: purchase.products.first(),
+                        product_id = productDetails?.productId ?: purchase.products.first(),
                         purchase_token = purchase.purchaseToken,
                         price_currency_code = productDetails?.priceCurrencyCode(),
                         price_amount_micros = productDetails?.priceAmountMicros(),

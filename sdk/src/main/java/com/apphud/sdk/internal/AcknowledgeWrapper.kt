@@ -5,7 +5,7 @@ import com.android.billingclient.api.BillingClient
 import com.android.billingclient.api.BillingResult
 import com.android.billingclient.api.Purchase
 import com.apphud.sdk.ApphudInternal
-import com.apphud.sdk.handlePurchaseWithoutCallbacks
+import com.apphud.sdk.handleObservedPurchase
 import com.apphud.sdk.internal.callback_status.PurchaseCallbackStatus
 import com.apphud.sdk.response
 import java.io.Closeable
@@ -19,7 +19,7 @@ internal class AcknowledgeWrapper(
         private const val MESSAGE = "purchase acknowledge is failed"
     }
 
-    var callBack: AcknowledgeCallback? = null
+    private var callBack: AcknowledgeCallback? = null
 
     fun purchase(purchase: Purchase) {
         val token = purchase.purchaseToken
@@ -40,7 +40,7 @@ internal class AcknowledgeWrapper(
                     if (callBack != null) {
                         callBack?.invoke(PurchaseCallbackStatus.Success(), purchase)
                     } else {
-                        ApphudInternal.handlePurchaseWithoutCallbacks(purchase)
+                        ApphudInternal.handleObservedPurchase(purchase, null, null, null)
                     }
                 },
             )

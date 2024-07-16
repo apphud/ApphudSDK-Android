@@ -11,6 +11,7 @@ import androidx.lifecycle.ProcessLifecycleOwner
 import com.android.billingclient.api.BillingClient
 import com.android.billingclient.api.BillingClient.BillingResponseCode
 import com.android.billingclient.api.ProductDetails
+import com.android.billingclient.api.Purchase
 import com.apphud.sdk.body.*
 import com.apphud.sdk.domain.*
 import com.apphud.sdk.internal.BillingWrapper
@@ -54,6 +55,7 @@ internal object ApphudInternal {
     internal var firstCustomerLoadedTime: Long? = null
     internal var productsLoadedTime: Long? = null
     internal var trackedAnalytics = false
+    internal var observedOrders = mutableListOf <String>()
     internal var latestCustomerLoadError: ApphudError? = null
     private val handler: Handler = Handler(Looper.getMainLooper())
     private val pendingUserProperties = mutableMapOf<String, ApphudUserProperty>()
@@ -95,6 +97,7 @@ internal object ApphudInternal {
     internal var preferredTimeout: Double = 999_999.0
     private var customProductsFetchedBlock: ((List<ProductDetails>) -> Unit)? = null
     private var offeringsPreparedCallbacks = mutableListOf<((ApphudError?) -> Unit)?>()
+    internal var purchaseCallbacks = mutableListOf<((ApphudPurchaseResult) -> Unit)>()
     private var userRegisteredBlock: ((ApphudUser) -> Unit)? = null
     private var notifiedPaywallsAndPlacementsHandled = false
     internal var isActive = false
@@ -1029,6 +1032,7 @@ internal object ApphudInternal {
         productsResponseCode = BillingClient.BillingResponseCode.OK
         customProductsFetchedBlock = null
         offeringsPreparedCallbacks.clear()
+        purchaseCallbacks.clear()
         storage.clean()
         prevPurchases.clear()
         productDetails.clear()

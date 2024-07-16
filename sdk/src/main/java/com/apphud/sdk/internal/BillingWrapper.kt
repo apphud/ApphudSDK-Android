@@ -6,7 +6,7 @@ import com.android.billingclient.api.*
 import com.apphud.sdk.ApphudInternal
 import com.apphud.sdk.ApphudLog
 import com.apphud.sdk.ProductId
-import com.apphud.sdk.handlePurchaseWithoutCallbacks
+import com.apphud.sdk.handleObservedPurchase
 import com.apphud.sdk.internal.callback_status.PurchaseCallbackStatus
 import com.apphud.sdk.internal.callback_status.PurchaseHistoryCallbackStatus
 import com.apphud.sdk.internal.callback_status.PurchaseRestoredCallbackStatus
@@ -201,7 +201,7 @@ internal class BillingWrapper(context: Context) : Closeable {
             result.response("purchase acknowledge is failed",
                 { callBack?.invoke(PurchaseCallbackStatus.Error(result.responseCode.toString()), purchase) },
                 { callBack?.invoke(PurchaseCallbackStatus.Success(), purchase)?: run {
-                        ApphudInternal.handlePurchaseWithoutCallbacks(purchase)
+                        ApphudInternal.handleObservedPurchase(purchase)
                     }
                 },
             )
@@ -225,7 +225,7 @@ internal class BillingWrapper(context: Context) : Closeable {
                 error = { callBack?.invoke(PurchaseCallbackStatus.Error(value), purchase) },
                 success = {
                     callBack?.invoke(PurchaseCallbackStatus.Success(value), purchase) ?: run {
-                        ApphudInternal.handlePurchaseWithoutCallbacks(purchase)
+                        ApphudInternal.handleObservedPurchase(purchase)
                     }
                 },
             )

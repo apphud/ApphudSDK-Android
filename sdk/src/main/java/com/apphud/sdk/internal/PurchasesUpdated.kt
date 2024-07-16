@@ -3,7 +3,7 @@ package com.apphud.sdk.internal
 import com.android.billingclient.api.BillingClient
 import com.android.billingclient.api.BillingResult
 import com.apphud.sdk.ApphudInternal
-import com.apphud.sdk.handlePurchaseWithoutCallbacks
+import com.apphud.sdk.handleObservedPurchase
 import com.apphud.sdk.internal.callback_status.PurchaseUpdatedCallbackStatus
 import com.apphud.sdk.isSuccess
 import com.apphud.sdk.logMessage
@@ -24,7 +24,7 @@ internal class PurchasesUpdated(
                     if (callback != null) {
                         callback?.invoke(PurchaseUpdatedCallbackStatus.Success(purchases))
                     } else if (purchases.isNotEmpty()) {
-                        ApphudInternal.handlePurchaseWithoutCallbacks(purchases.first())
+                        ApphudInternal.handleObservedPurchase(purchases.first())
                     }
                 }
                 else -> {

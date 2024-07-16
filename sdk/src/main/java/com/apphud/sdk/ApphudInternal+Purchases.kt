@@ -53,7 +53,6 @@ internal fun ApphudInternal.purchase(
                     val firstOfferToken = it.subscriptionOfferDetails?.firstOrNull()?.offerToken
                     purchaseInternal(activity, product, firstOfferToken, oldToken, replacementMode, consumableInappProduct, callback)
                     ApphudLog.logE("OfferToken not set. You are required to pass offer token in Apphud.purchase method when purchasing subscription. Passing first offerToken as a fallback.")
-//                    callback?.invoke(ApphudPurchaseResult(null, null, null, ApphudError("OfferToken required")))
                 }
             } else {
                 purchaseInternal(activity, product, offerIdToken, oldToken, replacementMode, consumableInappProduct, callback)
@@ -86,10 +85,10 @@ private suspend fun ApphudInternal.fetchDetailsAndPurchase(
             purchaseInternal(activity, apphudProduct, offerIdToken, oldToken, prorationMode, consumableInappProduct, callback)
         }
     } else {
-        val message = "[${ApphudBillingResponseCodes.getName(responseCode)}] Aborting purchase because product unavailable: ${apphudProduct.productId}"
+        val message = "[${ApphudBillingResponseCodes.getName(responseCode.first)}] Aborting purchase because product unavailable: ${apphudProduct.productId}"
         ApphudLog.log(message = message, sendLogToServer = true)
         mainScope.launch {
-            callback?.invoke(ApphudPurchaseResult(null, null, null, ApphudError(message, errorCode = responseCode)))
+            callback?.invoke(ApphudPurchaseResult(null, null, null, ApphudError(message, errorCode = responseCode.first)))
         }
     }
 }
@@ -158,7 +157,8 @@ private fun ApphudInternal.purchaseInternal(
                                 storage.isNeedSync = true
                             }
                             Purchase.PurchaseState.PURCHASED -> {
-                                sendCheckToApphud(it, apphudProduct, null, null, null, offerIdToken, oldToken, callback)
+                                val product = apphudProduct.productDetails ?: getProductDetailsByProductId((it.products.firstOrNull() ?: ""))
+                                sendCheckToApphud(it, apphudProduct, product, apphudProduct.paywallId, apphudProduct.placementId, offerIdToken, oldToken, callback)
 
                                 when (detailsType) {
                                     BillingClient.ProductType.SUBS -> {
@@ -243,26 +243,27 @@ private fun ApphudInternal.purchaseInternal(
     }
 }
 
-internal fun ApphudInternal.handlePurchaseWithoutCallbacks(purchase: Purchase) {
+internal fun ApphudInternal.handleObservedPurchase(purchase: Purchase, paywallIdentifier: String? = null, placementIdentifier: String? = null, offerIdToken: String? = null) {
     val productId = purchase.products.first()
 
-    val products = paywalls.map { it.products ?: listOf() }.flatten().distinctBy { it.id }
-    var apphudProduct = purchasingProduct ?: products.firstOrNull { it.productId == productId }
-    if (apphudProduct == null) {
-        val groupProducts = productGroups.map { it.products ?: listOf() }.flatten().distinctBy { it.id }
-        apphudProduct = groupProducts.firstOrNull { it.productId == productId }
+    ApphudLog.log("Observed Purchase: ${purchase.products}")
+
+    if (purchasingProduct?.productId != productId) {
+        purchasingProduct = null
     }
 
-    ApphudLog.log("Handle purchase without callback: ${purchase.products}, product: ${apphudProduct}")
-
-    apphudProduct?.let {
-        sendCheckToApphud(purchase, apphudProduct, null, null, null, null, null){}
-    }?: run {
-        coroutineScope.launch {
-            val pDetails = fetchProductDetails(productId)
-            mainScope.launch {
-                sendCheckToApphud(purchase, null, pDetails, null, null, null, null){}
-            }
+    coroutineScope.launch {
+        var productDetails = purchasingProduct?.productDetails ?: getProductDetailsByProductId(productId)
+        if (productDetails == null) {
+            val response = fetchDetails(listOf(productId))
+            productDetails = response.second?.find { it.productId == productId }
+        }
+        mainScope.launch {
+            sendCheckToApphud(purchase,
+                purchasingProduct,
+                purchasingProduct?.productDetails ?: productDetails,
+                paywallIdentifier ?: purchasingProduct?.paywallId,
+                placementIdentifier ?: purchasingProduct?.placementId, offerIdToken, null, callback = null)
         }
     }
 }
@@ -274,6 +275,12 @@ private fun ApphudInternal.processPurchaseError(status: PurchaseUpdatedCallbackS
             ApphudLog.log("ProcessPurchaseError: syncPurchases()")
             fetchNativePurchases(forceRefresh = true)
         }
+    }
+}
+
+private fun rememberCallback(callback: (ApphudPurchaseResult) -> Unit) {
+    synchronized(ApphudInternal.purchaseCallbacks) {
+        ApphudInternal.purchaseCallbacks.add(callback)
     }
 }
 
@@ -289,33 +296,20 @@ private fun ApphudInternal.sendCheckToApphud(
 ) {
     performWhenUserRegistered { error ->
 
-        error?.let {
+        error?.let { it ->
             ApphudLog.logE(it.message)
             if (fallbackMode) {
                 currentUser?.let { user ->
                     coroutineScope.launch(errorHandler) {
-                        RequestManager.purchased(purchase, apphudProduct, productDetails, paywallId, placementId, offerIdToken, oldToken) { _, _ -> }
+                        RequestManager.purchased(purchase, productDetails, apphudProduct?.id, paywallId, placementId, offerIdToken, oldToken) { _, _ -> }
                     }
                     mainScope.launch {
-                        apphudProduct?.let{ product ->
-                            addTempPurchase(
-                                user,
-                                purchase,
-                                product.productDetails?.productType ?: "",
-                                product.productId,
-                                callback,
-                            )
-                        } ?: run {
-                            productDetails?.let{ details ->
-                                addTempPurchase(
-                                    user,
-                                    purchase,
-                                    details.productType,
-                                    details.productId,
-                                    callback,
-                                )
-                            }
-                        }
+
+                        callback?.let { rememberCallback(callback) }
+
+                        addTempPurchase(user, purchase,
+                            apphudProduct?.productDetails?.productType ?: productDetails?.productType ?: "",
+                            apphudProduct?.productId ?: productDetails?.productId ?: "")
                     }
                 }
             } else {
@@ -323,13 +317,27 @@ private fun ApphudInternal.sendCheckToApphud(
             }
         } ?: run {
             coroutineScope.launch(errorHandler) {
-                RequestManager.purchased(purchase, apphudProduct, productDetails, paywallId, placementId, offerIdToken, oldToken) { customer, error ->
+
+                callback?.let { rememberCallback(callback) }
+
+                synchronized(observedOrders) {
+                    purchase.orderId?.let {
+                        if (observedOrders.contains(it) && callback == null) {
+                            ApphudLog.logI("Already observed order ${it}, skipping...")
+                            return@launch
+                        } else {
+                            observedOrders.add(it)
+                        }
+                    }
+                }
+
+                RequestManager.purchased(purchase, productDetails, apphudProduct?.id, paywallId, placementId, offerIdToken, oldToken) { customer, error ->
                     mainScope.launch {
                         customer?.let {
                             val newSubscriptions = customer.subscriptions.firstOrNull { it.productId == purchase.products.first() }
                             val newPurchases = customer.purchases.firstOrNull { it.productId == purchase.products.first() }
 
-                            notifyAboutSuccess(it, purchase, newSubscriptions, newPurchases, false, callback)
+                            handleCheckSubmissionResult(it, purchase, newSubscriptions, newPurchases, false)
                         }
                         error?.let {
                             if (fallbackMode) {
@@ -337,10 +345,10 @@ private fun ApphudInternal.sendCheckToApphud(
                                     if (code in FALLBACK_ERRORS) {
                                         currentUser?.let {
                                             apphudProduct?.let { product ->
-                                                addTempPurchase(it, purchase, product.productDetails?.productType ?: "", product.productId, callback)
+                                                addTempPurchase(it, purchase, product.productDetails?.productType ?: "", product.productId)
                                             }?: run {
                                                 productDetails?.let{ details ->
-                                                    addTempPurchase(it, purchase, details.productType, details.productId, callback)
+                                                    addTempPurchase(it, purchase, details.productType, details.productId)
                                                 }
                                             }
                                             return@launch
@@ -349,16 +357,7 @@ private fun ApphudInternal.sendCheckToApphud(
                                 }
                             }
 
-                            val message = apphudProduct?.let { product ->
-                                "Unable to validate purchase with error = ${it.message} [Apphud product ID: ${product.id}]"
-                            }?: run {
-                                productDetails?.let{ details ->
-                                    "Unable to validate purchase with error = ${it.message} [productId: ${details.productId}]"
-                                }?:"Unable to validate purchase. Incorrect data."
-                            }
-
-                            ApphudLog.logI(message = message)
-                            callback?.invoke(ApphudPurchaseResult(null, null, purchase, ApphudError(message)))
+                            handleCheckSubmissionResult(customer, purchase, null, null, false)
                         }
                     }
                 }
@@ -371,11 +370,7 @@ internal fun ApphudInternal.addTempPurchase(
     apphudUser: ApphudUser,
     purchase: Purchase,
     type: String,
-    productId: String,
-    callback: (
-        (ApphudPurchaseResult) -> Unit
-    )?,
-) {
+    productId: String) {
     var newSubscription: ApphudSubscription? = null
     var newPurchase: ApphudNonRenewingPurchase? = null
     when (type) {
@@ -402,30 +397,46 @@ internal fun ApphudInternal.addTempPurchase(
         }
     }
     storage.isNeedSync = true
-    notifyAboutSuccess(apphudUser, purchase, newSubscription, newPurchase, true, callback)
+    handleCheckSubmissionResult(apphudUser, purchase, newSubscription, newPurchase, true)
 }
 
-private fun notifyAboutSuccess(
-    apphudUser: ApphudUser,
+private fun handleCheckSubmissionResult(
+    apphudUser: ApphudUser?,
     purchase: Purchase,
     newSubscription: ApphudSubscription?,
     newPurchase: ApphudNonRenewingPurchase?,
     fromFallback: Boolean,
-    callback: ((ApphudPurchaseResult) -> Unit)?,
 ) {
-    ApphudInternal.notifyLoadingCompleted(customerLoaded = apphudUser, fromFallback = fromFallback)
+    if (apphudUser != null) {
+        ApphudInternal.notifyLoadingCompleted(
+            customerLoaded = apphudUser,
+            fromFallback = fromFallback
+        )
+    }
+
     ApphudInternal.purchasingProduct = null
+    var error: ApphudError? = null
     if (newSubscription == null && newPurchase == null) {
         val productId = purchase.products.first() ?: "unknown"
         val message =
             "Unable to validate purchase ($productId). " +
-                "Ensure Google Service Credentials are correct and have necessary permissions. " +
-                "Check https://docs.apphud.com/getting-started/creating-app#google-play-service-credentials or contact support."
+                    "Ensure Google Service Credentials are correct and have necessary permissions. " +
+                    "Check https://docs.apphud.com/getting-started/creating-app#google-play-service-credentials or contact support."
 
         ApphudLog.logE(message)
-        callback?.invoke(ApphudPurchaseResult(null, null, null, ApphudError(message)))
-    } else {
-        callback?.invoke(ApphudPurchaseResult(newSubscription, newPurchase, purchase, null))
+        error = ApphudError(message)
+    }
+
+    val result = ApphudPurchaseResult(newSubscription, newPurchase, purchase, error)
+
+    val callbacksCopy = ApphudInternal.purchaseCallbacks.toMutableList()
+
+    while (callbacksCopy.isNotEmpty()) {
+        val callback = callbacksCopy.removeFirst()
+        callback.invoke(result)
+    }
+    synchronized(ApphudInternal.purchaseCallbacks) {
+        ApphudInternal.purchaseCallbacks.clear()
     }
 }
 
@@ -440,31 +451,20 @@ internal fun ApphudInternal.trackPurchase(
             ApphudLog.logE(it.message)
         } ?: run {
             coroutineScope.launch(errorHandler) {
-                val result = fetchNativePurchases(forceRefresh = true)
+                val result = fetchNativePurchases(forceRefresh = true, needSync = false)
                 if (result.second == BillingClient.BillingResponseCode.OK) {
                     val purchases = result.first
                     val purchase = purchases.firstOrNull { it.products.contains(productId) }
                     purchase?.let { p ->
-                        val details = productDetails.firstOrNull {it.productId == productId}
-                        details?.let{ d ->
-                            sendPurchasesToApphud(
-                                paywallIdentifier,
-                                placementIdentifier,
-                                null,
-                                p,
-                                d,
-                                offerIdToken,
-                                null,
-                                true,
-                            )
-                        }?: run {
-                            ApphudLog.logE("trackPurchase: product details not found ${productId}")
-                        }
+                        handleObservedPurchase(p, paywallIdentifier, placementIdentifier, offerIdToken)
                     } ?: run {
-                        ApphudLog.logE("trackPurchase: purchase not found \nproduct_id= ${productId} \npurchases:${purchases}")
+                        ApphudLog.logE("trackPurchase: could not found purchase for product $productId")
                     }
                 } else {
-                    ApphudLog.logE("trackPurchase: result=${result.second}")
+                    storage.isNeedSync = true
+                    mainScope.launch {
+                        syncPurchases(observerMode = true, callback = null)
+                    }
                 }
             }
         }
