@@ -201,7 +201,7 @@ internal class BillingWrapper(context: Context) : Closeable {
             result.response("purchase acknowledge is failed",
                 { callBack?.invoke(PurchaseCallbackStatus.Error(result.responseCode.toString()), purchase) },
                 { callBack?.invoke(PurchaseCallbackStatus.Success(), purchase)?: run {
-                        ApphudInternal.handleObservedPurchase(purchase)
+                        ApphudInternal.handleObservedPurchase(purchase, false)
                     }
                 },
             )
@@ -225,7 +225,7 @@ internal class BillingWrapper(context: Context) : Closeable {
                 error = { callBack?.invoke(PurchaseCallbackStatus.Error(value), purchase) },
                 success = {
                     callBack?.invoke(PurchaseCallbackStatus.Success(value), purchase) ?: run {
-                        ApphudInternal.handleObservedPurchase(purchase)
+                        ApphudInternal.handleObservedPurchase(purchase, false)
                     }
                 },
             )

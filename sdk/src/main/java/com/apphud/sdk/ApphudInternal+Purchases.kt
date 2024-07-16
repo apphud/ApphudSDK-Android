@@ -243,16 +243,17 @@ private fun ApphudInternal.purchaseInternal(
     }
 }
 
-internal fun ApphudInternal.handleObservedPurchase(purchase: Purchase, paywallIdentifier: String? = null, placementIdentifier: String? = null, offerIdToken: String? = null) {
+internal fun ApphudInternal.handleObservedPurchase(purchase: Purchase, userInitiated: Boolean, paywallIdentifier: String? = null, placementIdentifier: String? = null, offerIdToken: String? = null) {
     val productId = purchase.products.first()
 
-    ApphudLog.log("Observed Purchase: ${purchase.products}")
+    ApphudLog.log("Observed Purchase: ${purchase.products} User Initiated: $userInitiated")
 
     if (purchasingProduct?.productId != productId) {
         purchasingProduct = null
     }
 
     coroutineScope.launch {
+        if (!userInitiated) {  Thread.sleep(1000) }
         var productDetails = purchasingProduct?.productDetails ?: getProductDetailsByProductId(productId)
         if (productDetails == null) {
             val response = fetchDetails(listOf(productId))
@@ -456,7 +457,7 @@ internal fun ApphudInternal.trackPurchase(
                     val purchases = result.first
                     val purchase = purchases.firstOrNull { it.products.contains(productId) }
                     purchase?.let { p ->
-                        handleObservedPurchase(p, paywallIdentifier, placementIdentifier, offerIdToken)
+                        handleObservedPurchase(p, true, paywallIdentifier, placementIdentifier, offerIdToken)
                     } ?: run {
                         ApphudLog.logE("trackPurchase: could not found purchase for product $productId")
                     }

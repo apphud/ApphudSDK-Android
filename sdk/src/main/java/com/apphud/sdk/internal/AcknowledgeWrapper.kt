@@ -40,7 +40,7 @@ internal class AcknowledgeWrapper(
                     if (callBack != null) {
                         callBack?.invoke(PurchaseCallbackStatus.Success(), purchase)
                     } else {
-                        ApphudInternal.handleObservedPurchase(purchase, null, null, null)
+                        ApphudInternal.handleObservedPurchase(purchase, false, null, null, null)
                     }
                 },
             )

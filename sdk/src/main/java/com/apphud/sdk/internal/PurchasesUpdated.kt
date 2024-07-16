@@ -24,7 +24,7 @@ internal class PurchasesUpdated(
                     if (callback != null) {
                         callback?.invoke(PurchaseUpdatedCallbackStatus.Success(purchases))
                     } else if (purchases.isNotEmpty()) {
-                        ApphudInternal.handleObservedPurchase(purchases.first())
+                        ApphudInternal.handleObservedPurchase(purchases.first(), false)
                     }
                 }
                 else -> {
