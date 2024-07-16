@@ -2,6 +2,7 @@ package com.apphud.sdk
 
 import android.app.Activity
 import com.android.billingclient.api.BillingClient
+import com.android.billingclient.api.BillingResult
 import com.android.billingclient.api.ProductDetails
 import com.android.billingclient.api.Purchase
 import com.apphud.sdk.domain.ApphudNonRenewingPurchase
@@ -158,7 +159,7 @@ private fun ApphudInternal.purchaseInternal(
                                 storage.isNeedSync = true
                             }
                             Purchase.PurchaseState.PURCHASED -> {
-                                sendCheckToApphud(it, apphudProduct, null, null, null, offerIdToken, oldToken, callback)
+                                sendCheckToApphud(it, apphudProduct.id, apphudProduct.productDetails, apphudProduct.paywallId, apphudProduct.placementId, offerIdToken, oldToken, callback)
 
                                 when (detailsType) {
                                     BillingClient.ProductType.SUBS -> {
@@ -256,12 +257,19 @@ internal fun ApphudInternal.handlePurchaseWithoutCallbacks(purchase: Purchase) {
     ApphudLog.log("Handle purchase without callback: ${purchase.products}, product: ${apphudProduct}")
 
     apphudProduct?.let {
-        sendCheckToApphud(purchase, apphudProduct, null, null, null, null, null){}
+        sendCheckToApphud(purchase, it.id, it.productDetails, it.paywallId, it.placementId, null, null){}
     }?: run {
         coroutineScope.launch {
-            val pDetails = fetchProductDetails(productId)
+            val result = fetchDetails(listOf(productId))
             mainScope.launch {
-                sendCheckToApphud(purchase, null, pDetails, null, null, null, null){}
+                if (result == BillingClient.BillingResponseCode.OK) {
+                    val pDetails = productDetails.firstOrNull { it.productId == productId }
+                    pDetails?.let{
+                        sendCheckToApphud(purchase, null, pDetails, null, null, null, null) {}
+                        return@launch
+                    }
+                }
+                ApphudLog.logE("Unable to load product details for ${productId}")
             }
         }
     }
@@ -279,7 +287,7 @@ private fun ApphudInternal.processPurchaseError(status: PurchaseUpdatedCallbackS
 
 private fun ApphudInternal.sendCheckToApphud(
     purchase: Purchase,
-    apphudProduct: ApphudProduct?,
+    apphud_product_id: String?,
     productDetails: ProductDetails?,
     paywallId: String?,
     placementId: String?,
@@ -294,27 +302,17 @@ private fun ApphudInternal.sendCheckToApphud(
             if (fallbackMode) {
                 currentUser?.let { user ->
                     coroutineScope.launch(errorHandler) {
-                        RequestManager.purchased(purchase, apphudProduct, productDetails, paywallId, placementId, offerIdToken, oldToken) { _, _ -> }
+                        RequestManager.purchased(purchase, apphud_product_id, productDetails, paywallId, placementId, offerIdToken, oldToken) { _, _ -> }
                     }
                     mainScope.launch {
-                        apphudProduct?.let{ product ->
+                        productDetails?.let{ details ->
                             addTempPurchase(
                                 user,
                                 purchase,
-                                product.productDetails?.productType ?: "",
-                                product.productId,
+                                details.productType,
+                                details.productId,
                                 callback,
                             )
-                        } ?: run {
-                            productDetails?.let{ details ->
-                                addTempPurchase(
-                                    user,
-                                    purchase,
-                                    details.productType,
-                                    details.productId,
-                                    callback,
-                                )
-                            }
                         }
                     }
                 }
@@ -323,7 +321,7 @@ private fun ApphudInternal.sendCheckToApphud(
             }
         } ?: run {
             coroutineScope.launch(errorHandler) {
-                RequestManager.purchased(purchase, apphudProduct, productDetails, paywallId, placementId, offerIdToken, oldToken) { customer, error ->
+                RequestManager.purchased(purchase, apphud_product_id, productDetails, paywallId, placementId, offerIdToken, oldToken) { customer, error ->
                     mainScope.launch {
                         customer?.let {
                             val newSubscriptions = customer.subscriptions.firstOrNull { it.productId == purchase.products.first() }
@@ -336,12 +334,8 @@ private fun ApphudInternal.sendCheckToApphud(
                                 it.errorCode?.let { code ->
                                     if (code in FALLBACK_ERRORS) {
                                         currentUser?.let {
-                                            apphudProduct?.let { product ->
-                                                addTempPurchase(it, purchase, product.productDetails?.productType ?: "", product.productId, callback)
-                                            }?: run {
-                                                productDetails?.let{ details ->
-                                                    addTempPurchase(it, purchase, details.productType, details.productId, callback)
-                                                }
+                                            productDetails?.let{ details ->
+                                                addTempPurchase(it, purchase, details.productType, details.productId, callback)
                                             }
                                             return@launch
                                         }
@@ -349,13 +343,9 @@ private fun ApphudInternal.sendCheckToApphud(
                                 }
                             }
 
-                            val message = apphudProduct?.let { product ->
-                                "Unable to validate purchase with error = ${it.message} [Apphud product ID: ${product.id}]"
-                            }?: run {
-                                productDetails?.let{ details ->
-                                    "Unable to validate purchase with error = ${it.message} [productId: ${details.productId}]"
-                                }?:"Unable to validate purchase. Incorrect data."
-                            }
+                            val message =  productDetails?.let{ details ->
+                                "Unable to validate purchase with error = ${it.message} [productId: ${details.productId}]"
+                            }?:"Unable to validate purchase. Incorrect data."
 
                             ApphudLog.logI(message = message)
                             callback?.invoke(ApphudPurchaseResult(null, null, purchase, ApphudError(message)))

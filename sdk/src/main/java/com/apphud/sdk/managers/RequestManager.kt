@@ -469,7 +469,7 @@ object RequestManager {
 
     fun purchased(
         purchase: Purchase,
-        apphudProduct: ApphudProduct?,
+        apphud_product_id: String?,
         productDetails: ProductDetails?,
         paywallId: String?,
         placementId: String?,
@@ -489,12 +489,7 @@ object RequestManager {
                 .path("subscriptions")
                 .build()
 
-        val purchaseBody =
-            apphudProduct?.let {
-                makePurchaseBody(purchase, it.productDetails, it.paywallId, it.placementId, it.id, offerToken, oldToken)
-            }?: run {
-                makePurchaseBody(purchase, productDetails, paywallId, placementId, null, offerToken, oldToken)
-            }
+        val purchaseBody = makePurchaseBody(purchase, productDetails, paywallId, placementId, apphud_product_id, offerToken, oldToken)
 
         if (purchaseBody == null) {
             val message =
