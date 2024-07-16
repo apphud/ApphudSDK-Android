@@ -470,6 +470,9 @@ object RequestManager {
     fun purchased(
         purchase: Purchase,
         apphudProduct: ApphudProduct?,
+        productDetails: ProductDetails?,
+        paywallId: String?,
+        placementId: String?,
         offerToken: String?,
         oldToken: String?,
         completionHandler: (ApphudUser?, ApphudError?) -> Unit,
@@ -489,7 +492,10 @@ object RequestManager {
         val purchaseBody =
             apphudProduct?.let {
                 makePurchaseBody(purchase, it.productDetails, it.paywallId, it.placementId, it.id, offerToken, oldToken)
+            }?: run {
+                makePurchaseBody(purchase, productDetails, paywallId, placementId, null, offerToken, oldToken)
             }
+
         if (purchaseBody == null) {
             val message =
                 "ProductsDetails and ApphudProduct can not be null at the same time"

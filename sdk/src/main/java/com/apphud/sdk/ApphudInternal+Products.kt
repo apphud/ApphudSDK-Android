@@ -217,3 +217,32 @@ internal suspend fun ApphudInternal.fetchDetails(ids: List<String>): Int {
 
     return responseCode
 }
+
+internal suspend fun ApphudInternal.fetchProductDetails(id: String): ProductDetails? {
+    var pDetails = getProductDetailsByProductId(id)
+
+    if (pDetails == null) {
+        coroutineScope {
+            val subsResult =
+                async { billing.detailsEx(BillingClient.ProductType.SUBS, listOf(id)) }.await()
+            val inAppResult =
+                async { billing.detailsEx(BillingClient.ProductType.INAPP, listOf(id)) }.await()
+
+            subsResult.first?.let { subsDetails ->
+                pDetails = subsDetails.firstOrNull { it.productId == id }
+            }
+
+            if (pDetails == null) {
+                inAppResult.first?.let { inAppDetails ->
+                    pDetails = inAppDetails.firstOrNull { it.productId == id }
+                }
+            }
+        }
+        pDetails?.let{
+            productDetails.add(it)
+        }
+    }
+
+    return pDetails
+}
+
