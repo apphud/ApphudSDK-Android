@@ -136,7 +136,7 @@ private suspend fun ApphudInternal.fetchProducts(): Int {
     }
 
     val ids = allAvailableProductIds(permissionGroupsCopy, getPaywalls())
-    return fetchDetails(ids).first
+    return fetchDetails(ids, loadingAll = true).first
 }
 
 private fun allAvailableProductIds(groups: List<ApphudGroup>, paywalls: List<ApphudPaywall>): List<String> {
@@ -150,8 +150,10 @@ private fun allAvailableProductIds(groups: List<ApphudGroup>, paywalls: List<App
     return ids.toSet().toList()
 }
 
-internal suspend fun ApphudInternal.fetchDetails(ids: List<String>): Pair<Int, List<ProductDetails>?> {
-    loadedDetails.clear()
+internal suspend fun ApphudInternal.fetchDetails(ids: List<String>, loadingAll: Boolean = false): Pair<Int, List<ProductDetails>?> {
+    if (loadingAll) {
+        loadedDetails.clear()
+    }
     // Assuming ProductDetails has a property 'id' that corresponds to the product ID
     val existingIds = synchronized(productDetails) { productDetails.map { it.productId } }
 
