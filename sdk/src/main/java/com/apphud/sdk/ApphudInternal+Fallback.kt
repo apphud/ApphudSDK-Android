@@ -51,7 +51,7 @@ internal fun ApphudInternal.processFallbackError(request: Request, isTimeout: Bo
 internal fun tryFallbackHost() {
     val host = RequestManager.fetchFallbackHost()
     host?.let {
-        if (isValidUrl(it)) {
+        if (isValidUrl(it) && it != fallbackHost) {
             fallbackHost = it
             ApphudInternal.fallbackMode = true
             ApiClient.host = fallbackHost!!
