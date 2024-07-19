@@ -459,66 +459,83 @@ internal object ApphudInternal {
         completionHandler: ((ApphudUser?, ApphudError?) -> Unit)?,
     ) {
         coroutineScope.launch(errorHandler) {
+            val shouldUnlockMutex = (currentUser == null || currentUser?.isTemporary == true || forceRegistration) && offeringsPreparedCallbacks.isNotEmpty() && !isRegisteringUser && mutex.isLocked
+            if (shouldUnlockMutex) {
+                try {
+                    ApphudLog.log("Unlocking the mutex")
+                    mutex.unlock()
+                } catch (e: Exception) {
+                    ApphudLog.log("Failed to unlock the mutex, force registration")
+                    startRegistrationCall(userId, deviceId, forceRegistration, completionHandler)
+                }
+            }
             mutex.withLock {
                 if (currentUser == null || forceRegistration) {
-                    ApphudLog.log("Start registration userId=$userId, deviceId=$deviceId")
-                    ApphudLog.log(
-                        "Registration conditions: user_is_null=${currentUser == null}, forceRegistration=$forceRegistration isTemporary=${currentUser?.isTemporary}",
-                    )
-
-                    RequestManager.registration(!didRegisterCustomerAtThisLaunch, is_new, forceRegistration) { customer, error ->
-                        customer?.let {
-                            if (firstCustomerLoadedTime == null) {
-                                firstCustomerLoadedTime = System.currentTimeMillis()
-                            }
-
-                            HttpRetryInterceptor.MAX_COUNT = APPHUD_DEFAULT_RETRIES
-
-                            currentUser = it
-                            if (it.paywalls.isNotEmpty()) {
-                                synchronized(paywalls) {
-                                    paywalls = it.paywalls
-                                }
-                                synchronized(placements) {
-                                    placements = it.placements
-                                }
-                            }
-
-                            coroutineScope.launch {
-                                storage.lastRegistration = System.currentTimeMillis()
-                            }
-
-                            mainScope.launch {
-                                // finish registering only here to avoid bug
-                                isRegisteringUser = false
-                                notifyLoadingCompleted(it)
-                                completionHandler?.invoke(it, null)
-
-                                if (pendingUserProperties.isNotEmpty() && setNeedsToUpdateUserProperties) {
-                                    updateUserProperties()
-                                }
-                            }
-
-                            if (storage.isNeedSync) {
-                                coroutineScope.launch(errorHandler) {
-                                    ApphudLog.log("Registration: isNeedSync true, start syncing")
-                                    fetchNativePurchases(forceRefresh = true)
-                                }
-                            }
-                        } ?: run {
-                            ApphudLog.logE("Registration failed ${error?.message}")
-                            mainScope.launch {
-                                isRegisteringUser = false
-                                notifyLoadingCompleted(currentUser, null, true, currentUser?.isTemporary ?: false, error)
-                                completionHandler?.invoke(currentUser, error)
-                            }
-                        }
-                    }
+                    startRegistrationCall(userId, deviceId, forceRegistration, completionHandler)
                 } else {
                     mainScope.launch {
                         isRegisteringUser = false
                         completionHandler?.invoke(currentUser, null)
                     }
+                }
+            }
+        }
+    }
+
+    private fun startRegistrationCall(userId: UserId,
+                                      deviceId: DeviceId,
+                                      forceRegistration: Boolean = false,
+                                      completionHandler: ((ApphudUser?, ApphudError?) -> Unit)?) {
+        ApphudLog.log("Start registration userId=$userId, deviceId=$deviceId")
+        ApphudLog.log(
+            "Registration conditions: user_is_null=${currentUser == null}, forceRegistration=$forceRegistration isTemporary=${currentUser?.isTemporary}",
+        )
+
+        RequestManager.registration(!didRegisterCustomerAtThisLaunch, is_new, forceRegistration) { customer, error ->
+            customer?.let {
+                if (firstCustomerLoadedTime == null) {
+                    firstCustomerLoadedTime = System.currentTimeMillis()
+                }
+
+                HttpRetryInterceptor.MAX_COUNT = APPHUD_DEFAULT_RETRIES
+
+                currentUser = it
+                if (it.paywalls.isNotEmpty()) {
+                    synchronized(paywalls) {
+                        paywalls = it.paywalls
+                    }
+                    synchronized(placements) {
+                        placements = it.placements
+                    }
+                }
+
+                coroutineScope.launch {
+                    storage.lastRegistration = System.currentTimeMillis()
+                }
+
+                mainScope.launch {
+                    // finish registering only here to avoid bug
+                    isRegisteringUser = false
+                    notifyLoadingCompleted(it)
+                    completionHandler?.invoke(it, null)
+
+                    if (pendingUserProperties.isNotEmpty() && setNeedsToUpdateUserProperties) {
+                        updateUserProperties()
+                    }
+                }
+
+                if (storage.isNeedSync) {
+                    coroutineScope.launch(errorHandler) {
+                        ApphudLog.log("Registration: isNeedSync true, start syncing")
+                        fetchNativePurchases(forceRefresh = true)
+                    }
+                }
+            } ?: run {
+                ApphudLog.logE("Registration failed ${error?.message}")
+                mainScope.launch {
+                    isRegisteringUser = false
+                    notifyLoadingCompleted(currentUser, null, true, currentUser?.isTemporary ?: false, error)
+                    completionHandler?.invoke(currentUser, error)
                 }
             }
         }
@@ -593,6 +610,7 @@ internal object ApphudInternal {
             val isWaitingForProducts = !finishedLoadingProducts()
             if ((isWaitingForProducts || willRefresh) && !fallbackMode) {
                 offeringsPreparedCallbacks.add(callback)
+                ApphudLog.log("Saved offerings callback")
             } else {
                 callback.invoke(null)
             }
@@ -988,9 +1006,7 @@ internal object ApphudInternal {
             threads.awaitAll().let {
                 if (!newIdentifiers.contentEquals(cachedIdentifiers)) {
                     storage.deviceIdentifiers = newIdentifiers
-                    mutex.withLock {
-                        repeatRegistrationSilent()
-                    }
+                    repeatRegistrationSilent()
                 } else {
                     ApphudLog.log("Device Identifiers not changed")
                 }
