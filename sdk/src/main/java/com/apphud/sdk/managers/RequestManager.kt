@@ -153,7 +153,7 @@ object RequestManager {
             }
             ApphudLog.logI("Start " + request.method + " request " + request.url + " with params:" + body)
         } catch (ex: Exception) {
-            ApphudLog.logE(ex.message ?: "")
+            ApphudLog.logE("Failed to log request: " + ex.message)
         }
     }
 
@@ -458,7 +458,7 @@ object RequestManager {
                     }
                 } ?: run {
                     if (error != null) {
-                        ApphudLog.logE(error.message)
+                        ApphudLog.logE("Failed to load products: " + error.message)
                     }
                     if (continuation.isActive) {
                         continuation.resume(null)

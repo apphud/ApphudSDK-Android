@@ -701,7 +701,7 @@ internal object ApphudInternal {
 
         performWhenUserRegistered { error ->
             error?.let {
-                ApphudLog.logE(it.message)
+                ApphudLog.logE("Failed to update user properties: " + it.message)
             } ?: run {
                 val properties = mutableListOf<Map<String, Any?>>()
                 val sentPropertiesForSave = mutableListOf<ApphudUserProperty>()
@@ -738,7 +738,7 @@ internal object ApphudInternal {
                                 }
                             }
                             error?.let {
-                                ApphudLog.logE(message = it.message)
+                                ApphudLog.logE("Failed to update user properties: " + it.message)
                             }
                         }
                     }
