@@ -20,7 +20,6 @@ internal var productsStatus = ApphudProductsStatus.none
 internal var respondedWithProducts = false
 private  var loadingStoreProducts = false
 internal var productsResponseCode = BillingClient.BillingResponseCode.OK
-private val mutexProducts = Mutex()
 private var loadedDetails = mutableListOf<ProductDetails>()
 
 // to avoid Google servers spamming if there is no productDetails added at all
@@ -61,23 +60,21 @@ internal fun ApphudInternal.loadProducts() {
     ApphudLog.logI("Loading ProductDetails from the Store")
 
     coroutineScope.launch(errorHandler) {
-        mutexProducts.withLock {
-            val result = fetchProducts()
-            productsResponseCode = result
-            productsStatus = if (result == BillingClient.BillingResponseCode.OK) ApphudProductsStatus.loaded else
-                ApphudProductsStatus.failed
+        val result = fetchProducts()
+        productsResponseCode = result
+        productsStatus = if (result == BillingClient.BillingResponseCode.OK) ApphudProductsStatus.loaded else
+            ApphudProductsStatus.failed
 
-            if (productsResponseCode != APPHUD_NO_REQUEST) {
-                totalPoductsLoadingCounts += 1
-                currentPoductsLoadingCounts += 1
-            }
+        if (productsResponseCode != APPHUD_NO_REQUEST) {
+            totalPoductsLoadingCounts += 1
+            currentPoductsLoadingCounts += 1
+        }
 
-            if (isRetriableProductsRequest() && shouldRetryRequest("billing") && currentPoductsLoadingCounts < APPHUD_DEFAULT_RETRIES) {
-                retryProductsLoad()
-            } else {
-                ApphudLog.log("Finished Loading Product Details")
-                respondWithProducts()
-            }
+        if (isRetriableProductsRequest() && shouldRetryRequest("billing") && currentPoductsLoadingCounts < APPHUD_DEFAULT_RETRIES) {
+            retryProductsLoad()
+        } else {
+            ApphudLog.log("Finished Loading Product Details")
+            respondWithProducts()
         }
     }
 }
