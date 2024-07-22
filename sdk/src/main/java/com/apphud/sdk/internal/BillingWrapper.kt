@@ -3,6 +3,7 @@ package com.apphud.sdk.internal
 import android.app.Activity
 import android.content.Context
 import com.android.billingclient.api.*
+import com.apphud.sdk.ApphudError
 import com.apphud.sdk.ApphudInternal
 import com.apphud.sdk.ApphudLog
 import com.apphud.sdk.ProductId
@@ -135,12 +136,13 @@ internal class BillingWrapper(context: Context) : Closeable {
         offerToken: String?,
         oldToken: String?,
         replacementMode: Int?,
-        deviceId: String? = null,
-    ) {
+        deviceId: String? = null
+    ): ApphudError? {
         val connectIfNeeded = connectIfNeeded()
         if (!connectIfNeeded) {
-            ApphudLog.logE("No connection")
-            return
+            val error = ApphudError("Google Billing connection problem", errorCode = connectionResponse)
+            ApphudLog.logE("Google Billing connection problem: ${error.message}")
+            return error
         }
         obfuscatedAccountId =
             deviceId?.let {
@@ -163,20 +165,22 @@ internal class BillingWrapper(context: Context) : Closeable {
                 } else {
                     billingFlowParamsBuilder(details)
                 }
-            billing.launchBillingFlow(activity, params)
-                .also {
-                    when (it.isSuccess()) {
-                        true -> {
-                            ApphudLog.log("Success response launch Billing Flow")
-                        }
-                        else -> {
-                            val message = "Failed launch Billing Flow"
-                            it.logMessage(message)
-                        }
+            billing.launchBillingFlow(activity, params).also {
+                return when (it.isSuccess()) {
+                    true -> {
+                        ApphudLog.log("Success response launch Billing Flow")
+                        null
+                    }
+                    else -> {
+                        val message = "Failed to launch Google Billing purchase flow. Please try again."
+                        it.logMessage(message)
+                        ApphudError(message)
                     }
                 }
+            }
         } catch (ex: Exception) {
             ex.message?.let { ApphudLog.logE(it) }
+            return ApphudError("Google Billing Purchase Exception: ${ex.message}")
         }
     }
 
