@@ -6,7 +6,7 @@ import com.amplitude.android.Amplitude
 import com.amplitude.android.Configuration
 import com.amplitude.android.DefaultTrackingOptions
 import com.amplitude.common.Logger
-import com.apphud.sampleapp.BuildConfig
+//import com.apphud.sampleapp.BuildConfig
 import com.apphud.sampleapp.R
 import com.apphud.sdk.Apphud
 import com.apphud.sdk.ApphudAttributionProvider
@@ -55,7 +55,7 @@ object AnalyticsManager {
         GlobalScope.launch {
             val identifier = Apphud.userId()
 
-            if(isEnabled(Integration.FACEBOOK)) {
+            /*if(isEnabled(Integration.FACEBOOK)) {
                 Log.d("ColorGenerator", "Init integration: FACEBOOK")
                 // in future versions of Facebook SDK getting extinfo may change, update if necessary.
                 // if extinfo cannot be retrieved, pass just  anon id.
@@ -116,7 +116,7 @@ object AnalyticsManager {
                 Branch.enableLogging()
                 Branch.getAutoInstance(application)
                 Branch.getInstance().setIdentity(Apphud.deviceId())
-            }
+            }*/
         }
     }
 }

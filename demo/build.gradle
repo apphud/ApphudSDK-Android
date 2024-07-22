@@ -4,9 +4,9 @@ plugins {
     id 'androidx.navigation.safeargs.kotlin'
 }
 
-def keystorePropertiesFile = rootProject.file("keystore.properties")
+/*def keystorePropertiesFile = rootProject.file("keystore.properties")
 def keystoreProperties = new Properties()
-keystoreProperties.load(new FileInputStream(keystorePropertiesFile))
+keystoreProperties.load(new FileInputStream(keystorePropertiesFile))*/
 
 android {
     namespace 'com.apphud.sampleapp'
@@ -21,15 +21,15 @@ android {
         signingConfig signingConfigs.debug
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
 
-        Properties properties = new Properties()
+        /*Properties properties = new Properties()
         properties.load(project.rootProject.file('local.properties').newDataInputStream())
         manifestPlaceholders = [facebookAppId: "${properties.getProperty('facebook_app_id')}",
                                 facebookClientToken: "${properties.getProperty('facebook_client_token')}",
                                 branchKeyTest: "${properties.getProperty('branch_key_test')}",
-                                branchKeyLive: "${properties.getProperty('branch_key_live')}"]
+                                branchKeyLive: "${properties.getProperty('branch_key_live')}"]*/
     }
 
-    signingConfigs {
+    /*signingConfigs {
         release {
             keyAlias keystoreProperties['keyAlias']
             keyPassword keystoreProperties['keyPassword']
@@ -42,20 +42,20 @@ android {
             storeFile file(keystoreProperties['storeFile'])
             storePassword keystoreProperties['storePassword']
         }
-    }
+    }*/
 
     buildTypes {
         release {
             minifyEnabled true
             proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
-            signingConfig signingConfigs.release
+            /*signingConfig signingConfigs.release
             buildConfigField("String","APPS_FLYER_KEY", "\"${apps_flyer_key}\"")
-            buildConfigField("String","ANMPLITUDE_KEY", "\"${amplitude_key}\"")
+            buildConfigField("String","ANMPLITUDE_KEY", "\"${amplitude_key}\"")*/
         }
         debug {
-            signingConfig signingConfigs.debug
+            /*signingConfig signingConfigs.debug
             buildConfigField("String","APPS_FLYER_KEY", "\"${apps_flyer_key}\"")
-            buildConfigField("String","ANMPLITUDE_KEY", "\"${amplitude_key}\"")
+            buildConfigField("String","ANMPLITUDE_KEY", "\"${amplitude_key}\"")*/
         }
     }
 
