@@ -5,4 +5,5 @@ enum class ApphudAttributionProvider {
     adjust,
     facebook,
     firebase,
+    custom
 }

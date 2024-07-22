@@ -49,6 +49,14 @@ internal fun ApphudInternal.addAttribution(
                             firebase_id = identifier,
                         )
                 }
+            ApphudAttributionProvider.custom -> {
+                AttributionBody(
+                    device_id = deviceId,
+                    attribution_data = data?.toMutableMap().also { map ->
+                        identifier?.let { map?.set("attribution_identifier", it) }
+                    }
+                )
+            }
         }
 
     when (provider) {
@@ -87,6 +95,9 @@ internal fun ApphudInternal.addAttribution(
                     return
                 }
             }
+        }
+        ApphudAttributionProvider.custom -> {
+            // do nothing
         }
     }
 
@@ -157,6 +168,10 @@ internal fun ApphudInternal.addAttribution(
 
                                             else -> temporary
                                         }
+                                }
+
+                                ApphudAttributionProvider.custom -> {
+                                    // do nothing
                                 }
                             }
                             error?.let {

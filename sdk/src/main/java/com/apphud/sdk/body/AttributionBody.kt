@@ -8,4 +8,5 @@ data class AttributionBody(
     val appsflyer_id: String? = null, // Appsflyer
     val facebook_data: Map<String, Any>? = null, // Facebook
     val firebase_id: String? = null, // Firebase
+    val attribution_data: Map<String, Any>? = null
 )
