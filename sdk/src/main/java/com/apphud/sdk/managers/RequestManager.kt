@@ -30,6 +30,7 @@ import okhttp3.OkHttpClient
 import okhttp3.Request
 import okhttp3.RequestBody.Companion.toRequestBody
 import okhttp3.Response
+import okhttp3.logging.HttpLoggingInterceptor
 import okio.Buffer
 import org.json.JSONException
 import org.json.JSONObject
@@ -67,6 +68,7 @@ object RequestManager {
     lateinit var applicationContext: Context
     lateinit var storage: SharedPreferencesStorage
     var previousException: java.lang.Exception? = null
+    var retries: Int = 0
 
     fun setParams(
         applicationContext: Context,
@@ -105,7 +107,7 @@ object RequestManager {
         }
 
         if (BuildConfig.DEBUG) {
-            logging.level = HttpLoggingInterceptor.Level.NONE //BODY
+            logging.level = HttpLoggingInterceptor.Level.BODY //BODY
         } else {
             logging.level = HttpLoggingInterceptor.Level.NONE
         }*/
@@ -115,11 +117,12 @@ object RequestManager {
 
         val builder =
             OkHttpClient.Builder()
-                .connectTimeout(APPHUD_DEFAULT_HTTP_CONNECT_TIMEOUT, TimeUnit.SECONDS)
+                //.connectTimeout(APPHUD_DEFAULT_HTTP_CONNECT_TIMEOUT, TimeUnit.SECONDS)
                 .callTimeout(callTimeout.toLong(), TimeUnit.SECONDS)
         if (retry) builder.addInterceptor(retryInterceptor)
+        builder.addInterceptor(ConnectInterceptor())
         builder.addNetworkInterceptor(headersInterceptor)
-        // builder.addNetworkInterceptor(logging)
+        //builder.addNetworkInterceptor(logging)
 
         return builder.build()
     }
@@ -150,7 +153,7 @@ object RequestManager {
             }
             ApphudLog.logI("Start " + request.method + " request " + request.url + " with params:" + body)
         } catch (ex: Exception) {
-            ApphudLog.logE(ex.message ?: "")
+            ApphudLog.logE("Failed to log request: " + ex.message)
         }
     }
 
@@ -455,7 +458,7 @@ object RequestManager {
                     }
                 } ?: run {
                     if (error != null) {
-                        ApphudLog.logE(error.message)
+                        ApphudLog.logE("Failed to load products: " + error.message)
                     }
                     if (continuation.isActive) {
                         continuation.resume(null)
@@ -466,7 +469,10 @@ object RequestManager {
 
     fun purchased(
         purchase: Purchase,
-        apphudProduct: ApphudProduct?,
+        productDetails: ProductDetails?,
+        productBundleId: String?,
+        paywallId: String?,
+        placementId: String?,
         offerToken: String?,
         oldToken: String?,
         completionHandler: (ApphudUser?, ApphudError?) -> Unit,
@@ -483,17 +489,7 @@ object RequestManager {
                 .path("subscriptions")
                 .build()
 
-        val purchaseBody =
-            apphudProduct?.let {
-                makePurchaseBody(purchase, it.productDetails, it.paywallId, it.placementId, it.id, offerToken, oldToken)
-            }
-        if (purchaseBody == null) {
-            val message =
-                "ProductsDetails and ApphudProduct can not be null at the same time"
-            ApphudLog.logE(message = message)
-            completionHandler.invoke(null, ApphudError(message))
-            return
-        }
+        val purchaseBody = makePurchaseBody(purchase, productDetails, paywallId, placementId, productBundleId, offerToken, oldToken)
 
         val request = buildPostRequest(URL(apphudUrl.url), purchaseBody)
 
@@ -929,7 +925,7 @@ object RequestManager {
             device_id = ApphudInternal.deviceId,
             environment = if (applicationContext.isDebuggable()) "sandbox" else "production",
             timestamp = System.currentTimeMillis(),
-            properties = properties.ifEmpty { null },
+            properties = properties.ifEmpty { null }
         )
     }
 
@@ -959,6 +955,9 @@ object RequestManager {
         if (productsResponseCode != 0) {
             properties["billing_error_code"] = productsResponseCode
         }
+        if(retries > 0) {
+            properties["failed_attempts"] = retries
+        }
 
         return PaywallEventBody(
             name = "paywall_products_loaded",
@@ -966,7 +965,7 @@ object RequestManager {
             device_id = ApphudInternal.deviceId,
             environment = if (applicationContext.isDebuggable()) "sandbox" else "production",
             timestamp = System.currentTimeMillis(),
-            properties = properties.ifEmpty { null },
+            properties = properties.ifEmpty { null }
         )
     }
 
@@ -1041,7 +1040,7 @@ object RequestManager {
                 listOf(
                     PurchaseItemBody(
                         order_id = purchase.orderId,
-                        product_id = productDetails?.let { productDetails.productId } ?: purchase.products.first(),
+                        product_id = productDetails?.productId ?: purchase.products.first(),
                         purchase_token = purchase.purchaseToken,
                         price_currency_code = productDetails?.priceCurrencyCode(),
                         price_amount_micros = productDetails?.priceAmountMicros(),

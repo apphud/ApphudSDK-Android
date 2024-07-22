@@ -51,7 +51,7 @@ internal fun ApphudInternal.processFallbackError(request: Request, isTimeout: Bo
 internal fun tryFallbackHost() {
     val host = RequestManager.fetchFallbackHost()
     host?.let {
-        if (isValidUrl(it)) {
+        if (isValidUrl(it) && it != fallbackHost) {
             fallbackHost = it
             ApphudInternal.fallbackMode = true
             ApiClient.host = fallbackHost!!
@@ -110,7 +110,7 @@ internal fun ApphudInternal.processFallbackData(callback: PaywallCallback) {
         isRegisteringUser = false
         ApphudLog.log("Fallback: ENABLED")
         coroutineScope.launch {
-            val responseCode = fetchDetails(ids)
+            val responseCode = fetchDetails(ids, loadingAll = true).first
             val error = if (responseCode == BillingResponseCode.OK) null else (if (responseCode == APPHUD_NO_REQUEST) ApphudError("Paywalls load error", errorCode = responseCode) else ApphudError("Google Billing error", errorCode = responseCode))
             mainScope.launch {
                 notifyLoadingCompleted(

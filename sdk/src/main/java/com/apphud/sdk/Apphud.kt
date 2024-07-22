@@ -542,24 +542,26 @@ object Apphud {
     )
 
     /**
-     * Only for use in Observer Mode: call this method after every successful purchase.
-     * Note: Passing the offerIdToken is mandatory for subscriptions!
-     * This method submits the successful purchase information to Apphud.
-     * Pass `paywallIdentifier` and `placementIdentifier` for A/B test analysis in Observer Mode.
+     * Tracks a purchase made through Google Play. This method should be used only in Observer Mode,
+     * specifically when utilizing Apphud Paywalls and Placements, and when you need to associate the
+     * purchase with specific paywall and placement identifiers.
      *
-     * @param purchase The `Purchase` object representing the successful purchase.
-     * @param productDetails The `ProductDetails` object associated with the purchase.
-     * @param offerIdToken The identifier of the subscription's offer token.
+     * In all other cases, purchases will be automatically intercepted and sent to Apphud.
+     *
+     * Note: The `offerIdToken` is mandatory for subscriptions. The `paywallIdentifier` and `placementIdentifier`
+     * are optional but recommended for A/B test analysis in Observer Mode.
+     *
+     * @param productId The Google Play product ID of the item to purchase.
+     * @param offerIdToken The identifier of the subscription's offer token. This parameter is required for subscriptions.
      * @param paywallIdentifier (Optional) The identifier of the paywall.
      * @param placementIdentifier (Optional) The identifier of the placement.
      */
     fun trackPurchase(
-        purchase: Purchase,
-        productDetails: ProductDetails,
+        productId: String,
         offerIdToken: String?,
         paywallIdentifier: String? = null,
         placementIdentifier: String? = null,
-    ) = ApphudInternal.trackPurchase(purchase, productDetails, offerIdToken, paywallIdentifier, placementIdentifier)
+    ) = ApphudInternal.trackPurchase(productId, offerIdToken, paywallIdentifier, placementIdentifier)
 
     /**
      * Implements the 'Restore Purchases' mechanism. This method sends the current Play Market

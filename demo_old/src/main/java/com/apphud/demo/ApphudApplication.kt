@@ -46,6 +46,7 @@ class ApphudApplication : Application() {
         if (BuildConfig.DEBUG) {
             ApphudUtils.enableDebugLogs()
         }
+
         Apphud.start(this, API_KEY, observerMode = false)
         Apphud.collectDeviceIdentifiers()
 

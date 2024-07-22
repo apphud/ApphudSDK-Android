@@ -24,7 +24,7 @@ import java.net.UnknownHostException
 
 class HttpRetryInterceptor : Interceptor {
     companion object {
-        private var STEP = 1_000L
+        private var STEP = 2_000L
         internal var MAX_COUNT = APPHUD_DEFAULT_RETRIES
     }
 
@@ -36,7 +36,7 @@ class HttpRetryInterceptor : Interceptor {
         var tryCount: Int = 0
 
 
-        while (!isSuccess && (tryCount < MAX_COUNT || shouldRetryRequest(request.url.encodedPath))) {
+        while (!isSuccess && (tryCount < MAX_COUNT && shouldRetryRequest(request.url.encodedPath))) {
             try {
                 if (response != null) { response.close() }
                 response = chain.proceed(request)
@@ -125,6 +125,11 @@ class HttpRetryInterceptor : Interceptor {
 
                 Thread.sleep(STEP)
             } finally {
+                if (request.url.encodedPath.endsWith("customers")) {
+                    if(RequestManager.retries < tryCount) {
+                        RequestManager.retries = tryCount
+                    }
+                }
                 tryCount++
 
                 if (fallbackHost != null && fallbackHost?.withRemovedScheme() != request.url.host) {
@@ -146,6 +151,6 @@ class HttpRetryInterceptor : Interceptor {
              throw RequestManager.previousException ?: Exception(APPHUD_NO_TIME_TO_RETRY)
         } else {
              return chain.proceed(request)
-         }
+        }
     }
 }

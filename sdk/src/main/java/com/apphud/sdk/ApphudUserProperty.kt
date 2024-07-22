@@ -54,7 +54,7 @@ data class ApphudUserProperty(
             }
         } catch (ex: Exception) {
             type = "string"
-            ApphudLog.logE(ex.message ?: "Unable to parse property value. Processed as string.")
+            ApphudLog.logE("Unable to parse property value: " + ex.message)
         }
 
         return value.toString()
