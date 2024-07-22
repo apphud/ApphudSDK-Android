@@ -24,7 +24,7 @@ import java.net.UnknownHostException
 
 class HttpRetryInterceptor : Interceptor {
     companion object {
-        private var STEP = 1_000L
+        private var STEP = 2_000L
         internal var MAX_COUNT = APPHUD_DEFAULT_RETRIES
     }
 
@@ -36,7 +36,7 @@ class HttpRetryInterceptor : Interceptor {
         var tryCount: Int = 0
 
 
-        while (!isSuccess && (tryCount < MAX_COUNT || shouldRetryRequest(request.url.encodedPath))) {
+        while (!isSuccess && (tryCount < MAX_COUNT && shouldRetryRequest(request.url.encodedPath))) {
             try {
                 if (response != null) { response.close() }
                 response = chain.proceed(request)
