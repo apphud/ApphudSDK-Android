@@ -71,11 +71,11 @@ internal class BillingWrapper(context: Context) : Closeable {
                         connectionResponse = billingResult.responseCode
                         kotlin.runCatching {
                             if (billingResult.responseCode == BillingClient.BillingResponseCode.OK) {
-                                if (continuation.isActive) {
+                                if (continuation.isActive && !continuation.isCompleted) {
                                     continuation.resume(true)
                                 }
                             } else {
-                                if (continuation.isActive) {
+                                if (continuation.isActive && !continuation.isCompleted) {
                                     continuation.resume(false)
                                 }
                             }

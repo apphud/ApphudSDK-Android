@@ -101,13 +101,13 @@ internal class HistoryWrapper(
                             message = "Failed restore purchases",
                             error = {
                                 ApphudLog.logI("Query History error $type")
-                                if (continuation.isActive) {
+                                if (continuation.isActive && !continuation.isCompleted) {
                                     continuation.resume(PurchaseHistoryCallbackStatus.Error(type, result))
                                 }
                             },
                             success = {
                                 ApphudLog.logI("Query History success $type")
-                                if (continuation.isActive) {
+                                if (continuation.isActive && !continuation.isCompleted) {
                                     continuation.resume(PurchaseHistoryCallbackStatus.Success(type, purchases ?: emptyList()))
                                 }
                             },

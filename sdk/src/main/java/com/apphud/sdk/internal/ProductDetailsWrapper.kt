@@ -62,14 +62,14 @@ internal class ProductDetailsWrapper(
                                 when (purchases.isEmpty()) {
                                     true -> {
                                         val message = "ProductsDetails return empty list for $type and records: $records"
-                                        if (continuation.isActive) {
+                                        if (continuation.isActive && !continuation.isCompleted) {
                                             continuation.resume(
                                                 PurchaseRestoredCallbackStatus.Error(type = type, result = null, message = message),
                                             )
                                         }
                                     }
                                     else -> {
-                                        if (continuation.isActive) {
+                                        if (continuation.isActive&& !continuation.isCompleted) {
                                             continuation.resume(PurchaseRestoredCallbackStatus.Success(type = type, purchases))
                                         }
                                     }
@@ -77,7 +77,7 @@ internal class ProductDetailsWrapper(
                             }
                             else -> {
                                 result.logMessage("RestoreAsync failed for type: $type products: $products")
-                                if (continuation.isActive) {
+                                if (continuation.isActive && !continuation.isCompleted) {
                                     continuation.resume(PurchaseRestoredCallbackStatus.Error(type = type, result = result, message = type))
                                 }
                             }
@@ -148,13 +148,13 @@ internal class ProductDetailsWrapper(
                         when (result.isSuccess()) {
                             true -> {
                                 ApphudLog.logI("Query ProductDetails success $type")
-                                if (continuation.isActive) {
+                                if (continuation.isActive && !continuation.isCompleted) {
                                     continuation.resume(Pair(details, result.responseCode))
                                 }
                             }
                             else -> {
                                 result.logMessage("Query ProductDetails Async type: $type products: $products")
-                                if (continuation.isActive) {
+                                if (continuation.isActive && !continuation.isCompleted) {
                                     continuation.resume(Pair(null, result.responseCode))
                                 }
                             }
