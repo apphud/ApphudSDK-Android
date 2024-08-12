@@ -72,23 +72,5 @@ data class ApphudSubscription(
      Use this function to detect whether to give or not premium content to the user.
      - Returns: If value is `true` then user should have access to premium content.
      */
-    fun isActive() =
-        when (status) {
-            ApphudSubscriptionStatus.TRIAL,
-            ApphudSubscriptionStatus.INTRO,
-            ApphudSubscriptionStatus.PROMO,
-            ApphudSubscriptionStatus.REGULAR,
-            ApphudSubscriptionStatus.GRACE,
-            ->
-                if (isTemporary) {
-                    !isTemporaryExpired()
-                } else {
-                    true
-                }
-            else -> false
-        }
-
-    private fun isTemporaryExpired(): Boolean {
-        return System.currentTimeMillis() > expiresAt
-    }
+    fun isActive() = System.currentTimeMillis() < expiresAt
 }
