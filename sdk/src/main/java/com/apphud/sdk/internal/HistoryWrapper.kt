@@ -89,7 +89,6 @@ internal class HistoryWrapper(
         @BillingClient.ProductType type: ProductType,
     ): PurchaseHistoryCallbackStatus =
         suspendCancellableCoroutine { continuation ->
-            var resumed = false
             thread(start = true, name = "queryAsync+$type") {
                 val params =
                     QueryPurchaseHistoryParams.newBuilder()
@@ -97,23 +96,25 @@ internal class HistoryWrapper(
                         .build()
 
                 billing.queryPurchaseHistoryAsync(params) { result, purchases ->
-                    result.response(
-                        message = "Failed restore purchases",
-                        error = {
-                            ApphudLog.logI("Query History error $type")
-                            if (continuation.isActive && !resumed) {
-                                resumed = true
-                                continuation.resume(PurchaseHistoryCallbackStatus.Error(type, result))
-                            }
-                        },
-                        success = {
-                            ApphudLog.logI("Query History success $type")
-                            if (continuation.isActive && !resumed) {
-                                resumed = true
-                                continuation.resume(PurchaseHistoryCallbackStatus.Success(type, purchases ?: emptyList()))
-                            }
-                        },
-                    )
+                    kotlin.runCatching {
+                        result.response(
+                            message = "Failed restore purchases",
+                            error = {
+                                ApphudLog.logI("Query History error $type")
+                                if (continuation.isActive) {
+                                    continuation.resume(PurchaseHistoryCallbackStatus.Error(type, result))
+                                }
+                            },
+                            success = {
+                                ApphudLog.logI("Query History success $type")
+                                if (continuation.isActive) {
+                                    continuation.resume(PurchaseHistoryCallbackStatus.Success(type, purchases ?: emptyList()))
+                                }
+                            },
+                        )
+                    }.onFailure {
+                        ApphudLog.logI("Handle repeated call QueryPurchaseHistoryAsync")
+                    }
                 }
             }
         }

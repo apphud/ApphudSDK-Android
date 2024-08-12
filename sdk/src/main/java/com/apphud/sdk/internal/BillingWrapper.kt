@@ -64,22 +64,23 @@ internal class BillingWrapper(context: Context) : Closeable {
     }
 
     suspend fun BillingClient.connect(): Boolean {
-        var resumed = false
         return suspendCancellableCoroutine { continuation ->
             startConnection(
                 object : BillingClientStateListener {
                     override fun onBillingSetupFinished(billingResult: BillingResult) {
                         connectionResponse = billingResult.responseCode
-                        if (billingResult.responseCode == BillingClient.BillingResponseCode.OK) {
-                            if (continuation.isActive && !resumed) {
-                                resumed = true
-                                continuation.resume(true)
+                        kotlin.runCatching {
+                            if (billingResult.responseCode == BillingClient.BillingResponseCode.OK) {
+                                if (continuation.isActive) {
+                                    continuation.resume(true)
+                                }
+                            } else {
+                                if (continuation.isActive) {
+                                    continuation.resume(false)
+                                }
                             }
-                        } else {
-                            if (continuation.isActive && !resumed) {
-                                resumed = true
-                                continuation.resume(false)
-                            }
+                        }.onFailure {
+                            ApphudLog.logI("Handle repeated call StartConnection")
                         }
                     }
 
