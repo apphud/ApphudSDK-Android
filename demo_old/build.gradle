@@ -54,10 +54,10 @@ dependencies {
     implementation project(path: ':sdk')
 
     //To use from maven central
-    //implementation "com.apphud:ApphudSDK-Android:2.5.4"
+    //implementation "com.apphud:ApphudSDK-Android:2.7.1"
 
     //To use from jitpack
-    //implementation "com.github.apphud:ApphudSDK-Android:2.5.4"
+    //implementation "com.github.apphud:ApphudSDK-Android:2.7.1"
 
     implementation 'com.android.billingclient:billing:6.1.0'
 
