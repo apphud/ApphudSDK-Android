@@ -32,12 +32,13 @@
             android:exported="false"
             android:theme="@style/Theme.Apphud.Main"/>
 
+        <!--
         <meta-data
             android:name="com.facebook.sdk.ApplicationId"
-            android:value="${facebookAppId}" />  <!-- Facebook init -->
+            android:value="${facebookAppId}" />
         <meta-data
             android:name="com.facebook.sdk.ClientToken"
-            android:value="${facebookClientToken}" /> <!-- Branch init -->
+            android:value="${facebookClientToken}" />
         <meta-data
             android:name="io.branch.sdk.BranchKey"
             android:value="${branchKeyLive}"/>
@@ -46,7 +47,7 @@
             android:value="${branchKeyTest}" />
         <meta-data
             android:name="io.branch.sdk.TestMode"
-            android:value="true" />
+            android:value="true" />-->
     </application>
 
 </manifest>
