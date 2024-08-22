@@ -8,6 +8,7 @@ import com.apphud.sdk.internal.callback_status.PurchaseRestoredCallbackStatus
 import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlin.concurrent.thread
 import kotlin.coroutines.resume
+import kotlin.coroutines.resumeWithException
 
 typealias ProductType = String
 typealias ApphudProductDetailsCallback = (List<ProductDetails>) -> Unit
@@ -24,7 +25,6 @@ internal class ProductDetailsWrapper(
         records: List<PurchaseHistoryRecord>,
     ): PurchaseRestoredCallbackStatus =
         suspendCancellableCoroutine { continuation ->
-            var resumed = false
             val products = records.map { it.products }.flatten().distinct()
             val productList =
                 products.map {
@@ -41,48 +41,49 @@ internal class ProductDetailsWrapper(
 
             thread(start = true, name = "restoreAsync+$type") {
                 billing.queryProductDetailsAsync(params) { result, details ->
-                    when (result.isSuccess()) {
-                        true -> {
-                            val values = details ?: emptyList()
+                    kotlin.runCatching {
+                        when (result.isSuccess()) {
+                            true -> {
+                                val values = details ?: emptyList()
 
-                            val purchases = mutableListOf<PurchaseRecordDetails>()
-                            for (productDetails in values) {
-                                val record = records.firstOrNull { it.products.contains(productDetails.productId) }
-                                record?.let {
-                                    purchases.add(
-                                        PurchaseRecordDetails(
-                                            record = it,
-                                            details = productDetails,
-                                        ),
-                                    )
-                                }
-                            }
-
-                            when (purchases.isEmpty()) {
-                                true -> {
-                                    val message = "ProductsDetails return empty list for $type and records: $records"
-                                    if (continuation.isActive && !resumed) {
-                                        resumed = true
-                                        continuation.resume(
-                                            PurchaseRestoredCallbackStatus.Error(type = type, result = null, message = message),
+                                val purchases = mutableListOf<PurchaseRecordDetails>()
+                                for (productDetails in values) {
+                                    val record = records.firstOrNull { it.products.contains(productDetails.productId) }
+                                    record?.let {
+                                        purchases.add(
+                                            PurchaseRecordDetails(
+                                                record = it,
+                                                details = productDetails,
+                                            ),
                                         )
                                     }
                                 }
-                                else -> {
-                                    if (continuation.isActive && !resumed) {
-                                        resumed = true
-                                        continuation.resume(PurchaseRestoredCallbackStatus.Success(type = type, purchases))
+
+                                when (purchases.isEmpty()) {
+                                    true -> {
+                                        val message = "ProductsDetails return empty list for $type and records: $records"
+                                        if (continuation.isActive && !continuation.isCompleted) {
+                                            continuation.resume(
+                                                PurchaseRestoredCallbackStatus.Error(type = type, result = null, message = message),
+                                            )
+                                        }
+                                    }
+                                    else -> {
+                                        if (continuation.isActive&& !continuation.isCompleted) {
+                                            continuation.resume(PurchaseRestoredCallbackStatus.Success(type = type, purchases))
+                                        }
                                     }
                                 }
                             }
-                        }
-                        else -> {
-                            result.logMessage("RestoreAsync failed for type: $type products: $products")
-                            if (continuation.isActive && !resumed) {
-                                resumed = true
-                                continuation.resume(PurchaseRestoredCallbackStatus.Error(type = type, result = result, message = type))
+                            else -> {
+                                result.logMessage("RestoreAsync failed for type: $type products: $products")
+                                if (continuation.isActive && !continuation.isCompleted) {
+                                    continuation.resume(PurchaseRestoredCallbackStatus.Error(type = type, result = result, message = type))
+                                }
                             }
                         }
+                    }.onFailure {
+                        ApphudLog.logI("Handle repeated call QueryProductDetailsAsync")
                     }
                 }
             }
@@ -128,7 +129,6 @@ internal class ProductDetailsWrapper(
         products: List<ProductId>,
     ): Pair<List<ProductDetails>?, Int> =
         suspendCancellableCoroutine { continuation ->
-            var resumed = false
             val productList =
                 products.map {
                     QueryProductDetailsParams.Product.newBuilder()
@@ -144,21 +144,23 @@ internal class ProductDetailsWrapper(
 
             thread(start = true, name = "queryAsync+$type") {
                 billing.queryProductDetailsAsync(params) { result, details ->
-                    when (result.isSuccess()) {
-                        true -> {
-                            ApphudLog.logI("Query ProductDetails success $type")
-                            if (continuation.isActive && !resumed) {
-                                resumed = true
-                                continuation.resume(Pair(details.orEmpty(), result.responseCode))
+                    kotlin.runCatching {
+                        when (result.isSuccess()) {
+                            true -> {
+                                ApphudLog.logI("Query ProductDetails success $type")
+                                if (continuation.isActive && !continuation.isCompleted) {
+                                    continuation.resume(Pair(details, result.responseCode))
+                                }
+                            }
+                            else -> {
+                                result.logMessage("Query ProductDetails Async type: $type products: $products")
+                                if (continuation.isActive && !continuation.isCompleted) {
+                                    continuation.resume(Pair(null, result.responseCode))
+                                }
                             }
                         }
-                        else -> {
-                            result.logMessage("Query ProductDetails Async type: $type products: $products")
-                            if (continuation.isActive && !resumed) {
-                                resumed = true
-                                continuation.resume(Pair(null, result.responseCode))
-                            }
-                        }
+                    }.onFailure {
+                        ApphudLog.logI("Handle repeated call QueryProductDetails")
                     }
                 }
             }
