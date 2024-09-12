@@ -97,7 +97,7 @@ dependencies {
     implementation 'io.branch.sdk.android:library:5.+'
 
     implementation project(path: ':sdk')
-    //implementation "com.apphud:ApphudSDK-Android:2.7.2"
+    //implementation "com.apphud:ApphudSDK-Android:2.7.3"
 
 
     testImplementation 'junit:junit:4.13.2'
