@@ -609,7 +609,7 @@ object Apphud {
      * Apphud will automatically track and validate them in the background,
      * so developer doesn't need to call `Apphud.restorePurchases` afterwards.
      */
-    suspend fun nativePurchases(): Pair<List<Purchase>, Int> = ApphudInternal.fetchNativePurchases()
+    suspend fun nativePurchases(forceRefresh: Boolean = false): Pair<List<Purchase>, Int> = ApphudInternal.fetchNativePurchases(forceRefresh = forceRefresh)
 
     //endregion
     //region === Attribution ===
