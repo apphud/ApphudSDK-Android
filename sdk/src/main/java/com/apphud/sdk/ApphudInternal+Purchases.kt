@@ -184,10 +184,10 @@ private fun ApphudInternal.purchaseInternal(
                                             }
                                         }
                                     } else -> {
-                                    val message = "Error: unknown purchase state. Please try again."
-                                    ApphudLog.log(message = message)
-                                    callback?.invoke(ApphudPurchaseResult(null, null, purchase, ApphudError(message)))
-                                }
+                                        val message = "Error: unknown purchase state. Please try again."
+                                        ApphudLog.log(message = message)
+                                        callback?.invoke(ApphudPurchaseResult(null, null, purchase, ApphudError(message)))
+                                    }
                                 }
                             }
                         }
@@ -223,6 +223,7 @@ private suspend fun ApphudInternal.handlePurchaseAcknowledgment(purchase: Purcha
                 }
                 is PurchaseCallbackStatus.Success -> {
                     ApphudLog.log("Purchase successfully acknowledged")
+                    apphudListener?.apphudDidReceivePurchase(purchase)
                 }
             }
         }
@@ -240,6 +241,7 @@ private suspend fun ApphudInternal.handlePurchaseConsumption(purchase: Purchase,
                 }
                 is PurchaseCallbackStatus.Success -> {
                     ApphudLog.log("Purchase successfully consumed: ${status.message}")
+                    apphudListener?.apphudDidReceivePurchase(purchase)
                 }
             }
         }
