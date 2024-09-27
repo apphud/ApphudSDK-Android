@@ -1,6 +1,7 @@
 package com.apphud.sdk
 
 import com.android.billingclient.api.ProductDetails
+import com.android.billingclient.api.Purchase
 import com.apphud.sdk.domain.ApphudNonRenewingPurchase
 import com.apphud.sdk.domain.ApphudPaywall
 import com.apphud.sdk.domain.ApphudPlacement
@@ -58,4 +59,9 @@ interface ApphudListener {
      * inner ProductDetails.
      */
     fun placementsDidFullyLoad(placements: List<ApphudPlacement>)
+
+    /**
+     * Called when Apphud receives purchase from Google
+     */
+    fun apphudDidReceivePurchase(purchase: Purchase)
 }

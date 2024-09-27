@@ -13,6 +13,7 @@ import androidx.navigation.fragment.findNavController
 import androidx.recyclerview.widget.DividerItemDecoration
 import androidx.recyclerview.widget.RecyclerView
 import com.android.billingclient.api.ProductDetails
+import com.android.billingclient.api.Purchase
 import com.apphud.demo.BuildConfig
 import com.apphud.demo.databinding.FragmentCustomerBinding
 import com.apphud.sdk.Apphud
@@ -111,6 +112,10 @@ class CustomerFragment : Fragment() {
                 override fun placementsDidFullyLoad(placements: List<ApphudPlacement>) {
                     Log.d("ApphudDemo", "placementsDidFullyLoad()")
                     updateData()
+                }
+
+                override fun apphudDidReceivePurchase(purchase: Purchase) {
+                    Log.d("ApphudDemo", "apphudDidReceivePurchase()")
                 }
             }
         Apphud.setListener(listener)

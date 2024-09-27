@@ -4,6 +4,7 @@ import android.app.Activity
 import android.app.Application
 import android.util.Log
 import com.android.billingclient.api.ProductDetails
+import com.android.billingclient.api.Purchase
 import com.apphud.sampleapp.BuildConfig
 import com.apphud.sampleapp.R
 import com.apphud.sampleapp.ui.models.HasPremiumEvent
@@ -51,40 +52,44 @@ object ApphudSdkManager {
     val parser: Parser = GsonParser(gson)
 
     val listener = object : ApphudListener {
-            override fun apphudSubscriptionsUpdated(subscriptions: List<ApphudSubscription>) {
-                Log.d("ColorGenerator", "apphudSubscriptionsUpdated")
-                notifyAboutPremium()
-            }
-
-            override fun apphudNonRenewingPurchasesUpdated(purchases: List<ApphudNonRenewingPurchase>) {
-                Log.d("ColorGenerator", "apphudNonRenewingPurchasesUpdated")
-                notifyAboutPremium()
-            }
-
-            override fun apphudFetchProductDetails(details: List<ProductDetails>) {
-                Log.d("ColorGenerator", "apphudFetchProductDetails()")
-            }
-
-            override fun apphudDidChangeUserID(userId: String) {
-                Log.d("ColorGenerator", "apphudDidChangeUserID()")
-            }
-
-            override fun userDidLoad(user: ApphudUser) {
-                Log.d("ColorGenerator", "userDidLoad(): ${user.userId}")
-                notifyAboutProducts()
-            }
-
-            override fun paywallsDidFullyLoad(paywalls: List<ApphudPaywall>) {
-                Log.d("ColorGenerator", "paywallsDidFullyLoad()")
-                notifyAboutProducts()
-            }
-
-            override fun placementsDidFullyLoad(placements: List<ApphudPlacement>) {
-                Log.d("ColorGenerator", "placementsDidFullyLoad()")
-                notifyAboutProducts()
-                isApphudReady = true
-            }
+        override fun apphudSubscriptionsUpdated(subscriptions: List<ApphudSubscription>) {
+            Log.d("ColorGenerator", "apphudSubscriptionsUpdated")
+            notifyAboutPremium()
         }
+
+        override fun apphudNonRenewingPurchasesUpdated(purchases: List<ApphudNonRenewingPurchase>) {
+            Log.d("ColorGenerator", "apphudNonRenewingPurchasesUpdated")
+            notifyAboutPremium()
+        }
+
+        override fun apphudFetchProductDetails(details: List<ProductDetails>) {
+            Log.d("ColorGenerator", "apphudFetchProductDetails()")
+        }
+
+        override fun apphudDidChangeUserID(userId: String) {
+            Log.d("ColorGenerator", "apphudDidChangeUserID()")
+        }
+
+        override fun userDidLoad(user: ApphudUser) {
+            Log.d("ColorGenerator", "userDidLoad(): ${user.userId}")
+            notifyAboutProducts()
+        }
+
+        override fun paywallsDidFullyLoad(paywalls: List<ApphudPaywall>) {
+            Log.d("ColorGenerator", "paywallsDidFullyLoad()")
+            notifyAboutProducts()
+        }
+
+        override fun placementsDidFullyLoad(placements: List<ApphudPlacement>) {
+            Log.d("ColorGenerator", "placementsDidFullyLoad()")
+            notifyAboutProducts()
+            isApphudReady = true
+        }
+
+        override fun apphudDidReceivePurchase(purchase: Purchase) {
+            Log.d("ColorGenerator", "apphudDidReceivePurchase()")
+        }
+    }
 
 
     fun start(application: Application){

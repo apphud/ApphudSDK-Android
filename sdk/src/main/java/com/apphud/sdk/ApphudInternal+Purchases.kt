@@ -184,10 +184,10 @@ private fun ApphudInternal.purchaseInternal(
                                             }
                                         }
                                     } else -> {
-                                    val message = "Error: unknown purchase state. Please try again."
-                                    ApphudLog.log(message = message)
-                                    callback?.invoke(ApphudPurchaseResult(null, null, purchase, ApphudError(message)))
-                                }
+                                        val message = "Error: unknown purchase state. Please try again."
+                                        ApphudLog.log(message = message)
+                                        callback?.invoke(ApphudPurchaseResult(null, null, purchase, ApphudError(message)))
+                                    }
                                 }
                             }
                         }
@@ -248,7 +248,6 @@ private suspend fun ApphudInternal.handlePurchaseConsumption(purchase: Purchase,
 
 internal fun ApphudInternal.handleObservedPurchase(purchase: Purchase, userInitiated: Boolean, paywallIdentifier: String? = null, placementIdentifier: String? = null, offerIdToken: String? = null) {
     val productId = purchase.products.first()
-
     ApphudLog.log("Observed Purchase: ${purchase.products} User Initiated: $userInitiated")
 
     if (purchasingProduct?.productId != productId) {
