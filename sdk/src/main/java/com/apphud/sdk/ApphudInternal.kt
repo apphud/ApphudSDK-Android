@@ -100,6 +100,7 @@ internal object ApphudInternal {
     internal var purchaseCallbacks = mutableListOf<((ApphudPurchaseResult) -> Unit)>()
     private var userRegisteredBlock: ((ApphudUser) -> Unit)? = null
     private var notifiedPaywallsAndPlacementsHandled = false
+    internal var deferPlacements = false
     internal var isActive = false
     internal var observerMode = false
     private var lifecycleEventObserver =
@@ -241,13 +242,17 @@ internal object ApphudInternal {
             storage.cacheExpired(cachedUser)
     }
 
-    internal fun refreshEntitlements(forceRefresh: Boolean = false) {
+    internal fun refreshEntitlements(forceRefresh: Boolean = false, needReloadProducts: Boolean = false) {
         if (forceRefresh) {
             didRegisterCustomerAtThisLaunch = false
         }
         if (didRegisterCustomerAtThisLaunch || forceRefresh) {
             ApphudLog.log("RefreshEntitlements: didRegister:$didRegisterCustomerAtThisLaunch force:$forceRefresh")
             registration(this.userId, this.deviceId, true) { _, _ ->
+                if (needReloadProducts) {
+                    productsStatus = ApphudProductsStatus.none
+                }
+
                 loadProducts()
             }
         }
@@ -491,7 +496,9 @@ internal object ApphudInternal {
             "Registration conditions: user_is_null=${currentUser == null}, forceRegistration=$forceRegistration isTemporary=${currentUser?.isTemporary}",
         )
 
-        RequestManager.registration(!didRegisterCustomerAtThisLaunch, is_new, forceRegistration) { customer, error ->
+        var needPlacementsPaywalls = !didRegisterCustomerAtThisLaunch && !deferPlacements
+
+        RequestManager.registration(needPlacementsPaywalls, is_new, forceRegistration) { customer, error ->
             customer?.let {
                 if (firstCustomerLoadedTime == null) {
                     firstCustomerLoadedTime = System.currentTimeMillis()
@@ -607,6 +614,9 @@ internal object ApphudInternal {
 
         mainScope.launch {
             val willRefresh = refreshPaywallsIfNeeded()
+            if (deferPlacements) {
+                deferPlacements = false
+            }
             val isWaitingForProducts = !finishedLoadingProducts()
             if ((isWaitingForProducts || willRefresh) && !fallbackMode) {
                 offeringsPreparedCallbacks.add(callback)
@@ -623,10 +633,10 @@ internal object ApphudInternal {
         if (isRegisteringUser) {
             // already loading
             isLoading = true
-        } else if (currentUser == null || fallbackMode || currentUser?.isTemporary == true || (paywalls.isEmpty() && !observerMode) || latestCustomerLoadError != null) {
+        } else if (currentUser == null || fallbackMode || currentUser?.isTemporary == true || deferPlacements || (paywalls.isEmpty() && !observerMode) || latestCustomerLoadError != null) {
             ApphudLog.logI("Refreshing User")
             didRegisterCustomerAtThisLaunch = false
-            refreshEntitlements(true)
+            refreshEntitlements(true, needReloadProducts = deferPlacements)
             isLoading = true
         }
 
@@ -695,13 +705,17 @@ internal object ApphudInternal {
         setNeedsToUpdateUserProperties = true
     }
 
-    private fun updateUserProperties() {
+    internal fun forceFlushUserProperties(force: Boolean, completion: ((Boolean) -> Unit)?) {
         setNeedsToUpdateUserProperties = false
-        if (pendingUserProperties.isEmpty()) return
+        if (pendingUserProperties.isEmpty()) {
+            completion?.invoke(false)
+            return
+        }
 
         performWhenUserRegistered { error ->
             error?.let {
                 ApphudLog.logE("Failed to update user properties: " + it.message)
+                completion?.invoke(false)
             } ?: run {
                 val properties = mutableListOf<Map<String, Any?>>()
                 val sentPropertiesForSave = mutableListOf<ApphudUserProperty>()
@@ -715,10 +729,11 @@ internal object ApphudInternal {
                     }
                 }
 
-                val body = UserPropertiesBody(this.deviceId, properties)
+                val body = UserPropertiesBody(this.deviceId, properties, force)
                 coroutineScope.launch(errorHandler) {
                     RequestManager.userProperties(body) { userProperties, error ->
                         mainScope.launch {
+                            completion?.invoke(error == null)
                             userProperties?.let {
                                 if (userProperties.success) {
                                     val propertiesInStorage = storage.properties
@@ -745,6 +760,10 @@ internal object ApphudInternal {
                 }
             }
         }
+    }
+
+    private fun updateUserProperties() {
+        forceFlushUserProperties(false) { _ -> }
     }
 
     internal fun updateUserId(userId: UserId) {
@@ -957,12 +976,31 @@ internal object ApphudInternal {
         }
     }
 
-    fun getPermissionGroups(): List<ApphudGroup> {
-        var out: MutableList<ApphudGroup>
-        synchronized(this.productGroups) {
-            out = this.productGroups.toCollection(mutableListOf())
+    fun getPlacements(): List<ApphudPlacement> {
+        synchronized(placements) {
+            return placements.toCollection(mutableListOf())
         }
-        return out
+    }
+
+    suspend fun getPermissionGroups(): List<ApphudGroup> {
+
+        synchronized(this.productGroups) {
+            if (this.productGroups.isNotEmpty() && !storage.needUpdateProductGroups()) {
+                return this.productGroups.toList()
+            }
+        }
+
+        val groups = RequestManager.allProducts() ?: listOf()
+
+        if (groups.isNotEmpty()) {
+            cacheGroups(groups)
+        }
+
+        synchronized(this.productGroups) {
+            this.productGroups = groups.toMutableList()
+        }
+
+        return groups
     }
 
     @Synchronized

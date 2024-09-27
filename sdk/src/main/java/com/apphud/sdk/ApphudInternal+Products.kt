@@ -3,8 +3,10 @@ package com.apphud.sdk
 import com.android.billingclient.api.BillingClient
 import com.android.billingclient.api.BillingClient.BillingResponseCode
 import com.android.billingclient.api.ProductDetails
+import com.apphud.sdk.client.dto.ApphudGroupDto
 import com.apphud.sdk.domain.ApphudGroup
 import com.apphud.sdk.domain.ApphudPaywall
+import com.apphud.sdk.domain.ApphudPlacement
 import com.apphud.sdk.domain.ApphudUser
 import com.apphud.sdk.managers.RequestManager
 import kotlinx.coroutines.async
@@ -119,27 +121,36 @@ private suspend fun awaitUserRegistered(): ApphudUser? =
     }
 
 private suspend fun ApphudInternal.fetchProducts(): Int {
-    var permissionGroupsCopy = getPermissionGroups()
-    if (permissionGroupsCopy.isEmpty() || storage.needUpdateProductGroups()) {
-        RequestManager.allProducts()?.let { groups ->
-            cacheGroups(groups)
-            permissionGroupsCopy = groups
+
+    if (getPlacements().isEmpty() && getPaywalls().isEmpty()) {
+        if (currentUser == null) {
+            ApphudLog.log("Awaiting for user registration before proceeding to products load")
+            awaitUserRegistered()
         }
     }
 
-    if (permissionGroupsCopy.isEmpty() && getPaywalls().isEmpty()) {
-        ApphudLog.log("Awaiting for user registration before proceeding to products load")
-        awaitUserRegistered()
+    var ids = allAvailableProductIds(listOf(), getPaywalls(), getPlacements())
+
+    if (ids.isEmpty()) {
+        // not using paywalls or placements, fetch permission groups
+        val groups = getPermissionGroups()
+        ids = allAvailableProductIds(groups, getPaywalls(), getPlacements())
     }
 
-    val ids = allAvailableProductIds(permissionGroupsCopy, getPaywalls())
     return fetchDetails(ids, loadingAll = true).first
 }
 
-private fun allAvailableProductIds(groups: List<ApphudGroup>, paywalls: List<ApphudPaywall>): List<String> {
+private fun allAvailableProductIds(groups: List<ApphudGroup>, paywalls: List<ApphudPaywall>, placements: List<ApphudPlacement>): List<String> {
     val ids = paywalls.map { p -> p.products?.map { it.productId } ?: listOf() }.flatten().toMutableList()
     val idsPaywall = groups.map { it -> it.products?.map { it.productId } ?: listOf() }.flatten()
+    val idsFromPlacements = placements.map { pl -> pl.paywall?.products?.map { it.productId } ?: listOf() }.flatten().toMutableList()
+
     idsPaywall.forEach {
+        if (!ids.contains(it) && it != null) {
+            ids.add(it)
+        }
+    }
+    idsFromPlacements.forEach {
         if (!ids.contains(it) && it != null) {
             ids.add(it)
         }
