@@ -7,13 +7,12 @@ import android.view.ViewGroup
 import android.widget.TextView
 import androidx.recyclerview.widget.RecyclerView
 import com.apphud.demo.R
+import com.apphud.sdk.Apphud
 import com.apphud.sdk.domain.ApphudGroup
-import com.apphud.sdk.domain.ApphudProduct
-import com.apphud.sdk.domain.ApphudProductType
 
 class GroupsAdapter(private val groupsViewModel: GroupsViewModel, private val context: Context?) : RecyclerView.Adapter<GroupsAdapter.BaseViewHolder<*>>() {
     var selectGroup: ((account: ApphudGroup) -> Unit)? = null
-    var selectProduct: ((account: ApphudProduct) -> Unit)? = null
+    var selectProductId: ((account: String) -> Unit)? = null
 
     abstract class BaseViewHolder<T>(itemView: View) : RecyclerView.ViewHolder(itemView) {
         abstract fun bind(
@@ -36,26 +35,27 @@ class GroupsAdapter(private val groupsViewModel: GroupsViewModel, private val co
         }
     }
 
-    inner class ApphudProductViewHolder(itemView: View) : BaseViewHolder<ApphudProduct>(itemView) {
+    inner class ApphudProductIdViewHolder(itemView: View) : BaseViewHolder<String>(itemView) {
         private val productName: TextView = itemView.findViewById(R.id.productName)
         private val productId: TextView = itemView.findViewById(R.id.productId)
         private val productPrice: TextView = itemView.findViewById(R.id.productPrice)
 
         override fun bind(
-            item: ApphudProduct,
+            item: String,
             position: Int,
         ) {
-            productName.text = item.name
-            productId.text = item.productId
+            val productDetails = Apphud.product(item)
+            productName.text = productDetails?.name
+            productId.text = productDetails?.productId
 
-            if (item.type() == ApphudProductType.SUBS) {
-                productPrice.text = item.subscriptionOfferDetails()?.firstOrNull()?.pricingPhases?.pricingPhaseList?.firstOrNull()?.formattedPrice ?: ""
+            if (productDetails?.productType?.lowercase() == "subs") {
+                productPrice.text = productDetails?.subscriptionOfferDetails?.firstOrNull()?.pricingPhases?.pricingPhaseList?.firstOrNull()?.formattedPrice ?: ""
             } else {
-                productPrice.text = item.oneTimePurchaseOfferDetails()?.formattedPrice ?: ""
+                productPrice.text = productDetails?.oneTimePurchaseOfferDetails?.formattedPrice ?: ""
             }
 
             itemView.setOnClickListener {
-                selectProduct?.invoke(item)
+                selectProductId?.invoke(item)
             }
         }
     }
@@ -80,7 +80,7 @@ class GroupsAdapter(private val groupsViewModel: GroupsViewModel, private val co
                 val view =
                     LayoutInflater.from(parent.context)
                         .inflate(R.layout.list_item_product, parent, false)
-                ApphudProductViewHolder(view)
+                ApphudProductIdViewHolder(view)
             }
             else -> throw IllegalArgumentException("Invalid view type")
         }
@@ -93,7 +93,7 @@ class GroupsAdapter(private val groupsViewModel: GroupsViewModel, private val co
         val element = groupsViewModel.items[position]
         when (holder) {
             is ApphudGroupViewHolder -> holder.bind(element as ApphudGroup, position)
-            is ApphudProductViewHolder -> holder.bind(element as ApphudProduct, position)
+            is ApphudProductIdViewHolder -> holder.bind(element as String, position)
             else -> throw IllegalArgumentException()
         }
     }
@@ -101,7 +101,7 @@ class GroupsAdapter(private val groupsViewModel: GroupsViewModel, private val co
     override fun getItemViewType(position: Int): Int {
         return when (groupsViewModel.items[position]) {
             is ApphudGroup -> TYPE_GROUP
-            is ApphudProduct -> TYPE_PRODUCT
+            is String -> TYPE_PRODUCT
             else -> throw IllegalArgumentException("Invalid type of data " + position)
         }
     }

@@ -37,7 +37,7 @@ internal object ApphudInternal {
     internal val coroutineScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     internal val errorHandler =
         CoroutineExceptionHandler { _, error ->
-            error.message?.let { ApphudLog.logE("Coroutine exception: " + it) }
+            error.message?.let { ApphudLog.logI("Coroutine exception: " + it) }
         }
 
     internal val FALLBACK_ERRORS = listOf(APPHUD_ERROR_TIMEOUT, 404, 500, 502, 503)
@@ -49,6 +49,7 @@ internal object ApphudInternal {
     internal var paywalls = listOf<ApphudPaywall>()
     internal var placements = listOf<ApphudPlacement>()
     internal var isRegisteringUser = false
+    internal var hasRespondedToPaywallsRequest = false
     internal var refreshUserPending = false
     internal var sdkLaunchedAt: Long = System.currentTimeMillis()
     internal var offeringsCalledAt: Long = System.currentTimeMillis()
@@ -212,17 +213,29 @@ internal object ApphudInternal {
         billing = BillingWrapper(context)
         RequestManager.setParams(this.context, this.apiKey)
 
-        loadProducts()
         forceNotifyAllLoaded()
 
         val needRegistration = needRegistration(credentialsChanged, cachedPaywalls, cachedUser)
 
         if (needRegistration) {
             isRegisteringUser = true
-            registration(this.userId, this.deviceId, true, null)
+            registration(this.userId, this.deviceId, true) { u, e ->
+                if (shouldLoadProducts()) {
+                    loadProducts()
+                }
+                coroutineScope.launch {
+                    fetchNativePurchases()
+                }
+            }
         } else {
             mainScope.launch {
                 notifyLoadingCompleted(cachedUser, null, true)
+                if (shouldLoadProducts()) {
+                    loadProducts()
+                }
+                coroutineScope.launch {
+                    fetchNativePurchases()
+                }
             }
         }
     }
@@ -242,18 +255,22 @@ internal object ApphudInternal {
             storage.cacheExpired(cachedUser)
     }
 
-    internal fun refreshEntitlements(forceRefresh: Boolean = false, needReloadProducts: Boolean = false) {
+    internal fun refreshEntitlements(forceRefresh: Boolean = false, wasDeferred: Boolean = false, callback: ((ApphudUser?) -> Unit)? = null) {
         if (forceRefresh) {
             didRegisterCustomerAtThisLaunch = false
         }
         if (didRegisterCustomerAtThisLaunch || forceRefresh) {
-            ApphudLog.log("RefreshEntitlements: didRegister:$didRegisterCustomerAtThisLaunch force:$forceRefresh")
-            registration(this.userId, this.deviceId, true) { _, _ ->
-                if (needReloadProducts) {
+            // do not call any offerings callbacks, because placements were deferred
+            if (wasDeferred) {
+                isRegisteringUser = true
+            }
+            ApphudLog.log("RefreshEntitlements: didRegister:$didRegisterCustomerAtThisLaunch force:$forceRefresh wasDeferred: $wasDeferred isDeferred: $deferPlacements")
+            registration(this.userId, this.deviceId, true) { cust, _ ->
+                if (wasDeferred) {
                     productsStatus = ApphudProductsStatus.none
                 }
-
                 loadProducts()
+                callback?.invoke(cust)
             }
         }
     }
@@ -346,6 +363,7 @@ internal object ApphudInternal {
 
             currentUser = it
             userId = it.userId
+            hasRespondedToPaywallsRequest = paywalls.isNotEmpty() || placements.isNotEmpty() || observerMode
 
             // TODO: should be called only if something changed
             coroutineScope.launch {
@@ -400,12 +418,13 @@ internal object ApphudInternal {
             trackAnalytics(true)
 
             latestCustomerLoadError = null
-        } else if (!isRegisteringUser &&
+        } else if (!isRegisteringUser && hasRespondedToPaywallsRequest &&
             ((customerError != null && paywalls.isEmpty()) || (productsStatus != ApphudProductsStatus.loading && productsResponseCode != BillingClient.BillingResponseCode.OK && productDetails.isEmpty()))) {
             val error = latestCustomerLoadError ?: customerError ?: (if (productsResponseCode == APPHUD_NO_REQUEST) ApphudError("Paywalls load error", errorCode = productsResponseCode) else ApphudError("Google Billing error", errorCode = productsResponseCode))
             if (offeringsPreparedCallbacks.isNotEmpty()) {
                 ApphudLog.log("handle offeringsPreparedCallbacks with error ${error}")
             }
+
             while (offeringsPreparedCallbacks.isNotEmpty()) {
                 val callback = offeringsPreparedCallbacks.removeFirst()
                 callback?.invoke(error)
@@ -416,7 +435,7 @@ internal object ApphudInternal {
 
             latestCustomerLoadError = null
         } else {
-//            ApphudLog.log("Not yet ready for callbacks invoke: isRegisteringUser: ${isRegisteringUser}, currentUserExist: ${currentUser != null} customerError: ${customerError}, latestCustomerError: ${latestCustomerLoadError}, paywallsEmpty: ${paywalls.isEmpty()}, productsResponseCode = ${productsResponseCode}, productDetailsEmpty: ${productDetails.isEmpty()} }")
+            ApphudLog.log("Not yet ready for callbacks invoke: isRegisteringUser: ${isRegisteringUser}, currentUserExist: ${currentUser != null} customerError: ${customerError}, latestCustomerError: ${latestCustomerLoadError}, paywallsEmpty: ${paywalls.isEmpty()}, productsResponseCode = ${productsResponseCode}, productsStatus: ${productsStatus}, productDetailsEmpty: ${productDetails.isEmpty()}, deferred: $deferPlacements, hasRespondedToPaywallsRequest=$hasRespondedToPaywallsRequest }")
         }
     }
 
@@ -474,7 +493,8 @@ internal object ApphudInternal {
                     startRegistrationCall(userId, deviceId, forceRegistration, completionHandler)
                 }
             }
-            mutex.withLock {
+            mutex.lock()
+            try {
                 if (currentUser == null || forceRegistration) {
                     startRegistrationCall(userId, deviceId, forceRegistration, completionHandler)
                 } else {
@@ -482,6 +502,10 @@ internal object ApphudInternal {
                         isRegisteringUser = false
                         completionHandler?.invoke(currentUser, null)
                     }
+                }
+            } finally {
+                if (mutex.isLocked) {
+                    mutex.unlock()
                 }
             }
         }
@@ -491,12 +515,12 @@ internal object ApphudInternal {
                                       deviceId: DeviceId,
                                       forceRegistration: Boolean = false,
                                       completionHandler: ((ApphudUser?, ApphudError?) -> Unit)?) {
-        ApphudLog.log("Start registration userId=$userId, deviceId=$deviceId")
-        ApphudLog.log(
-            "Registration conditions: user_is_null=${currentUser == null}, forceRegistration=$forceRegistration isTemporary=${currentUser?.isTemporary}",
-        )
-
         var needPlacementsPaywalls = !didRegisterCustomerAtThisLaunch && !deferPlacements
+
+
+        ApphudLog.log(
+            "Registration conditions: user_is_null=${currentUser == null}, forceRegistration=$forceRegistration, isTemporary=${currentUser?.isTemporary}, requesting Placements = $needPlacementsPaywalls",
+        )
 
         RequestManager.registration(needPlacementsPaywalls, is_new, forceRegistration) { customer, error ->
             customer?.let {
@@ -523,6 +547,7 @@ internal object ApphudInternal {
                 mainScope.launch {
                     // finish registering only here to avoid bug
                     isRegisteringUser = false
+                    hasRespondedToPaywallsRequest = needPlacementsPaywalls
                     notifyLoadingCompleted(it)
                     completionHandler?.invoke(it, null)
 
@@ -613,16 +638,21 @@ internal object ApphudInternal {
         }
 
         mainScope.launch {
-            val willRefresh = refreshPaywallsIfNeeded()
+
             if (deferPlacements) {
-                deferPlacements = false
-            }
-            val isWaitingForProducts = !finishedLoadingProducts()
-            if ((isWaitingForProducts || willRefresh) && !fallbackMode) {
+                ApphudLog.log("Placements were deferred, force refresh them")
                 offeringsPreparedCallbacks.add(callback)
-                ApphudLog.log("Saved offerings callback")
+                deferPlacements = false
+                refreshEntitlements(true, wasDeferred = true)
             } else {
-                callback.invoke(null)
+                val willRefresh = refreshPaywallsIfNeeded()
+                val isWaitingForProducts = !finishedLoadingProducts()
+                if ((isWaitingForProducts || willRefresh) && !fallbackMode) {
+                    offeringsPreparedCallbacks.add(callback)
+                    ApphudLog.log("Saved offerings callback")
+                } else {
+                    callback.invoke(null)
+                }
             }
         }
     }
@@ -633,10 +663,10 @@ internal object ApphudInternal {
         if (isRegisteringUser) {
             // already loading
             isLoading = true
-        } else if (currentUser == null || fallbackMode || currentUser?.isTemporary == true || deferPlacements || (paywalls.isEmpty() && !observerMode) || latestCustomerLoadError != null) {
+        } else if (currentUser == null || fallbackMode || currentUser?.isTemporary == true || (paywalls.isEmpty() && !observerMode) || latestCustomerLoadError != null) {
             ApphudLog.logI("Refreshing User")
             didRegisterCustomerAtThisLaunch = false
-            refreshEntitlements(true, needReloadProducts = deferPlacements)
+            refreshEntitlements(true)
             isLoading = true
         }
 

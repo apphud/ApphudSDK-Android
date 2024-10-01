@@ -41,6 +41,11 @@ internal fun ApphudInternal.finishedLoadingProducts(): Boolean {
 }
 
 internal fun ApphudInternal.shouldLoadProducts(): Boolean {
+    if (!hasRespondedToPaywallsRequest || deferPlacements) {
+        ApphudLog.log("Skip load products because $hasRespondedToPaywallsRequest $deferPlacements")
+        return false
+    }
+
     return when (productsStatus) {
         ApphudProductsStatus.none -> true
         ApphudProductsStatus.loading -> false
@@ -51,6 +56,9 @@ internal fun ApphudInternal.shouldLoadProducts(): Boolean {
 }
 
 internal fun ApphudInternal.loadProducts() {
+
+  //  FIX INFINITE LOOP
+
     if (!shouldLoadProducts()) {
         if (totalPoductsLoadingCounts >= MAX_TOTAL_PRODUCTS_RETRIES) {
             respondWithProducts()
@@ -95,7 +103,7 @@ internal fun isRetriableProductsRequest(): Boolean {
 
 internal fun retryProductsLoad() {
     val delay: Long = 300
-    ApphudLog.logE("Failed to load products from store (${ApphudBillingResponseCodes.getName(
+    ApphudLog.logI("Load products from store status code: (${ApphudBillingResponseCodes.getName(
         productsResponseCode)}), will retry in $delay ms")
     Thread.sleep(delay)
     ApphudInternal.loadProducts()
@@ -108,8 +116,7 @@ private fun isRetriableErrorCode(code: Int): Boolean {
         BillingClient.BillingResponseCode.SERVICE_DISCONNECTED,
         BillingClient.BillingResponseCode.SERVICE_UNAVAILABLE,
         BillingClient.BillingResponseCode.BILLING_UNAVAILABLE,
-        BillingClient.BillingResponseCode.ERROR,
-        APPHUD_NO_REQUEST
+        BillingClient.BillingResponseCode.ERROR
     ).contains(code)
 }
 
@@ -131,11 +138,12 @@ private suspend fun ApphudInternal.fetchProducts(): Int {
 
     var ids = allAvailableProductIds(listOf(), getPaywalls(), getPlacements())
 
-    if (ids.isEmpty()) {
-        // not using paywalls or placements, fetch permission groups
-        val groups = getPermissionGroups()
-        ids = allAvailableProductIds(groups, getPaywalls(), getPlacements())
-    }
+//    if (ids.isEmpty()) {
+//        ApphudLog.log("User registered, but no placements or paywalls contains products, fetch permission groups")
+//        // not using paywalls or placements, fetch permission groups
+//        val groups = getPermissionGroups()
+//        ids = allAvailableProductIds(groups, getPaywalls(), getPlacements())
+//    }
 
     return fetchDetails(ids, loadingAll = true).first
 }
@@ -155,6 +163,7 @@ private fun allAvailableProductIds(groups: List<ApphudGroup>, paywalls: List<App
             ids.add(it)
         }
     }
+
     return ids.toSet().toList()
 }
 

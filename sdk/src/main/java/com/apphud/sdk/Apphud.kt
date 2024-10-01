@@ -308,7 +308,7 @@ object Apphud {
      *
      * @return A list of `ApphudGroup` objects representing permission groups.
      */
-    suspend fun permissionGroups(): List<ApphudGroup> {
+    suspend fun fetchPermissionGroups(): List<ApphudGroup> {
         return ApphudInternal.getPermissionGroups()
     }
 
@@ -535,8 +535,8 @@ object Apphud {
      *
      * You can call this method, when the app reactivates from the background, if needed.
      */
-    fun refreshUserData() {
-        ApphudInternal.refreshEntitlements(forceRefresh = true)
+    fun refreshUserData(callback: ((ApphudUser?) -> Unit)? = null) {
+        ApphudInternal.refreshEntitlements(true, callback = callback)
     }
 
     /**

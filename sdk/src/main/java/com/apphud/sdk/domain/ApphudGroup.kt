@@ -9,11 +9,20 @@ data class ApphudGroup(
      * Name of permission group configured in Apphud dashboard.
      */
     val name: String,
+
     /**
-     * Products that belong to this permission group.
+     * for internal use only, use productIds()
      */
-    val products: List<ApphudProduct>?,
+    internal val products: List<ApphudProduct>?
 ) {
+
+    /**
+     * Product IDs that belong to this permission group.
+     */
+    fun productIds(): List<String> {
+        return products?.map { it.productId } ?: listOf()
+    }
+
     /**
      * Returns `true` if this permission group has active subscription.
      * Keep in mind, that this method doesn't take into account non-renewing purchases.

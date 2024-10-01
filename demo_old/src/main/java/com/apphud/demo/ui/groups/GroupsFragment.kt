@@ -9,8 +9,14 @@ import androidx.fragment.app.Fragment
 import androidx.lifecycle.ViewModelProvider
 import androidx.recyclerview.widget.RecyclerView
 import com.apphud.demo.databinding.FragmentGroupsBinding
+import com.apphud.demo.ui.utils.BaseFragment
+import com.apphud.sdk.domain.ApphudPaywall
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
-class GroupsFragment : Fragment() {
+class GroupsFragment : BaseFragment() {
     private lateinit var groupsViewModel: GroupsViewModel
     private lateinit var viewAdapter: GroupsAdapter
     private var _binding: FragmentGroupsBinding? = null
@@ -31,7 +37,7 @@ class GroupsFragment : Fragment() {
         viewAdapter.selectGroup = {
             Toast.makeText(activity, it.name, Toast.LENGTH_SHORT).show()
         }
-        viewAdapter.selectProduct = { product ->
+        viewAdapter.selectProductId = { product ->
             // Do nothing here
         }
 
@@ -51,7 +57,12 @@ class GroupsFragment : Fragment() {
     }
 
     private fun updateData() {
-        groupsViewModel.updateData()
+        coroutineScope.launch {
+            groupsViewModel.updateData()
+            mainScope.launch {
+                viewAdapter.notifyDataSetChanged()
+            }
+        }
     }
 
     override fun onDestroyView() {
