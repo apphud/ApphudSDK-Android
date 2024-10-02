@@ -43,6 +43,7 @@ internal fun ApphudInternal.purchase(
         var details = product.productDetails
         if (details == null) {
             details = getProductDetailsByProductId(product.productId)
+            product.productDetails = details
         }
 
         details?.let {

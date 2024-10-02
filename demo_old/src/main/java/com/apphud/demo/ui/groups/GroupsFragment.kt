@@ -8,8 +8,10 @@ import android.widget.Toast
 import androidx.fragment.app.Fragment
 import androidx.lifecycle.ViewModelProvider
 import androidx.recyclerview.widget.RecyclerView
+import com.apphud.demo.R
 import com.apphud.demo.databinding.FragmentGroupsBinding
 import com.apphud.demo.ui.utils.BaseFragment
+import com.apphud.sdk.Apphud
 import com.apphud.sdk.domain.ApphudPaywall
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.coroutineScope
@@ -38,7 +40,13 @@ class GroupsFragment : BaseFragment() {
             Toast.makeText(activity, it.name, Toast.LENGTH_SHORT).show()
         }
         viewAdapter.selectProductId = { product ->
-            // Do nothing here
+            Apphud.purchase(requireActivity(), product) { result ->
+                result.error?.let { err ->
+                    Toast.makeText(activity, if (result.userCanceled()) "User Canceled" else err.message, Toast.LENGTH_SHORT).show()
+                } ?: run {
+                    Toast.makeText(activity, R.string.success, Toast.LENGTH_SHORT).show()
+                }
+            }
         }
 
         val recyclerView: RecyclerView = binding.groupsList
