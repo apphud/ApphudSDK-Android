@@ -363,7 +363,7 @@ internal object ApphudInternal {
 
             currentUser = it
             userId = it.userId
-            hasRespondedToPaywallsRequest = paywalls.isNotEmpty() || placements.isNotEmpty() || observerMode
+            hasRespondedToPaywallsRequest = hasRespondedToPaywallsRequest || paywalls.isNotEmpty() || placements.isNotEmpty() || observerMode
 
             // TODO: should be called only if something changed
             coroutineScope.launch {
@@ -435,7 +435,7 @@ internal object ApphudInternal {
 
             latestCustomerLoadError = null
         } else {
-            ApphudLog.log("Not yet ready for callbacks invoke: isRegisteringUser: ${isRegisteringUser}, currentUserExist: ${currentUser != null} customerError: ${customerError}, latestCustomerError: ${latestCustomerLoadError}, paywallsEmpty: ${paywalls.isEmpty()}, productsResponseCode = ${productsResponseCode}, productsStatus: ${productsStatus}, productDetailsEmpty: ${productDetails.isEmpty()}, deferred: $deferPlacements, hasRespondedToPaywallsRequest=$hasRespondedToPaywallsRequest }")
+//            ApphudLog.log("Not yet ready for callbacks invoke: isRegisteringUser: ${isRegisteringUser}, currentUserExist: ${currentUser != null} customerError: ${customerError}, latestCustomerError: ${latestCustomerLoadError}, paywallsEmpty: ${paywalls.isEmpty()}, productsResponseCode = ${productsResponseCode}, productsStatus: ${productsStatus}, productDetailsEmpty: ${productDetails.isEmpty()}, deferred: $deferPlacements, hasRespondedToPaywallsRequest=$hasRespondedToPaywallsRequest }")
         }
     }
 

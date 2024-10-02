@@ -41,6 +41,7 @@ internal fun ApphudInternal.finishedLoadingProducts(): Boolean {
 }
 
 internal fun ApphudInternal.shouldLoadProducts(): Boolean {
+
     if (!hasRespondedToPaywallsRequest || deferPlacements) {
         ApphudLog.log("Skip load products because $hasRespondedToPaywallsRequest $deferPlacements")
         return false
