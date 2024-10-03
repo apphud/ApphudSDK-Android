@@ -110,12 +110,13 @@ internal fun ApphudInternal.processFallbackData(callback: PaywallCallback) {
         isRegisteringUser = false
         ApphudLog.log("Fallback: ENABLED")
         coroutineScope.launch {
-            val responseCode = fetchDetails(ids, loadingAll = true).first
-            val error = if (responseCode == BillingResponseCode.OK) null else (if (responseCode == APPHUD_NO_REQUEST) ApphudError("Paywalls load error", errorCode = responseCode) else ApphudError("Google Billing error", errorCode = responseCode))
+            val response = fetchDetails(ids, loadingAll = true)
+            val error = if (response.first == BillingResponseCode.OK) null else (if (response.first == APPHUD_NO_REQUEST) ApphudError("Paywalls load error", errorCode = response.first) else ApphudError("Google Billing error", errorCode = response.first))
+            val details = response.second ?: productDetails
             mainScope.launch {
                 notifyLoadingCompleted(
                     customerLoaded = currentUser,
-                    productDetailsLoaded = productDetails,
+                    productDetailsLoaded = details,
                     fromFallback = true,
                     fromCache = true
                 )

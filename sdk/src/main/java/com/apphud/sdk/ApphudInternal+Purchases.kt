@@ -32,32 +32,23 @@ internal fun ApphudInternal.purchase(
         return
     }
 
-    val productToPurchase =
+    var productToPurchase =
         apphudProduct
             ?: productId?.let { pId ->
                 val products = productGroups.map { it.products ?: listOf() }.flatten().distinctBy { it.id }
                 products.firstOrNull { it.productId == pId }
             }
 
-    productToPurchase?.let { product ->
-        var details = product.productDetails
-        if (details == null) {
-            details = getProductDetailsByProductId(product.productId)
-            product.productDetails = details
-        }
+    val details = productToPurchase?.productDetails ?: getProductDetailsByProductId(productToPurchase?.productId ?: productId ?: "none")
 
+    if (productToPurchase == null && productId != null) {
+        productToPurchase = ApphudProduct.apphudProduct(productId)
+        productToPurchase.productDetails = details
+    }
+
+    productToPurchase?.let { product ->
         details?.let {
-            if (details.productType == BillingClient.ProductType.SUBS) {
-                offerIdToken?.let {
-                    purchaseInternal(activity, product, offerIdToken, oldToken, replacementMode, consumableInappProduct, callback)
-                } ?: run {
-                    val firstOfferToken = it.subscriptionOfferDetails?.firstOrNull()?.offerToken
-                    purchaseInternal(activity, product, firstOfferToken, oldToken, replacementMode, consumableInappProduct, callback)
-                    ApphudLog.logE("OfferToken not set. You are required to pass offer token in Apphud.purchase method when purchasing subscription. Passing first offerToken as a fallback.")
-                }
-            } else {
-                purchaseInternal(activity, product, offerIdToken, oldToken, replacementMode, consumableInappProduct, callback)
-            }
+            purchaseInternal(activity, product, offerIdToken, oldToken, replacementMode, consumableInappProduct, callback)
         } ?: run {
             coroutineScope.launch(errorHandler) {
                 fetchDetailsAndPurchase(activity, product, offerIdToken, oldToken, replacementMode, consumableInappProduct, callback)
@@ -79,7 +70,7 @@ private suspend fun ApphudInternal.fetchDetailsAndPurchase(
     callback: ((ApphudPurchaseResult) -> Unit)?,
 ) {
     val responseCode = fetchDetails(listOf(apphudProduct.productId))
-    val productDetails = getProductDetailsByProductId(apphudProduct.productId)
+    val productDetails = responseCode.second?.firstOrNull() ?: getProductDetailsByProductId(apphudProduct.productId)
     if (productDetails != null) {
         mainScope.launch {
             apphudProduct.productDetails = productDetails
@@ -115,6 +106,13 @@ private fun ApphudInternal.purchaseInternal(
     }
 
     apphudProduct.productDetails?.let {
+
+        var token = offerIdToken
+        if (it.productType == BillingClient.ProductType.SUBS && offerIdToken == null) {
+            token = it.subscriptionOfferDetails?.firstOrNull()?.offerToken
+            ApphudLog.logE("OfferToken not set. You are required to pass offer token in Apphud.purchase method when purchasing subscription. Passing first offerToken as a fallback.")
+        }
+
         paywallCheckoutInitiated(apphudProduct.paywallId, apphudProduct.placementId, apphudProduct.productId)
         purchasingProduct = apphudProduct
         purchaseStartedAt = System.currentTimeMillis()
@@ -168,7 +166,7 @@ private fun ApphudInternal.purchaseInternal(
                                     }
                                     Purchase.PurchaseState.PURCHASED -> {
                                         val product = apphudProduct.productDetails ?: getProductDetailsByProductId((purchase.products.firstOrNull() ?: ""))
-                                        sendCheckToApphud(purchase, apphudProduct, product, apphudProduct.paywallId, apphudProduct.placementId, offerIdToken, oldToken, callback)
+                                        sendCheckToApphud(purchase, apphudProduct, product, apphudProduct.paywallId, apphudProduct.placementId, token, oldToken, callback)
 
                                         when (detailsType) {
                                             BillingClient.ProductType.SUBS -> {
@@ -195,7 +193,7 @@ private fun ApphudInternal.purchaseInternal(
                     }
                 }
             }
-            val error = billing.purchase(activity, it, offerIdToken, oldToken, replacementMode, deviceId)
+            val error = billing.purchase(activity, it, token, oldToken, replacementMode, deviceId)
             if (error != null) {
                 billing.purchasesCallback = null
                 purchasingProduct = null

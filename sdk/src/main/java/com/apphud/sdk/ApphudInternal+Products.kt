@@ -57,9 +57,6 @@ internal fun ApphudInternal.shouldLoadProducts(): Boolean {
 }
 
 internal fun ApphudInternal.loadProducts() {
-
-  //  FIX INFINITE LOOP
-
     if (!shouldLoadProducts()) {
         if (totalPoductsLoadingCounts >= MAX_TOTAL_PRODUCTS_RETRIES) {
             respondWithProducts()
@@ -138,13 +135,6 @@ private suspend fun ApphudInternal.fetchProducts(): Int {
     }
 
     var ids = allAvailableProductIds(listOf(), getPaywalls(), getPlacements())
-
-//    if (ids.isEmpty()) {
-//        ApphudLog.log("User registered, but no placements or paywalls contains products, fetch permission groups")
-//        // not using paywalls or placements, fetch permission groups
-//        val groups = getPermissionGroups()
-//        ids = allAvailableProductIds(groups, getPaywalls(), getPlacements())
-//    }
 
     return fetchDetails(ids, loadingAll = true).first
 }

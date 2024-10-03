@@ -22,7 +22,6 @@ import kotlin.coroutines.resume
 
 class ApphudApplication : Application() {
     var API_KEY = "YOUR_API_KEY"
-
     companion object {
         private lateinit var instance: ApphudApplication
 
