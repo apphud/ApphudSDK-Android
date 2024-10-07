@@ -14,6 +14,7 @@ import androidx.recyclerview.widget.DividerItemDecoration
 import androidx.recyclerview.widget.RecyclerView
 import com.android.billingclient.api.ProductDetails
 import com.android.billingclient.api.Purchase
+import com.apphud.demo.ApphudApplication
 import com.apphud.demo.BuildConfig
 import com.apphud.demo.databinding.FragmentCustomerBinding
 import com.apphud.sdk.Apphud
@@ -50,8 +51,7 @@ class CustomerFragment : Fragment() {
         binding.appVersion.text = BuildConfig.VERSION_NAME + " (" + BuildConfig.VERSION_CODE + ")"
 
         binding.btnSync.setOnClickListener {
-            Apphud.restorePurchases { subscriptions, purchases, error ->
-            }
+            Apphud.restorePurchases { _, _, _ ->  }
         }
 
         paywallsViewModel = ViewModelProvider(this)[PaywallsViewModel::class.java]
@@ -120,25 +120,9 @@ class CustomerFragment : Fragment() {
             }
         Apphud.setListener(listener)
 
-        getPaywalls()
         updateData()
 
         return root
-    }
-
-    private fun getPaywalls() {
-        Apphud.fetchPlacements { plms, error ->
-            if (plms.isEmpty() && Apphud.isFallbackMode()) {
-                val paywall = Apphud.rawPaywalls().firstOrNull()
-                paywall?.let {
-                    val fallbackPlacement = ApphudPlacement.createCustom("fallback", paywall = it)
-                    Log.d("ApphudLogs", "FALLBACK PLACEMENT: ${fallbackPlacement}")
-                }
-            }
-            if (error != null) {
-                Log.d("ApphudLogs", "Placements fetch error: ${error.billingErrorTitle()}")
-            }
-        }
     }
 
     private fun updateData() {

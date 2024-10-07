@@ -163,6 +163,12 @@ data class ApphudProduct(
         return null
     }
 
+    companion object {
+        fun apphudProduct(id: String): ApphudProduct {
+            return ApphudProduct(id, id, id, "play_store", null, null, null, null, null, null)
+        }
+    }
+
     override fun toString(): String {
         return "ApphudProduct(id: ${id}, productId: ${productId}, name: ${name}, basePlanId: ${basePlanId}, productDetails: ${productId()}, placementIdentifier: ${placementIdentifier}, paywallIdenfitier: ${paywallIdentifier}, placementId: ${placementId}, paywallId: ${paywallId})"
     }

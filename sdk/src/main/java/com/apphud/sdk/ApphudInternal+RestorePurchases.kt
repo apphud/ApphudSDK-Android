@@ -33,6 +33,8 @@ internal suspend fun ApphudInternal.fetchNativePurchases(forceRefresh: Boolean =
             if (needSync) {
                 syncPurchases(unvalidatedPurchs = unvalidatedPurchases)
             }
+        } else {
+            ApphudLog.logI("Google Billing: No Active Purchases")
         }
     }
     return Pair(unvalidatedPurchases, responseCode)

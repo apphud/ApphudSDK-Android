@@ -6,6 +6,8 @@ import android.util.Log
 import androidx.lifecycle.lifecycleScope
 import com.apphud.sdk.Apphud
 import com.apphud.sdk.ApphudError
+import com.apphud.sdk.ApphudUserProperty
+import com.apphud.sdk.ApphudUserPropertyKey
 import com.apphud.sdk.ApphudUtils
 import com.apphud.sdk.client.ApiClient
 import com.apphud.sdk.domain.ApphudPaywall
@@ -20,7 +22,6 @@ import kotlin.coroutines.resume
 
 class ApphudApplication : Application() {
     var API_KEY = "YOUR_API_KEY"
-
     companion object {
         private lateinit var instance: ApphudApplication
 
@@ -28,7 +29,7 @@ class ApphudApplication : Application() {
             return instance.applicationContext
         }
 
-        fun application(): Application {
+        fun application(): ApphudApplication {
             return instance
         }
     }
@@ -40,16 +41,10 @@ class ApphudApplication : Application() {
     private val applicationScope = CoroutineScope(Dispatchers.Default)
 
     var attempt = 0
-
     override fun onCreate() {
         super.onCreate()
-        if (BuildConfig.DEBUG) {
-            ApphudUtils.enableDebugLogs()
-        }
-
         Apphud.start(this, API_KEY, observerMode = false)
         Apphud.collectDeviceIdentifiers()
-
         fetchPlacements()
     }
 
