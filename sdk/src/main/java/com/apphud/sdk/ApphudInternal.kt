@@ -80,6 +80,8 @@ internal object ApphudInternal {
             }
         }
 
+    internal var isUpdatingProperties = false
+
     private const val MUST_REGISTER_ERROR = " :You must call `Apphud.start` method before calling any other methods."
     internal var productGroups: MutableList<ApphudGroup> = mutableListOf()
     private var allowIdentifyUser = true
@@ -515,8 +517,8 @@ internal object ApphudInternal {
                                       deviceId: DeviceId,
                                       forceRegistration: Boolean = false,
                                       completionHandler: ((ApphudUser?, ApphudError?) -> Unit)?) {
-        var needPlacementsPaywalls = !didRegisterCustomerAtThisLaunch && !deferPlacements
 
+        val needPlacementsPaywalls = !didRegisterCustomerAtThisLaunch && !deferPlacements && !observerMode
 
         ApphudLog.log(
             "Registration conditions: user_is_null=${currentUser == null}, forceRegistration=$forceRegistration, isTemporary=${currentUser?.isTemporary}, requesting Placements = $needPlacementsPaywalls",
@@ -574,7 +576,8 @@ internal object ApphudInternal {
     }
 
     private suspend fun repeatRegistrationSilent() {
-        val newUser = RequestManager.registrationSync(!didRegisterCustomerAtThisLaunch, is_new, true)
+        val needPlacementsPaywalls = !didRegisterCustomerAtThisLaunch && !deferPlacements && !observerMode
+        val newUser = RequestManager.registrationSync(needPlacementsPaywalls, is_new, true)
 
         newUser?.let {
             storage.lastRegistration = System.currentTimeMillis()
@@ -735,6 +738,8 @@ internal object ApphudInternal {
         setNeedsToUpdateUserProperties = true
     }
 
+
+
     internal fun forceFlushUserProperties(force: Boolean, completion: ((Boolean) -> Unit)?) {
         setNeedsToUpdateUserProperties = false
         if (pendingUserProperties.isEmpty()) {
@@ -742,9 +747,15 @@ internal object ApphudInternal {
             return
         }
 
+        if (isUpdatingProperties && !force) {
+            return
+        }
+        isUpdatingProperties = true
+
         performWhenUserRegistered { error ->
             error?.let {
                 ApphudLog.logE("Failed to update user properties: " + it.message)
+                isUpdatingProperties = false
                 completion?.invoke(false)
             } ?: run {
                 val properties = mutableListOf<Map<String, Any?>>()
@@ -763,7 +774,6 @@ internal object ApphudInternal {
                 coroutineScope.launch(errorHandler) {
                     RequestManager.userProperties(body) { userProperties, error ->
                         mainScope.launch {
-                            completion?.invoke(error == null)
                             userProperties?.let {
                                 if (userProperties.success) {
                                     val propertiesInStorage = storage.properties
@@ -785,6 +795,8 @@ internal object ApphudInternal {
                             error?.let {
                                 ApphudLog.logE("Failed to update user properties: " + it.message)
                             }
+                            isUpdatingProperties = false
+                            completion?.invoke(error == null)
                         }
                     }
                 }
@@ -812,7 +824,8 @@ internal object ApphudInternal {
                 RequestManager.setParams(this.context, this.apiKey)
 
                 coroutineScope.launch(errorHandler) {
-                    val customer = RequestManager.registrationSync(!didRegisterCustomerAtThisLaunch, is_new, true)
+                    val needPlacementsPaywalls = !didRegisterCustomerAtThisLaunch && !deferPlacements && !observerMode
+                    val customer = RequestManager.registrationSync(needPlacementsPaywalls, is_new, true)
                     customer?.let {
                         mainScope.launch {
                             notifyLoadingCompleted(it)
