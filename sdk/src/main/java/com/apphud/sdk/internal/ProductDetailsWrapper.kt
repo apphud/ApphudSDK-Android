@@ -147,7 +147,6 @@ internal class ProductDetailsWrapper(
                     kotlin.runCatching {
                         when (result.isSuccess()) {
                             true -> {
-                                ApphudLog.logI("Query ProductDetails success $type")
                                 if (continuation.isActive && !continuation.isCompleted) {
                                     continuation.resume(Pair(details, result.responseCode))
                                 }

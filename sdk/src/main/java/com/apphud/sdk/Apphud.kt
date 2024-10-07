@@ -309,7 +309,7 @@ object Apphud {
      * @return A list of `ApphudGroup` objects representing permission groups.
      */
     suspend fun fetchPermissionGroups(): List<ApphudGroup> {
-        return ApphudInternal.getPermissionGroups()
+        return ApphudInternal.loadPermissionGroups()
     }
 
     /**

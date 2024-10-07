@@ -43,7 +43,6 @@ internal fun ApphudInternal.finishedLoadingProducts(): Boolean {
 internal fun ApphudInternal.shouldLoadProducts(): Boolean {
 
     if (!hasRespondedToPaywallsRequest || deferPlacements) {
-        ApphudLog.log("Skip load products because $hasRespondedToPaywallsRequest $deferPlacements")
         return false
     }
 
@@ -87,7 +86,7 @@ internal fun ApphudInternal.loadProducts() {
     }
 }
 
-private fun respondWithProducts() {
+internal fun respondWithProducts() {
     respondedWithProducts = true
     ApphudInternal.mainScope.launch {
         ApphudInternal.notifyLoadingCompleted(null, loadedDetails, false, false)
@@ -125,7 +124,7 @@ private suspend fun awaitUserRegistered(): ApphudUser? =
         }
     }
 
-private suspend fun ApphudInternal.fetchProducts(): Int {
+internal suspend fun ApphudInternal.fetchProducts(): Int {
 
     if (getPlacements().isEmpty() && getPaywalls().isEmpty()) {
         if (currentUser == null) {
@@ -134,17 +133,17 @@ private suspend fun ApphudInternal.fetchProducts(): Int {
         }
     }
 
-    var ids = allAvailableProductIds(listOf(), getPaywalls(), getPlacements())
+    val ids = allAvailableProductIds(getPermissionGroups(), getPaywalls(), getPlacements())
 
     return fetchDetails(ids, loadingAll = true).first
 }
 
 private fun allAvailableProductIds(groups: List<ApphudGroup>, paywalls: List<ApphudPaywall>, placements: List<ApphudPlacement>): List<String> {
     val ids = paywalls.map { p -> p.products?.map { it.productId } ?: listOf() }.flatten().toMutableList()
-    val idsPaywall = groups.map { it -> it.products?.map { it.productId } ?: listOf() }.flatten()
+    val idsGroups = groups.map { it -> it.products?.map { it.productId } ?: listOf() }.flatten()
     val idsFromPlacements = placements.map { pl -> pl.paywall?.products?.map { it.productId } ?: listOf() }.flatten().toMutableList()
 
-    idsPaywall.forEach {
+    idsGroups.forEach {
         if (!ids.contains(it) && it != null) {
             ids.add(it)
         }

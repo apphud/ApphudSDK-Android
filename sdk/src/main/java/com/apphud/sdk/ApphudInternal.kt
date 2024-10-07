@@ -1012,7 +1012,13 @@ internal object ApphudInternal {
         }
     }
 
-    suspend fun getPermissionGroups(): List<ApphudGroup> {
+    fun getPermissionGroups(): List<ApphudGroup> {
+        synchronized(productGroups) {
+            return this.productGroups.toList()
+        }
+    }
+
+    suspend fun loadPermissionGroups(): List<ApphudGroup> {
 
         synchronized(this.productGroups) {
             if (this.productGroups.isNotEmpty() && !storage.needUpdateProductGroups()) {
@@ -1028,6 +1034,11 @@ internal object ApphudInternal {
 
         synchronized(this.productGroups) {
             this.productGroups = groups.toMutableList()
+        }
+
+        coroutineScope.launch {
+            fetchProducts()
+            respondWithProducts()
         }
 
         return groups

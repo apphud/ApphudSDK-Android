@@ -43,9 +43,6 @@ class ApphudApplication : Application() {
     var attempt = 0
     override fun onCreate() {
         super.onCreate()
-        if (BuildConfig.DEBUG) {
-            ApphudUtils.enableDebugLogs()
-        }
         Apphud.start(this, API_KEY, observerMode = false)
         Apphud.collectDeviceIdentifiers()
         fetchPlacements()
