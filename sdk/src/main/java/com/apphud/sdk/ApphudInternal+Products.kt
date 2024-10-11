@@ -3,8 +3,10 @@ package com.apphud.sdk
 import com.android.billingclient.api.BillingClient
 import com.android.billingclient.api.BillingClient.BillingResponseCode
 import com.android.billingclient.api.ProductDetails
+import com.apphud.sdk.client.dto.ApphudGroupDto
 import com.apphud.sdk.domain.ApphudGroup
 import com.apphud.sdk.domain.ApphudPaywall
+import com.apphud.sdk.domain.ApphudPlacement
 import com.apphud.sdk.domain.ApphudUser
 import com.apphud.sdk.managers.RequestManager
 import kotlinx.coroutines.async
@@ -39,6 +41,11 @@ internal fun ApphudInternal.finishedLoadingProducts(): Boolean {
 }
 
 internal fun ApphudInternal.shouldLoadProducts(): Boolean {
+
+    if (!hasRespondedToPaywallsRequest || deferPlacements) {
+        return false
+    }
+
     return when (productsStatus) {
         ApphudProductsStatus.none -> true
         ApphudProductsStatus.loading -> false
@@ -60,10 +67,7 @@ internal fun ApphudInternal.loadProducts() {
     ApphudLog.logI("Loading ProductDetails from the Store")
 
     coroutineScope.launch(errorHandler) {
-        val result = fetchProducts()
-        productsResponseCode = result
-        productsStatus = if (result == BillingClient.BillingResponseCode.OK) ApphudProductsStatus.loaded else
-            ApphudProductsStatus.failed
+        fetchProducts()
 
         if (productsResponseCode != APPHUD_NO_REQUEST) {
             totalPoductsLoadingCounts += 1
@@ -79,7 +83,7 @@ internal fun ApphudInternal.loadProducts() {
     }
 }
 
-private fun respondWithProducts() {
+internal fun respondWithProducts() {
     respondedWithProducts = true
     ApphudInternal.mainScope.launch {
         ApphudInternal.notifyLoadingCompleted(null, loadedDetails, false, false)
@@ -93,7 +97,7 @@ internal fun isRetriableProductsRequest(): Boolean {
 
 internal fun retryProductsLoad() {
     val delay: Long = 300
-    ApphudLog.logE("Failed to load products from store (${ApphudBillingResponseCodes.getName(
+    ApphudLog.logI("Load products from store status code: (${ApphudBillingResponseCodes.getName(
         productsResponseCode)}), will retry in $delay ms")
     Thread.sleep(delay)
     ApphudInternal.loadProducts()
@@ -106,8 +110,7 @@ private fun isRetriableErrorCode(code: Int): Boolean {
         BillingClient.BillingResponseCode.SERVICE_DISCONNECTED,
         BillingClient.BillingResponseCode.SERVICE_UNAVAILABLE,
         BillingClient.BillingResponseCode.BILLING_UNAVAILABLE,
-        BillingClient.BillingResponseCode.ERROR,
-        APPHUD_NO_REQUEST
+        BillingClient.BillingResponseCode.ERROR
     ).contains(code)
 }
 
@@ -118,32 +121,37 @@ private suspend fun awaitUserRegistered(): ApphudUser? =
         }
     }
 
-private suspend fun ApphudInternal.fetchProducts(): Int {
-    var permissionGroupsCopy = getPermissionGroups()
-    if (permissionGroupsCopy.isEmpty() || storage.needUpdateProductGroups()) {
-        RequestManager.allProducts()?.let { groups ->
-            cacheGroups(groups)
-            permissionGroupsCopy = groups
+internal suspend fun ApphudInternal.fetchProducts(): Int {
+
+    if (getPlacements().isEmpty() && getPaywalls().isEmpty()) {
+        if (currentUser == null) {
+            ApphudLog.log("Awaiting for user registration before proceeding to products load")
+            awaitUserRegistered()
+            ApphudLog.log("User registered, continue to fetch ProductDetails")
         }
     }
 
-    if (permissionGroupsCopy.isEmpty() && getPaywalls().isEmpty()) {
-        ApphudLog.log("Awaiting for user registration before proceeding to products load")
-        awaitUserRegistered()
-    }
+    val ids = allAvailableProductIds(getPermissionGroups(), getPaywalls(), getPlacements())
 
-    val ids = allAvailableProductIds(permissionGroupsCopy, getPaywalls())
     return fetchDetails(ids, loadingAll = true).first
 }
 
-private fun allAvailableProductIds(groups: List<ApphudGroup>, paywalls: List<ApphudPaywall>): List<String> {
+private fun allAvailableProductIds(groups: List<ApphudGroup>, paywalls: List<ApphudPaywall>, placements: List<ApphudPlacement>): List<String> {
     val ids = paywalls.map { p -> p.products?.map { it.productId } ?: listOf() }.flatten().toMutableList()
-    val idsPaywall = groups.map { it -> it.products?.map { it.productId } ?: listOf() }.flatten()
-    idsPaywall.forEach {
+    val idsGroups = groups.map { it -> it.products?.map { it.productId } ?: listOf() }.flatten()
+    val idsFromPlacements = placements.map { pl -> pl.paywall?.products?.map { it.productId } ?: listOf() }.flatten().toMutableList()
+
+    idsGroups.forEach {
         if (!ids.contains(it) && it != null) {
             ids.add(it)
         }
     }
+    idsFromPlacements.forEach {
+        if (!ids.contains(it) && it != null) {
+            ids.add(it)
+        }
+    }
+
     return ids.toSet().toList()
 }
 
@@ -213,6 +221,12 @@ internal suspend fun ApphudInternal.fetchDetails(ids: List<String>, loadingAll: 
     val benchmark = System.currentTimeMillis() - startTime
     loadingStoreProducts = false
     ApphudInternal.productsLoadedTime = benchmark
+
+    if (loadingAll) {
+        productsResponseCode = responseCode
+        productsStatus = if (responseCode == BillingClient.BillingResponseCode.OK) ApphudProductsStatus.loaded else
+            ApphudProductsStatus.failed
+    }
 
     return Pair(responseCode, loadedDetails)
 }

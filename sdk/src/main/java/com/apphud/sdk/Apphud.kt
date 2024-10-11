@@ -199,14 +199,6 @@ object Apphud {
     fun fetchPlacements(preferredTimeout: Double = APPHUD_DEFAULT_MAX_TIMEOUT, callback: (List<ApphudPlacement>, ApphudError?) -> Unit) {
         ApphudInternal.performWhenOfferingsPrepared(preferredTimeout = preferredTimeout) { callback(ApphudInternal.placements, it) }
     }
-    @Deprecated(
-        message = "This method has been renamed to fetchPlacements",
-        replaceWith = ReplaceWith("this.fetchPlacements(callback)"),
-        level = DeprecationLevel.ERROR
-    )
-    fun placementsDidLoadCallback(callback: (List<ApphudPlacement>) -> Unit) {
-        callback(listOf())
-    }
 
     /** Returns:
      * List<ApphudPlacement>: A list of placements, potentially altered based
@@ -221,62 +213,39 @@ object Apphud {
      */
     fun rawPlacements(): List<ApphudPlacement> = ApphudInternal.placements
 
-    /**
-     * Suspends the current coroutine until the paywalls from
-     * Product Hub > Paywalls are available, potentially altered based on the
-     * user's involvement in A/B testing, if applicable.
+    /** Returns:
+     * List<ApphudPaywall>: A list of paywalls, potentially altered based
+     * on the user's involvement in A/B testing, if any.
      *
-     * This is equivalent to `paywallsDidLoadCallback(callback: (List<ApphudPaywall>, ApphudError?) -> Unit)`.
+     * __Note__: This function doesn't suspend until inner `ProductDetails`
+     * are loaded from Google Play. That means paywalls may or may not have
+     * inner Google Play products at the time you call this function.
      *
-     * Each paywall contains an array of `ApphudProduct` objects that
-     * can be used for purchases.
-     * `ApphudProduct` is Apphud's wrapper around `ProductDetails`.
-     *
-     * Method suspends until the inner `ProductDetails` are loaded from Google Play.
-     *
-     * If you want to obtain paywalls without waiting for `ProductDetails` from
-     * Google Play, you can use `rawPaywalls()` method.
-     * @param preferredTimeout The approximate duration, in seconds, after which the SDK will cease
-     * retry attempts to Apphud backend in case of failures and return an error.
-     * The default and minimum value for this parameter is 10.0 seconds.
-     * This parameter doesn't affect fetching products from Google Play.
-     * @return The list of `ApphudPaywall` objects.
+     * To get paywalls with awaiting for inner Google Play products, use
+     * Apphud.paywalls() or Apphud.paywallsDidLoadCallback(...) functions.
      */
-    @Deprecated(
-        "Deprecated in favor of Placements",
-        ReplaceWith("this.placements()"),
-    )
-    suspend fun paywalls(preferredTimeout: Double = APPHUD_DEFAULT_MAX_TIMEOUT): List<ApphudPaywall> =
-        suspendCancellableCoroutine { continuation ->
-            ApphudInternal.performWhenOfferingsPrepared(preferredTimeout = preferredTimeout) {
-                /* Error is not returned is suspending function.
-                If you want to handle error, use `paywallsDidLoadCallback` method. */
-                continuation.resume(ApphudInternal.paywalls)
-            }
-        }
+    fun rawPaywalls(): List<ApphudPaywall> = ApphudInternal.paywalls
 
     /**
-     * Suspends the current coroutine until the specific paywall by identifier
-     * is available, potentially altered based on the
-     * user's involvement in A/B testing, if applicable.
+     * Disables automatic paywall and placement requests during the SDK's initial setup.
+     * Developers must explicitly call `fetchPlacements` or `placements()` methods
+     * at a later point in the app's lifecycle to fetch placements with inner paywalls.
+     * Example:
+     * ```
+     * Apphud.start(context, api_key)
+     * Apphud.deferPlacements()
+     * ...
+     * Apphud.fetchPlacements { placements, error ->
+     * // Handle fetched placements
+     * }
+     * ```
      *
-     * Each paywall contains an array of `ApphudProduct` objects that
-     * can be used for purchases.
-     * `ApphudProduct` is Apphud's wrapper around `ProductDetails`.
-     *
-     * Method suspends until the inner `ProductDetails` are loaded from Google Play.
-     *
-     * If you want to obtain paywalls without waiting for `ProductDetails` from
-     * Google Play, you can use `rawPaywalls()` method.
-     *
-     * @return The list of `ApphudPaywall` objects.
+     * Note: You can use this method alongside `forceFlushUserProperties` to achieve
+     * real-time user segmentation based on custom user properties.
      */
-    @Deprecated(
-        "Deprecated in favor of Placements",
-        ReplaceWith("this.placement(identifier: String)"),
-    )
-    suspend fun paywall(identifier: String): ApphudPaywall? =
-        paywalls().firstOrNull { it.identifier == identifier }
+    fun deferPlacements() {
+        ApphudInternal.deferPlacements = true
+    }
 
     /**
      * Returns the paywalls from Product Hub > Paywalls, potentially altered
@@ -313,19 +282,6 @@ object Apphud {
         ApphudInternal.performWhenOfferingsPrepared(preferredTimeout = preferredTimeout) { callback(ApphudInternal.paywalls, it) }
     }
 
-    /** Returns:
-     * List<ApphudPaywall>: A list of paywalls, potentially altered based
-     * on the user's involvement in A/B testing, if any.
-     *
-     * __Note__: This function doesn't suspend until inner `ProductDetails`
-     * are loaded from Google Play. That means paywalls may or may not have
-     * inner Google Play products at the time you call this function.
-     *
-     * To get paywalls with awaiting for inner Google Play products, use
-     * Apphud.paywalls() or Apphud.paywallsDidLoadCallback(...) functions.
-     */
-    fun rawPaywalls(): List<ApphudPaywall> = ApphudInternal.paywalls
-
     /**
      * Call this method when your paywall screen is displayed to the user.
      * This is required for A/B testing analysis.
@@ -347,21 +303,13 @@ object Apphud {
     }
 
     /**
-     * Returns permission groups configured in the Apphud dashboard under Product Hub > Products.
-     * These groups are cached on the device.
-     * Note that this method returns an empty array if `ProductDetails` are not yet fetched from Google Play.
-     *
-     * To get notified when `permissionGroups` are ready to use, you can use ApphudListener's
-     * `apphudFetchProductsDetailsProducts` or `paywallsDidFullyLoad` methods, or `productsFetchCallback`.
-     * When any of these methods is called, it indicates that `ProductDetails` are loaded and
-     * the `permissionGroups` method is ready to use.
-     *
-     * Best practice is not to use this method directly but to use `paywalls()` instead.
+     * Asynchronously fetches permission groups configured in the Apphud > Product Hub.
+     * Groups are cached on the device.
      *
      * @return A list of `ApphudGroup` objects representing permission groups.
      */
-    fun permissionGroups(): List<ApphudGroup> {
-        return ApphudInternal.getPermissionGroups()
+    suspend fun fetchPermissionGroups(): List<ApphudGroup> {
+        return ApphudInternal.loadPermissionGroups()
     }
 
     /**
@@ -587,8 +535,8 @@ object Apphud {
      *
      * You can call this method, when the app reactivates from the background, if needed.
      */
-    fun refreshUserData() {
-        ApphudInternal.refreshEntitlements(forceRefresh = true)
+    fun refreshUserData(callback: ((ApphudUser?) -> Unit)? = null) {
+        ApphudInternal.refreshEntitlements(true, callback = callback)
     }
 
     /**
@@ -666,6 +614,29 @@ object Apphud {
         setOnce: Boolean = false,
     ) {
         ApphudInternal.setUserProperty(key = key, value = value, setOnce = setOnce, increment = false)
+    }
+
+    /**
+     * This method sends all user properties immediately to Apphud.
+     * Should be used for audience segmentation in placements based on user properties.
+     *
+     *
+     * Example:
+     *     ````
+     *     Apphud.start(context, api_key)
+     *     Apphud.deferPlacements()
+     *     Apphud.setUserProperty(ApphudUserPropertyKey.CustomProperty("some_key"), "some_value")
+     *
+     *     Apphud.forceFlushUserProperties { result ->
+     *        // now placements will respect user properties that have been sent previously
+     *        Apphud.fetchPlacements { placements, error ->
+     *          // handle placements
+     *        }
+     *     }
+     *     ```
+     */
+    fun forceFlushUserProperties(completion: ((Boolean) -> Unit)?) {
+        ApphudInternal.forceFlushUserProperties(true, completion)
     }
 
     /**

@@ -16,7 +16,6 @@ class PaywallsViewModel : ViewModel() {
     var showPlacements: Boolean = false
 
     suspend fun updateData() {
-        Log.d("ApphudLogs", "PaywallsViewModel update data")
         if (showPlacements) {
             items.clear()
             val placements = Apphud.rawPlacements()
