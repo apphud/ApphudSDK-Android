@@ -219,6 +219,8 @@ internal object ApphudInternal {
 
         val needRegistration = needRegistration(credentialsChanged, cachedPaywalls, cachedUser)
 
+        ApphudLog.log("Need to register user: $needRegistration")
+
         if (needRegistration) {
             isRegisteringUser = true
             registration(this.userId, this.deviceId, true) { u, e ->
@@ -437,7 +439,7 @@ internal object ApphudInternal {
 
             latestCustomerLoadError = null
         } else {
-            ApphudLog.log("Not yet ready for callbacks invoke: isRegisteringUser: ${isRegisteringUser}, currentUserExist: ${currentUser != null} customerError: ${customerError}, latestCustomerError: ${latestCustomerLoadError}, paywallsEmpty: ${paywalls.isEmpty()}, productsResponseCode = ${productsResponseCode}, productsStatus: ${productsStatus}, productDetailsEmpty: ${productDetails.isEmpty()}, deferred: $deferPlacements, hasRespondedToPaywallsRequest=$hasRespondedToPaywallsRequest }")
+//            ApphudLog.log("Not yet ready for callbacks invoke: isRegisteringUser: ${isRegisteringUser}, currentUserExist: ${currentUser != null} customerError: ${customerError}, latestCustomerError: ${latestCustomerLoadError}, paywallsEmpty: ${paywalls.isEmpty()}, productsResponseCode = ${productsResponseCode}, productsStatus: ${productsStatus}, productDetailsEmpty: ${productDetails.isEmpty()}, deferred: $deferPlacements, hasRespondedToPaywallsRequest=$hasRespondedToPaywallsRequest }")
         }
     }
 
@@ -641,6 +643,11 @@ internal object ApphudInternal {
         }
 
         mainScope.launch {
+
+            if (observerMode) {
+                observerMode = false
+                ApphudLog.logE("Trying to access Placements or Paywalls while being in Observer Mode. This is a developer error. Disabling Observer Mode as a fallback...")
+            }
 
             if (deferPlacements) {
                 ApphudLog.log("Placements were deferred, force refresh them")

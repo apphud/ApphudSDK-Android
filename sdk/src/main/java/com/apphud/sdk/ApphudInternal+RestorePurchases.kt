@@ -30,14 +30,24 @@ internal suspend fun ApphudInternal.fetchNativePurchases(forceRefresh: Boolean =
         responseCode = result.second
         if (!purchases.isNullOrEmpty()) {
             unvalidatedPurchases = purchases
+            val notSyncedPurchases = filterNotSynced(unvalidatedPurchases)
             if (needSync) {
-                syncPurchases(unvalidatedPurchs = unvalidatedPurchases)
+                if (notSyncedPurchases.isNotEmpty()) {
+                    syncPurchases(unvalidatedPurchs = notSyncedPurchases)
+                } else {
+                    ApphudLog.logI("Google Billing: All Tracked (${unvalidatedPurchases.count()})")
+                }
             }
         } else {
             ApphudLog.logI("Google Billing: No Active Purchases")
         }
     }
     return Pair(unvalidatedPurchases, responseCode)
+}
+
+private fun ApphudInternal.filterNotSynced(allPurchases: List<Purchase>): List<Purchase> {
+    val allKnownTokens = (currentUser?.subscriptions?.map { it.purchaseToken } ?: listOf<String>()) + (currentUser?.purchases?.map { it.purchaseToken } ?: listOf<String>())
+    return allPurchases.filter { !allKnownTokens.contains(it.purchaseToken) }
 }
 
 private suspend fun queryPurchases(): List<Purchase> {

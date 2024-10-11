@@ -30,6 +30,12 @@ data class ApphudSubscription(
      Canceled date of subscription, i.e. refund date. Null if subscription is not refunded.
      */
     val cancelledAt: Long?,
+
+    /**
+     * Purchase Token
+     */
+    val purchaseToken: String,
+
     /**
      Whether or not subscription is in billing issue state.
      */
@@ -58,6 +64,7 @@ data class ApphudSubscription(
                 startedAt = time,
                 expiresAt = time + 3_600_000L,
                 cancelledAt = null,
+                purchaseToken = "",
                 isInRetryBilling = false,
                 isAutoRenewEnabled = false,
                 isIntroductoryActivated = false,

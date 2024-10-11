@@ -7,6 +7,7 @@ data class SubscriptionDto(
     val expires_at: String,
     val in_retry_billing: Boolean,
     val introductory_activated: Boolean,
+    val original_transaction_id: String,
     val cancelled_at: String?,
     val product_id: String,
     val retries_count: Int,

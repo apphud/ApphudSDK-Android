@@ -16,10 +16,13 @@ data class ApphudNonRenewingPurchase(
      */
     val canceledAt: Long?,
     /**
+     * Purchase Token
+     */
+    val purchaseToken: String,
+    /**
      For internal usage
      */
     val isTemporary: Boolean = false,
-
     /*
       Returns true if purchase was consumed
      */
@@ -33,6 +36,7 @@ data class ApphudNonRenewingPurchase(
                 purchasedAt = time,
                 canceledAt = time + 3_600_000L,
                 isTemporary = true,
+                purchaseToken = ""
             )
         }
     }

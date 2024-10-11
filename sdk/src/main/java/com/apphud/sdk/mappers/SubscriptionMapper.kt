@@ -28,6 +28,7 @@ class SubscriptionMapper {
                     expiresAt = expires,
                     startedAt = buildDate(dto.started_at) ?: Date().time,
                     cancelledAt = buildDate(dto.cancelled_at),
+                    purchaseToken = dto.original_transaction_id,
                     isInRetryBilling = dto.in_retry_billing,
                     isIntroductoryActivated = dto.introductory_activated,
                     isAutoRenewEnabled = dto.autorenew_enabled,
@@ -43,6 +44,7 @@ class SubscriptionMapper {
                     productId = dto.product_id,
                     purchasedAt = purchase,
                     canceledAt = buildDate(dto.cancelled_at),
+                    purchaseToken = dto.original_transaction_id,
                     isConsumable = dto.is_consumable ?: false,
                 )
         }
