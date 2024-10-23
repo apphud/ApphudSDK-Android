@@ -1003,7 +1003,8 @@ object RequestManager {
             sdk_launched_at = ApphudInternal.sdkLaunchedAt,
             request_time = System.currentTimeMillis(),
             install_source = ApphudUtils.getInstallerPackageName(this.applicationContext) ?: "unknown",
-            observer_mode = ApphudInternal.observerMode
+            observer_mode = ApphudInternal.observerMode,
+            from_web2web = ApphudInternal.fromWeb2Web
         )
     }
 

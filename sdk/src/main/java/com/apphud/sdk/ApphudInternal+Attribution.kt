@@ -2,6 +2,7 @@ package com.apphud.sdk
 
 import com.apphud.sdk.body.AttributionBody
 import com.apphud.sdk.domain.AdjustInfo
+import com.apphud.sdk.domain.ApphudUser
 import com.apphud.sdk.domain.AppsflyerInfo
 import com.apphud.sdk.domain.FacebookInfo
 import com.apphud.sdk.managers.RequestManager
@@ -182,5 +183,33 @@ internal fun ApphudInternal.addAttribution(
                 }
             }
         }
+    }
+}
+
+internal fun ApphudInternal.tryWebAttribution(data: Map<String, Any>, callback: (Boolean, ApphudUser?) -> Unit) {
+
+    val userId = (data["aph_user_id"] as? String) ?: (data["apphud_user_id"] as? String)
+    if (!userId.isNullOrEmpty()) {
+
+        fromWeb2Web = true
+        this.userId = userId
+
+        if (currentUser?.userId == userId) {
+            ApphudLog.logI("Already web2web user, skipping")
+            callback.invoke(true, currentUser)
+            return
+        }
+
+        ApphudLog.logI("Found a match from web click, updating User ID to $userId")
+
+        updateUserId(userId) {
+            if (it?.userId == userId) {
+                callback.invoke(true, it)
+            } else {
+                callback.invoke(false, it)
+            }
+        }
+    } else {
+        callback.invoke(false, currentUser)
     }
 }

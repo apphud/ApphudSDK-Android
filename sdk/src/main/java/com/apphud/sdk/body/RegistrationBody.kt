@@ -23,5 +23,6 @@ data class RegistrationBody(
     val sdk_launched_at: Long,
     val request_time: Long,
     val install_source: String,
-    val observer_mode: Boolean
+    val observer_mode: Boolean,
+    val from_web2web: Boolean
 )

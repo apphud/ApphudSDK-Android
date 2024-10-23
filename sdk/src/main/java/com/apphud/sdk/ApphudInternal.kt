@@ -49,6 +49,7 @@ internal object ApphudInternal {
     internal var paywalls = listOf<ApphudPaywall>()
     internal var placements = listOf<ApphudPlacement>()
     internal var isRegisteringUser = false
+    internal var fromWeb2Web = false
     internal var hasRespondedToPaywallsRequest = false
     internal var refreshUserPending = false
     internal var sdkLaunchedAt: Long = System.currentTimeMillis()
@@ -815,9 +816,10 @@ internal object ApphudInternal {
         forceFlushUserProperties(false) { _ -> }
     }
 
-    internal fun updateUserId(userId: UserId) {
+    internal fun updateUserId(userId: UserId, callback: ((ApphudUser?) -> Unit)?) {
         if (userId.isBlank()) {
             ApphudLog.log("Invalid UserId=$userId")
+            callback?.invoke(currentUser)
             return
         }
         ApphudLog.log("Start updateUserId userId=$userId")
@@ -825,6 +827,7 @@ internal object ApphudInternal {
         performWhenUserRegistered { error ->
             error?.let {
                 ApphudLog.logE(it.message)
+                callback?.invoke(currentUser)
             } ?: run {
                 this.userId = userId
                 storage.userId = userId
@@ -836,7 +839,10 @@ internal object ApphudInternal {
                     customer?.let {
                         mainScope.launch {
                             notifyLoadingCompleted(it)
+                            callback?.invoke(currentUser)
                         }
+                    } ?: {
+                        callback?.invoke(currentUser)
                     }
                     error?.let {
                         ApphudLog.logE(it.message)
