@@ -816,7 +816,7 @@ internal object ApphudInternal {
         forceFlushUserProperties(false) { _ -> }
     }
 
-    internal fun updateUserId(userId: UserId, callback: ((ApphudUser?) -> Unit)?) {
+    internal fun updateUserId(userId: UserId, web2Web: Boolean? = false, callback: ((ApphudUser?) -> Unit)?) {
         if (userId.isBlank()) {
             ApphudLog.log("Invalid UserId=$userId")
             callback?.invoke(currentUser)
@@ -834,8 +834,12 @@ internal object ApphudInternal {
                 RequestManager.setParams(this.context, this.apiKey)
 
                 coroutineScope.launch(errorHandler) {
+                    if (web2Web == true) {
+                        ApphudInternal.userId = userId
+                        ApphudInternal.fromWeb2Web = true
+                    }
                     val needPlacementsPaywalls = !didRegisterCustomerAtThisLaunch && !deferPlacements && !observerMode
-                    val customer = RequestManager.registrationSync(needPlacementsPaywalls, is_new, true)
+                    val customer = RequestManager.registrationSync(needPlacementsPaywalls, is_new, true, userId = userId)
                     customer?.let {
                         mainScope.launch {
                             notifyLoadingCompleted(it)
