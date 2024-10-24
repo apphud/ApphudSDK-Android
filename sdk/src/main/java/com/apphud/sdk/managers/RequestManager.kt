@@ -341,6 +341,7 @@ object RequestManager {
         needPaywalls: Boolean,
         isNew: Boolean,
         forceRegistration: Boolean = false,
+        userId: UserId? = null,
     ): ApphudUser? =
         suspendCancellableCoroutine { continuation ->
             if (!canPerformRequest()) {
@@ -351,7 +352,7 @@ object RequestManager {
             }
 
             if (currentUser == null || forceRegistration) {
-                registration(needPaywalls, isNew, forceRegistration) { customer, error ->
+                registration(needPaywalls, isNew, forceRegistration, userId) { customer, error ->
                     if (continuation.isActive) {
                         continuation.resume(customer)
                     }
@@ -368,6 +369,7 @@ object RequestManager {
         needPaywalls: Boolean,
         isNew: Boolean,
         forceRegistration: Boolean = false,
+        userId: UserId? = null,
         completionHandler: (ApphudUser?, ApphudError?) -> Unit,
     ) {
         if (!canPerformRequest()) {
@@ -383,7 +385,7 @@ object RequestManager {
                     .path("customers")
                     .build()
 
-            val request = buildPostRequest(URL(apphudUrl.url), mkRegistrationBody(needPaywalls, isNew))
+            val request = buildPostRequest(URL(apphudUrl.url), mkRegistrationBody(needPaywalls, isNew, userId))
             val httpClient = getOkHttpClient(request, !fallbackMode)
             try {
                 val serverResponse = performRequestSync(httpClient, request)
@@ -968,6 +970,7 @@ object RequestManager {
     private fun mkRegistrationBody(
         needPaywalls: Boolean,
         isNew: Boolean,
+        userId: UserId? = null,
     ): RegistrationBody {
         val deviceIds = storage.deviceIdentifiers
         val idfa = deviceIds[0]
@@ -992,7 +995,7 @@ object RequestManager {
             idfv = if (ApphudUtils.optOutOfTracking || appSetId.isEmpty()) null else appSetId,
             idfa = if (ApphudUtils.optOutOfTracking || idfa.isEmpty()) null else idfa,
             android_id = if (ApphudUtils.optOutOfTracking || androidId.isEmpty()) null else androidId,
-            user_id = ApphudInternal.userId,
+            user_id = userId ?: ApphudInternal.userId,
             device_id = ApphudInternal.deviceId,
             time_zone = TimeZone.getDefault().id,
             is_sandbox = this.applicationContext.isDebuggable(),

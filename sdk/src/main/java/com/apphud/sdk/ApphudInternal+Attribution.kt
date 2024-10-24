@@ -202,7 +202,7 @@ internal fun ApphudInternal.tryWebAttribution(data: Map<String, Any>, callback: 
 
         ApphudLog.logI("Found a match from web click, updating User ID to $userId")
 
-        updateUserId(userId) {
+        updateUserId(userId, web2Web = true) {
             if (it?.userId == userId) {
                 callback.invoke(true, it)
             } else {
