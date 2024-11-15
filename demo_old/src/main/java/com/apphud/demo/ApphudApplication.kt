@@ -19,6 +19,7 @@ import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlin.coroutines.resume
+import kotlin.coroutines.suspendCoroutine
 
 class ApphudApplication : Application() {
     var API_KEY = "YOUR_API_KEY"
@@ -46,6 +47,23 @@ class ApphudApplication : Application() {
         Apphud.start(this, API_KEY, observerMode = false)
         Apphud.collectDeviceIdentifiers()
         fetchPlacements()
+    }
+
+    public suspend fun getPaywall(
+        paywallIdentifier: String?,
+        placementIdentifier: String?
+    ): ApphudPaywall? {
+        return if (placementIdentifier != null) {
+            val placements = Apphud.placements()
+            placements.firstOrNull { it.identifier == placementIdentifier }?.paywall
+        } else if (paywallIdentifier != null) {
+            suspendCancellableCoroutine { cont ->
+                Apphud.paywallsDidLoadCallback { paywalls, _ ->
+                    val paywall = paywalls.firstOrNull { it.identifier == paywallIdentifier }
+                    cont.resume(paywall)
+                }
+            }
+        } else null
     }
 
     fun fetchPlacements() {

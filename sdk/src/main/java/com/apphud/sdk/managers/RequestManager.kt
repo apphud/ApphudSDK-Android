@@ -342,6 +342,7 @@ object RequestManager {
         isNew: Boolean,
         forceRegistration: Boolean = false,
         userId: UserId? = null,
+        email: String? = null
     ): ApphudUser? =
         suspendCancellableCoroutine { continuation ->
             if (!canPerformRequest()) {
@@ -352,7 +353,7 @@ object RequestManager {
             }
 
             if (currentUser == null || forceRegistration) {
-                registration(needPaywalls, isNew, forceRegistration, userId) { customer, error ->
+                registration(needPaywalls, isNew, forceRegistration, userId, email) { customer, error ->
                     if (continuation.isActive) {
                         continuation.resume(customer)
                     }
@@ -370,6 +371,7 @@ object RequestManager {
         isNew: Boolean,
         forceRegistration: Boolean = false,
         userId: UserId? = null,
+        email: String? = null,
         completionHandler: (ApphudUser?, ApphudError?) -> Unit,
     ) {
         if (!canPerformRequest()) {
@@ -385,7 +387,7 @@ object RequestManager {
                     .path("customers")
                     .build()
 
-            val request = buildPostRequest(URL(apphudUrl.url), mkRegistrationBody(needPaywalls, isNew, userId))
+            val request = buildPostRequest(URL(apphudUrl.url), mkRegistrationBody(needPaywalls, isNew, userId, email))
             val httpClient = getOkHttpClient(request, !fallbackMode)
             try {
                 val serverResponse = performRequestSync(httpClient, request)
@@ -971,6 +973,7 @@ object RequestManager {
         needPaywalls: Boolean,
         isNew: Boolean,
         userId: UserId? = null,
+        email: String? = null
     ): RegistrationBody {
         val deviceIds = storage.deviceIdentifiers
         val idfa = deviceIds[0]
@@ -1007,7 +1010,8 @@ object RequestManager {
             request_time = System.currentTimeMillis(),
             install_source = ApphudUtils.getInstallerPackageName(this.applicationContext) ?: "unknown",
             observer_mode = ApphudInternal.observerMode,
-            from_web2web = ApphudInternal.fromWeb2Web
+            from_web2web = ApphudInternal.fromWeb2Web,
+            email = email
         )
     }
 

@@ -189,27 +189,45 @@ internal fun ApphudInternal.addAttribution(
 internal fun ApphudInternal.tryWebAttribution(data: Map<String, Any>, callback: (Boolean, ApphudUser?) -> Unit) {
 
     val userId = (data["aph_user_id"] as? String) ?: (data["apphud_user_id"] as? String)
-    if (!userId.isNullOrEmpty()) {
+    val email = (data["email"] as? String) ?: (data["apphud_user_email"] as? String)
 
-        fromWeb2Web = true
-        this.userId = userId
-
-        if (currentUser?.userId == userId) {
-            ApphudLog.logI("Already web2web user, skipping")
-            callback.invoke(true, currentUser)
-            return
-        }
-
-        ApphudLog.logI("Found a match from web click, updating User ID to $userId")
-
-        updateUserId(userId, web2Web = true) {
-            if (it?.userId == userId) {
-                callback.invoke(true, it)
-            } else {
-                callback.invoke(false, it)
-            }
-        }
-    } else {
+    if (userId.isNullOrEmpty() && email.isNullOrEmpty()) {
         callback.invoke(false, currentUser)
+        return
+    }
+
+    performWhenUserRegistered { error ->
+        currentUser?.let { user ->
+            fromWeb2Web = true
+
+            if (!userId.isNullOrEmpty()) {
+
+                if (user.userId == userId) {
+                    ApphudLog.logI("Already web2web user, skipping")
+                    callback.invoke(true, user)
+                    return@let
+                }
+
+                ApphudLog.logI("Trying to attribute from web by User ID: $userId")
+                updateUserId(userId, web2Web = true) {
+                    if (it?.userId == userId) {
+                        callback.invoke(true, it)
+                    } else {
+                        callback.invoke(false, it)
+                    }
+                }
+            } else if (!email.isNullOrEmpty()) {
+                ApphudLog.logI("Trying to attribute from web by email: $email")
+                updateUserId(user.userId, email = email, web2Web = true) {
+                    if (it?.userId == userId) {
+                        callback.invoke(true, it)
+                    } else {
+                        callback.invoke(false, it)
+                    }
+                }
+            }
+        } ?: run {
+            callback.invoke(false, currentUser)
+        }
     }
 }
