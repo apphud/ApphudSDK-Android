@@ -1057,6 +1057,7 @@ object RequestManager {
                         purchase_time = purchase.purchaseTime,
                         product_info = productDetails?.let { ProductInfo(productDetails, offerIdToken) },
                         product_type = productDetails?.productType,
+                        timestamp = System.currentTimeMillis()
                     ),
                 ),
         )
@@ -1092,6 +1093,7 @@ object RequestManager {
                     purchase_time = purchase.record.purchaseTime,
                     product_info = null,
                     product_type = purchase.details.productType,
+                    timestamp = System.currentTimeMillis(),
                 )
             }.sortedByDescending { it.purchase_time },
     )
@@ -1121,6 +1123,7 @@ object RequestManager {
                     purchase_time = purchase.purchaseTime,
                     product_info = ProductInfo(productDetails, offerIdToken),
                     product_type = productDetails.productType,
+                    timestamp = System.currentTimeMillis()
                 ),
             ),
     )

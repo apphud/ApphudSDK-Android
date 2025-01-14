@@ -160,7 +160,7 @@ internal object ApphudInternal {
         ApphudLog.log("Start initialization with userId=$inputUserId, deviceId=$inputDeviceId")
         if (apiKey.isEmpty()) throw Exception("ApiKey can't be empty")
 
-        this.context = context
+        this.context = context.applicationContext
         this.apiKey = apiKey
         val isValid = storage.validateCaches()
         if (ignoreCache) {
@@ -213,7 +213,7 @@ internal object ApphudInternal {
         cachedPlacements?.let { this.placements = it }
 
         this.userRegisteredBlock = callback
-        billing = BillingWrapper(context)
+        billing = BillingWrapper(this.context)
         RequestManager.setParams(this.context, this.apiKey)
 
         forceNotifyAllLoaded()

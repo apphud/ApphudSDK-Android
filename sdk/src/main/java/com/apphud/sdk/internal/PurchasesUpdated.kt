@@ -23,7 +23,6 @@ internal class PurchasesUpdated(
                 true -> {
                     val purchases = list?.filterNotNull() ?: emptyList()
                     apphudListener?.apphudDidReceivePurchase(purchases.first())
-
                     if (callback != null) {
                         callback?.invoke(PurchaseUpdatedCallbackStatus.Success(purchases))
                     } else if (purchases.isNotEmpty()) {
