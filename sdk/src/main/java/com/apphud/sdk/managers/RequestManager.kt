@@ -475,6 +475,7 @@ object RequestManager {
         placementId: String?,
         offerToken: String?,
         oldToken: String?,
+        extraMessage: String?,
         completionHandler: (ApphudUser?, ApphudError?) -> Unit,
     ) {
         if (!canPerformRequest()) {
@@ -489,7 +490,7 @@ object RequestManager {
                 .path("subscriptions")
                 .build()
 
-        val purchaseBody = makePurchaseBody(purchase, productDetails, paywallId, placementId, productBundleId, offerToken, oldToken)
+        val purchaseBody = makePurchaseBody(purchase, productDetails, paywallId, placementId, productBundleId, offerToken, oldToken, extraMessage)
 
         val request = buildPostRequest(URL(apphudUrl.url), purchaseBody)
 
@@ -1037,6 +1038,7 @@ object RequestManager {
         apphud_product_id: String?,
         offerIdToken: String?,
         oldToken: String?,
+        extraMessage: String?
     ): PurchaseBody {
         return PurchaseBody(
             device_id = ApphudInternal.deviceId,
@@ -1057,7 +1059,8 @@ object RequestManager {
                         purchase_time = purchase.purchaseTime,
                         product_info = productDetails?.let { ProductInfo(productDetails, offerIdToken) },
                         product_type = productDetails?.productType,
-                        timestamp = System.currentTimeMillis()
+                        timestamp = System.currentTimeMillis(),
+                        extra_message = extraMessage
                     ),
                 ),
         )
@@ -1094,6 +1097,7 @@ object RequestManager {
                     product_info = null,
                     product_type = purchase.details.productType,
                     timestamp = System.currentTimeMillis(),
+                    extra_message = null
                 )
             }.sortedByDescending { it.purchase_time },
     )
@@ -1123,7 +1127,8 @@ object RequestManager {
                     purchase_time = purchase.purchaseTime,
                     product_info = ProductInfo(productDetails, offerIdToken),
                     product_type = productDetails.productType,
-                    timestamp = System.currentTimeMillis()
+                    timestamp = System.currentTimeMillis(),
+                    extra_message = null
                 ),
             ),
     )

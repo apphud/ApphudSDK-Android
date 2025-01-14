@@ -47,33 +47,6 @@ class ApphudApplication : Application() {
         Apphud.start(this, API_KEY, observerMode = false)
         Apphud.collectDeviceIdentifiers()
         fetchPlacements()
-
-        Apphud.attributeFromWeb(data = buildMap { put("email", "user@example.com") }) { result, _ ->
-            if (result && Apphud.hasPremiumAccess()) {
-                Log.d("ApphudLogsDemo", "Premium access successfully activated! Skip paywall here")
-            } else {
-                Log.d("ApphudLogsDemo", "Error! Premium access not activated. " +
-                        "Ask the user to click again on the link from the email or from the website. " +
-                        "If this didn't help, ask the user to try restore by email.")
-            }
-        }
-    }
-
-    public suspend fun getPaywall(
-        paywallIdentifier: String?,
-        placementIdentifier: String?
-    ): ApphudPaywall? {
-        return if (placementIdentifier != null) {
-            val placements = Apphud.placements()
-            placements.firstOrNull { it.identifier == placementIdentifier }?.paywall
-        } else if (paywallIdentifier != null) {
-            suspendCancellableCoroutine { cont ->
-                Apphud.paywallsDidLoadCallback { paywalls, _ ->
-                    val paywall = paywalls.firstOrNull { it.identifier == paywallIdentifier }
-                    cont.resume(paywall)
-                }
-            }
-        } else null
     }
 
     fun fetchPlacements() {

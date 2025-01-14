@@ -81,6 +81,13 @@ internal object ApphudInternal {
             }
         }
 
+    private val recoverFreshPurchaseRunnable =
+        Runnable {
+            if (freshPurchase != null && purchaseCallbacks.isNotEmpty()) {
+                resendFreshPurchase(freshPurchase!!)
+            }
+        }
+
     internal var isUpdatingProperties = false
 
     private const val MUST_REGISTER_ERROR = " :You must call `Apphud.start` method before calling any other methods."
@@ -102,6 +109,16 @@ internal object ApphudInternal {
     private var customProductsFetchedBlock: ((List<ProductDetails>) -> Unit)? = null
     private var offeringsPreparedCallbacks = mutableListOf<((ApphudError?) -> Unit)?>()
     internal var purchaseCallbacks = mutableListOf<((ApphudPurchaseResult) -> Unit)>()
+    internal var freshPurchase: Purchase? = null
+        set(value) {
+            field = value
+            if (value != null) {
+                handler.removeCallbacks(recoverFreshPurchaseRunnable)
+                handler.postDelayed(recoverFreshPurchaseRunnable, 10000L)
+            } else {
+                handler.removeCallbacks(recoverFreshPurchaseRunnable)
+            }
+        }
     private var userRegisteredBlock: ((ApphudUser) -> Unit)? = null
     private var notifiedPaywallsAndPlacementsHandled = false
     internal var deferPlacements = false
@@ -1163,6 +1180,7 @@ internal object ApphudInternal {
         customProductsFetchedBlock = null
         offeringsPreparedCallbacks.clear()
         purchaseCallbacks.clear()
+        freshPurchase = null
         storage.clean()
         prevPurchases.clear()
         productDetails.clear()
