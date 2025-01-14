@@ -83,8 +83,18 @@ internal object ApphudInternal {
 
     private val recoverFreshPurchaseRunnable =
         Runnable {
-            if (freshPurchase != null && purchaseCallbacks.isNotEmpty()) {
-                resendFreshPurchase(freshPurchase!!)
+            coroutineScope.launch(errorHandler) {
+                var purch = freshPurchase
+                if (purch == null) {
+                    val purchs = fetchNativePurchases(forceRefresh = true, needSync = false)
+                    if (purchs.first.isNotEmpty()) {
+                        purch = purchs.first.firstOrNull()
+                        ApphudLog.logE("recover_native_purchases")
+                    }
+                }
+                if (purch != null && purchaseCallbacks.isNotEmpty()) {
+                    resendFreshPurchase(purch)
+                }
             }
         }
 
@@ -138,6 +148,10 @@ internal object ApphudInternal {
                     // do nothing
                     ApphudLog.log("Application resumed")
                     isActive = true
+
+                    if (purchasingProduct != null && purchaseCallbacks.isNotEmpty()) {
+                        handler.postDelayed(recoverFreshPurchaseRunnable, 10000L)
+                    }
                 }
                 Lifecycle.Event.ON_CREATE -> {
                     // do nothing

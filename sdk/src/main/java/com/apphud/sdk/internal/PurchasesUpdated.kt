@@ -6,6 +6,7 @@ import com.android.billingclient.api.Purchase
 import com.apphud.sdk.ApphudInternal
 import com.apphud.sdk.ApphudInternal.apphudListener
 import com.apphud.sdk.ApphudInternal.coroutineScope
+import com.apphud.sdk.BuildConfig
 import com.apphud.sdk.handleObservedPurchase
 import com.apphud.sdk.internal.callback_status.PurchaseUpdatedCallbackStatus
 import com.apphud.sdk.isSuccess
