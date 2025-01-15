@@ -113,8 +113,8 @@ class BillingViewModel : ViewModel() {
         ).setSubscriptionUpdateParams(
             BillingFlowParams.SubscriptionUpdateParams.newBuilder()
                 .setOldPurchaseToken(oldToken)
-                .setReplaceProrationMode(
-                    BillingFlowParams.ProrationMode.IMMEDIATE_AND_CHARGE_FULL_PRICE,
+                .setSubscriptionReplacementMode(
+                    BillingFlowParams.SubscriptionUpdateParams.ReplacementMode.CHARGE_FULL_PRICE
                 )
                 .build(),
         ).build()

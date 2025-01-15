@@ -59,7 +59,7 @@ dependencies {
     //To use from jitpack
     //implementation "com.github.apphud:ApphudSDK-Android:2.7.4"
 
-    implementation 'com.android.billingclient:billing:6.1.0'
+    implementation 'com.android.billingclient:billing:7.1.1'
 
     testImplementation 'junit:junit:4.13.2'
     androidTestImplementation 'androidx.test.ext:junit:1.1.5'
