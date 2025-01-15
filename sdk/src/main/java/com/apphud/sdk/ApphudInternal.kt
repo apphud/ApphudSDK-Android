@@ -80,24 +80,6 @@ internal object ApphudInternal {
                 handler.removeCallbacks(userPropertiesRunnable)
             }
         }
-
-    private val recoverFreshPurchaseRunnable =
-        Runnable {
-            coroutineScope.launch(errorHandler) {
-                var purch = freshPurchase
-                if (purch == null) {
-                    val purchs = fetchNativePurchases(forceRefresh = true, needSync = false)
-                    if (purchs.first.isNotEmpty()) {
-                        purch = purchs.first.firstOrNull()
-                        ApphudLog.logE("recover_native_purchases")
-                    }
-                }
-                if (purch != null && purchaseCallbacks.isNotEmpty()) {
-                    resendFreshPurchase(purch)
-                }
-            }
-        }
-
     internal var isUpdatingProperties = false
 
     private const val MUST_REGISTER_ERROR = " :You must call `Apphud.start` method before calling any other methods."
@@ -118,17 +100,24 @@ internal object ApphudInternal {
     internal var preferredTimeout: Double = 999_999.0
     private var customProductsFetchedBlock: ((List<ProductDetails>) -> Unit)? = null
     private var offeringsPreparedCallbacks = mutableListOf<((ApphudError?) -> Unit)?>()
+
     internal var purchaseCallbacks = mutableListOf<((ApphudPurchaseResult) -> Unit)>()
     internal var freshPurchase: Purchase? = null
         set(value) {
             field = value
             if (value != null) {
-                handler.removeCallbacks(recoverFreshPurchaseRunnable)
-                handler.postDelayed(recoverFreshPurchaseRunnable, 10000L)
+                scheduleLookupPurchase()
             } else {
-                handler.removeCallbacks(recoverFreshPurchaseRunnable)
+                handler.removeCallbacks(lookupPurchaseRunnable)
             }
         }
+    private val lookupPurchaseRunnable = Runnable { lookupFreshPurchase() }
+
+    fun scheduleLookupPurchase(delay: Long = 7000L) {
+        handler.removeCallbacks(lookupPurchaseRunnable)
+        handler.postDelayed(lookupPurchaseRunnable, delay)
+    }
+
     private var userRegisteredBlock: ((ApphudUser) -> Unit)? = null
     private var notifiedPaywallsAndPlacementsHandled = false
     internal var deferPlacements = false
@@ -150,7 +139,7 @@ internal object ApphudInternal {
                     isActive = true
 
                     if (purchasingProduct != null && purchaseCallbacks.isNotEmpty()) {
-                        handler.postDelayed(recoverFreshPurchaseRunnable, 10000L)
+                        scheduleLookupPurchase()
                     }
                 }
                 Lifecycle.Event.ON_CREATE -> {

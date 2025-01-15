@@ -118,6 +118,8 @@ private fun ApphudInternal.purchaseInternal(
         purchaseStartedAt = System.currentTimeMillis()
         callback?.let { rememberCallback(callback) }
 
+        scheduleLookupPurchase(25000L)
+
         coroutineScope.launch(errorHandler) {
             billing.purchasesCallback = { purchasesResult ->
                 mainScope.launch {
@@ -150,6 +152,8 @@ private fun ApphudInternal.purchaseInternal(
                             synchronized(purchaseCallbacks) {
                                 purchaseCallbacks.clear()
                             }
+                            purchasingProduct = null
+                            freshPurchase = null
                         }
 
                         is PurchaseUpdatedCallbackStatus.Success -> {
@@ -216,24 +220,46 @@ private fun ApphudInternal.purchaseInternal(
     }
 }
 
-fun resendFreshPurchase(purchase: Purchase) {
-    val productBundleId = ApphudInternal.purchasingProduct?.id
-    val paywallId = ApphudInternal.purchasingProduct?.paywallId
-    val placementId = ApphudInternal.purchasingProduct?.placementId
-    val productDetails = ApphudInternal.getProductDetailsByProductId(purchase.products.first())
+internal fun ApphudInternal.lookupFreshPurchase() {
+    coroutineScope.launch(errorHandler) {
+        var purch = freshPurchase
+        if (purch == null) {
+            val purchs = ApphudInternal.fetchNativePurchases(forceRefresh = true, needSync = false)
+            if (purchs.first.isNotEmpty()) {
+                purch = purchs.first.firstOrNull()
+                ApphudLog.logE("recover_native_purchases")
+            }
+        }
+        if (purch != null && purchaseCallbacks.isNotEmpty() && purchasingProduct != null) {
 
-    ApphudLog.logE("resending fresh purchase ${purchase.orderId}")
+            // call listener method only if freshPurchase is null,
+            // i.e. if listener was not called in PurchasesUpdated class
+            if (freshPurchase == null) {
+                coroutineScope.launch {
+                    // run in separate coroutine
+                    apphudListener?.apphudDidReceivePurchase(purch)
+                }
+            }
+            val purchase = purch
+            val productBundleId = purchasingProduct?.id
+            val paywallId = purchasingProduct?.paywallId
+            val placementId = purchasingProduct?.placementId
+            val productDetails = getProductDetailsByProductId(purchase.products.first())
 
-    ApphudInternal.coroutineScope.launch(ApphudInternal.errorHandler) {
-        RequestManager.purchased(purchase, productDetails, productBundleId, paywallId, placementId, null, null, "resend_fresh_purchase") { customer, _ ->
-            ApphudInternal.mainScope.launch {
-                customer?.let {
-                    val newSubscriptions =
-                        customer.subscriptions.firstOrNull { it.productId == purchase.products.first() }
-                    val newPurchases =
-                        customer.purchases.firstOrNull { it.productId == purchase.products.first() }
+            ApphudLog.logE("resending fresh purchase ${purchase.orderId}")
 
-                    handleCheckSubmissionResult(it, purchase, newSubscriptions, newPurchases, false)
+            coroutineScope.launch(errorHandler) {
+                RequestManager.purchased(purchase, productDetails, productBundleId, paywallId, placementId, null, null, "resend_fresh_purchase") { customer, _ ->
+                    mainScope.launch {
+                        customer?.let {
+                            val newSubscriptions =
+                                customer.subscriptions.firstOrNull { it.productId == purchase.products.first() }
+                            val newPurchases =
+                                customer.purchases.firstOrNull { it.productId == purchase.products.first() }
+
+                            handleCheckSubmissionResult(it, purchase, newSubscriptions, newPurchases, false)
+                        }
+                    }
                 }
             }
         }
