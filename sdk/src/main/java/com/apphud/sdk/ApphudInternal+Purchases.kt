@@ -230,7 +230,7 @@ internal fun ApphudInternal.lookupFreshPurchase() {
                 ApphudLog.logE("recover_native_purchases")
             }
         }
-        if (purch != null && purchaseCallbacks.isNotEmpty() && purchasingProduct != null) {
+        if (purch != null && ((purchaseCallbacks.isNotEmpty() && purchasingProduct != null) || storage.isNeedSync)) {
 
             // call listener method only if freshPurchase is null,
             // i.e. if listener was not called in PurchasesUpdated class
@@ -257,6 +257,7 @@ internal fun ApphudInternal.lookupFreshPurchase() {
                             val newPurchases =
                                 customer.purchases.firstOrNull { it.productId == purchase.products.first() }
 
+                            storage.isNeedSync = false
                             handleCheckSubmissionResult(it, purchase, newSubscriptions, newPurchases, false)
                         }
                     }
@@ -382,6 +383,7 @@ private fun ApphudInternal.sendCheckToApphud(
                         val newSubscriptions = customer.subscriptions.firstOrNull { it.productId == purchase.products.first() }
                         val newPurchases = customer.purchases.firstOrNull { it.productId == purchase.products.first() }
 
+                        storage.isNeedSync = false
                         handleCheckSubmissionResult(it, purchase, newSubscriptions, newPurchases, false)
                     }
                     error?.let {
@@ -401,6 +403,8 @@ private fun ApphudInternal.sendCheckToApphud(
                                 }
                             }
                         }
+
+                        storage.isNeedSync = true
 
                         handleCheckSubmissionResult(customer, purchase, null, null, false)
                     }

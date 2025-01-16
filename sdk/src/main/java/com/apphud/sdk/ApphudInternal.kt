@@ -138,7 +138,10 @@ internal object ApphudInternal {
                     ApphudLog.log("Application resumed")
                     isActive = true
 
-                    if (purchasingProduct != null && purchaseCallbacks.isNotEmpty()) {
+                    if (storage.isNeedSync) {
+                        // lookup immediately
+                        lookupFreshPurchase()
+                    } else if (purchasingProduct != null && purchaseCallbacks.isNotEmpty()) {
                         scheduleLookupPurchase()
                     }
                 }
