@@ -232,14 +232,11 @@ internal fun ApphudInternal.lookupFreshPurchase(extraMessage: String = "resend_f
         }
         if (purch != null && ((purchaseCallbacks.isNotEmpty() && purchasingProduct != null) || storage.isNeedSync)) {
 
-            // call listener method only if freshPurchase is null,
-            // i.e. if listener was not called in PurchasesUpdated class
-            if (freshPurchase == null) {
-                coroutineScope.launch {
-                    // run in separate coroutine
-                    apphudListener?.apphudDidReceivePurchase(purch)
-                }
+            mainScope.launch {
+                // run in main coroutine
+                apphudListener?.apphudDidReceivePurchase(purch)
             }
+
             val purchase = purch
             val productBundleId = purchasingProduct?.id
             val paywallId = purchasingProduct?.paywallId
