@@ -220,7 +220,7 @@ private fun ApphudInternal.purchaseInternal(
     }
 }
 
-internal fun ApphudInternal.lookupFreshPurchase() {
+internal fun ApphudInternal.lookupFreshPurchase(extraMessage: String = "resend_fresh_purchase") {
     coroutineScope.launch(errorHandler) {
         var purch = freshPurchase
         if (purch == null) {
@@ -249,7 +249,7 @@ internal fun ApphudInternal.lookupFreshPurchase() {
             ApphudLog.logE("resending fresh purchase ${purchase.orderId}")
 
             coroutineScope.launch(errorHandler) {
-                RequestManager.purchased(purchase, productDetails, productBundleId, paywallId, placementId, null, null, "resend_fresh_purchase") { customer, _ ->
+                RequestManager.purchased(purchase, productDetails, productBundleId, paywallId, placementId, null, null, extraMessage) { customer, _ ->
                     mainScope.launch {
                         customer?.let {
                             val newSubscriptions =

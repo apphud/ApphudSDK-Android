@@ -140,7 +140,7 @@ internal object ApphudInternal {
 
                     if (storage.isNeedSync) {
                         // lookup immediately
-                        lookupFreshPurchase()
+                        lookupFreshPurchase(extraMessage = "recover_need_sync")
                     } else if (purchasingProduct != null && purchaseCallbacks.isNotEmpty()) {
                         scheduleLookupPurchase()
                     }
