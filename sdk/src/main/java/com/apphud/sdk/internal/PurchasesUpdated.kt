@@ -2,12 +2,17 @@ package com.apphud.sdk.internal
 
 import com.android.billingclient.api.BillingClient
 import com.android.billingclient.api.BillingResult
+import com.android.billingclient.api.Purchase
 import com.apphud.sdk.ApphudInternal
 import com.apphud.sdk.ApphudInternal.apphudListener
+import com.apphud.sdk.ApphudInternal.coroutineScope
+import com.apphud.sdk.ApphudInternal.mainScope
+import com.apphud.sdk.BuildConfig
 import com.apphud.sdk.handleObservedPurchase
 import com.apphud.sdk.internal.callback_status.PurchaseUpdatedCallbackStatus
 import com.apphud.sdk.isSuccess
 import com.apphud.sdk.logMessage
+import kotlinx.coroutines.launch
 import java.io.Closeable
 
 typealias PurchasesUpdatedCallback = (PurchaseUpdatedCallbackStatus) -> Unit
@@ -22,8 +27,15 @@ internal class PurchasesUpdated(
             when (result.isSuccess()) {
                 true -> {
                     val purchases = list?.filterNotNull() ?: emptyList()
-                    apphudListener?.apphudDidReceivePurchase(purchases.first())
-
+                    val purchase = purchases.firstOrNull()
+                    purchase?.let {
+                        if (it.purchaseState == Purchase.PurchaseState.PURCHASED) {
+                            ApphudInternal.freshPurchase = purchase
+                        }
+                        mainScope.launch {
+                            apphudListener?.apphudDidReceivePurchase(purchase)
+                        }
+                    }
                     if (callback != null) {
                         callback?.invoke(PurchaseUpdatedCallbackStatus.Success(purchases))
                     } else if (purchases.isNotEmpty()) {

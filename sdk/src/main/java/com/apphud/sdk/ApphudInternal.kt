@@ -80,7 +80,6 @@ internal object ApphudInternal {
                 handler.removeCallbacks(userPropertiesRunnable)
             }
         }
-
     internal var isUpdatingProperties = false
 
     private const val MUST_REGISTER_ERROR = " :You must call `Apphud.start` method before calling any other methods."
@@ -101,7 +100,24 @@ internal object ApphudInternal {
     internal var preferredTimeout: Double = 999_999.0
     private var customProductsFetchedBlock: ((List<ProductDetails>) -> Unit)? = null
     private var offeringsPreparedCallbacks = mutableListOf<((ApphudError?) -> Unit)?>()
+
     internal var purchaseCallbacks = mutableListOf<((ApphudPurchaseResult) -> Unit)>()
+    internal var freshPurchase: Purchase? = null
+        set(value) {
+            field = value
+            if (value != null) {
+                scheduleLookupPurchase()
+            } else {
+                handler.removeCallbacks(lookupPurchaseRunnable)
+            }
+        }
+    private val lookupPurchaseRunnable = Runnable { lookupFreshPurchase() }
+
+    fun scheduleLookupPurchase(delay: Long = 7000L) {
+        handler.removeCallbacks(lookupPurchaseRunnable)
+        handler.postDelayed(lookupPurchaseRunnable, delay)
+    }
+
     private var userRegisteredBlock: ((ApphudUser) -> Unit)? = null
     private var notifiedPaywallsAndPlacementsHandled = false
     internal var deferPlacements = false
@@ -121,6 +137,13 @@ internal object ApphudInternal {
                     // do nothing
                     ApphudLog.log("Application resumed")
                     isActive = true
+
+                    if (storage.isNeedSync) {
+                        // lookup immediately
+                        lookupFreshPurchase(extraMessage = "recover_need_sync")
+                    } else if (purchasingProduct != null && purchaseCallbacks.isNotEmpty()) {
+                        scheduleLookupPurchase()
+                    }
                 }
                 Lifecycle.Event.ON_CREATE -> {
                     // do nothing
@@ -160,7 +183,7 @@ internal object ApphudInternal {
         ApphudLog.log("Start initialization with userId=$inputUserId, deviceId=$inputDeviceId")
         if (apiKey.isEmpty()) throw Exception("ApiKey can't be empty")
 
-        this.context = context
+        this.context = context.applicationContext
         this.apiKey = apiKey
         val isValid = storage.validateCaches()
         if (ignoreCache) {
@@ -213,7 +236,7 @@ internal object ApphudInternal {
         cachedPlacements?.let { this.placements = it }
 
         this.userRegisteredBlock = callback
-        billing = BillingWrapper(context)
+        billing = BillingWrapper(this.context)
         RequestManager.setParams(this.context, this.apiKey)
 
         forceNotifyAllLoaded()
@@ -816,7 +839,7 @@ internal object ApphudInternal {
         forceFlushUserProperties(false) { _ -> }
     }
 
-    internal fun updateUserId(userId: UserId, web2Web: Boolean? = false, callback: ((ApphudUser?) -> Unit)?) {
+    internal fun updateUserId(userId: UserId, email: String? = null, web2Web: Boolean? = false, callback: ((ApphudUser?) -> Unit)?) {
         if (userId.isBlank()) {
             ApphudLog.log("Invalid UserId=$userId")
             callback?.invoke(currentUser)
@@ -829,8 +852,11 @@ internal object ApphudInternal {
                 ApphudLog.logE(it.message)
                 callback?.invoke(currentUser)
             } ?: run {
-                this.userId = userId
-                storage.userId = userId
+                val originalUserId = this.userId
+                if (web2Web == false) {
+                    this.userId = userId
+                    storage.userId = userId
+                }
                 RequestManager.setParams(this.context, this.apiKey)
 
                 coroutineScope.launch(errorHandler) {
@@ -839,7 +865,9 @@ internal object ApphudInternal {
                         ApphudInternal.fromWeb2Web = true
                     }
                     val needPlacementsPaywalls = !didRegisterCustomerAtThisLaunch && !deferPlacements && !observerMode
-                    val customer = RequestManager.registrationSync(needPlacementsPaywalls, is_new, true, userId = userId)
+                    val customer = RequestManager.registrationSync(needPlacementsPaywalls, is_new, true, userId = userId, email)
+                    ApphudInternal.userId = customer?.userId ?: currentUser?.userId ?: originalUserId
+                    storage.userId = ApphudInternal.userId
                     customer?.let {
                         mainScope.launch {
                             notifyLoadingCompleted(it)
@@ -1158,6 +1186,7 @@ internal object ApphudInternal {
         customProductsFetchedBlock = null
         offeringsPreparedCallbacks.clear()
         purchaseCallbacks.clear()
+        freshPurchase = null
         storage.clean()
         prevPurchases.clear()
         productDetails.clear()

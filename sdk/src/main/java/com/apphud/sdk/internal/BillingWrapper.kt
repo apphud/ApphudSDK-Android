@@ -252,7 +252,7 @@ internal class BillingWrapper(context: Context) : Closeable {
         oldToken: String,
         replacementMode: Int?,
     ): BillingFlowParams {
-        val pMode = replacementMode ?: BillingFlowParams.ProrationMode.IMMEDIATE_AND_CHARGE_FULL_PRICE
+        val pMode = replacementMode ?: BillingFlowParams.SubscriptionUpdateParams.ReplacementMode.CHARGE_FULL_PRICE
         return BillingFlowParams.newBuilder().setProductDetailsParamsList(
             listOf(
                 BillingFlowParams.ProductDetailsParams.newBuilder()
@@ -263,7 +263,7 @@ internal class BillingWrapper(context: Context) : Closeable {
         ).setSubscriptionUpdateParams(
             BillingFlowParams.SubscriptionUpdateParams.newBuilder()
                 .setOldPurchaseToken(oldToken)
-                .setReplaceProrationMode(
+                .setSubscriptionReplacementMode(
                     pMode,
                 )
                 .build(),

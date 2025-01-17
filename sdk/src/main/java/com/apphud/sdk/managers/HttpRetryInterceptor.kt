@@ -55,6 +55,9 @@ class HttpRetryInterceptor : Interceptor {
                     } else if (response.code in 200..402) {
                         // do not retry 200..401 http codes
                         return response
+                    } else if (response.code == 422) {
+                        // do not retry 422 http code
+                        return response
                     }
 
                     if (response.code in FALLBACK_ERRORS) {

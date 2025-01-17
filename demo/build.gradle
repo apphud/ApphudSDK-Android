@@ -88,7 +88,7 @@ dependencies {
     implementation "androidx.navigation:navigation-ui-ktx:$nav_version"
 
 
-    implementation 'com.android.billingclient:billing:6.2.0'
+    implementation 'com.android.billingclient:billing:7.1.1'
     implementation "com.google.code.gson:gson:2.10.1"
     implementation "org.greenrobot:eventbus:3.3.1"
     implementation 'com.facebook.android:facebook-android-sdk:latest.release'

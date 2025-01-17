@@ -342,6 +342,7 @@ object RequestManager {
         isNew: Boolean,
         forceRegistration: Boolean = false,
         userId: UserId? = null,
+        email: String? = null
     ): ApphudUser? =
         suspendCancellableCoroutine { continuation ->
             if (!canPerformRequest()) {
@@ -352,7 +353,7 @@ object RequestManager {
             }
 
             if (currentUser == null || forceRegistration) {
-                registration(needPaywalls, isNew, forceRegistration, userId) { customer, error ->
+                registration(needPaywalls, isNew, forceRegistration, userId, email) { customer, error ->
                     if (continuation.isActive) {
                         continuation.resume(customer)
                     }
@@ -370,6 +371,7 @@ object RequestManager {
         isNew: Boolean,
         forceRegistration: Boolean = false,
         userId: UserId? = null,
+        email: String? = null,
         completionHandler: (ApphudUser?, ApphudError?) -> Unit,
     ) {
         if (!canPerformRequest()) {
@@ -385,7 +387,7 @@ object RequestManager {
                     .path("customers")
                     .build()
 
-            val request = buildPostRequest(URL(apphudUrl.url), mkRegistrationBody(needPaywalls, isNew, userId))
+            val request = buildPostRequest(URL(apphudUrl.url), mkRegistrationBody(needPaywalls, isNew, userId, email))
             val httpClient = getOkHttpClient(request, !fallbackMode)
             try {
                 val serverResponse = performRequestSync(httpClient, request)
@@ -473,6 +475,7 @@ object RequestManager {
         placementId: String?,
         offerToken: String?,
         oldToken: String?,
+        extraMessage: String?,
         completionHandler: (ApphudUser?, ApphudError?) -> Unit,
     ) {
         if (!canPerformRequest()) {
@@ -487,7 +490,7 @@ object RequestManager {
                 .path("subscriptions")
                 .build()
 
-        val purchaseBody = makePurchaseBody(purchase, productDetails, paywallId, placementId, productBundleId, offerToken, oldToken)
+        val purchaseBody = makePurchaseBody(purchase, productDetails, paywallId, placementId, productBundleId, offerToken, oldToken, extraMessage)
 
         val request = buildPostRequest(URL(apphudUrl.url), purchaseBody)
 
@@ -971,6 +974,7 @@ object RequestManager {
         needPaywalls: Boolean,
         isNew: Boolean,
         userId: UserId? = null,
+        email: String? = null
     ): RegistrationBody {
         val deviceIds = storage.deviceIdentifiers
         val idfa = deviceIds[0]
@@ -1007,7 +1011,8 @@ object RequestManager {
             request_time = System.currentTimeMillis(),
             install_source = ApphudUtils.getInstallerPackageName(this.applicationContext) ?: "unknown",
             observer_mode = ApphudInternal.observerMode,
-            from_web2web = ApphudInternal.fromWeb2Web
+            from_web2web = ApphudInternal.fromWeb2Web,
+            email = email
         )
     }
 
@@ -1033,6 +1038,7 @@ object RequestManager {
         apphud_product_id: String?,
         offerIdToken: String?,
         oldToken: String?,
+        extraMessage: String?
     ): PurchaseBody {
         return PurchaseBody(
             device_id = ApphudInternal.deviceId,
@@ -1053,6 +1059,8 @@ object RequestManager {
                         purchase_time = purchase.purchaseTime,
                         product_info = productDetails?.let { ProductInfo(productDetails, offerIdToken) },
                         product_type = productDetails?.productType,
+                        timestamp = System.currentTimeMillis(),
+                        extra_message = extraMessage
                     ),
                 ),
         )
@@ -1088,6 +1096,8 @@ object RequestManager {
                     purchase_time = purchase.record.purchaseTime,
                     product_info = null,
                     product_type = purchase.details.productType,
+                    timestamp = System.currentTimeMillis(),
+                    extra_message = null
                 )
             }.sortedByDescending { it.purchase_time },
     )
@@ -1117,6 +1127,8 @@ object RequestManager {
                     purchase_time = purchase.purchaseTime,
                     product_info = ProductInfo(productDetails, offerIdToken),
                     product_type = productDetails.productType,
+                    timestamp = System.currentTimeMillis(),
+                    extra_message = null
                 ),
             ),
     )

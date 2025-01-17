@@ -24,5 +24,6 @@ data class RegistrationBody(
     val request_time: Long,
     val install_source: String,
     val observer_mode: Boolean,
-    val from_web2web: Boolean
+    val from_web2web: Boolean,
+    val email: String?
 )

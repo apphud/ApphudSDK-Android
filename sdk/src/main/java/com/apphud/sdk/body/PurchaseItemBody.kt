@@ -17,4 +17,6 @@ data class PurchaseItemBody(
     val purchase_time: Long,
     val product_info: ProductInfo?,
     val product_type: String?,
+    val timestamp: Long?,
+    val extra_message: String?
 )
