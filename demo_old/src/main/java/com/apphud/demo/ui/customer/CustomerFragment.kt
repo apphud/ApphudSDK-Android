@@ -14,12 +14,10 @@ import androidx.recyclerview.widget.DividerItemDecoration
 import androidx.recyclerview.widget.RecyclerView
 import com.android.billingclient.api.ProductDetails
 import com.android.billingclient.api.Purchase
-import com.apphud.demo.ApphudApplication
 import com.apphud.demo.BuildConfig
 import com.apphud.demo.databinding.FragmentCustomerBinding
 import com.apphud.sdk.Apphud
 import com.apphud.sdk.ApphudListener
-import com.apphud.sdk.client.ApiClient
 import com.apphud.sdk.domain.ApphudNonRenewingPurchase
 import com.apphud.sdk.domain.ApphudPaywall
 import com.apphud.sdk.domain.ApphudPlacement
@@ -51,13 +49,18 @@ class CustomerFragment : Fragment() {
         binding.appVersion.text = BuildConfig.VERSION_NAME + " (" + BuildConfig.VERSION_CODE + ")"
 
         binding.btnSync.setOnClickListener {
-            Apphud.restorePurchases { _, _, _ ->  }
+            Apphud.restorePurchases { _, _, _ -> }
         }
 
         paywallsViewModel = ViewModelProvider(this)[PaywallsViewModel::class.java]
         viewAdapter = PaywallsAdapter(paywallsViewModel, context)
         viewAdapter.selectItem = { item ->
-            findNavController().navigate(CustomerFragmentDirections.actionNavCustomerToProductsFragment(item.paywall?.identifier, item.placement?.identifier))
+            findNavController().navigate(
+                CustomerFragmentDirections.actionNavCustomerToProductsFragment(
+                    item.paywall?.identifier,
+                    item.placement?.identifier
+                )
+            )
         }
 
         val recyclerView: RecyclerView = binding.paywallsList

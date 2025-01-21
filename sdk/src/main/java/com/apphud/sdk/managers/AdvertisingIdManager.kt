@@ -8,7 +8,7 @@ import android.os.*
 import java.io.IOException
 import java.util.concurrent.LinkedBlockingQueue
 
-object AdvertisingIdManager {
+internal object AdvertisingIdManager {
     @Throws(Exception::class)
     fun getAdvertisingIdInfo(context: Context): AdInfo {
         check(Looper.myLooper() != Looper.getMainLooper()) { "Cannot be called from the main thread" }

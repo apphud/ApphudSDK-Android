@@ -106,9 +106,9 @@ internal object ApphudLog {
                             listToSend.addAll(data)
                             body =
                                 BenchmarkBody(
-                                    device_id = ApphudInternal.deviceId,
-                                    user_id = ApphudInternal.userId,
-                                    bundle_id = ApphudInternal.getPackageName(),
+                                    deviceId = ApphudInternal.deviceId,
+                                    userId = ApphudInternal.userId,
+                                    bundleId = ApphudInternal.getPackageName(),
                                     data = listToSend,
                                 )
                             data.clear()

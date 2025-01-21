@@ -1,5 +1,5 @@
 package com.apphud.sdk.client
 
-object ApiClient {
+internal object ApiClient {
     var host = "https://gateway.apphud.com"
 }

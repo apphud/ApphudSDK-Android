@@ -1,9 +1,15 @@
 package com.apphud.sdk.body
 
-class GrantPromotionalBody(
+import com.google.gson.annotations.SerializedName
+
+internal class GrantPromotionalBody(
     val duration: Int,
-    val user_id: String?,
-    val device_id: String,
-    val product_id: String?,
-    val product_group_id: String?,
+    @SerializedName("user_id")
+    val userId: String?,
+    @SerializedName("device_id")
+    val deviceId: String,
+    @SerializedName("product_id")
+    val productId: String?,
+    @SerializedName("product_group_id")
+    val productGroupId: String?,
 )

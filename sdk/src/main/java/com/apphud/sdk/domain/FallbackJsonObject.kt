@@ -1,6 +1,6 @@
 package com.apphud.sdk.domain
 
-data class FallbackJsonObject(
+internal data class FallbackJsonObject(
     val data: FallbackDataObject,
     val errors: Any?,
 )

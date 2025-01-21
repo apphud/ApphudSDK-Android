@@ -4,7 +4,7 @@ import com.apphud.sdk.client.dto.ApphudGroupDto
 import com.apphud.sdk.domain.ApphudGroup
 import com.apphud.sdk.domain.ApphudProduct
 
-class ProductMapper {
+internal class ProductMapper {
     fun map(dto: List<ApphudGroupDto>): List<ApphudGroup> =
         dto.map {
             ApphudGroup(
@@ -14,10 +14,10 @@ class ProductMapper {
                     it.bundles.map { item ->
                         ApphudProduct(
                             id = item.id,
-                            productId = item.product_id,
+                            productId = item.productId,
                             name = item.name,
                             store = item.store,
-                            basePlanId = item.base_plan_id,
+                            basePlanId = item.basePlanId,
                             productDetails = null,
                             paywallId = null,
                             paywallIdentifier = null,

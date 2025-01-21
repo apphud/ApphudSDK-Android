@@ -1,20 +1,34 @@
 package com.apphud.sdk.client.dto
 
-data class SubscriptionDto(
+import com.google.gson.annotations.SerializedName
+
+internal data class SubscriptionDto(
     val id: String,
     val unit: String,
-    val autorenew_enabled: Boolean,
-    val expires_at: String,
-    val in_retry_billing: Boolean,
-    val introductory_activated: Boolean,
-    val original_transaction_id: String,
-    val cancelled_at: String?,
-    val product_id: String,
-    val retries_count: Int,
-    val started_at: String,
-    val active_till: String,
+    @SerializedName("autorenew_enabled")
+    val autorenewEnabled: Boolean,
+    @SerializedName("expires_at")
+    val expiresAt: String,
+    @SerializedName("in_retry_billing")
+    val inRetryBilling: Boolean,
+    @SerializedName("introductory_activated")
+    val introductoryActivated: Boolean,
+    @SerializedName("original_transaction_id")
+    val originalTransactionId: String,
+    @SerializedName("cancelled_at")
+    val cancelledAt: String?,
+    @SerializedName("product_id")
+    val productId: String,
+    @SerializedName("retries_count")
+    val retriesCount: Int,
+    @SerializedName("started_at")
+    val startedAt: String,
+    @SerializedName("active_till")
+    val activeTill: String,
     val kind: String,
-    val units_count: Int,
+    @SerializedName("units_count")
+    val unitsCount: Int,
     val status: String,
-    val is_consumable: Boolean?,
+    @SerializedName("is_consumable")
+    val isConsumable: Boolean?,
 )

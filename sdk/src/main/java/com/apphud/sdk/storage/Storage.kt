@@ -1,9 +1,15 @@
 package com.apphud.sdk.storage
 
 import com.apphud.sdk.ApphudUserProperty
-import com.apphud.sdk.domain.*
+import com.apphud.sdk.domain.AdjustInfo
+import com.apphud.sdk.domain.ApphudGroup
+import com.apphud.sdk.domain.ApphudPaywall
+import com.apphud.sdk.domain.ApphudPlacement
+import com.apphud.sdk.domain.ApphudUser
+import com.apphud.sdk.domain.AppsflyerInfo
+import com.apphud.sdk.domain.FacebookInfo
 
-interface Storage {
+internal interface Storage {
     var lastRegistration: Long
     var userId: String?
     var deviceId: String?

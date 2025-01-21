@@ -15,7 +15,7 @@ import com.apphud.sdk.logMessage
 import kotlinx.coroutines.launch
 import java.io.Closeable
 
-typealias PurchasesUpdatedCallback = (PurchaseUpdatedCallbackStatus) -> Unit
+internal typealias PurchasesUpdatedCallback = (PurchaseUpdatedCallbackStatus) -> Unit
 
 internal class PurchasesUpdated(
     builder: BillingClient.Builder

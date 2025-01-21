@@ -1,9 +1,13 @@
 package com.apphud.sdk.body
 
-data class PaywallEventBody(
+import com.google.gson.annotations.SerializedName
+
+internal data class PaywallEventBody(
     val name: String, // required
-    val user_id: String?, // required
-    val device_id: String?, // optional
+    @SerializedName("user_id")
+    val userId: String?, // required
+    @SerializedName("device_id")
+    val deviceId: String?, // optional
     val environment: String, // required
     val timestamp: Long, // (ms) required
     val properties: Map<String, Any>?, // optional

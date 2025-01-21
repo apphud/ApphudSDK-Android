@@ -1,7 +1,10 @@
 package com.apphud.sdk.client.dto
 
-data class CustomerDto(
-    val user_id: String,
+import com.google.gson.annotations.SerializedName
+
+internal data class CustomerDto(
+    @SerializedName("user_id")
+    val userId: String,
     val subscriptions: List<SubscriptionDto>,
     val currency: CurrencyDto?,
     val paywalls: List<ApphudPaywallDto>?,

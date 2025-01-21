@@ -5,16 +5,16 @@ import com.android.billingclient.api.ProductDetails
 import com.apphud.sdk.managers.priceAmountMicros
 import com.apphud.sdk.managers.priceCurrencyCode
 
-enum class ApphudProductType{
+enum class ApphudProductType {
     SUBS,
     INAPP
 }
 
-enum class RecurrenceMode (val mode: Int){
+enum class RecurrenceMode(val mode: Int) {
     FINITE_RECURRING(2),
     INFINITE_RECURRING(1),
-    NON_RECURRING (3),
-    UNDEFINED (0);
+    NON_RECURRING(3),
+    UNDEFINED(0);
 
     companion object {
         fun getRecurringMode(mode: Int): RecurrenceMode {
@@ -33,15 +33,15 @@ data class ApphudProduct(
      * */
     internal var id: String?,
     /**
-     Product Identifier from Google Play.
+    Product Identifier from Google Play.
      */
     var productId: String,
     /**
-     Product name from Apphud Dashboard
+    Product name from Apphud Dashboard
      */
     var name: String?,
     /**
-     Always `play_store` in Android SDK.
+    Always `play_store` in Android SDK.
      */
     var store: String,
     /**
@@ -49,9 +49,9 @@ data class ApphudProduct(
      */
     var basePlanId: String?,
     /**
-     When paywalls are successfully loaded, productDetails model will always be present if Google Play returned model for this product id.
-     getPaywalls method will return callback only when Google Play products are fetched and mapped with Apphud products.
-     May be `null` if product identifier is invalid, or product is not available in Google Play.
+    When paywalls are successfully loaded, productDetails model will always be present if Google Play returned model for this product id.
+    getPaywalls method will return callback only when Google Play products are fetched and mapped with Apphud products.
+    May be `null` if product identifier is invalid, or product is not available in Google Play.
      */
     var productDetails: ProductDetails?,
     /**
@@ -59,7 +59,7 @@ data class ApphudProduct(
      */
     var placementIdentifier: String?,
     /**
-     User Generated Paywall Identifier
+    User Generated Paywall Identifier
      */
     var paywallIdentifier: String?,
     /**
@@ -121,7 +121,7 @@ data class ApphudProduct(
     fun oneTimePurchaseOfferDetails(): OneTimePurchaseOfferDetails? {
         productDetails?.let {
             return OneTimePurchaseOfferDetails(
-                priceAmountMicros = it.oneTimePurchaseOfferDetails?.priceAmountMicros?:0L,
+                priceAmountMicros = it.oneTimePurchaseOfferDetails?.priceAmountMicros ?: 0L,
                 formattedPrice = it.oneTimePurchaseOfferDetails?.formattedPrice,
                 priceCurrencyCode = it.oneTimePurchaseOfferDetails?.priceCurrencyCode,
                 offerIdToken = null
@@ -134,7 +134,7 @@ data class ApphudProduct(
         productDetails?.let {
             var result: MutableList<SubscriptionOfferDetails> = mutableListOf()
 
-            for (offerDetails in it.subscriptionOfferDetails?: listOf()) {
+            for (offerDetails in it.subscriptionOfferDetails ?: listOf()) {
 
                 var phases: MutableList<PricingPhase> = mutableListOf()
                 for (phase in offerDetails.pricingPhases.pricingPhaseList) {

@@ -4,16 +4,16 @@ import com.apphud.sdk.client.dto.CustomerDto
 import com.apphud.sdk.domain.ApphudKind
 import com.apphud.sdk.domain.ApphudUser
 
-class CustomerMapper(
+internal class CustomerMapper(
     private val mapper: SubscriptionMapper,
     private val paywallsMapper: PaywallsMapper,
     private var placementsMapper: PlacementsMapper,
 ) {
     fun map(customer: CustomerDto) =
         ApphudUser(
-            userId = customer.user_id,
+            userId = customer.userId,
             currencyCode = customer.currency?.code,
-            countryCode = customer.currency?.country_code,
+            countryCode = customer.currency?.countryCode,
             subscriptions =
                 customer.subscriptions
                     .filter { it.kind == ApphudKind.AUTORENEWABLE.source }

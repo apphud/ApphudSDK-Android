@@ -2,7 +2,6 @@ package com.apphud.sdk.managers
 
 import com.apphud.sdk.BuildConfig
 import com.apphud.sdk.client.ApiClient
-import com.google.android.gms.common.api.Api
 import okhttp3.Interceptor
 import okhttp3.Request
 import okhttp3.Response

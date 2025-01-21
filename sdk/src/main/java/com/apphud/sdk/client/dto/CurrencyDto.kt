@@ -1,6 +1,9 @@
 package com.apphud.sdk.client.dto
 
-data class CurrencyDto(
+import com.google.gson.annotations.SerializedName
+
+internal data class CurrencyDto(
     val code: String?,
-    val country_code: String,
+    @SerializedName("country_code")
+    val countryCode: String,
 )

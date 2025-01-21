@@ -1,9 +1,11 @@
 package com.apphud.sdk.domain
 
 import com.android.billingclient.api.ProductDetails
+import com.google.gson.annotations.SerializedName
 
-class ProductInfo(productDetails: ProductDetails, offerTokenId: String?) {
-    val product_id: String = productDetails.productId
+internal class ProductInfo(productDetails: ProductDetails, offerTokenId: String?) {
+    @SerializedName("product_id")
+    val productId: String = productDetails.productId
     val type: String = productDetails.productType
     val title: String = productDetails.title
     val name: String = productDetails.name

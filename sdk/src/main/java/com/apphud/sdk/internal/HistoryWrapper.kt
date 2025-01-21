@@ -16,7 +16,7 @@ import java.io.Closeable
 import kotlin.concurrent.thread
 import kotlin.coroutines.resume
 
-typealias PurchaseHistoryListener = (PurchaseHistoryCallbackStatus) -> Unit
+internal typealias PurchaseHistoryListener = (PurchaseHistoryCallbackStatus) -> Unit
 
 internal class HistoryWrapper(
     private val billing: BillingClient,

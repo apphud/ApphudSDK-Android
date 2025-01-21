@@ -3,9 +3,9 @@ package com.apphud.sdk
 import com.android.billingclient.api.BillingClient
 import com.android.billingclient.api.BillingResult
 
-fun BillingResult.isSuccess() = responseCode == BillingClient.BillingResponseCode.OK
+internal fun BillingResult.isSuccess() = responseCode == BillingClient.BillingResponseCode.OK
 
-inline fun BillingResult.response(
+internal inline fun BillingResult.response(
     message: String,
     crossinline block: () -> Unit,
 ) = when {
@@ -13,7 +13,7 @@ inline fun BillingResult.response(
     else -> logMessage(message)
 }
 
-fun BillingResult.response(
+internal fun BillingResult.response(
     message: String,
     error: () -> Unit,
     success: () -> Unit,
@@ -22,5 +22,5 @@ fun BillingResult.response(
     else -> error.invoke().also { logMessage(message) }
 }
 
-fun BillingResult.logMessage(template: String) =
+internal fun BillingResult.logMessage(template: String) =
     ApphudLog.logE("Message: $template, failed with code: $responseCode message: $debugMessage")

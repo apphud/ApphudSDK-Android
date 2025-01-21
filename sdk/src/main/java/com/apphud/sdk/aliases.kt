@@ -1,6 +1,11 @@
 package com.apphud.sdk
 
-import com.apphud.sdk.domain.*
+import com.apphud.sdk.domain.ApphudGroup
+import com.apphud.sdk.domain.ApphudNonRenewingPurchase
+import com.apphud.sdk.domain.ApphudPaywall
+import com.apphud.sdk.domain.ApphudSubscription
+import com.apphud.sdk.domain.ApphudUser
+import com.apphud.sdk.domain.Attribution
 
 typealias ApiKey = String
 typealias UserId = String

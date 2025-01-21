@@ -10,9 +10,9 @@ import kotlin.concurrent.thread
 import kotlin.coroutines.resume
 import kotlin.coroutines.resumeWithException
 
-typealias ProductType = String
-typealias ApphudProductDetailsCallback = (List<ProductDetails>) -> Unit
-typealias ApphudProductDetailsRestoreCallback = (PurchaseRestoredCallbackStatus) -> Unit
+internal typealias ProductType = String
+internal typealias ApphudProductDetailsCallback = (List<ProductDetails>) -> Unit
+internal typealias ApphudProductDetailsRestoreCallback = (PurchaseRestoredCallbackStatus) -> Unit
 
 internal class ProductDetailsWrapper(
     private val billing: BillingClient,
