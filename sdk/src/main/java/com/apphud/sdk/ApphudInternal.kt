@@ -9,7 +9,6 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.ProcessLifecycleOwner
 import com.android.billingclient.api.BillingClient
-import com.android.billingclient.api.BillingClient.BillingResponseCode
 import com.android.billingclient.api.ProductDetails
 import com.android.billingclient.api.Purchase
 import com.apphud.sdk.body.*
@@ -24,11 +23,9 @@ import com.google.android.gms.appset.AppSetIdInfo
 import com.google.android.gms.tasks.Task
 import kotlinx.coroutines.*
 import kotlinx.coroutines.sync.Mutex
-import kotlinx.coroutines.sync.withLock
 import java.util.*
 import kotlin.coroutines.resume
 import kotlin.math.max
-import kotlin.math.min
 
 @SuppressLint("StaticFieldLeak")
 internal object ApphudInternal {
@@ -86,7 +83,7 @@ internal object ApphudInternal {
     internal var productGroups: MutableList<ApphudGroup> = mutableListOf()
     private var allowIdentifyUser = true
     internal var didRegisterCustomerAtThisLaunch = false
-    private var is_new = true
+    private var isNew = true
     private lateinit var apiKey: ApiKey
     lateinit var deviceId: DeviceId
     internal var fallbackMode = false
@@ -550,7 +547,7 @@ internal object ApphudInternal {
             "Registration conditions: user_is_null=${currentUser == null}, forceRegistration=$forceRegistration, isTemporary=${currentUser?.isTemporary}, requesting Placements = $needPlacementsPaywalls",
         )
 
-        RequestManager.registration(needPlacementsPaywalls, is_new, forceRegistration) { customer, error ->
+        RequestManager.registration(needPlacementsPaywalls, isNew, forceRegistration) { customer, error ->
             customer?.let {
                 if (firstCustomerLoadedTime == null) {
                     firstCustomerLoadedTime = System.currentTimeMillis()
@@ -603,7 +600,7 @@ internal object ApphudInternal {
 
     private suspend fun repeatRegistrationSilent() {
         val needPlacementsPaywalls = !didRegisterCustomerAtThisLaunch && !deferPlacements && !observerMode
-        val newUser = RequestManager.registrationSync(needPlacementsPaywalls, is_new, true)
+        val newUser = RequestManager.registrationSync(needPlacementsPaywalls, isNew, true)
 
         newUser?.let {
             storage.lastRegistration = System.currentTimeMillis()
@@ -865,7 +862,7 @@ internal object ApphudInternal {
                         ApphudInternal.fromWeb2Web = true
                     }
                     val needPlacementsPaywalls = !didRegisterCustomerAtThisLaunch && !deferPlacements && !observerMode
-                    val customer = RequestManager.registrationSync(needPlacementsPaywalls, is_new, true, userId = userId, email)
+                    val customer = RequestManager.registrationSync(needPlacementsPaywalls, isNew, true, userId = userId, email)
                     ApphudInternal.userId = customer?.userId ?: currentUser?.userId ?: originalUserId
                     storage.userId = ApphudInternal.userId
                     customer?.let {

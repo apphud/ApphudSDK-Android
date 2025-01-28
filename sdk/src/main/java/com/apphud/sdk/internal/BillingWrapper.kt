@@ -20,7 +20,7 @@ import kotlinx.coroutines.sync.withLock
 import java.io.Closeable
 import kotlin.coroutines.resume
 
-typealias ConsumeCallback = (PurchaseCallbackStatus, Purchase) -> Unit
+internal typealias ConsumeCallback = (PurchaseCallbackStatus, Purchase) -> Unit
 
 internal class BillingWrapper(context: Context) : Closeable {
     private val builder =

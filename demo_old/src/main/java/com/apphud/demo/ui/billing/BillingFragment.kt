@@ -10,15 +10,13 @@ import androidx.lifecycle.ViewModelProvider
 import androidx.recyclerview.widget.GridLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import com.apphud.demo.databinding.FragmentBillingBinding
-import com.apphud.sdk.Apphud
-import com.apphud.sdk.client.ApiClient
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.launch
 import org.greenrobot.eventbus.EventBus
 import org.greenrobot.eventbus.Subscribe
 import org.greenrobot.eventbus.ThreadMode
-import java.util.*
+import java.util.Timer
 import kotlin.concurrent.schedule
 
 class BillingFragment : Fragment() {
@@ -41,7 +39,8 @@ class BillingFragment : Fragment() {
         viewAdapter = ProductsAdapter(productsViewModel, context)
         viewAdapter.selectProduct = { product ->
             activity?.let { activity ->
-                val offers = product.subscriptionOfferDetails?.map { it.pricingPhases.pricingPhaseList[0].formattedPrice }
+                val offers =
+                    product.subscriptionOfferDetails?.map { it.pricingPhases.pricingPhaseList[0].formattedPrice }
                 offers?.let { _ ->
 
                     product.subscriptionOfferDetails?.let {

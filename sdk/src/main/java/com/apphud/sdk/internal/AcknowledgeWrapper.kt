@@ -10,7 +10,7 @@ import com.apphud.sdk.internal.callback_status.PurchaseCallbackStatus
 import com.apphud.sdk.response
 import java.io.Closeable
 
-typealias AcknowledgeCallback = (PurchaseCallbackStatus, Purchase) -> Unit
+internal typealias AcknowledgeCallback = (PurchaseCallbackStatus, Purchase) -> Unit
 
 internal class AcknowledgeWrapper(
     private val billing: BillingClient,

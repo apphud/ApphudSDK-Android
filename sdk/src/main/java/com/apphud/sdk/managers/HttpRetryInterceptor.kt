@@ -22,7 +22,7 @@ import java.lang.Exception
 import java.net.SocketTimeoutException
 import java.net.UnknownHostException
 
-class HttpRetryInterceptor : Interceptor {
+internal class HttpRetryInterceptor : Interceptor {
     companion object {
         private var STEP = 2_000L
         internal var MAX_COUNT = APPHUD_DEFAULT_RETRIES

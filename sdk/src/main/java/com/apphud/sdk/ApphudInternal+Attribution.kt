@@ -17,9 +17,9 @@ internal fun ApphudInternal.addAttribution(
         when (provider) {
             ApphudAttributionProvider.adjust ->
                 AttributionBody(
-                    device_id = deviceId,
+                    deviceId = deviceId,
                     adid = identifier,
-                    adjust_data = data ?: emptyMap(),
+                    adjustData = data ?: emptyMap(),
                 )
             ApphudAttributionProvider.facebook -> {
                 val map =
@@ -27,8 +27,8 @@ internal fun ApphudInternal.addAttribution(
                         .also { map -> data?.let { map.putAll(it) } }
                         .toMap()
                 AttributionBody(
-                    device_id = deviceId,
-                    facebook_data = map,
+                    deviceId = deviceId,
+                    facebookData = map,
                 )
             }
             ApphudAttributionProvider.appsFlyer ->
@@ -36,9 +36,9 @@ internal fun ApphudInternal.addAttribution(
                     null -> null
                     else ->
                         AttributionBody(
-                            device_id = deviceId,
-                            appsflyer_id = identifier,
-                            appsflyer_data = data,
+                            deviceId = deviceId,
+                            appsflyerId = identifier,
+                            appsflyerData = data,
                         )
                 }
             ApphudAttributionProvider.firebase ->
@@ -46,14 +46,14 @@ internal fun ApphudInternal.addAttribution(
                     null -> null
                     else ->
                         AttributionBody(
-                            device_id = deviceId,
-                            firebase_id = identifier,
+                            deviceId = deviceId,
+                            firebaseId = identifier,
                         )
                 }
             ApphudAttributionProvider.custom -> {
                 AttributionBody(
-                    device_id = deviceId,
-                    attribution_data = data?.toMutableMap().also { map ->
+                    deviceId = deviceId,
+                    attributionData = data?.toMutableMap().also { map ->
                         identifier?.let { map?.set("attribution_identifier", it) }
                     }
                 )
@@ -65,7 +65,7 @@ internal fun ApphudInternal.addAttribution(
             val temporary = storage.appsflyer
             when {
                 temporary == null -> Unit
-                (temporary.id == body?.appsflyer_id) && (temporary.data == body?.appsflyer_data) -> {
+                (temporary.id == body?.appsflyerId) && (temporary.data == body?.appsflyerData) -> {
                     ApphudLog.logI("Already submitted the same AppsFlyer attribution, skipping")
                     return
                 }
@@ -75,14 +75,14 @@ internal fun ApphudInternal.addAttribution(
             val temporary = storage.facebook
             when {
                 temporary == null -> Unit
-                temporary.data == body?.facebook_data -> {
+                temporary.data == body?.facebookData -> {
                     ApphudLog.logI("Already submitted the same Facebook attribution, skipping")
                     return
                 }
             }
         }
         ApphudAttributionProvider.firebase -> {
-            if (storage.firebase == body?.firebase_id) {
+            if (storage.firebase == body?.firebaseId) {
                 ApphudLog.logI("Already submitted the same Firebase attribution, skipping")
                 return
             }
@@ -91,7 +91,7 @@ internal fun ApphudInternal.addAttribution(
             val temporary = storage.adjust
             when {
                 temporary == null -> Unit
-                (temporary.adid == body?.adid) && (temporary.adjust_data == body?.adjust_data) -> {
+                (temporary.adid == body?.adid) && (temporary.adjustData == body?.adjustData) -> {
                     ApphudLog.logI("Already submitted the same Adjust attribution, skipping")
                     return
                 }
@@ -117,14 +117,14 @@ internal fun ApphudInternal.addAttribution(
                                         when {
                                             temporary == null ->
                                                 AppsflyerInfo(
-                                                    id = body.appsflyer_id,
-                                                    data = body.appsflyer_data,
+                                                    id = body.appsflyerId,
+                                                    data = body.appsflyerData,
                                                 )
 
-                                            (temporary.id != body.appsflyer_id) || (temporary.data != body.appsflyer_data) ->
+                                            (temporary.id != body.appsflyerId) || (temporary.data != body.appsflyerData) ->
                                                 AppsflyerInfo(
-                                                    id = body.appsflyer_id,
-                                                    data = body.appsflyer_data,
+                                                    id = body.appsflyerId,
+                                                    data = body.appsflyerData,
                                                 )
 
                                             else -> temporary
@@ -135,8 +135,8 @@ internal fun ApphudInternal.addAttribution(
                                     val temporary = storage.facebook
                                     storage.facebook =
                                         when {
-                                            temporary == null -> FacebookInfo(body.facebook_data)
-                                            temporary.data != body.facebook_data -> FacebookInfo(body.facebook_data)
+                                            temporary == null -> FacebookInfo(body.facebookData)
+                                            temporary.data != body.facebookData -> FacebookInfo(body.facebookData)
                                             else -> temporary
                                         }
                                 }
@@ -145,8 +145,8 @@ internal fun ApphudInternal.addAttribution(
                                     val temporary = storage.firebase
                                     storage.firebase =
                                         when {
-                                            temporary == null -> body.firebase_id
-                                            temporary != body.firebase_id -> body.firebase_id
+                                            temporary == null -> body.firebaseId
+                                            temporary != body.firebaseId -> body.firebaseId
                                             else -> temporary
                                         }
                                 }
@@ -158,13 +158,13 @@ internal fun ApphudInternal.addAttribution(
                                             temporary == null ->
                                                 AdjustInfo(
                                                     adid = body.adid,
-                                                    adjust_data = body.adjust_data,
+                                                    adjustData = body.adjustData,
                                                 )
 
-                                            (temporary.adid != body.adid) || (temporary.adjust_data != body.adjust_data) ->
+                                            (temporary.adid != body.adid) || (temporary.adjustData != body.adjustData) ->
                                                 AdjustInfo(
                                                     adid = body.adid,
-                                                    adjust_data = body.adjust_data,
+                                                    adjustData = body.adjustData,
                                                 )
 
                                             else -> temporary

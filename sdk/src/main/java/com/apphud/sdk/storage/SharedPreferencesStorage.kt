@@ -3,17 +3,22 @@ package com.apphud.sdk.storage
 import android.content.Context
 import android.content.SharedPreferences
 import com.apphud.sdk.ApphudInternal
-import com.apphud.sdk.ApphudListener
 import com.apphud.sdk.ApphudLog
 import com.apphud.sdk.ApphudUserProperty
-import com.apphud.sdk.domain.*
+import com.apphud.sdk.domain.AdjustInfo
+import com.apphud.sdk.domain.ApphudGroup
+import com.apphud.sdk.domain.ApphudPaywall
+import com.apphud.sdk.domain.ApphudPlacement
+import com.apphud.sdk.domain.ApphudUser
+import com.apphud.sdk.domain.AppsflyerInfo
+import com.apphud.sdk.domain.FacebookInfo
 import com.apphud.sdk.isDebuggable
 import com.apphud.sdk.parser.GsonParser
 import com.apphud.sdk.parser.Parser
 import com.google.gson.GsonBuilder
 import com.google.gson.reflect.TypeToken
 
-object SharedPreferencesStorage : Storage {
+internal object SharedPreferencesStorage : Storage {
     private var cacheTimeout: Long = 90000L
 
     fun getInstance(applicationContext: Context): SharedPreferencesStorage {
@@ -342,7 +347,8 @@ object SharedPreferencesStorage : Storage {
 
             if (it.containsKey(property.key)) {
                 if (it[property.key]?.setOnce == true) {
-                    val message = "Sending a property with key '${property.key}' is skipped. The property was previously specified as not updatable"
+                    val message =
+                        "Sending a property with key '${property.key}' is skipped. The property was previously specified as not updatable"
                     ApphudLog.logI(message)
                     return false
                 }
@@ -355,7 +361,8 @@ object SharedPreferencesStorage : Storage {
                     return true
                 }
                 if (it[property.key]?.getValue() == property.getValue() && !property.setOnce) {
-                    val message = "Sending a property with key '${property.key}' is skipped. Property value was not changed"
+                    val message =
+                        "Sending a property with key '${property.key}' is skipped. Property value was not changed"
                     ApphudLog.logI(message)
                     return false
                 }

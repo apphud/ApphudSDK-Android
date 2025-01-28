@@ -1,12 +1,12 @@
 package com.apphud.sdk.client
 
-class ApphudUrl private constructor(val url: String) {
+internal class ApphudUrl private constructor(val url: String) {
     companion object {
         private const val PREFIX = "?"
         private const val SEPARATOR = "&"
     }
 
-    class Builder {
+    internal class Builder {
         var host: String? = null
             private set
         var version: String? = null

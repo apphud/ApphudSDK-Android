@@ -1,29 +1,51 @@
 package com.apphud.sdk.body
 
-data class RegistrationBody(
+import com.google.gson.annotations.SerializedName
+
+internal data class RegistrationBody(
     val locale: String?,
-    val sdk_version: String,
-    val app_version: String,
-    val device_family: String,
-    val device_type: String,
+    @SerializedName("sdk_version")
+    val sdkVersion: String,
+    @SerializedName("app_version")
+    val appVersion: String,
+    @SerializedName("device_family")
+    val deviceFamily: String,
+    @SerializedName("device_type")
+    val deviceType: String,
     val platform: String,
-    val os_version: String,
-    val start_app_version: String,
+    @SerializedName("os_version")
+    val osVersion: String,
+    @SerializedName("start_app_version")
+    val startAppVersion: String,
     val idfv: String?,
     val idfa: String?,
-    val android_id: String?,
-    val user_id: String?,
-    val device_id: String,
-    val time_zone: String,
-    val is_sandbox: Boolean,
-    val is_new: Boolean,
-    val need_paywalls: Boolean,
-    val need_placements: Boolean,
-    val first_seen: Long?,
-    val sdk_launched_at: Long,
-    val request_time: Long,
-    val install_source: String,
-    val observer_mode: Boolean,
-    val from_web2web: Boolean,
+    @SerializedName("android_id")
+    val androidId: String?,
+    @SerializedName("user_id")
+    val userId: String?,
+    @SerializedName("device_id")
+    val deviceId: String,
+    @SerializedName("time_zone")
+    val timeZone: String,
+    @SerializedName("is_sandbox")
+    val isSandbox: Boolean,
+    @SerializedName("is_new")
+    val isNew: Boolean,
+    @SerializedName("need_paywalls")
+    val needPaywalls: Boolean,
+    @SerializedName("need_placements")
+    val needPlacements: Boolean,
+    @SerializedName("first_seen")
+    val firstSeen: Long?,
+    @SerializedName("sdk_launched_at")
+    val sdkLaunchedAt: Long,
+    @SerializedName("request_time")
+    val requestTime: Long,
+    @SerializedName("install_source")
+    val installSource: String,
+    @SerializedName("observer_mode")
+    val observerMode: Boolean,
+    @SerializedName("from_web2web")
+    val fromWeb2web: Boolean,
     val email: String?
 )

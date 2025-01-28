@@ -4,8 +4,8 @@ import com.apphud.sdk.client.dto.ApphudPlacementDto
 import com.apphud.sdk.domain.ApphudPlacement
 import com.apphud.sdk.parser.Parser
 
-class PlacementsMapper(
-    private val parser: Parser,
+internal class PlacementsMapper(
+    parser: Parser,
 ) {
     private val paywallsMapper = PaywallsMapper(parser)
 

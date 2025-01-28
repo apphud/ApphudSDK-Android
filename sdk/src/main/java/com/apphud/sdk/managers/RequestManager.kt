@@ -7,7 +7,6 @@ import android.net.ConnectivityManager
 import android.net.NetworkCapabilities
 import android.os.Build
 import com.android.billingclient.api.BillingClient
-import com.android.billingclient.api.BillingClient.BillingResponseCode
 import com.android.billingclient.api.ProductDetails
 import com.android.billingclient.api.Purchase
 import com.apphud.sdk.*
@@ -30,23 +29,19 @@ import okhttp3.OkHttpClient
 import okhttp3.Request
 import okhttp3.RequestBody.Companion.toRequestBody
 import okhttp3.Response
-import okhttp3.logging.HttpLoggingInterceptor
 import okio.Buffer
 import org.json.JSONException
 import org.json.JSONObject
-import java.io.IOException
-import java.io.InterruptedIOException
 import java.net.ConnectException
 import java.net.SocketTimeoutException
 import java.net.URL
 import java.net.UnknownHostException
 import java.nio.charset.Charset
-import java.sql.Time
 import java.util.*
 import java.util.concurrent.TimeUnit
 import kotlin.coroutines.resume
 
-object RequestManager {
+internal object RequestManager {
     private const val MUST_REGISTER_ERROR =
         " :You must call the Apphud.start method once when your application starts before calling any other methods."
 
@@ -66,7 +61,7 @@ object RequestManager {
     // TODO to be settled
     private var apiKey: String? = null
     lateinit var applicationContext: Context
-    lateinit var storage: SharedPreferencesStorage
+    internal lateinit var storage: SharedPreferencesStorage
     var previousException: java.lang.Exception? = null
     var retries: Int = 0
 
@@ -593,7 +588,7 @@ object RequestManager {
             }
         }
 
-    fun send(
+    internal fun send(
         attributionBody: AttributionBody,
         completionHandler: (Attribution?, ApphudError?) -> Unit,
     ) {
@@ -630,7 +625,7 @@ object RequestManager {
         }
     }
 
-    fun userProperties(
+    internal fun userProperties(
         userPropertiesBody: UserPropertiesBody,
         completionHandler: (Attribution?, ApphudError?) -> Unit,
     ) {
@@ -859,7 +854,7 @@ object RequestManager {
         }
     }
 
-    fun sendBenchmarkLogs(body: BenchmarkBody) {
+    internal fun sendBenchmarkLogs(body: BenchmarkBody) {
         if (!canPerformRequest()) {
             ApphudLog.logE(::sendErrorLogs.name + MUST_REGISTER_ERROR)
             return
@@ -922,8 +917,8 @@ object RequestManager {
 
         return PaywallEventBody(
             name = name,
-            user_id = ApphudInternal.userId,
-            device_id = ApphudInternal.deviceId,
+            userId = ApphudInternal.userId,
+            deviceId =  ApphudInternal.deviceId,
             environment = if (applicationContext.isDebuggable()) "sandbox" else "production",
             timestamp = System.currentTimeMillis(),
             properties = properties.ifEmpty { null }
@@ -962,8 +957,8 @@ object RequestManager {
 
         return PaywallEventBody(
             name = "paywall_products_loaded",
-            user_id = ApphudInternal.userId,
-            device_id = ApphudInternal.deviceId,
+            userId = ApphudInternal.userId,
+            deviceId = ApphudInternal.deviceId,
             environment = if (applicationContext.isDebuggable()) "sandbox" else "production",
             timestamp = System.currentTimeMillis(),
             properties = properties.ifEmpty { null }
@@ -989,29 +984,29 @@ object RequestManager {
 
         return RegistrationBody(
             locale = Locale.getDefault().toString(),
-            sdk_version = HeadersInterceptor.X_SDK_VERSION,
-            app_version = this.applicationContext.buildAppVersion(),
-            device_family = Build.MANUFACTURER,
+            sdkVersion = HeadersInterceptor.X_SDK_VERSION,
+            appVersion = this.applicationContext.buildAppVersion(),
+            deviceFamily = Build.MANUFACTURER,
             platform = "Android",
-            device_type = if (ApphudUtils.optOutOfTracking) "Restricted" else Build.MODEL,
-            os_version = Build.VERSION.RELEASE,
-            start_app_version = this.applicationContext.buildAppVersion(),
+            deviceType = if (ApphudUtils.optOutOfTracking) "Restricted" else Build.MODEL,
+            osVersion = Build.VERSION.RELEASE,
+            startAppVersion = this.applicationContext.buildAppVersion(),
             idfv = if (ApphudUtils.optOutOfTracking || appSetId.isEmpty()) null else appSetId,
             idfa = if (ApphudUtils.optOutOfTracking || idfa.isEmpty()) null else idfa,
-            android_id = if (ApphudUtils.optOutOfTracking || androidId.isEmpty()) null else androidId,
-            user_id = userId ?: ApphudInternal.userId,
-            device_id = ApphudInternal.deviceId,
-            time_zone = TimeZone.getDefault().id,
-            is_sandbox = this.applicationContext.isDebuggable(),
-            is_new = isNew,
-            need_paywalls = needPaywalls,
-            need_placements = needPaywalls,
-            first_seen = getInstallationDate(),
-            sdk_launched_at = ApphudInternal.sdkLaunchedAt,
-            request_time = System.currentTimeMillis(),
-            install_source = ApphudUtils.getInstallerPackageName(this.applicationContext) ?: "unknown",
-            observer_mode = ApphudInternal.observerMode,
-            from_web2web = ApphudInternal.fromWeb2Web,
+            androidId = if (ApphudUtils.optOutOfTracking || androidId.isEmpty()) null else androidId,
+            userId = userId ?: ApphudInternal.userId,
+            deviceId = ApphudInternal.deviceId,
+            timeZone = TimeZone.getDefault().id,
+            isSandbox = this.applicationContext.isDebuggable(),
+            isNew = isNew,
+            needPaywalls = needPaywalls,
+            needPlacements = needPaywalls,
+            firstSeen = getInstallationDate(),
+            sdkLaunchedAt = ApphudInternal.sdkLaunchedAt,
+            requestTime = System.currentTimeMillis(),
+            installSource = ApphudUtils.getInstallerPackageName(this.applicationContext) ?: "unknown",
+            observerMode = ApphudInternal.observerMode,
+            fromWeb2web = ApphudInternal.fromWeb2Web,
             email = email
         )
     }
@@ -1033,34 +1028,34 @@ object RequestManager {
     private fun makePurchaseBody(
         purchase: Purchase,
         productDetails: ProductDetails?,
-        paywall_id: String?,
-        placement_id: String?,
-        apphud_product_id: String?,
+        paywallId: String?,
+        placementId: String?,
+        apphudProductId: String?,
         offerIdToken: String?,
         oldToken: String?,
         extraMessage: String?
     ): PurchaseBody {
         return PurchaseBody(
-            device_id = ApphudInternal.deviceId,
+            deviceId = ApphudInternal.deviceId,
             purchases =
                 listOf(
                     PurchaseItemBody(
-                        order_id = purchase.orderId,
-                        product_id = productDetails?.productId ?: purchase.products.first(),
-                        purchase_token = purchase.purchaseToken,
-                        price_currency_code = productDetails?.priceCurrencyCode(),
-                        price_amount_micros = productDetails?.priceAmountMicros(),
-                        subscription_period = productDetails?.subscriptionPeriod(),
-                        paywall_id = paywall_id,
-                        placement_id = placement_id,
-                        product_bundle_id = apphud_product_id,
-                        observer_mode = false,
-                        billing_version = BILLING_VERSION,
-                        purchase_time = purchase.purchaseTime,
-                        product_info = productDetails?.let { ProductInfo(productDetails, offerIdToken) },
-                        product_type = productDetails?.productType,
+                        orderId = purchase.orderId,
+                        productId = productDetails?.productId ?: purchase.products.first(),
+                        purchaseToken = purchase.purchaseToken,
+                        priceCurrencyCode = productDetails?.priceCurrencyCode(),
+                        priceAmountMicros = productDetails?.priceAmountMicros(),
+                        subscriptionPeriod = productDetails?.subscriptionPeriod(),
+                        paywallId = paywallId,
+                        placementId = placementId,
+                        productBundleId = apphudProductId,
+                        observerMode = false,
+                        billingVersion = BILLING_VERSION,
+                        purchaseTime = purchase.purchaseTime,
+                        productInfo = productDetails?.let { ProductInfo(productDetails, offerIdToken) },
+                        productType = productDetails?.productType,
                         timestamp = System.currentTimeMillis(),
-                        extra_message = extraMessage
+                        extraMessage = extraMessage
                     ),
                 ),
         )
@@ -1073,33 +1068,33 @@ object RequestManager {
         purchases: List<PurchaseRecordDetails>,
         observerMode: Boolean,
     ) = PurchaseBody(
-        device_id = ApphudInternal.deviceId,
+        deviceId = ApphudInternal.deviceId,
         purchases =
             purchases.map { purchase ->
                 PurchaseItemBody(
-                    order_id = null,
-                    product_id = purchase.details.productId,
-                    purchase_token = purchase.record.purchaseToken,
-                    price_currency_code = purchase.details.priceCurrencyCode(),
-                    price_amount_micros =
+                    orderId = null,
+                    productId = purchase.details.productId,
+                    purchaseToken = purchase.record.purchaseToken,
+                    priceCurrencyCode = purchase.details.priceCurrencyCode(),
+                    priceAmountMicros =
                         if ((System.currentTimeMillis() - purchase.record.purchaseTime) < ONE_HOUR) {
                             purchase.details.priceAmountMicros()
                         } else {
                             null
                         },
-                    subscription_period = purchase.details.subscriptionPeriod(),
-                    paywall_id = if (apphudProduct?.productDetails?.productId == purchase.details.productId) apphudProduct.paywallId else null,
-                    placement_id = if (apphudProduct?.productDetails?.productId == purchase.details.productId) apphudProduct.placementId else null,
-                    product_bundle_id = if (apphudProduct?.productDetails?.productId == purchase.details.productId) apphudProduct.id else null,
-                    observer_mode = observerMode,
-                    billing_version = BILLING_VERSION,
-                    purchase_time = purchase.record.purchaseTime,
-                    product_info = null,
-                    product_type = purchase.details.productType,
+                    subscriptionPeriod = purchase.details.subscriptionPeriod(),
+                    paywallId = if (apphudProduct?.productDetails?.productId == purchase.details.productId) apphudProduct.paywallId else null,
+                    placementId = if (apphudProduct?.productDetails?.productId == purchase.details.productId) apphudProduct.placementId else null,
+                    productBundleId = if (apphudProduct?.productDetails?.productId == purchase.details.productId) apphudProduct.id else null,
+                    observerMode = observerMode,
+                    billingVersion = BILLING_VERSION,
+                    purchaseTime = purchase.record.purchaseTime,
+                    productInfo = null,
+                    productType = purchase.details.productType,
                     timestamp = System.currentTimeMillis(),
-                    extra_message = null
+                    extraMessage = null
                 )
-            }.sortedByDescending { it.purchase_time },
+            }.sortedByDescending { it.purchaseTime },
     )
 
     private fun makeTrackPurchasesBody(
@@ -1109,38 +1104,38 @@ object RequestManager {
         offerIdToken: String?,
         observerMode: Boolean,
     ) = PurchaseBody(
-        device_id = ApphudInternal.deviceId,
+        deviceId = ApphudInternal.deviceId,
         purchases =
             listOf(
                 PurchaseItemBody(
-                    order_id = purchase.orderId,
-                    product_id = purchase.products.first(),
-                    purchase_token = purchase.purchaseToken,
-                    price_currency_code = productDetails.priceCurrencyCode(),
-                    price_amount_micros = productDetails.priceAmountMicros(),
-                    subscription_period = productDetails.subscriptionPeriod(),
-                    paywall_id = if (apphudProduct?.productDetails?.productId == purchase.products.first()) apphudProduct?.paywallId else null,
-                    placement_id = if (apphudProduct?.productDetails?.productId == purchase.products.first()) apphudProduct?.placementId else null,
-                    product_bundle_id = if (apphudProduct?.productDetails?.productId == purchase.products.first()) apphudProduct?.id else null,
-                    observer_mode = observerMode,
-                    billing_version = BILLING_VERSION,
-                    purchase_time = purchase.purchaseTime,
-                    product_info = ProductInfo(productDetails, offerIdToken),
-                    product_type = productDetails.productType,
+                    orderId = purchase.orderId,
+                    productId = purchase.products.first(),
+                    purchaseToken = purchase.purchaseToken,
+                    priceCurrencyCode = productDetails.priceCurrencyCode(),
+                    priceAmountMicros = productDetails.priceAmountMicros(),
+                    subscriptionPeriod = productDetails.subscriptionPeriod(),
+                    paywallId = if (apphudProduct?.productDetails?.productId == purchase.products.first()) apphudProduct?.paywallId else null,
+                    placementId = if (apphudProduct?.productDetails?.productId == purchase.products.first()) apphudProduct?.placementId else null,
+                    productBundleId = if (apphudProduct?.productDetails?.productId == purchase.products.first()) apphudProduct?.id else null,
+                    observerMode = observerMode,
+                    billingVersion = BILLING_VERSION,
+                    purchaseTime = purchase.purchaseTime,
+                    productInfo = ProductInfo(productDetails, offerIdToken),
+                    productType = productDetails.productType,
                     timestamp = System.currentTimeMillis(),
-                    extra_message = null
+                    extraMessage = null
                 ),
             ),
     )
 
     internal fun makeErrorLogsBody(
         message: String,
-        apphud_product_id: String? = null,
+        apphudProductId: String? = null,
     ) = ErrorLogsBody(
         message = message,
-        bundle_id = apphud_product_id,
-        user_id = ApphudInternal.userId,
-        device_id = ApphudInternal.deviceId,
+        bundleId = apphudProductId,
+        userId = ApphudInternal.userId,
+        deviceId = ApphudInternal.deviceId,
         environment = if (applicationContext.isDebuggable()) "sandbox" else "production",
         timestamp = System.currentTimeMillis(),
     )
@@ -1152,10 +1147,10 @@ object RequestManager {
     ): GrantPromotionalBody {
         return GrantPromotionalBody(
             duration = daysCount,
-            user_id = ApphudInternal.userId,
-            device_id = ApphudInternal.deviceId,
-            product_id = productId,
-            product_group_id = permissionGroup?.id,
+            userId = ApphudInternal.userId,
+            deviceId = ApphudInternal.deviceId,
+            productId = productId,
+            productGroupId = permissionGroup?.id,
         )
     }
 

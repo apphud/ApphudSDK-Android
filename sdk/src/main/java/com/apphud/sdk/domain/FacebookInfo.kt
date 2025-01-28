@@ -1,5 +1,5 @@
 package com.apphud.sdk.domain
 
-data class FacebookInfo(
+internal data class FacebookInfo(
     val data: Map<String, Any>?,
 )

@@ -1,6 +1,9 @@
 package com.apphud.sdk.domain
 
-class AdjustInfo(
+import com.google.gson.annotations.SerializedName
+
+internal class AdjustInfo(
     val adid: String?,
-    val adjust_data: Map<String, Any>?,
+    @SerializedName("adjust_data")
+    val adjustData: Map<String, Any>?,
 )

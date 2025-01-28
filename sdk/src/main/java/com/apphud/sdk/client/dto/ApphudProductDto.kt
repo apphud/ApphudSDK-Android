@@ -1,9 +1,13 @@
 package com.apphud.sdk.client.dto
 
-data class ApphudProductDto(
+import com.google.gson.annotations.SerializedName
+
+internal data class ApphudProductDto(
     val id: String,
     val name: String,
-    val product_id: String,
+    @SerializedName("product_id")
+    val productId: String,
     val store: String,
-    val base_plan_id: String?,
+    @SerializedName("base_plan_id")
+    val basePlanId: String?,
 )
