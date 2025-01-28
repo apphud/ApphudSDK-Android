@@ -14,7 +14,7 @@ import com.android.billingclient.api.Purchase
 import com.apphud.sdk.body.*
 import com.apphud.sdk.domain.*
 import com.apphud.sdk.internal.BillingWrapper
-import com.apphud.sdk.managers.HttpRetryInterceptor
+import com.apphud.sdk.managers.LegacyHttpRetryInterceptor
 import com.apphud.sdk.managers.RequestManager
 import com.apphud.sdk.managers.RequestManager.applicationContext
 import com.apphud.sdk.storage.SharedPreferencesStorage
@@ -553,7 +553,7 @@ internal object ApphudInternal {
                     firstCustomerLoadedTime = System.currentTimeMillis()
                 }
 
-                HttpRetryInterceptor.MAX_COUNT = APPHUD_DEFAULT_RETRIES
+                LegacyHttpRetryInterceptor.MAX_COUNT = APPHUD_DEFAULT_RETRIES
 
                 currentUser = it
                 if (it.paywalls.isNotEmpty()) {
