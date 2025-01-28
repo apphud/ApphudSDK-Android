@@ -2,10 +2,8 @@ package com.apphud.sdk.managers
 
 import com.apphud.sdk.APPHUD_DEFAULT_RETRIES
 import com.apphud.sdk.APPHUD_NO_TIME_TO_RETRY
-import com.apphud.sdk.ApphudError
 import com.apphud.sdk.ApphudInternal
 import com.apphud.sdk.ApphudInternal.FALLBACK_ERRORS
-import com.apphud.sdk.ApphudInternal.fallbackMode
 import com.apphud.sdk.ApphudInternal.shouldRetryRequest
 import com.apphud.sdk.ApphudLog
 import com.apphud.sdk.ApphudUtils
@@ -22,7 +20,8 @@ import java.lang.Exception
 import java.net.SocketTimeoutException
 import java.net.UnknownHostException
 
-internal class HttpRetryInterceptor : Interceptor {
+@Deprecated("")
+internal class LegacyHttpRetryInterceptor : Interceptor {
     companion object {
         private var STEP = 2_000L
         internal var MAX_COUNT = APPHUD_DEFAULT_RETRIES

@@ -1,13 +1,20 @@
 package com.apphud.sdk
 
+import com.apphud.sdk.internal.domain.model.ApiKey as ApiKeyModel
 import android.app.Activity
 import android.content.Context
 import com.android.billingclient.api.ProductDetails
 import com.android.billingclient.api.Purchase
-import com.apphud.sdk.domain.*
+import com.apphud.sdk.domain.ApphudGroup
+import com.apphud.sdk.domain.ApphudNonRenewingPurchase
+import com.apphud.sdk.domain.ApphudPaywall
+import com.apphud.sdk.domain.ApphudPlacement
+import com.apphud.sdk.domain.ApphudProduct
+import com.apphud.sdk.domain.ApphudSubscription
+import com.apphud.sdk.domain.ApphudUser
+import com.apphud.sdk.internal.ServiceLocator
 import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlin.coroutines.resume
-import kotlin.math.max
 
 object Apphud {
     //region === Initialization ===
@@ -28,7 +35,7 @@ object Apphud {
         apiKey: ApiKey,
         observerMode: Boolean = false,
         callback: ((ApphudUser) -> Unit)? = null,
-    ) = start(context, apiKey, null,  null, observerMode, callback)
+    ) = start(context, apiKey, null, null, observerMode, callback)
 
     /**
      * Initializes Apphud SDK. You should call it during app launch.
@@ -77,6 +84,8 @@ object Apphud {
         observerMode: Boolean = false,
         callback: ((ApphudUser) -> Unit)? = null,
     ) {
+        ServiceLocator.ServiceLocatorInstanceFactory().create(context, ApiKeyModel(apiKey))
+
         ApphudUtils.setPackageName(context.packageName)
         ApphudInternal.initialize(context, apiKey, userId, deviceId, observerMode, callback)
     }
@@ -197,8 +206,16 @@ object Apphud {
      * on Google (BillingClient issue) or Apphud side.
      *
      */
-    fun fetchPlacements(preferredTimeout: Double = APPHUD_DEFAULT_MAX_TIMEOUT, callback: (List<ApphudPlacement>, ApphudError?) -> Unit) {
-        ApphudInternal.performWhenOfferingsPrepared(preferredTimeout = preferredTimeout) { callback(ApphudInternal.placements, it) }
+    fun fetchPlacements(
+        preferredTimeout: Double = APPHUD_DEFAULT_MAX_TIMEOUT,
+        callback: (List<ApphudPlacement>, ApphudError?) -> Unit,
+    ) {
+        ApphudInternal.performWhenOfferingsPrepared(preferredTimeout = preferredTimeout) {
+            callback(
+                ApphudInternal.placements,
+                it
+            )
+        }
     }
 
     /** Returns:
@@ -279,8 +296,16 @@ object Apphud {
         "Deprecated in favor of Placements",
         ReplaceWith("this.placementsDidLoadCallback(callback)"),
     )
-    fun paywallsDidLoadCallback(preferredTimeout: Double = APPHUD_DEFAULT_MAX_TIMEOUT, callback: (List<ApphudPaywall>, ApphudError?) -> Unit) {
-        ApphudInternal.performWhenOfferingsPrepared(preferredTimeout = preferredTimeout) { callback(ApphudInternal.paywalls, it) }
+    fun paywallsDidLoadCallback(
+        preferredTimeout: Double = APPHUD_DEFAULT_MAX_TIMEOUT,
+        callback: (List<ApphudPaywall>, ApphudError?) -> Unit,
+    ) {
+        ApphudInternal.performWhenOfferingsPrepared(preferredTimeout = preferredTimeout) {
+            callback(
+                ApphudInternal.paywalls,
+                it
+            )
+        }
     }
 
     /**
@@ -558,7 +583,8 @@ object Apphud {
      * Apphud will automatically track and validate them in the background,
      * so developer doesn't need to call `Apphud.restorePurchases` afterwards.
      */
-    suspend fun nativePurchases(forceRefresh: Boolean = false): Pair<List<Purchase>, Int> = ApphudInternal.fetchNativePurchases(forceRefresh = forceRefresh)
+    suspend fun nativePurchases(forceRefresh: Boolean = false): Pair<List<Purchase>, Int> =
+        ApphudInternal.fetchNativePurchases(forceRefresh = forceRefresh)
 
     //endregion
     //region === Attribution ===

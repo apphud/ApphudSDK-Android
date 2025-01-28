@@ -8,7 +8,8 @@ import okhttp3.Response
 import java.io.IOException
 import java.util.UUID
 
-class HeadersInterceptor(private val apiKey: String?) : Interceptor {
+@Deprecated("")
+class LegacyHeadersInterceptor(private val apiKey: String?) : Interceptor {
     companion object Shared {
         var X_SDK_VERSION: String = BuildConfig.VERSION_NAME
         var X_SDK: String = "Kotlin"
