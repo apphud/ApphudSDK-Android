@@ -1,6 +1,10 @@
 package com.apphud.sdk.internal
 
 import android.content.Context
+import com.apphud.sdk.internal.data.mapper.CustomerMapper
+import com.apphud.sdk.internal.data.mapper.PaywallsMapper
+import com.apphud.sdk.internal.data.mapper.PlacementsMapper
+import com.apphud.sdk.internal.data.mapper.SubscriptionMapper
 import com.apphud.sdk.internal.data.network.HeadersInterceptor
 import com.apphud.sdk.internal.data.network.HostSwitcherInterceptor
 import com.apphud.sdk.internal.data.network.HttpRetryInterceptor
@@ -18,6 +22,11 @@ internal class ServiceLocator private constructor(
 ) {
 
     private val gson: Gson = Gson()
+
+    private val paywallsMapper = PaywallsMapper(gson)
+    private val placementsMapper = PlacementsMapper(paywallsMapper)
+    private val subscriptionMapper = SubscriptionMapper()
+    private val customerMapper = CustomerMapper(subscriptionMapper, paywallsMapper, placementsMapper)
 
     private val registrationProvider: RegistrationProvider =
         RegistrationProvider(applicationContext, SharedPreferencesStorage)
@@ -37,7 +46,7 @@ internal class ServiceLocator private constructor(
             .build()
 
     val remoteRepository: RemoteRepository =
-        RemoteRepository(okHttpClient, gson, registrationProvider)
+        RemoteRepository(okHttpClient, gson, registrationProvider, customerMapper)
 
     internal class ServiceLocatorInstanceFactory {
 

@@ -25,6 +25,7 @@ import com.apphud.sdk.storage.SharedPreferencesStorage
 import com.google.gson.GsonBuilder
 import com.google.gson.annotations.SerializedName
 import com.google.gson.reflect.TypeToken
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.suspendCancellableCoroutine
 import okhttp3.MediaType.Companion.toMediaType
@@ -56,10 +57,11 @@ internal object RequestManager {
     val parser: Parser = GsonParser(gson)
 
     private val productMapper = ProductMapper()
-    private val paywallsMapper = PaywallsMapper(parser)
+    private val paywallsMapperLegacy = PaywallsMapperLegacy(parser)
     private val attributionMapper = AttributionMapper()
-    private val placementsMapper = PlacementsMapper(parser)
-    private val customerMapper = CustomerMapper(SubscriptionMapper(), paywallsMapper, placementsMapper)
+    private val placementsMapperLegacy = PlacementsMapperLegacy(parser)
+    private val customerMapperLegacy =
+        CustomerMapperLegacy(SubscriptionMapperLegacy(), paywallsMapperLegacy, placementsMapperLegacy)
 
     // TODO to be settled
     private var apiKey: String? = null
@@ -387,6 +389,10 @@ internal object RequestManager {
 
             val repository = ServiceLocator.instance.remoteRepository
 
+            val getCustomersResult = runBlocking(Dispatchers.IO) {
+                repository.getCustomers(needPaywalls, isNew, userId, email)
+            }
+
             val request = buildPostRequest(URL(apphudUrl.url), mkRegistrationBody(needPaywalls, isNew, userId, email))
             val httpClient = getOkHttpClient(request, !fallbackMode)
             try {
@@ -400,7 +406,7 @@ internal object RequestManager {
                 responseDto?.let { cDto ->
                     val currentUser =
                         cDto.data.results?.let { customerObj ->
-                            customerMapper.map(customerObj)
+                            customerMapperLegacy.map(customerObj)
                         }
                     completionHandler(currentUser, null)
                 } ?: run {
@@ -516,7 +522,7 @@ internal object RequestManager {
                 responseDto?.let { cDto ->
                     val currentUser =
                         cDto.data.results?.let { customerObj ->
-                            customerMapper.map(customerObj)
+                            customerMapperLegacy.map(customerObj)
                         }
                     completionHandler(currentUser, null)
                 } ?: run {
@@ -582,7 +588,7 @@ internal object RequestManager {
                         responseDto?.let { cDto ->
                             val currentUser =
                                 cDto.data.results?.let { customerObj ->
-                                    customerMapper.map(customerObj)
+                                    customerMapperLegacy.map(customerObj)
                                 }
                             if (continuation.isActive) {
                                 continuation.resume(currentUser)
@@ -733,7 +739,7 @@ internal object RequestManager {
             responseDto?.let { cDto ->
                 val currentUser =
                     cDto.data.results?.let { customerObj ->
-                        customerMapper.map(customerObj)
+                        customerMapperLegacy.map(customerObj)
                     }
                 completionHandler(currentUser, null)
             } ?: run {

@@ -1,12 +1,17 @@
 package com.apphud.sdk.internal.remote
 
+import com.apphud.sdk.APPHUD_ERROR_NO_INTERNET
+import com.apphud.sdk.ApphudError
 import com.apphud.sdk.ApphudInternal
 import com.apphud.sdk.ApphudLog
 import com.apphud.sdk.UserId
 import com.apphud.sdk.body.RegistrationBody
 import com.apphud.sdk.client.dto.CustomerDto
 import com.apphud.sdk.client.dto.ResponseDto
+import com.apphud.sdk.domain.ApphudUser
+import com.apphud.sdk.internal.data.mapper.CustomerMapper
 import com.apphud.sdk.internal.provider.RegistrationProvider
+import com.apphud.sdk.internal.util.runCatchingCancellable
 import com.apphud.sdk.managers.RequestManager.parser
 import com.google.gson.Gson
 import com.google.gson.reflect.TypeToken
@@ -16,12 +21,16 @@ import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import okhttp3.RequestBody.Companion.toRequestBody
+import java.net.ConnectException
+import java.net.SocketTimeoutException
 import java.net.URL
+import java.net.UnknownHostException
 
 internal class RemoteRepository(
     private val okHttpClient: OkHttpClient,
     private val gson: Gson,
     private val registrationProvider: RegistrationProvider,
+    private val customerMapper: CustomerMapper,
 ) {
 
     suspend fun getCustomers(
@@ -29,11 +38,29 @@ internal class RemoteRepository(
         isNew: Boolean,
         userId: UserId? = null,
         email: String? = null,
-    ): Any {
-        val request = buildPostRequest(URL(CUSTOMERS_URL), createRegistrationBody(needPaywalls, isNew, userId, email))
-        val dto = executeFoeResponse(request, CustomerDto::class.java)
-        return dto
-    }
+    ): Result<ApphudUser> =
+        runCatchingCancellable {
+            val request =
+                buildPostRequest(URL(CUSTOMERS_URL), createRegistrationBody(needPaywalls, isNew, userId, email))
+            executeFoeResponse(request, CustomerDto::class.java)
+        }
+            .recoverCatching { e ->
+                val message = e.message ?: "Registration failed"
+                throw when (e) {
+                    is ConnectException,
+                    is SocketTimeoutException,
+                    is UnknownHostException,
+                    -> ApphudError(message, null, APPHUD_ERROR_NO_INTERNET)
+
+                    is Exception -> ApphudError.from(e)
+                    else -> e
+                }
+            }
+            .mapCatching { response ->
+                response.data.results?.let { customerDto ->
+                    customerMapper.map(customerDto)
+                } ?: throw ApphudError("Registration failed")
+            }
 
     private suspend fun <T> executeFoeResponse(request: Request, clazz: Class<T>): ResponseDto<T> =
         withContext(Dispatchers.IO) {
