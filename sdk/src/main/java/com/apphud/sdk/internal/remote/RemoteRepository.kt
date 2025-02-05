@@ -42,7 +42,7 @@ internal class RemoteRepository(
         runCatchingCancellable {
             val request =
                 buildPostRequest(URL(CUSTOMERS_URL), createRegistrationBody(needPaywalls, isNew, userId, email))
-            executeFoeResponse(request, CustomerDto::class.java)
+            executeForResponse(request, CustomerDto::class.java)
         }
             .recoverCatching { e ->
                 val message = e.message ?: "Registration failed"
@@ -62,7 +62,7 @@ internal class RemoteRepository(
                 } ?: throw ApphudError("Registration failed")
             }
 
-    private suspend fun <T> executeFoeResponse(request: Request, clazz: Class<T>): ResponseDto<T> =
+    private suspend fun <T> executeForResponse(request: Request, clazz: Class<T>): ResponseDto<T> =
         withContext(Dispatchers.IO) {
             okHttpClient.newCall(request).execute().use { response ->
                 if (!response.isSuccessful) {
