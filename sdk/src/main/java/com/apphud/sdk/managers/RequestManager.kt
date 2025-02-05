@@ -35,10 +35,8 @@ import okhttp3.Response
 import okio.Buffer
 import org.json.JSONException
 import org.json.JSONObject
-import java.net.ConnectException
 import java.net.SocketTimeoutException
 import java.net.URL
-import java.net.UnknownHostException
 import java.nio.charset.Charset
 import java.util.*
 import java.util.concurrent.TimeUnit
@@ -364,6 +362,7 @@ internal object RequestManager {
             }
         }
 
+    @Suppress("LongParameterList")
     @Synchronized
     fun registration(
         needPaywalls: Boolean,
@@ -379,51 +378,25 @@ internal object RequestManager {
         }
 
         if (currentUser == null || forceRegistration) {
-            val apphudUrl =
-                ApphudUrl.Builder()
-                    .host(LegacyHeadersInterceptor.HOST)
-                    .version(ApphudVersion.V1)
-                    .path("customers")
-                    .build()
-
             val repository = ServiceLocator.instance.remoteRepository
 
             val getCustomersResult = runBlocking(Dispatchers.IO) {
                 repository.getCustomers(needPaywalls, isNew, userId, email)
             }
 
-            val request = buildPostRequest(URL(apphudUrl.url), mkRegistrationBody(needPaywalls, isNew, userId, email))
-            val httpClient = getOkHttpClient(request, !fallbackMode)
-            try {
-                val serverResponse = performRequestSync(httpClient, request)
-                val responseDto: ResponseDto<CustomerDto>? =
-                    parser.fromJson<ResponseDto<CustomerDto>>(
-                        serverResponse,
-                        object : TypeToken<ResponseDto<CustomerDto>>() {}.type,
-                    )
+            getCustomersResult
+                .onFailure { t ->
+                    if (t is SocketTimeoutException) ApphudInternal.processFallbackData { _, _ -> }
 
-                responseDto?.let { cDto ->
-                    val currentUser =
-                        cDto.data.results?.let { customerObj ->
-                            customerMapperLegacy.map(customerObj)
-                        }
-                    completionHandler(currentUser, null)
-                } ?: run {
-                    completionHandler(null, ApphudError("Registration failed"))
+                    if (t is ApphudError) {
+                        completionHandler(null, t)
+                    } else {
+                        completionHandler(null, ApphudError.from(t))
+                    }
                 }
-            } catch (e: ConnectException) {
-                val message = e.message ?: "Registration failed"
-                completionHandler(null, ApphudError(message, null, APPHUD_ERROR_NO_INTERNET))
-            } catch (e: SocketTimeoutException) {
-                ApphudInternal.processFallbackError(request, isTimeout = true)
-                val message = e.message ?: "Registration failed"
-                completionHandler(null, ApphudError(message, null, APPHUD_ERROR_NO_INTERNET))
-            } catch (ex: UnknownHostException) {
-                val message = ex.message ?: "Registration failed"
-                completionHandler(null, ApphudError(message, null, APPHUD_ERROR_NO_INTERNET))
-            } catch (ex: Exception) {
-                completionHandler(null, ApphudError.from(ex))
-            }
+                .onSuccess {
+                    completionHandler(it, null)
+                }
         } else {
             completionHandler(currentUser, null)
         }

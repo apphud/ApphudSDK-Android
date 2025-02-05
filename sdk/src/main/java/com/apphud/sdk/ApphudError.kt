@@ -16,19 +16,21 @@ data class ApphudError(
     /**
      * Additional error code.
      * */
-    var errorCode: Int? = null
+    var errorCode: Int? = null,
+
+    internal val originalCause: Throwable? = null,
 ) : Error(message) {
 
     fun description(): String {
-        return message + (if (errorCode != null) " [${errorCode!!}]"  else "") + (if (secondErrorMessage != null) " [$secondErrorMessage!!]" else "")
+        return message + (if (errorCode != null) " [${errorCode!!}]" else "") + (if (secondErrorMessage != null) " [$secondErrorMessage!!]" else "")
     }
 
     companion object {
-        fun from(exception: Exception): ApphudError {
-            ApphudLog.log("Apphud Error from Exception: ${exception}")
-            var message = exception.message
+        fun from(t: Throwable): ApphudError {
+            ApphudLog.log("Apphud Error from Exception: $t")
+            var message = t.message
             var errorCode: Int? = null
-            if (exception.message == APPHUD_NO_TIME_TO_RETRY || (exception is InterruptedIOException)) {
+            if (t.message == APPHUD_NO_TIME_TO_RETRY || (t is InterruptedIOException)) {
                 if (RequestManager.previousException != null) {
                     errorCode = errorCodeFrom(RequestManager.previousException!!)
                     message = RequestManager.previousException!!.message
@@ -37,21 +39,23 @@ data class ApphudError(
                     errorCode = APPHUD_ERROR_MAX_TIMEOUT_REACHED
                 }
             } else {
-                errorCode = errorCodeFrom(exception)
+                errorCode = errorCodeFrom(t)
             }
 
             return ApphudError(message ?: "Undefined Error", null, errorCode)
         }
 
-        fun errorCodeFrom(exception: java.lang.Exception): Int? {
-            return if (exception is SocketTimeoutException || exception is ConnectException || exception is UnknownHostException) {
-                APPHUD_ERROR_NO_INTERNET
-            } else {
-                null
-            }
-        }
-    }
+        private fun errorCodeFrom(t: Throwable): Int? =
+            when (t) {
+                is SocketTimeoutException,
+                is ConnectException,
+                is UnknownHostException,
+                -> APPHUD_ERROR_NO_INTERNET
 
+                else -> null
+            }
+
+    }
 
 
     /**
@@ -65,7 +69,9 @@ data class ApphudError(
      * Returns integer if it's matched with one of BillingClient.BillingResponseCode
      */
     fun billingResponseCode(): Int? {
-        if (errorCode == null) { return null }
+        if (errorCode == null) {
+            return null
+        }
 
         // Define the range of your billing response codes based on the constants you provided
         val validCodes = setOf(
