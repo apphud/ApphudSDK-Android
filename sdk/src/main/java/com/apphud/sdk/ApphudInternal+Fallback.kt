@@ -1,16 +1,14 @@
 package com.apphud.sdk
 
 import android.content.Context
-import android.content.SharedPreferences
 import com.android.billingclient.api.BillingClient.BillingResponseCode
 import com.apphud.sdk.client.ApiClient
 import com.apphud.sdk.domain.ApphudUser
 import com.apphud.sdk.domain.FallbackJsonObject
 import com.apphud.sdk.managers.RequestManager
-import com.apphud.sdk.mappers.PaywallsMapper
+import com.apphud.sdk.mappers.PaywallsMapperLegacy
 import com.apphud.sdk.parser.GsonParser
 import com.apphud.sdk.parser.Parser
-import com.apphud.sdk.storage.SharedPreferencesStorage
 import com.google.gson.Gson
 import com.google.gson.GsonBuilder
 import com.google.gson.reflect.TypeToken
@@ -26,7 +24,7 @@ internal fun String.withRemovedScheme(): String {
 
 private val gson = GsonBuilder().serializeNulls().create()
 private val parser: Parser = GsonParser(gson)
-private val paywallsMapper = PaywallsMapper(parser)
+private val paywallsMapperLegacy = PaywallsMapperLegacy(parser)
 internal var fallbackHost: String? = null
 internal var processedFallbackData = false
 internal fun ApphudInternal.processFallbackError(request: Request, isTimeout: Boolean) {
@@ -92,7 +90,7 @@ internal fun ApphudInternal.processFallbackData(callback: PaywallCallback) {
             val gson = Gson()
             val contentType = object : TypeToken<FallbackJsonObject>() {}.type
             val fallbackJson: FallbackJsonObject = gson.fromJson(jsonFileString, contentType)
-            val paywallToParse = paywallsMapper.map(fallbackJson.data.results)
+            val paywallToParse = paywallsMapperLegacy.map(fallbackJson.data.results)
             ids = paywallToParse.map { it.products?.map { it.productId } ?: listOf() }.flatten()
             cachePaywalls(paywallToParse)
         }

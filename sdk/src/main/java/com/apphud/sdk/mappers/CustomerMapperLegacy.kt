@@ -4,10 +4,11 @@ import com.apphud.sdk.client.dto.CustomerDto
 import com.apphud.sdk.domain.ApphudKind
 import com.apphud.sdk.domain.ApphudUser
 
-internal class CustomerMapper(
-    private val mapper: SubscriptionMapper,
-    private val paywallsMapper: PaywallsMapper,
-    private var placementsMapper: PlacementsMapper,
+@Deprecated("Use CustomerMapper")
+internal class CustomerMapperLegacy(
+    private val mapper: SubscriptionMapperLegacy,
+    private val paywallsMapperLegacy: PaywallsMapperLegacy,
+    private var placementsMapperLegacy: PlacementsMapperLegacy,
 ) {
     fun map(customer: CustomerDto) =
         ApphudUser(
@@ -26,13 +27,13 @@ internal class CustomerMapper(
                     .sortedByDescending { it.purchasedAt },
             paywalls =
                 customer.paywalls?.let { paywallsList ->
-                    paywallsList.map { paywallsMapper.map(it) }
+                    paywallsList.map { paywallsMapperLegacy.map(it) }
                 } ?: run {
                     listOf()
                 },
             placements =
                 customer.placements?.let { placementsList ->
-                    placementsList.map { placementsMapper.map(it) }
+                    placementsList.map { placementsMapperLegacy.map(it) }
                 } ?: run {
                     listOf()
                 },

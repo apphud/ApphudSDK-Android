@@ -1,4 +1,4 @@
-package com.apphud.sdk.mappers
+package com.apphud.sdk.internal.data.mapper
 
 import com.apphud.sdk.DateTimeFormatter
 import com.apphud.sdk.client.dto.SubscriptionDto
