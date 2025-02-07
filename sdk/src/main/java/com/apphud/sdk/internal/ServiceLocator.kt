@@ -10,7 +10,7 @@ import com.apphud.sdk.internal.data.network.HostSwitcherInterceptor
 import com.apphud.sdk.internal.data.network.HttpRetryInterceptor
 import com.apphud.sdk.internal.domain.model.ApiKey
 import com.apphud.sdk.internal.provider.RegistrationProvider
-import com.apphud.sdk.internal.remote.RemoteRepository
+import com.apphud.sdk.internal.data.remote.RemoteRepository
 import com.apphud.sdk.storage.SharedPreferencesStorage
 import com.google.gson.Gson
 import okhttp3.OkHttpClient
