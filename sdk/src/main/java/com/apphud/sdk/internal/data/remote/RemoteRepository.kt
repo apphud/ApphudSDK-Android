@@ -1,4 +1,4 @@
-package com.apphud.sdk.internal.remote
+package com.apphud.sdk.internal.data.remote
 
 import com.apphud.sdk.APPHUD_ERROR_NO_INTERNET
 import com.apphud.sdk.ApphudError
@@ -21,10 +21,7 @@ import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import okhttp3.RequestBody.Companion.toRequestBody
-import java.net.ConnectException
-import java.net.SocketTimeoutException
 import java.net.URL
-import java.net.UnknownHostException
 
 internal class RemoteRepository(
     private val okHttpClient: OkHttpClient,
@@ -46,15 +43,7 @@ internal class RemoteRepository(
         }
             .recoverCatching { e ->
                 val message = e.message ?: "Registration failed"
-                throw when (e) {
-                    is ConnectException,
-                    is SocketTimeoutException,
-                    is UnknownHostException,
-                    -> ApphudError(message, null, APPHUD_ERROR_NO_INTERNET)
-
-                    is Exception -> ApphudError.from(e)
-                    else -> e
-                }
+                throw ApphudError(message, null, APPHUD_ERROR_NO_INTERNET, e)
             }
             .mapCatching { response ->
                 response.data.results?.let { customerDto ->
