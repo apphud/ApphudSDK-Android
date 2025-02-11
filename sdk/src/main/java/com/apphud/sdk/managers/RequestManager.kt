@@ -14,13 +14,13 @@ import com.apphud.sdk.ApphudInternal.fallbackMode
 import com.apphud.sdk.ApphudInternal.fetchAndroidIdSync
 import com.apphud.sdk.body.*
 import com.apphud.sdk.client.*
-import com.apphud.sdk.client.dto.*
 import com.apphud.sdk.domain.*
 import com.apphud.sdk.internal.ServiceLocator
 import com.apphud.sdk.internal.data.dto.ApphudGroupDto
 import com.apphud.sdk.internal.data.dto.AttributionDto
 import com.apphud.sdk.internal.data.dto.CustomerDto
 import com.apphud.sdk.internal.data.dto.ResponseDto
+import com.apphud.sdk.internal.util.runCatchingCancellable
 import com.apphud.sdk.managers.AdvertisingIdManager.AdInfo
 import com.apphud.sdk.mappers.*
 import com.apphud.sdk.parser.GsonParser
@@ -32,6 +32,7 @@ import com.google.gson.reflect.TypeToken
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.suspendCancellableCoroutine
+import kotlinx.coroutines.sync.Mutex
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
 import okhttp3.Request
@@ -58,6 +59,7 @@ internal object RequestManager {
     val gson = GsonBuilder().serializeNulls().create()
     val parser: Parser = GsonParser(gson)
 
+    private val registrationMutex = Mutex()
     private val productMapper = ProductMapper()
     private val paywallsMapperLegacy = PaywallsMapperLegacy(parser)
     private val attributionMapper = AttributionMapper()
@@ -306,7 +308,7 @@ internal object RequestManager {
         val httpClient = getOkHttpClient(request, retry)
 
         if (currentUser == null) {
-            registration(true, true) { customer, error ->
+            registrationLegacy(true, true) { customer, error ->
                 customer?.let {
                     performRequest(httpClient, request, completionHandler)
                 } ?: run {
@@ -355,7 +357,7 @@ internal object RequestManager {
             }
 
             if (currentUser == null || forceRegistration) {
-                registration(needPaywalls, isNew, forceRegistration, userId, email) { customer, error ->
+                registrationLegacy(needPaywalls, isNew, forceRegistration, userId, email) { customer, error ->
                     if (continuation.isActive) {
                         continuation.resume(customer)
                     }
@@ -367,9 +369,45 @@ internal object RequestManager {
             }
         }
 
+    internal suspend fun registration(
+        needPaywalls: Boolean,
+        isNew: Boolean,
+        forceRegistration: Boolean = false,
+        userId: UserId? = null,
+        email: String? = null,
+    ): ApphudUser {
+        if (!canPerformRequest()) {
+            ApphudLog.logE(::registrationLegacy.name + MUST_REGISTER_ERROR)
+            throw ApphudError("SDK not initialized")
+        }
+
+        val currentUserLocal = currentUser
+        return if (currentUserLocal == null || forceRegistration) {
+            val repository = ServiceLocator.instance.remoteRepository
+
+
+            val getCustomersResult = runBlocking(Dispatchers.IO) {
+                repository.getCustomers(needPaywalls, isNew, userId, email)
+            }
+
+            getCustomersResult
+                .getOrElse { t ->
+                    if (t is SocketTimeoutException) ApphudInternal.processFallbackData { _, _ -> }
+
+                    throw if (t is ApphudError) {
+                        t
+                    } else {
+                        ApphudError.from(t)
+                    }
+                }
+        } else {
+            currentUserLocal
+        }
+    }
+
     @Suppress("LongParameterList")
     @Synchronized
-    fun registration(
+    fun registrationLegacy(
         needPaywalls: Boolean,
         isNew: Boolean,
         forceRegistration: Boolean = false,
@@ -378,32 +416,25 @@ internal object RequestManager {
         completionHandler: (ApphudUser?, ApphudError?) -> Unit,
     ) {
         if (!canPerformRequest()) {
-            ApphudLog.logE(::registration.name + MUST_REGISTER_ERROR)
+            ApphudLog.logE(::registrationLegacy.name + MUST_REGISTER_ERROR)
             return
         }
 
-        if (currentUser == null || forceRegistration) {
-            val repository = ServiceLocator.instance.remoteRepository
-
-            val getCustomersResult = runBlocking(Dispatchers.IO) {
-                repository.getCustomers(needPaywalls, isNew, userId, email)
+        runBlocking {
+            runCatchingCancellable {
+                registration(needPaywalls, isNew, forceRegistration, userId, email)
             }
-
-            getCustomersResult
-                .onFailure { t ->
-                    if (t is SocketTimeoutException) ApphudInternal.processFallbackData { _, _ -> }
-
-                    if (t is ApphudError) {
-                        completionHandler(null, t)
+                .onFailure { throwable ->
+                    val error = if (throwable is ApphudError) {
+                        throwable
                     } else {
-                        completionHandler(null, ApphudError.from(t))
+                        ApphudError.from(throwable)
                     }
+                    completionHandler(null, error)
                 }
                 .onSuccess {
                     completionHandler(it, null)
                 }
-        } else {
-            completionHandler(currentUser, null)
         }
     }
 
