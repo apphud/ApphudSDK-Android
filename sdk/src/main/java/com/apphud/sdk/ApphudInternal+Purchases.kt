@@ -8,13 +8,9 @@ import com.apphud.sdk.domain.ApphudNonRenewingPurchase
 import com.apphud.sdk.domain.ApphudProduct
 import com.apphud.sdk.domain.ApphudSubscription
 import com.apphud.sdk.domain.ApphudUser
-import com.apphud.sdk.internal.PurchasesUpdatedCallback
 import com.apphud.sdk.internal.callback_status.PurchaseCallbackStatus
 import com.apphud.sdk.internal.callback_status.PurchaseUpdatedCallbackStatus
 import com.apphud.sdk.managers.RequestManager
-import com.apphud.sdk.storage.SharedPreferencesStorage
-import kotlinx.coroutines.async
-import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.launch
 
 internal fun ApphudInternal.purchase(
@@ -246,7 +242,7 @@ internal fun ApphudInternal.lookupFreshPurchase(extraMessage: String = "resend_f
             ApphudLog.logE("resending fresh purchase ${purchase.orderId}")
 
             coroutineScope.launch(errorHandler) {
-                RequestManager.purchased(purchase, productDetails, productBundleId, paywallId, placementId, null, null, extraMessage) { customer, _ ->
+                RequestManager.purchasedLegacy(purchase, productDetails, productBundleId, paywallId, placementId, null, null, extraMessage) { customer, _ ->
                     mainScope.launch {
                         customer?.let {
                             val newSubscriptions =
@@ -353,7 +349,7 @@ private fun ApphudInternal.sendCheckToApphud(
         storage.isNeedSync = true
     } else if (fallbackMode) {
         coroutineScope.launch(errorHandler) {
-            RequestManager.purchased(purchase, productDetails, apphudProduct?.id, paywallId, placementId, offerIdToken, oldToken, "fallback_mode") { _, _ -> }
+            RequestManager.purchasedLegacy(purchase, productDetails, apphudProduct?.id, paywallId, placementId, offerIdToken, oldToken, "fallback_mode") { _, _ -> }
         }
         mainScope.launch {
             addTempPurchase(
@@ -374,7 +370,7 @@ private fun ApphudInternal.sendCheckToApphud(
                 }
             }
 
-            RequestManager.purchased(purchase, productDetails, apphudProduct?.id, paywallId, placementId, offerIdToken, oldToken, null) { customer, error ->
+            RequestManager.purchasedLegacy(purchase, productDetails, apphudProduct?.id, paywallId, placementId, offerIdToken, oldToken, null) { customer, error ->
                 mainScope.launch {
                     customer?.let {
                         val newSubscriptions = customer.subscriptions.firstOrNull { it.productId == purchase.products.first() }

@@ -20,6 +20,7 @@ import com.apphud.sdk.internal.data.dto.ApphudGroupDto
 import com.apphud.sdk.internal.data.dto.AttributionDto
 import com.apphud.sdk.internal.data.dto.CustomerDto
 import com.apphud.sdk.internal.data.dto.ResponseDto
+import com.apphud.sdk.internal.domain.model.PurchaseContext
 import com.apphud.sdk.internal.util.runCatchingCancellable
 import com.apphud.sdk.managers.AdvertisingIdManager.AdInfo
 import com.apphud.sdk.mappers.*
@@ -58,7 +59,6 @@ internal object RequestManager {
     val gson = GsonBuilder().serializeNulls().create()
     val parser: Parser = GsonParser(gson)
 
-    private val registrationMutex = Mutex()
     private val productMapper = ProductMapper()
     private val paywallsMapperLegacy = PaywallsMapperLegacy(parser)
     private val attributionMapper = AttributionMapper()
@@ -483,7 +483,25 @@ internal object RequestManager {
             }
         }
 
-    fun purchased(
+    internal suspend fun purchased(
+        purchaseContext: PurchaseContext
+    ): ApphudUser {
+        if (!canPerformRequest()) {
+            ApphudLog.logE(::registrationLegacy.name + MUST_REGISTER_ERROR)
+            throw ApphudError("SDK not initialized")
+        }
+
+        if (currentUser == null) {
+            registration(needPaywalls = true, isNew = true)
+        }
+
+        val remoteRepository = ServiceLocator.instance.remoteRepository
+
+        return remoteRepository.getSubscriptions(purchaseContext).getOrThrow()
+    }
+
+    @Deprecated("Сразу переделать на синхронный код", replaceWith = ReplaceWith("purchased"))
+    fun purchasedLegacy(
         purchase: Purchase,
         productDetails: ProductDetails?,
         productBundleId: String?,
@@ -495,7 +513,7 @@ internal object RequestManager {
         completionHandler: (ApphudUser?, ApphudError?) -> Unit,
     ) {
         if (!canPerformRequest()) {
-            ApphudLog.logE(::purchased.name + MUST_REGISTER_ERROR)
+            ApphudLog.logE(::purchasedLegacy.name + MUST_REGISTER_ERROR)
             return
         }
 
@@ -1005,52 +1023,6 @@ internal object RequestManager {
             environment = if (applicationContext.isDebuggable()) "sandbox" else "production",
             timestamp = System.currentTimeMillis(),
             properties = properties.ifEmpty { null }
-        )
-    }
-
-    private fun mkRegistrationBody(
-        needPaywalls: Boolean,
-        isNew: Boolean,
-        userId: UserId? = null,
-        email: String? = null,
-    ): RegistrationBody {
-        val deviceIds = storage.deviceIdentifiers
-        val idfa = deviceIds[0]
-        val appSetId = deviceIds[1]
-        var androidId = deviceIds[2]
-
-        if (androidId.isEmpty()) {
-            fetchAndroidIdSync()?.let {
-                androidId = it
-            }
-        }
-
-        return RegistrationBody(
-            locale = Locale.getDefault().toString(),
-            sdkVersion = LegacyHeadersInterceptor.X_SDK_VERSION,
-            appVersion = this.applicationContext.buildAppVersion(),
-            deviceFamily = Build.MANUFACTURER,
-            platform = "Android",
-            deviceType = if (ApphudUtils.optOutOfTracking) "Restricted" else Build.MODEL,
-            osVersion = Build.VERSION.RELEASE,
-            startAppVersion = this.applicationContext.buildAppVersion(),
-            idfv = if (ApphudUtils.optOutOfTracking || appSetId.isEmpty()) null else appSetId,
-            idfa = if (ApphudUtils.optOutOfTracking || idfa.isEmpty()) null else idfa,
-            androidId = if (ApphudUtils.optOutOfTracking || androidId.isEmpty()) null else androidId,
-            userId = userId ?: ApphudInternal.userId,
-            deviceId = ApphudInternal.deviceId,
-            timeZone = TimeZone.getDefault().id,
-            isSandbox = this.applicationContext.isDebuggable(),
-            isNew = isNew,
-            needPaywalls = needPaywalls,
-            needPlacements = needPaywalls,
-            firstSeen = getInstallationDate(),
-            sdkLaunchedAt = ApphudInternal.sdkLaunchedAt,
-            requestTime = System.currentTimeMillis(),
-            installSource = ApphudUtils.getInstallerPackageName(this.applicationContext) ?: "unknown",
-            observerMode = ApphudInternal.observerMode,
-            fromWeb2web = ApphudInternal.fromWeb2Web,
-            email = email
         )
     }
 
