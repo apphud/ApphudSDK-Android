@@ -547,7 +547,7 @@ internal object ApphudInternal {
             "Registration conditions: user_is_null=${currentUser == null}, forceRegistration=$forceRegistration, isTemporary=${currentUser?.isTemporary}, requesting Placements = $needPlacementsPaywalls",
         )
 
-        RequestManager.registration(needPlacementsPaywalls, isNew, forceRegistration) { customer, error ->
+        RequestManager.registrationLegacy(needPlacementsPaywalls, isNew, forceRegistration) { customer, error ->
             customer?.let {
                 if (firstCustomerLoadedTime == null) {
                     firstCustomerLoadedTime = System.currentTimeMillis()
