@@ -5,14 +5,22 @@ import com.apphud.sdk.ApphudError
 import com.apphud.sdk.ApphudInternal
 import com.apphud.sdk.ApphudLog
 import com.apphud.sdk.UserId
+import com.apphud.sdk.body.PurchaseBody
+import com.apphud.sdk.body.PurchaseItemBody
 import com.apphud.sdk.body.RegistrationBody
+import com.apphud.sdk.domain.ApphudUser
+import com.apphud.sdk.domain.ProductInfo
 import com.apphud.sdk.internal.data.dto.CustomerDto
 import com.apphud.sdk.internal.data.dto.ResponseDto
-import com.apphud.sdk.domain.ApphudUser
 import com.apphud.sdk.internal.data.mapper.CustomerMapper
+import com.apphud.sdk.internal.domain.model.PurchaseContext
 import com.apphud.sdk.internal.provider.RegistrationProvider
 import com.apphud.sdk.internal.util.runCatchingCancellable
+import com.apphud.sdk.managers.RequestManager.BILLING_VERSION
 import com.apphud.sdk.managers.RequestManager.parser
+import com.apphud.sdk.managers.priceAmountMicros
+import com.apphud.sdk.managers.priceCurrencyCode
+import com.apphud.sdk.managers.subscriptionPeriod
 import com.google.gson.Gson
 import com.google.gson.reflect.TypeToken
 import kotlinx.coroutines.Dispatchers
@@ -49,6 +57,22 @@ internal class RemoteRepository(
                 response.data.results?.let { customerDto ->
                     customerMapper.map(customerDto)
                 } ?: throw ApphudError("Registration failed")
+            }
+
+    suspend fun getSubscriptions(purchaseContext: PurchaseContext): Result<ApphudUser> =
+        runCatchingCancellable {
+            val request =
+                buildPostRequest(URL(SUBSCRIPTIONS_URL), createPurchaseBody(purchaseContext))
+            executeForResponse(request, CustomerDto::class.java)
+        }
+            .recoverCatching { e ->
+                val message = e.message ?: "Purchase failed"
+                throw ApphudError(message, null, APPHUD_ERROR_NO_INTERNET, e)
+            }
+            .mapCatching { response ->
+                response.data.results?.let { customerDto ->
+                    customerMapper.map(customerDto)
+                } ?: throw ApphudError("Purchase failed")
             }
 
     private suspend fun <T> executeForResponse(request: Request, clazz: Class<T>): ResponseDto<T> =
@@ -92,6 +116,34 @@ internal class RemoteRepository(
             .build()
     }
 
+    private fun createPurchaseBody(purchaseContext: PurchaseContext): PurchaseBody {
+        return PurchaseBody(
+            deviceId = ApphudInternal.deviceId,
+            purchases = listOf(
+                with(purchaseContext) {
+                    PurchaseItemBody(
+                        orderId = purchase.orderId,
+                        productId = productDetails?.productId ?: purchase.products.first(),
+                        purchaseToken = purchase.purchaseToken,
+                        priceCurrencyCode = productDetails?.priceCurrencyCode(),
+                        priceAmountMicros = productDetails?.priceAmountMicros(),
+                        subscriptionPeriod = productDetails?.subscriptionPeriod(),
+                        paywallId = paywallId,
+                        placementId = placementId,
+                        productBundleId = apphudProductId,
+                        observerMode = false,
+                        billingVersion = BILLING_VERSION,
+                        purchaseTime = purchase.purchaseTime,
+                        productInfo = productDetails?.let { ProductInfo(productDetails, offerToken) },
+                        productType = productDetails?.productType,
+                        timestamp = System.currentTimeMillis(),
+                        extraMessage = extraMessage
+                    )
+                },
+            ),
+        )
+    }
+
     private fun createRegistrationBody(
         needPaywalls: Boolean,
         isNew: Boolean,
@@ -128,5 +180,6 @@ internal class RemoteRepository(
 
     private companion object {
         const val CUSTOMERS_URL = "https://gateway.apphud.com/v1/customers"
+        const val SUBSCRIPTIONS_URL = "https://gateway.apphud.com/v1/subscriptions"
     }
 }
