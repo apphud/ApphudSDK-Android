@@ -17,6 +17,10 @@ import com.apphud.sdk.client.*
 import com.apphud.sdk.client.dto.*
 import com.apphud.sdk.domain.*
 import com.apphud.sdk.internal.ServiceLocator
+import com.apphud.sdk.internal.data.dto.ApphudGroupDto
+import com.apphud.sdk.internal.data.dto.AttributionDto
+import com.apphud.sdk.internal.data.dto.CustomerDto
+import com.apphud.sdk.internal.data.dto.ResponseDto
 import com.apphud.sdk.managers.AdvertisingIdManager.AdInfo
 import com.apphud.sdk.mappers.*
 import com.apphud.sdk.parser.GsonParser

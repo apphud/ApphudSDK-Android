@@ -1,6 +1,6 @@
 package com.apphud.sdk.mappers
 
-import com.apphud.sdk.client.dto.ApphudPlacementDto
+import com.apphud.sdk.internal.data.dto.ApphudPlacementDto
 import com.apphud.sdk.domain.ApphudPlacement
 import com.apphud.sdk.parser.Parser
 

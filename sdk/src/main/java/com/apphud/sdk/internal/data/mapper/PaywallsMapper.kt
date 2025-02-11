@@ -1,6 +1,6 @@
 package com.apphud.sdk.internal.data.mapper
 
-import com.apphud.sdk.client.dto.ApphudPaywallDto
+import com.apphud.sdk.internal.data.dto.ApphudPaywallDto
 import com.apphud.sdk.domain.ApphudPaywall
 import com.apphud.sdk.domain.ApphudProduct
 import com.google.gson.Gson

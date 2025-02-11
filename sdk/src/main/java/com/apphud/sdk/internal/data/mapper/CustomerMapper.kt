@@ -1,6 +1,6 @@
 package com.apphud.sdk.internal.data.mapper
 
-import com.apphud.sdk.client.dto.CustomerDto
+import com.apphud.sdk.internal.data.dto.CustomerDto
 import com.apphud.sdk.domain.ApphudKind
 import com.apphud.sdk.domain.ApphudUser
 

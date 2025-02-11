@@ -1,6 +1,6 @@
 package com.apphud.sdk.mappers
 
-import com.apphud.sdk.client.dto.ApphudGroupDto
+import com.apphud.sdk.internal.data.dto.ApphudGroupDto
 import com.apphud.sdk.domain.ApphudGroup
 import com.apphud.sdk.domain.ApphudProduct
 

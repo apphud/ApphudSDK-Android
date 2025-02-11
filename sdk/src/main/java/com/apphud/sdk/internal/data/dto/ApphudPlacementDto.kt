@@ -1,4 +1,4 @@
-package com.apphud.sdk.client.dto
+package com.apphud.sdk.internal.data.dto
 
 internal class ApphudPlacementDto(
     val id: String,
