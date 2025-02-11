@@ -6,8 +6,8 @@ import com.apphud.sdk.ApphudInternal
 import com.apphud.sdk.ApphudLog
 import com.apphud.sdk.UserId
 import com.apphud.sdk.body.RegistrationBody
-import com.apphud.sdk.client.dto.CustomerDto
-import com.apphud.sdk.client.dto.ResponseDto
+import com.apphud.sdk.internal.data.dto.CustomerDto
+import com.apphud.sdk.internal.data.dto.ResponseDto
 import com.apphud.sdk.domain.ApphudUser
 import com.apphud.sdk.internal.data.mapper.CustomerMapper
 import com.apphud.sdk.internal.provider.RegistrationProvider

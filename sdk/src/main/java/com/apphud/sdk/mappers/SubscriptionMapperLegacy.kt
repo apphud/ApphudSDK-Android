@@ -1,7 +1,7 @@
 package com.apphud.sdk.mappers
 
 import com.apphud.sdk.DateTimeFormatter
-import com.apphud.sdk.client.dto.SubscriptionDto
+import com.apphud.sdk.internal.data.dto.SubscriptionDto
 import com.apphud.sdk.domain.ApphudKind
 import com.apphud.sdk.domain.ApphudNonRenewingPurchase
 import com.apphud.sdk.domain.ApphudSubscription

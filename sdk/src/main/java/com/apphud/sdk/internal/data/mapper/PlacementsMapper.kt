@@ -1,8 +1,7 @@
 package com.apphud.sdk.internal.data.mapper
 
-import com.apphud.sdk.client.dto.ApphudPlacementDto
+import com.apphud.sdk.internal.data.dto.ApphudPlacementDto
 import com.apphud.sdk.domain.ApphudPlacement
-import com.google.gson.Gson
 
 internal class PlacementsMapper(
     private val paywallsMapperLegacy: PaywallsMapper,
