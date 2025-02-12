@@ -390,15 +390,13 @@ internal fun ApphudInternal.handleObservedPurchase(
             val response = fetchDetails(listOf(productId))
             productDetails = response.second?.find { it.productId == productId }
         }
-        mainScope.launch {
-            sendCheckToApphud(
-                purchase,
-                purchasingProduct,
-                purchasingProduct?.productDetails ?: productDetails,
-                paywallIdentifier ?: purchasingProduct?.paywallId,
-                placementIdentifier ?: purchasingProduct?.placementId, offerIdToken, null, callback = null
-            )
-        }
+        sendCheckToApphud(
+            purchase,
+            purchasingProduct,
+            purchasingProduct?.productDetails ?: productDetails,
+            paywallIdentifier ?: purchasingProduct?.paywallId,
+            placementIdentifier ?: purchasingProduct?.placementId, offerIdToken, null, callback = null
+        )
     }
 }
 
@@ -418,7 +416,7 @@ private fun rememberCallback(callback: (ApphudPurchaseResult) -> Unit) {
     }
 }
 
-private fun ApphudInternal.sendCheckToApphud(
+private suspend fun ApphudInternal.sendCheckToApphud(
     purchase: Purchase,
     apphudProduct: ApphudProduct?,
     productDetails: ProductDetails?,
@@ -428,89 +426,97 @@ private fun ApphudInternal.sendCheckToApphud(
     oldToken: String?,
     callback: ((ApphudPurchaseResult) -> Unit)?,
 ) {
-    if (currentUser == null) {
-        storage.isNeedSync = true
-    } else if (fallbackMode) {
-        coroutineScope.launch(errorHandler) {
-            RequestManager.purchasedLegacy(
-                purchase,
-                productDetails,
-                apphudProduct?.id,
-                paywallId,
-                placementId,
-                offerIdToken,
-                oldToken,
-                "fallback_mode"
-            ) { _, _ -> }
+    val localCurrentUser = currentUser
+    when {
+        localCurrentUser == null -> storage.isNeedSync = true
+        fallbackMode -> {
+            runCatchingCancellable {
+                RequestManager.purchased(
+                    PurchaseContext(
+                        purchase,
+                        productDetails,
+                        apphudProduct?.id,
+                        paywallId,
+                        placementId,
+                        offerIdToken,
+                        oldToken,
+                        "fallback_mode"
+                    )
+                )
+            }
+            withContext(Dispatchers.Main) {
+                addTempPurchase(
+                    apphudUser = localCurrentUser, purchase = purchase,
+                    type = apphudProduct?.productDetails?.productType ?: productDetails?.productType ?: "",
+                    productId = apphudProduct?.productId ?: productDetails?.productId ?: ""
+                )
+            }
         }
-        mainScope.launch {
-            addTempPurchase(
-                currentUser!!, purchase,
-                apphudProduct?.productDetails?.productType ?: productDetails?.productType ?: "",
-                apphudProduct?.productId ?: productDetails?.productId ?: ""
-            )
-        }
-    } else {
-        coroutineScope.launch(errorHandler) {
+        else -> {
             synchronized(observedOrders) {
                 purchase.orderId?.let {
                     if (observedOrders.contains(it) && callback == null) {
                         ApphudLog.logI("Already observed order ${it}, skipping...")
-                        return@launch
+                        return
                     } else {
                         observedOrders.add(it)
                     }
                 }
             }
-
-            RequestManager.purchasedLegacy(
-                purchase,
-                productDetails,
-                apphudProduct?.id,
-                paywallId,
-                placementId,
-                offerIdToken,
-                oldToken,
-                null
-            ) { customer, error ->
-                mainScope.launch {
-                    customer?.let {
+            runCatchingCancellable {
+                RequestManager.purchased(
+                    PurchaseContext(
+                        purchase,
+                        productDetails,
+                        apphudProduct?.id,
+                        paywallId,
+                        placementId,
+                        offerIdToken,
+                        oldToken,
+                        null
+                    )
+                )
+            }
+                .onSuccess { customer ->
+                    withContext(Dispatchers.IO) {
                         val newSubscriptions =
                             customer.subscriptions.firstOrNull { it.productId == purchase.products.first() }
-                        val newPurchases = customer.purchases.firstOrNull { it.productId == purchase.products.first() }
+                        val newPurchases =
+                            customer.purchases.firstOrNull { it.productId == purchase.products.first() }
 
                         storage.isNeedSync = false
-                        handleCheckSubmissionResult(it, purchase, newSubscriptions, newPurchases, false)
-                    }
-                    error?.let {
-                        if (fallbackMode) {
-                            it.errorCode?.let { code ->
-                                if (code in FALLBACK_ERRORS) {
-                                    currentUser?.let {
-                                        apphudProduct?.let { product ->
-                                            addTempPurchase(
-                                                it,
-                                                purchase,
-                                                product.productDetails?.productType ?: "",
-                                                product.productId
-                                            )
-                                        } ?: run {
-                                            productDetails?.let { details ->
-                                                addTempPurchase(it, purchase, details.productType, details.productId)
-                                            }
-                                        }
-                                        return@launch
-                                    }
-                                }
-                            }
-                        }
-
-                        storage.isNeedSync = true
-
-                        handleCheckSubmissionResult(customer, purchase, null, null, false)
+                        handleCheckSubmissionResult(customer, purchase, newSubscriptions, newPurchases, false)
                     }
                 }
-            }
+                .onFailure { error ->
+                    if (fallbackMode && error is ApphudError) {
+                        error.errorCode?.let { code ->
+                            if (code in FALLBACK_ERRORS) {
+                                apphudProduct?.let { product ->
+                                    addTempPurchase(
+                                        localCurrentUser,
+                                        purchase,
+                                        product.productDetails?.productType ?: "",
+                                        product.productId
+                                    )
+                                } ?: run {
+                                    productDetails?.let { details ->
+                                        addTempPurchase(
+                                            localCurrentUser,
+                                            purchase,
+                                            details.productType,
+                                            details.productId
+                                        )
+                                    }
+                                }
+                                return
+                            }
+                        }
+                    }
+                    storage.isNeedSync = true
+
+                    handleCheckSubmissionResult(null, purchase, null, null, false)
+                }
         }
     }
 }
