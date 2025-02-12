@@ -9,8 +9,7 @@ data class PurchaseContext(
     val productBundleId: String?,
     val paywallId: String?,
     val placementId: String?,
-    val apphudProductId: String?,
     val offerToken: String?,
     val oldToken: String?,
-    val extraMessage: String?
+    val extraMessage: String?,
 )

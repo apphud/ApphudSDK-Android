@@ -31,7 +31,7 @@ import kotlin.math.max
 internal object ApphudInternal {
     //region === Variables ===
     internal val mainScope = CoroutineScope(Dispatchers.Main)
-    internal val coroutineScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+    internal val coroutineScope = CoroutineScope(SupervisorJob() + Dispatchers.IO )
     internal val errorHandler =
         CoroutineExceptionHandler { _, error ->
             error.message?.let { ApphudLog.logI("Coroutine exception: " + it) }
