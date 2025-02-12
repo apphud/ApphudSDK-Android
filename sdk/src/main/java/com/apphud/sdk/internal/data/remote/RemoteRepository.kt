@@ -130,7 +130,7 @@ internal class RemoteRepository(
                         subscriptionPeriod = productDetails?.subscriptionPeriod(),
                         paywallId = paywallId,
                         placementId = placementId,
-                        productBundleId = apphudProductId,
+                        productBundleId = productBundleId,
                         observerMode = false,
                         billingVersion = BILLING_VERSION,
                         purchaseTime = purchase.purchaseTime,
