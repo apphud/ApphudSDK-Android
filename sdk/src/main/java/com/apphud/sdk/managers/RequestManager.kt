@@ -3,14 +3,10 @@ package com.apphud.sdk.managers
 import android.content.Context
 import android.content.pm.PackageManager
 import android.content.pm.PackageManager.PackageInfoFlags
-import android.net.ConnectivityManager
-import android.net.NetworkCapabilities
 import android.os.Build
 import com.android.billingclient.api.BillingClient
 import com.android.billingclient.api.ProductDetails
-import com.android.billingclient.api.Purchase
 import com.apphud.sdk.*
-import com.apphud.sdk.ApphudInternal.fallbackMode
 import com.apphud.sdk.body.*
 import com.apphud.sdk.client.*
 import com.apphud.sdk.domain.*
@@ -482,7 +478,7 @@ internal object RequestManager {
         }
 
     internal suspend fun purchased(
-        purchaseContext: PurchaseContext
+        purchaseContext: PurchaseContext,
     ): ApphudUser {
         if (!canPerformRequest()) {
             ApphudLog.logE(::registrationLegacy.name + MUST_REGISTER_ERROR)
@@ -498,82 +494,24 @@ internal object RequestManager {
         return remoteRepository.getPurchased(purchaseContext).getOrThrow()
     }
 
-    suspend fun restorePurchasesSync(
+    suspend fun restorePurchases(
         apphudProduct: ApphudProduct? = null,
-        purchaseRecordDetailsSet: List<PurchaseRecordDetails>?,
-        purchase: Purchase?,
-        productDetails: ProductDetails?,
-        offerIdToken: String?,
+        purchaseRecordDetailsSet: List<PurchaseRecordDetails>,
         observerMode: Boolean,
-    ): ApphudUser? =
-        suspendCancellableCoroutine { continuation ->
-            if (!canPerformRequest()) {
-                ApphudLog.logE("restorePurchasesSync $MUST_REGISTER_ERROR")
-                if (continuation.isActive) {
-                    continuation.resume(null)
-                }
-            }
-
-            val apphudUrl =
-                ApphudUrl.Builder()
-                    .host(LegacyHeadersInterceptor.HOST)
-                    .version(ApphudVersion.V1)
-                    .path("subscriptions")
-                    .build()
-
-            val purchaseBody =
-                if (purchaseRecordDetailsSet != null) {
-                    makeRestorePurchasesBody(
-                        apphudProduct,
-                        purchaseRecordDetailsSet,
-                        observerMode,
-                    )
-                } else if (purchase != null && productDetails != null) {
-                    makeTrackPurchasesBody(
-                        apphudProduct,
-                        purchase,
-                        productDetails,
-                        offerIdToken,
-                        observerMode,
-                    )
-                } else {
-                    null
-                }
-
-            purchaseBody?.let {
-                val request = buildPostRequest(URL(apphudUrl.url), it)
-                makeUserRegisteredRequest(request, !fallbackMode) { serverResponse, _ ->
-                    serverResponse?.let {
-                        val responseDto: ResponseDto<CustomerDto>? =
-                            parser.fromJson<ResponseDto<CustomerDto>>(
-                                serverResponse,
-                                object : TypeToken<ResponseDto<CustomerDto>>() {}.type,
-                            )
-                        responseDto?.let { cDto ->
-                            val currentUser =
-                                cDto.data.results?.let { customerObj ->
-                                    customerMapperLegacy.map(customerObj)
-                                }
-                            if (continuation.isActive) {
-                                continuation.resume(currentUser)
-                            }
-                        } ?: run {
-                            if (continuation.isActive) {
-                                continuation.resume(null)
-                            }
-                        }
-                    } ?: run {
-                        if (continuation.isActive) {
-                            continuation.resume(null)
-                        }
-                    }
-                }
-            } ?: run {
-                if (continuation.isActive) {
-                    continuation.resume(null)
-                }
-            }
+    ): ApphudUser {
+        if (!canPerformRequest()) {
+            val message = "restorePurchases $MUST_REGISTER_ERROR"
+            ApphudLog.logE(message)
+            error(message)
         }
+
+        if (currentUser == null) {
+            registration(needPaywalls = true, isNew = true)
+        }
+
+        val repository = ServiceLocator.instance.remoteRepository
+        return repository.restorePurchased(apphudProduct, purchaseRecordDetailsSet, observerMode).getOrThrow()
+    }
 
     internal fun send(
         attributionBody: AttributionBody,
@@ -735,8 +673,14 @@ internal object RequestManager {
     }
 
     fun sendPaywallLogs(
-        launchedAt: Long, count: Int, userBenchmark: Double, productsBenchmark: Double, totalBenchmark: Double,
-        error: ApphudError?, productsResponseCode: Int, success: Boolean,
+        launchedAt: Long,
+        count: Int,
+        userBenchmark: Double,
+        productsBenchmark: Double,
+        totalBenchmark: Double,
+        error: ApphudError?,
+        productsResponseCode: Int,
+        success: Boolean,
     ) {
         trackPaywallEvent(
             makePaywallLogsBody(
@@ -874,33 +818,6 @@ internal object RequestManager {
         }
     }
 
-    private fun isNetworkAvailable(): Boolean {
-        val connectivityManager =
-            applicationContext.getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-            val capabilities = connectivityManager.getNetworkCapabilities(connectivityManager.activeNetwork)
-            if (capabilities != null) {
-                when {
-                    capabilities.hasTransport(NetworkCapabilities.TRANSPORT_CELLULAR) -> {
-                        return true
-                    }
-                    capabilities.hasTransport(NetworkCapabilities.TRANSPORT_WIFI) -> {
-                        return true
-                    }
-                    capabilities.hasTransport(NetworkCapabilities.TRANSPORT_ETHERNET) -> {
-                        return true
-                    }
-                }
-            }
-        } else {
-            val activeNetworkInfo = connectivityManager.activeNetworkInfo
-            if (activeNetworkInfo != null && activeNetworkInfo.isConnected) {
-                return true
-            }
-        }
-        return false
-    }
-
     private fun makePaywallEventBody(
         name: String,
         paywallId: String?,
@@ -979,110 +896,7 @@ internal object RequestManager {
         return dateInSecond
     }
 
-    private fun makePurchaseBody(
-        purchase: Purchase,
-        productDetails: ProductDetails?,
-        paywallId: String?,
-        placementId: String?,
-        apphudProductId: String?,
-        offerIdToken: String?,
-        oldToken: String?,
-        extraMessage: String?,
-    ): PurchaseBody {
-        return PurchaseBody(
-            deviceId = ApphudInternal.deviceId,
-            purchases =
-            listOf(
-                PurchaseItemBody(
-                    orderId = purchase.orderId,
-                    productId = productDetails?.productId ?: purchase.products.first(),
-                    purchaseToken = purchase.purchaseToken,
-                    priceCurrencyCode = productDetails?.priceCurrencyCode(),
-                    priceAmountMicros = productDetails?.priceAmountMicros(),
-                    subscriptionPeriod = productDetails?.subscriptionPeriod(),
-                    paywallId = paywallId,
-                    placementId = placementId,
-                    productBundleId = apphudProductId,
-                    observerMode = false,
-                    billingVersion = BILLING_VERSION,
-                    purchaseTime = purchase.purchaseTime,
-                    productInfo = productDetails?.let { ProductInfo(productDetails, offerIdToken) },
-                    productType = productDetails?.productType,
-                    timestamp = System.currentTimeMillis(),
-                    extraMessage = extraMessage
-                ),
-            ),
-        )
-    }
-
-    private val ONE_HOUR = 3600_000L
-
-    private fun makeRestorePurchasesBody(
-        apphudProduct: ApphudProduct? = null,
-        purchases: List<PurchaseRecordDetails>,
-        observerMode: Boolean,
-    ) = PurchaseBody(
-        deviceId = ApphudInternal.deviceId,
-        purchases =
-        purchases.map { purchase ->
-            PurchaseItemBody(
-                orderId = null,
-                productId = purchase.details.productId,
-                purchaseToken = purchase.record.purchaseToken,
-                priceCurrencyCode = purchase.details.priceCurrencyCode(),
-                priceAmountMicros =
-                if ((System.currentTimeMillis() - purchase.record.purchaseTime) < ONE_HOUR) {
-                    purchase.details.priceAmountMicros()
-                } else {
-                    null
-                },
-                subscriptionPeriod = purchase.details.subscriptionPeriod(),
-                paywallId = if (apphudProduct?.productDetails?.productId == purchase.details.productId) apphudProduct.paywallId else null,
-                placementId = if (apphudProduct?.productDetails?.productId == purchase.details.productId) apphudProduct.placementId else null,
-                productBundleId = if (apphudProduct?.productDetails?.productId == purchase.details.productId) apphudProduct.id else null,
-                observerMode = observerMode,
-                billingVersion = BILLING_VERSION,
-                purchaseTime = purchase.record.purchaseTime,
-                productInfo = null,
-                productType = purchase.details.productType,
-                timestamp = System.currentTimeMillis(),
-                extraMessage = null
-            )
-        }.sortedByDescending { it.purchaseTime },
-    )
-
-    private fun makeTrackPurchasesBody(
-        apphudProduct: ApphudProduct? = null,
-        purchase: Purchase,
-        productDetails: ProductDetails,
-        offerIdToken: String?,
-        observerMode: Boolean,
-    ) = PurchaseBody(
-        deviceId = ApphudInternal.deviceId,
-        purchases =
-        listOf(
-            PurchaseItemBody(
-                orderId = purchase.orderId,
-                productId = purchase.products.first(),
-                purchaseToken = purchase.purchaseToken,
-                priceCurrencyCode = productDetails.priceCurrencyCode(),
-                priceAmountMicros = productDetails.priceAmountMicros(),
-                subscriptionPeriod = productDetails.subscriptionPeriod(),
-                paywallId = if (apphudProduct?.productDetails?.productId == purchase.products.first()) apphudProduct?.paywallId else null,
-                placementId = if (apphudProduct?.productDetails?.productId == purchase.products.first()) apphudProduct?.placementId else null,
-                productBundleId = if (apphudProduct?.productDetails?.productId == purchase.products.first()) apphudProduct?.id else null,
-                observerMode = observerMode,
-                billingVersion = BILLING_VERSION,
-                purchaseTime = purchase.purchaseTime,
-                productInfo = ProductInfo(productDetails, offerIdToken),
-                productType = productDetails.productType,
-                timestamp = System.currentTimeMillis(),
-                extraMessage = null
-            ),
-        ),
-    )
-
-    internal fun makeErrorLogsBody(
+    private fun makeErrorLogsBody(
         message: String,
         apphudProductId: String? = null,
     ) = ErrorLogsBody(
@@ -1094,7 +908,7 @@ internal object RequestManager {
         timestamp = System.currentTimeMillis(),
     )
 
-    internal fun grantPromotionalBody(
+    private fun grantPromotionalBody(
         daysCount: Int,
         productId: String? = null,
         permissionGroup: ApphudGroup? = null,

@@ -8,9 +8,11 @@ import com.apphud.sdk.internal.data.mapper.SubscriptionMapper
 import com.apphud.sdk.internal.data.network.HeadersInterceptor
 import com.apphud.sdk.internal.data.network.HostSwitcherInterceptor
 import com.apphud.sdk.internal.data.network.HttpRetryInterceptor
+import com.apphud.sdk.internal.data.remote.PurchaseBodyFactory
+import com.apphud.sdk.internal.data.remote.RegistrationBodyFactory
+import com.apphud.sdk.internal.data.remote.RemoteRepository
 import com.apphud.sdk.internal.domain.model.ApiKey
 import com.apphud.sdk.internal.provider.RegistrationProvider
-import com.apphud.sdk.internal.data.remote.RemoteRepository
 import com.apphud.sdk.storage.SharedPreferencesStorage
 import com.google.gson.Gson
 import okhttp3.OkHttpClient
@@ -45,8 +47,13 @@ internal class ServiceLocator private constructor(
             .addInterceptor(HttpRetryInterceptor())
             .build()
 
-    val remoteRepository: RemoteRepository =
-        RemoteRepository(okHttpClient, gson, registrationProvider, customerMapper)
+    val remoteRepository: RemoteRepository = RemoteRepository(
+        okHttpClient = okHttpClient,
+        gson = gson,
+        customerMapper = customerMapper,
+        purchaseBodyFactory = PurchaseBodyFactory(),
+        registrationBodyFactory = RegistrationBodyFactory(registrationProvider)
+    )
 
     internal class ServiceLocatorInstanceFactory {
 

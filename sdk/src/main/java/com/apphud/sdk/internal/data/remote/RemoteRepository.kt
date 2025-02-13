@@ -5,22 +5,17 @@ import com.apphud.sdk.ApphudError
 import com.apphud.sdk.ApphudInternal
 import com.apphud.sdk.ApphudLog
 import com.apphud.sdk.UserId
-import com.apphud.sdk.body.PurchaseBody
-import com.apphud.sdk.body.PurchaseItemBody
 import com.apphud.sdk.body.RegistrationBody
+import com.apphud.sdk.domain.ApphudProduct
 import com.apphud.sdk.domain.ApphudUser
-import com.apphud.sdk.domain.ProductInfo
+import com.apphud.sdk.domain.PurchaseRecordDetails
 import com.apphud.sdk.internal.data.dto.CustomerDto
 import com.apphud.sdk.internal.data.dto.ResponseDto
 import com.apphud.sdk.internal.data.mapper.CustomerMapper
 import com.apphud.sdk.internal.domain.model.PurchaseContext
 import com.apphud.sdk.internal.provider.RegistrationProvider
 import com.apphud.sdk.internal.util.runCatchingCancellable
-import com.apphud.sdk.managers.RequestManager.BILLING_VERSION
 import com.apphud.sdk.managers.RequestManager.parser
-import com.apphud.sdk.managers.priceAmountMicros
-import com.apphud.sdk.managers.priceCurrencyCode
-import com.apphud.sdk.managers.subscriptionPeriod
 import com.google.gson.Gson
 import com.google.gson.reflect.TypeToken
 import kotlinx.coroutines.Dispatchers
@@ -34,8 +29,9 @@ import java.net.URL
 internal class RemoteRepository(
     private val okHttpClient: OkHttpClient,
     private val gson: Gson,
-    private val registrationProvider: RegistrationProvider,
     private val customerMapper: CustomerMapper,
+    private val purchaseBodyFactory: PurchaseBodyFactory,
+    private val registrationBodyFactory: RegistrationBodyFactory,
 ) {
 
     suspend fun getCustomers(
@@ -46,7 +42,7 @@ internal class RemoteRepository(
     ): Result<ApphudUser> =
         runCatchingCancellable {
             val request =
-                buildPostRequest(URL(CUSTOMERS_URL), createRegistrationBody(needPaywalls, isNew, userId, email))
+                buildPostRequest(URL(CUSTOMERS_URL), registrationBodyFactory.create(needPaywalls, isNew, userId, email))
             executeForResponse(request, CustomerDto::class.java)
         }
             .recoverCatching { e ->
@@ -62,7 +58,30 @@ internal class RemoteRepository(
     suspend fun getPurchased(purchaseContext: PurchaseContext): Result<ApphudUser> =
         runCatchingCancellable {
             val request =
-                buildPostRequest(URL(SUBSCRIPTIONS_URL), createPurchaseBody(purchaseContext))
+                buildPostRequest(URL(SUBSCRIPTIONS_URL), purchaseBodyFactory.create(purchaseContext))
+            executeForResponse(request, CustomerDto::class.java)
+        }
+            .recoverCatching { e ->
+                val message = e.message ?: "Purchase failed"
+                throw ApphudError(message, null, APPHUD_ERROR_NO_INTERNET, e)
+            }
+            .mapCatching { response ->
+                response.data.results?.let { customerDto ->
+                    customerMapper.map(customerDto)
+                } ?: throw ApphudError("Purchase failed")
+            }
+
+    suspend fun restorePurchased(
+        apphudProduct: ApphudProduct? = null,
+        purchases: List<PurchaseRecordDetails>,
+        observerMode: Boolean,
+    ): Result<ApphudUser> =
+        runCatchingCancellable {
+            val request =
+                buildPostRequest(
+                    URL(SUBSCRIPTIONS_URL),
+                    purchaseBodyFactory.create(apphudProduct, purchases, observerMode)
+                )
             executeForResponse(request, CustomerDto::class.java)
         }
             .recoverCatching { e ->
@@ -115,68 +134,6 @@ internal class RemoteRepository(
             .get()
             .build()
     }
-
-    private fun createPurchaseBody(purchaseContext: PurchaseContext): PurchaseBody {
-        return PurchaseBody(
-            deviceId = ApphudInternal.deviceId,
-            purchases = listOf(
-                with(purchaseContext) {
-                    PurchaseItemBody(
-                        orderId = purchase.orderId,
-                        productId = productDetails?.productId ?: purchase.products.first(),
-                        purchaseToken = purchase.purchaseToken,
-                        priceCurrencyCode = productDetails?.priceCurrencyCode(),
-                        priceAmountMicros = productDetails?.priceAmountMicros(),
-                        subscriptionPeriod = productDetails?.subscriptionPeriod(),
-                        paywallId = paywallId,
-                        placementId = placementId,
-                        productBundleId = productBundleId,
-                        observerMode = false,
-                        billingVersion = BILLING_VERSION,
-                        purchaseTime = purchase.purchaseTime,
-                        productInfo = productDetails?.let { ProductInfo(productDetails, offerToken) },
-                        productType = productDetails?.productType,
-                        timestamp = System.currentTimeMillis(),
-                        extraMessage = extraMessage
-                    )
-                },
-            ),
-        )
-    }
-
-    private fun createRegistrationBody(
-        needPaywalls: Boolean,
-        isNew: Boolean,
-        userId: UserId? = null,
-        email: String? = null,
-    ): RegistrationBody =
-        RegistrationBody(
-            locale = registrationProvider.getLocale(),
-            sdkVersion = registrationProvider.getSdkVersion(),
-            appVersion = registrationProvider.getAppVersion(),
-            deviceFamily = registrationProvider.getDeviceFamily(),
-            platform = registrationProvider.getPlatform(),
-            deviceType = registrationProvider.getDeviceType(),
-            osVersion = registrationProvider.getOsVersion(),
-            startAppVersion = registrationProvider.getStartAppVersion(),
-            idfv = registrationProvider.getIdfv(),
-            idfa = registrationProvider.getIdfa(),
-            androidId = registrationProvider.getAndroidId(),
-            userId = userId ?: ApphudInternal.userId,
-            deviceId = registrationProvider.getDeviceId(),
-            timeZone = registrationProvider.getTimeZone(),
-            isSandbox = registrationProvider.isSandbox(),
-            isNew = isNew,
-            needPaywalls = needPaywalls,
-            needPlacements = needPaywalls,
-            firstSeen = registrationProvider.getFirstSeen(),
-            sdkLaunchedAt = registrationProvider.getSdkLaunchedAt(),
-            requestTime = registrationProvider.getRequestTime(),
-            installSource = registrationProvider.getInstallSource(),
-            observerMode = registrationProvider.getObserverMode(),
-            fromWeb2web = registrationProvider.getFromWeb2Web(),
-            email = email
-        )
 
     private companion object {
         const val CUSTOMERS_URL = "https://gateway.apphud.com/v1/customers"
