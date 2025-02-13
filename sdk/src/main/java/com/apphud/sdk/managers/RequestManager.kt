@@ -501,65 +501,6 @@ internal object RequestManager {
         return remoteRepository.getSubscriptions(purchaseContext).getOrThrow()
     }
 
-    @Deprecated("Сразу переделать на синхронный код", replaceWith = ReplaceWith("purchased"))
-    fun purchasedLegacy(
-        purchase: Purchase,
-        productDetails: ProductDetails?,
-        productBundleId: String?,
-        paywallId: String?,
-        placementId: String?,
-        offerToken: String?,
-        oldToken: String?,
-        extraMessage: String?,
-        completionHandler: (ApphudUser?, ApphudError?) -> Unit,
-    ) {
-        if (!canPerformRequest()) {
-            ApphudLog.logE(::purchasedLegacy.name + MUST_REGISTER_ERROR)
-            return
-        }
-
-        val apphudUrl =
-            ApphudUrl.Builder()
-                .host(LegacyHeadersInterceptor.HOST)
-                .version(ApphudVersion.V1)
-                .path("subscriptions")
-                .build()
-
-        val purchaseBody = makePurchaseBody(
-            purchase,
-            productDetails,
-            paywallId,
-            placementId,
-            productBundleId,
-            offerToken,
-            oldToken,
-            extraMessage
-        )
-
-        val request = buildPostRequest(URL(apphudUrl.url), purchaseBody)
-
-        makeUserRegisteredRequest(request, !fallbackMode) { serverResponse, error ->
-            serverResponse?.let {
-                val responseDto: ResponseDto<CustomerDto>? =
-                    parser.fromJson<ResponseDto<CustomerDto>>(
-                        serverResponse,
-                        object : TypeToken<ResponseDto<CustomerDto>>() {}.type,
-                    )
-                responseDto?.let { cDto ->
-                    val currentUser =
-                        cDto.data.results?.let { customerObj ->
-                            customerMapperLegacy.map(customerObj)
-                        }
-                    completionHandler(currentUser, null)
-                } ?: run {
-                    completionHandler(null, ApphudError("Purchase failed"))
-                }
-            } ?: run {
-                completionHandler(null, error)
-            }
-        }
-    }
-
     suspend fun restorePurchasesSync(
         apphudProduct: ApphudProduct? = null,
         purchaseRecordDetailsSet: List<PurchaseRecordDetails>?,
