@@ -7,6 +7,7 @@ import android.os.Build
 import com.android.billingclient.api.BillingClient
 import com.android.billingclient.api.ProductDetails
 import com.apphud.sdk.*
+import com.apphud.sdk.ApphudInternal.fallbackMode
 import com.apphud.sdk.body.*
 import com.apphud.sdk.client.*
 import com.apphud.sdk.domain.*
