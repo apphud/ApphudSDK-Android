@@ -14,7 +14,7 @@ import com.android.billingclient.api.Purchase
 import com.apphud.sdk.body.*
 import com.apphud.sdk.domain.*
 import com.apphud.sdk.internal.BillingWrapper
-import com.apphud.sdk.managers.HttpRetryInterceptor
+import com.apphud.sdk.managers.LegacyHttpRetryInterceptor
 import com.apphud.sdk.managers.RequestManager
 import com.apphud.sdk.managers.RequestManager.applicationContext
 import com.apphud.sdk.storage.SharedPreferencesStorage
@@ -31,7 +31,7 @@ import kotlin.math.max
 internal object ApphudInternal {
     //region === Variables ===
     internal val mainScope = CoroutineScope(Dispatchers.Main)
-    internal val coroutineScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+    internal val coroutineScope = CoroutineScope(SupervisorJob() + Dispatchers.IO )
     internal val errorHandler =
         CoroutineExceptionHandler { _, error ->
             error.message?.let { ApphudLog.logI("Coroutine exception: " + it) }
@@ -547,13 +547,13 @@ internal object ApphudInternal {
             "Registration conditions: user_is_null=${currentUser == null}, forceRegistration=$forceRegistration, isTemporary=${currentUser?.isTemporary}, requesting Placements = $needPlacementsPaywalls",
         )
 
-        RequestManager.registration(needPlacementsPaywalls, isNew, forceRegistration) { customer, error ->
+        RequestManager.registrationLegacy(needPlacementsPaywalls, isNew, forceRegistration) { customer, error ->
             customer?.let {
                 if (firstCustomerLoadedTime == null) {
                     firstCustomerLoadedTime = System.currentTimeMillis()
                 }
 
-                HttpRetryInterceptor.MAX_COUNT = APPHUD_DEFAULT_RETRIES
+                LegacyHttpRetryInterceptor.MAX_COUNT = APPHUD_DEFAULT_RETRIES
 
                 currentUser = it
                 if (it.paywalls.isNotEmpty()) {

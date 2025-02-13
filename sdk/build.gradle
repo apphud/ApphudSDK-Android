@@ -72,18 +72,17 @@ afterEvaluate {
 
 dependencies {
     implementation fileTree(dir: "libs", include: ["*.jar"])
-    implementation "org.jetbrains.kotlin:kotlin-stdlib:$kotlin_version"
-    implementation 'com.android.billingclient:billing:7.1.1'
-    implementation "com.google.code.gson:gson:2.10.1"
+    implementation libs.kotlin.stdlib
+    implementation libs.billing
+    implementation libs.gson
 
-    implementation 'com.squareup.okhttp3:okhttp:4.12.0'
-    implementation 'com.squareup.okhttp3:logging-interceptor:4.11.0'
-    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.7.3")
-    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.7.3")
-    implementation 'com.google.android.gms:play-services-appset:16.1.0'
-    implementation("androidx.lifecycle:lifecycle-process:2.6.2")
+    implementation libs.okhttp
+    implementation libs.logging.interceptor
+    implementation(libs.kotlinx.coroutines.android)
+    implementation libs.play.services.appset
+    implementation(libs.lifecycle.process)
 
-    testImplementation 'junit:junit:4.13.2'
-    androidTestImplementation 'androidx.test.ext:junit:1.2.0'
-    androidTestImplementation 'androidx.test.espresso:espresso-core:3.6.0'
+    testImplementation libs.junit
+    androidTestImplementation libs.ext.junit
+    androidTestImplementation libs.espresso.core
 }

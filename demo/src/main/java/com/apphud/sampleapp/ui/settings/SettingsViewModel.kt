@@ -6,7 +6,7 @@ import com.apphud.sampleapp.ui.models.HasPremiumEvent
 import com.apphud.sampleapp.ui.utils.BaseViewModel
 import com.apphud.sampleapp.ui.utils.ApphudSdkManager
 import com.apphud.sampleapp.ui.utils.ResourceManager
-import com.apphud.sdk.managers.HeadersInterceptor
+import com.apphud.sdk.managers.LegacyHeadersInterceptor
 import kotlinx.coroutines.launch
 import org.greenrobot.eventbus.EventBus
 
@@ -22,7 +22,7 @@ enum class SettingsInfo :ISettingsItem {
     },
     sdkVersion {
         override fun title() = ResourceManager.getString(R.string.sdk_version)
-        override fun value() = HeadersInterceptor.X_SDK_VERSION
+        override fun value() = LegacyHeadersInterceptor.X_SDK_VERSION
     }
 }
 

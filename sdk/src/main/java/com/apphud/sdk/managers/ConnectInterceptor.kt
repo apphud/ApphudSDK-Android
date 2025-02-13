@@ -6,6 +6,7 @@ import okhttp3.Response
 import java.io.IOException
 import java.util.concurrent.TimeUnit
 
+@Deprecated("")
 internal class ConnectInterceptor  : Interceptor {
     private var CONNECT_TIMEOUT = 2
     private var isFirst = true

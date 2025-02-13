@@ -1,12 +1,12 @@
-package com.apphud.sdk.mappers
+package com.apphud.sdk.internal.data.mapper
 
-import com.apphud.sdk.client.dto.ApphudPaywallDto
+import com.apphud.sdk.internal.data.dto.ApphudPaywallDto
 import com.apphud.sdk.domain.ApphudPaywall
 import com.apphud.sdk.domain.ApphudProduct
-import com.apphud.sdk.parser.Parser
+import com.google.gson.Gson
 
 internal class PaywallsMapper(
-    private val parser: Parser,
+    private val gson: Gson,
 ) {
     fun map(dto: List<ApphudPaywallDto>): List<ApphudPaywall> = dto.map { paywallDto -> map(paywallDto) }
 
@@ -16,7 +16,7 @@ internal class PaywallsMapper(
             name = paywallDto.name,
             identifier = paywallDto.identifier,
             default = paywallDto.default,
-            json = parser.fromJson<Map<String, Any>>(paywallDto.json, Map::class.java),
+            json = runCatching { gson.fromJson<Map<String, Any>>(paywallDto.json, Map::class.java) }.getOrNull(),
             products =
             paywallDto.items.map { item ->
                 ApphudProduct(
