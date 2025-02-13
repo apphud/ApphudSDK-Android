@@ -11,7 +11,6 @@ import com.android.billingclient.api.ProductDetails
 import com.android.billingclient.api.Purchase
 import com.apphud.sdk.*
 import com.apphud.sdk.ApphudInternal.fallbackMode
-import com.apphud.sdk.ApphudInternal.fetchAndroidIdSync
 import com.apphud.sdk.body.*
 import com.apphud.sdk.client.*
 import com.apphud.sdk.domain.*
@@ -32,7 +31,6 @@ import com.google.gson.reflect.TypeToken
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.suspendCancellableCoroutine
-import kotlinx.coroutines.sync.Mutex
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
 import okhttp3.Request
@@ -497,7 +495,7 @@ internal object RequestManager {
 
         val remoteRepository = ServiceLocator.instance.remoteRepository
 
-        return remoteRepository.getSubscriptions(purchaseContext).getOrThrow()
+        return remoteRepository.getPurchased(purchaseContext).getOrThrow()
     }
 
     suspend fun restorePurchasesSync(

@@ -59,7 +59,7 @@ internal class RemoteRepository(
                 } ?: throw ApphudError("Registration failed")
             }
 
-    suspend fun getSubscriptions(purchaseContext: PurchaseContext): Result<ApphudUser> =
+    suspend fun getPurchased(purchaseContext: PurchaseContext): Result<ApphudUser> =
         runCatchingCancellable {
             val request =
                 buildPostRequest(URL(SUBSCRIPTIONS_URL), createPurchaseBody(purchaseContext))
