@@ -1,4 +1,4 @@
-package com.apphud.sdk.mappers
+package com.apphud.sdk.internal.data.mapper
 
 import com.apphud.sdk.internal.data.dto.ApphudGroupDto
 import com.apphud.sdk.domain.ApphudGroup

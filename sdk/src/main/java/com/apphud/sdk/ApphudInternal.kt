@@ -11,9 +11,15 @@ import androidx.lifecycle.ProcessLifecycleOwner
 import com.android.billingclient.api.BillingClient
 import com.android.billingclient.api.ProductDetails
 import com.android.billingclient.api.Purchase
-import com.apphud.sdk.body.*
-import com.apphud.sdk.domain.*
+import com.apphud.sdk.body.UserPropertiesBody
+import com.apphud.sdk.domain.ApphudGroup
+import com.apphud.sdk.domain.ApphudPaywall
+import com.apphud.sdk.domain.ApphudPlacement
+import com.apphud.sdk.domain.ApphudProduct
+import com.apphud.sdk.domain.ApphudUser
+import com.apphud.sdk.domain.PurchaseRecordDetails
 import com.apphud.sdk.internal.BillingWrapper
+import com.apphud.sdk.internal.util.runCatchingCancellable
 import com.apphud.sdk.managers.LegacyHttpRetryInterceptor
 import com.apphud.sdk.managers.RequestManager
 import com.apphud.sdk.managers.RequestManager.applicationContext
@@ -21,9 +27,18 @@ import com.apphud.sdk.storage.SharedPreferencesStorage
 import com.google.android.gms.appset.AppSet
 import com.google.android.gms.appset.AppSetIdInfo
 import com.google.android.gms.tasks.Task
-import kotlinx.coroutines.*
+import kotlinx.coroutines.CoroutineExceptionHandler
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Runnable
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.sync.Mutex
-import java.util.*
+import java.util.UUID
 import kotlin.coroutines.resume
 import kotlin.math.max
 
@@ -31,7 +46,7 @@ import kotlin.math.max
 internal object ApphudInternal {
     //region === Variables ===
     internal val mainScope = CoroutineScope(Dispatchers.Main)
-    internal val coroutineScope = CoroutineScope(SupervisorJob() + Dispatchers.IO )
+    internal val coroutineScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     internal val errorHandler =
         CoroutineExceptionHandler { _, error ->
             error.message?.let { ApphudLog.logI("Coroutine exception: " + it) }
@@ -54,7 +69,7 @@ internal object ApphudInternal {
     internal var firstCustomerLoadedTime: Long? = null
     internal var productsLoadedTime: Long? = null
     internal var trackedAnalytics = false
-    internal var observedOrders = mutableListOf <String>()
+    internal var observedOrders = mutableListOf<String>()
     internal var latestCustomerLoadError: ApphudError? = null
     private val handler: Handler = Handler(Looper.getMainLooper())
     private val pendingUserProperties = mutableMapOf<String, ApphudUserProperty>()
@@ -162,11 +177,11 @@ internal object ApphudInternal {
         if (!allowIdentifyUser) {
             ApphudLog.logE(
                 " " +
-                    "\n=============================================================" +
-                    "\nAbort initializing, because Apphud SDK already initialized." +
-                    "\nYou can only call `Apphud.start()` once per app lifecycle." +
-                    "\nOr if `Apphud.logout()` was called previously." +
-                    "\n=============================================================",
+                        "\n=============================================================" +
+                        "\nAbort initializing, because Apphud SDK already initialized." +
+                        "\nYou can only call `Apphud.start()` once per app lifecycle." +
+                        "\nOr if `Apphud.logout()` was called previously." +
+                        "\n=============================================================",
             )
             return
         }
@@ -274,13 +289,17 @@ internal object ApphudInternal {
         cachedUser: ApphudUser?,
     ): Boolean {
         return credentialsChanged ||
-            cachedPaywalls == null ||
-            cachedUser == null ||
-            cachedUser.hasPurchases() ||
-            storage.cacheExpired(cachedUser)
+                cachedPaywalls == null ||
+                cachedUser == null ||
+                cachedUser.hasPurchases() ||
+                storage.cacheExpired(cachedUser)
     }
 
-    internal fun refreshEntitlements(forceRefresh: Boolean = false, wasDeferred: Boolean = false, callback: ((ApphudUser?) -> Unit)? = null) {
+    internal fun refreshEntitlements(
+        forceRefresh: Boolean = false,
+        wasDeferred: Boolean = false,
+        callback: ((ApphudUser?) -> Unit)? = null,
+    ) {
         if (forceRefresh) {
             didRegisterCustomerAtThisLaunch = false
         }
@@ -322,7 +341,8 @@ internal object ApphudInternal {
 
         if (observerMode && (productDetails.isNotEmpty() || productDetailsLoaded != null) &&
             (firstCustomerLoadedTime != null || latestCustomerLoadError != null) &&
-            !trackedAnalytics) {
+            !trackedAnalytics
+        ) {
             trackAnalytics(latestCustomerLoadError == null)
         }
 
@@ -388,13 +408,14 @@ internal object ApphudInternal {
 
             currentUser = it
             userId = it.userId
-            hasRespondedToPaywallsRequest = hasRespondedToPaywallsRequest || paywalls.isNotEmpty() || placements.isNotEmpty() || observerMode
+            hasRespondedToPaywallsRequest =
+                hasRespondedToPaywallsRequest || paywalls.isNotEmpty() || placements.isNotEmpty() || observerMode
 
             // TODO: should be called only if something changed
             coroutineScope.launch {
                 delay(500)
                 mainScope.launch {
-                    currentUser?.let{ user ->
+                    currentUser?.let { user ->
                         apphudListener?.apphudNonRenewingPurchasesUpdated(user.purchases)
                         apphudListener?.apphudSubscriptionsUpdated(user.subscriptions)
                     }
@@ -444,8 +465,13 @@ internal object ApphudInternal {
 
             latestCustomerLoadError = null
         } else if (!isRegisteringUser && (hasRespondedToPaywallsRequest || customerError != null) &&
-            ((customerError != null && paywalls.isEmpty()) || (productsStatus != ApphudProductsStatus.loading && productsResponseCode != BillingClient.BillingResponseCode.OK && productDetails.isEmpty()))) {
-            val error = latestCustomerLoadError ?: customerError ?: (if (productsResponseCode == APPHUD_NO_REQUEST) ApphudError("Paywalls load error", errorCode = productsResponseCode) else ApphudError("Google Billing error", errorCode = productsResponseCode))
+            ((customerError != null && paywalls.isEmpty()) || (productsStatus != ApphudProductsStatus.loading && productsResponseCode != BillingClient.BillingResponseCode.OK && productDetails.isEmpty()))
+        ) {
+            val error =
+                latestCustomerLoadError ?: customerError ?: (if (productsResponseCode == APPHUD_NO_REQUEST) ApphudError(
+                    "Paywalls load error",
+                    errorCode = productsResponseCode
+                ) else ApphudError("Google Billing error", errorCode = productsResponseCode))
             if (offeringsPreparedCallbacks.isNotEmpty()) {
                 ApphudLog.log("handle offeringsPreparedCallbacks with error ${error}")
             }
@@ -465,7 +491,9 @@ internal object ApphudInternal {
     }
 
     private fun trackAnalytics(success: Boolean) {
-        if (trackedAnalytics) { return }
+        if (trackedAnalytics) {
+            return
+        }
 
         trackedAnalytics = true
         val totalLoad = (System.currentTimeMillis() - sdkLaunchedAt)
@@ -481,7 +509,8 @@ internal object ApphudInternal {
                 totalLoad.toDouble(),
                 latestCustomerLoadError,
                 productsResponseCode,
-                success)
+                success
+            )
         }
     }
 
@@ -508,7 +537,8 @@ internal object ApphudInternal {
         completionHandler: ((ApphudUser?, ApphudError?) -> Unit)?,
     ) {
         coroutineScope.launch(errorHandler) {
-            val shouldUnlockMutex = (currentUser == null || currentUser?.isTemporary == true || forceRegistration) && offeringsPreparedCallbacks.isNotEmpty() && !isRegisteringUser && mutex.isLocked
+            val shouldUnlockMutex =
+                (currentUser == null || currentUser?.isTemporary == true || forceRegistration) && offeringsPreparedCallbacks.isNotEmpty() && !isRegisteringUser && mutex.isLocked
             if (shouldUnlockMutex) {
                 try {
                     ApphudLog.log("Unlocking the mutex")
@@ -536,10 +566,12 @@ internal object ApphudInternal {
         }
     }
 
-    private fun startRegistrationCall(userId: UserId,
-                                      deviceId: DeviceId,
-                                      forceRegistration: Boolean = false,
-                                      completionHandler: ((ApphudUser?, ApphudError?) -> Unit)?) {
+    private fun startRegistrationCall(
+        userId: UserId,
+        deviceId: DeviceId,
+        forceRegistration: Boolean = false,
+        completionHandler: ((ApphudUser?, ApphudError?) -> Unit)?,
+    ) {
 
         val needPlacementsPaywalls = !didRegisterCustomerAtThisLaunch && !deferPlacements && !observerMode
 
@@ -610,7 +642,9 @@ internal object ApphudInternal {
 
     internal fun forceNotifyAllLoaded() {
         coroutineScope.launch {
-            if (preferredTimeout > 60) { return@launch }
+            if (preferredTimeout > 60) {
+                return@launch
+            }
             delay((preferredTimeout * 1000.0 * 1.5).toLong())
             mainScope.launch {
                 if (!notifiedAboutPaywallsDidFullyLoaded || offeringsPreparedCallbacks.isNotEmpty()) {
@@ -628,7 +662,7 @@ internal object ApphudInternal {
     }
 
     internal fun shouldRetryRequest(request: String): Boolean {
-        val diff = (System.currentTimeMillis() - max(offeringsCalledAt, sdkLaunchedAt))/1000.0
+        val diff = (System.currentTimeMillis() - max(offeringsCalledAt, sdkLaunchedAt)) / 1000.0
 
         // if paywalls callback not yet invoked and there are pending callbacks, and it's a customers request
         // and more than preferred timeout seconds lapsed then no time for extra retry.
@@ -657,7 +691,7 @@ internal object ApphudInternal {
     }
 
     internal fun performWhenOfferingsPrepared(preferredTimeout: Double?, callback: (ApphudError?) -> Unit) {
-        preferredTimeout?.let{
+        preferredTimeout?.let {
             this.preferredTimeout = max(it, APPHUD_DEFAULT_MAX_TIMEOUT)
             this.offeringsCalledAt = System.currentTimeMillis()
             currentPoductsLoadingCounts = 0
@@ -726,13 +760,15 @@ internal object ApphudInternal {
         val typeString = getType(value)
         if (typeString == "unknown") {
             val type = value?.let { value::class.java.name } ?: "unknown"
-            val message = "For key '${key.key}' invalid property type: '$type' for 'value'. Must be one of: [Int, Float, Double, Boolean, String or null]"
+            val message =
+                "For key '${key.key}' invalid property type: '$type' for 'value'. Must be one of: [Int, Float, Double, Boolean, String or null]"
             ApphudLog.logE(message)
             return
         }
         if (increment && !(typeString == "integer" || typeString == "float")) {
             val type = value?.let { value::class.java.name } ?: "unknown"
-            val message = "For key '${key.key}' invalid increment property type: '$type' for 'value'. Must be one of: [Int, Float or Double]"
+            val message =
+                "For key '${key.key}' invalid increment property type: '$type' for 'value'. Must be one of: [Int, Float or Double]"
             ApphudLog.logE(message)
             return
         }
@@ -765,7 +801,6 @@ internal object ApphudInternal {
         }
         setNeedsToUpdateUserProperties = true
     }
-
 
 
     internal fun forceFlushUserProperties(force: Boolean, completion: ((Boolean) -> Unit)?) {
@@ -836,7 +871,12 @@ internal object ApphudInternal {
         forceFlushUserProperties(false) { _ -> }
     }
 
-    internal fun updateUserId(userId: UserId, email: String? = null, web2Web: Boolean? = false, callback: ((ApphudUser?) -> Unit)?) {
+    internal fun updateUserId(
+        userId: UserId,
+        email: String? = null,
+        web2Web: Boolean? = false,
+        callback: ((ApphudUser?) -> Unit)?,
+    ) {
         if (userId.isBlank()) {
             ApphudLog.log("Invalid UserId=$userId")
             callback?.invoke(currentUser)
@@ -862,7 +902,8 @@ internal object ApphudInternal {
                         ApphudInternal.fromWeb2Web = true
                     }
                     val needPlacementsPaywalls = !didRegisterCustomerAtThisLaunch && !deferPlacements && !observerMode
-                    val customer = RequestManager.registrationSync(needPlacementsPaywalls, isNew, true, userId = userId, email)
+                    val customer =
+                        RequestManager.registrationSync(needPlacementsPaywalls, isNew, true, userId = userId, email)
                     ApphudInternal.userId = customer?.userId ?: currentUser?.userId ?: originalUserId
                     storage.userId = ApphudInternal.userId
                     customer?.let {
@@ -997,18 +1038,6 @@ internal object ApphudInternal {
         }
     }
 
-    fun sendErrorLogs(message: String) {
-        performWhenUserRegistered { error ->
-            error?.let {
-                ApphudLog.logI(error.message)
-            } ?: run {
-                coroutineScope.launch(errorHandler) {
-                    RequestManager.sendErrorLogs(message)
-                }
-            }
-        }
-    }
-
     private suspend fun fetchAdvertisingId(): String? {
         return RequestManager.fetchAdvertisingId()
     }
@@ -1081,7 +1110,7 @@ internal object ApphudInternal {
             }
         }
 
-        val groups = RequestManager.allProducts() ?: listOf()
+        val groups = runCatchingCancellable { RequestManager.allProducts() }.getOrElse { emptyList() }
 
         if (groups.isNotEmpty()) {
             cacheGroups(groups)
@@ -1155,9 +1184,9 @@ internal object ApphudInternal {
 
     private fun isInitialized(): Boolean {
         return ::context.isInitialized &&
-            ::userId.isInitialized &&
-            ::deviceId.isInitialized &&
-            ::apiKey.isInitialized
+                ::userId.isInitialized &&
+                ::deviceId.isInitialized &&
+                ::apiKey.isInitialized
     }
 
     private fun getType(value: Any?): String {
@@ -1260,7 +1289,7 @@ internal object ApphudInternal {
     // Find ProductDetails  ======================================
     internal fun getProductDetailsByProductId(productIdentifier: String): ProductDetails? {
         var productDetail: ProductDetails? = null
-        synchronized(productDetails){
+        synchronized(productDetails) {
             productDetail = productDetails.firstOrNull { it.productId == productIdentifier }
         }
         return productDetail
