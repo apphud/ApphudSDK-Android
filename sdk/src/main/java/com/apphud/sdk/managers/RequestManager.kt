@@ -11,10 +11,11 @@ import com.apphud.sdk.body.*
 import com.apphud.sdk.client.*
 import com.apphud.sdk.domain.*
 import com.apphud.sdk.internal.ServiceLocator
-import com.apphud.sdk.internal.data.dto.ApphudGroupDto
 import com.apphud.sdk.internal.data.dto.AttributionDto
 import com.apphud.sdk.internal.data.dto.CustomerDto
 import com.apphud.sdk.internal.data.dto.ResponseDto
+import com.apphud.sdk.internal.data.mapper.ProductMapper
+import com.apphud.sdk.internal.domain.model.GetProductsParams
 import com.apphud.sdk.internal.domain.model.PurchaseContext
 import com.apphud.sdk.internal.util.runCatchingCancellable
 import com.apphud.sdk.managers.AdvertisingIdManager.AdInfo
@@ -431,51 +432,16 @@ internal object RequestManager {
         }
     }
 
-    suspend fun allProducts(): List<ApphudGroup>? =
-        suspendCancellableCoroutine { continuation ->
+    suspend fun allProducts(): List<ApphudGroup> {
+        val params = GetProductsParams(
+            System.currentTimeMillis().toString(),
+            ApphudInternal.deviceId,
+            ApphudInternal.userId,
+        )
+        val repository = ServiceLocator.instance.remoteRepository
 
-            val properties = mutableMapOf<String, String>()
-            properties["request_time"] = System.currentTimeMillis().toString()
-            properties["device_id"] = ApphudInternal.deviceId
-            properties["user_id"] = ApphudInternal.userId
-
-            val apphudUrl =
-                ApphudUrl.Builder()
-                    .params(properties)
-                    .host(LegacyHeadersInterceptor.HOST)
-                    .version(ApphudVersion.V2)
-                    .path("products")
-                    .build()
-
-            val request = buildGetRequest(URL(apphudUrl.url))
-
-            makeRequest(request) { serverResponse, error ->
-                serverResponse?.let {
-                    val responseDto: ResponseDto<List<ApphudGroupDto>>? =
-                        parser.fromJson<ResponseDto<List<ApphudGroupDto>>>(
-                            serverResponse,
-                            object : TypeToken<ResponseDto<List<ApphudGroupDto>>>() {}.type
-                        )
-                    responseDto?.let { response ->
-                        val productsList = response.data.results?.let { it1 -> productMapper.map(it1) }
-                        if (continuation.isActive) {
-                            continuation.resume(productsList)
-                        }
-                    } ?: run {
-                        if (continuation.isActive) {
-                            continuation.resume(null)
-                        }
-                    }
-                } ?: run {
-                    if (error != null) {
-                        ApphudLog.logE("Failed to load products: " + error.message)
-                    }
-                    if (continuation.isActive) {
-                        continuation.resume(null)
-                    }
-                }
-            }
-        }
+        return repository.getProducts(params).getOrThrow()
+    }
 
     internal suspend fun purchased(
         purchaseContext: PurchaseContext,

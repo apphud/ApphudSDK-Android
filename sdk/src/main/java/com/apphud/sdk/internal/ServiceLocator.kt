@@ -4,6 +4,7 @@ import android.content.Context
 import com.apphud.sdk.internal.data.mapper.CustomerMapper
 import com.apphud.sdk.internal.data.mapper.PaywallsMapper
 import com.apphud.sdk.internal.data.mapper.PlacementsMapper
+import com.apphud.sdk.internal.data.mapper.ProductMapper
 import com.apphud.sdk.internal.data.mapper.SubscriptionMapper
 import com.apphud.sdk.internal.data.network.HeadersInterceptor
 import com.apphud.sdk.internal.data.network.HostSwitcherInterceptor
@@ -52,7 +53,8 @@ internal class ServiceLocator private constructor(
         gson = gson,
         customerMapper = customerMapper,
         purchaseBodyFactory = PurchaseBodyFactory(),
-        registrationBodyFactory = RegistrationBodyFactory(registrationProvider)
+        registrationBodyFactory = RegistrationBodyFactory(registrationProvider),
+        productMapper = ProductMapper(),
     )
 
     internal class ServiceLocatorInstanceFactory {

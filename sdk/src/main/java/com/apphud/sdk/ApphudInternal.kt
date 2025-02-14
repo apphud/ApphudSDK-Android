@@ -14,6 +14,7 @@ import com.android.billingclient.api.Purchase
 import com.apphud.sdk.body.*
 import com.apphud.sdk.domain.*
 import com.apphud.sdk.internal.BillingWrapper
+import com.apphud.sdk.internal.util.runCatchingCancellable
 import com.apphud.sdk.managers.LegacyHttpRetryInterceptor
 import com.apphud.sdk.managers.RequestManager
 import com.apphud.sdk.managers.RequestManager.applicationContext
@@ -1081,7 +1082,7 @@ internal object ApphudInternal {
             }
         }
 
-        val groups = RequestManager.allProducts() ?: listOf()
+        val groups = runCatchingCancellable { RequestManager.allProducts()}.getOrElse { emptyList() }
 
         if (groups.isNotEmpty()) {
             cacheGroups(groups)
