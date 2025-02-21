@@ -576,15 +576,15 @@ object Apphud {
     /**
      * Submits attribution data to Apphud from your attribution network provider.
      *
-     * @param data Required. Attribution dictionary.
+     * @param apphudAttributionData Required. Class with attribution dictionary and custom data.
      * @param provider Required. Attribution provider name.
      * @param identifier Optional. Identifier that matches Apphud and the Attribution provider.
      */
-    fun addAttribution(
+    fun setAttribution(
+        apphudAttributionData: ApphudAttributionData,
         provider: ApphudAttributionProvider,
-        data: Map<String, Any>? = null,
         identifier: String? = null,
-    ) = ApphudInternal.addAttribution(provider, data, identifier)
+    ) = ApphudInternal.setAttribution(apphudAttributionData, provider, identifier)
 
     /**
      * Web-to-Web flow only. Attempts to attribute the user using the provided attribution data.
