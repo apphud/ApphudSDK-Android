@@ -1,6 +1,16 @@
 package com.apphud.sdk
 
-import com.apphud.sdk.body.AttributionBody
+import com.apphud.sdk.ApphudAttributionProvider.ADJUST
+import com.apphud.sdk.ApphudAttributionProvider.APPSFLYER
+import com.apphud.sdk.ApphudAttributionProvider.BRANCH
+import com.apphud.sdk.ApphudAttributionProvider.CUSTOM
+import com.apphud.sdk.ApphudAttributionProvider.FACEBOOK
+import com.apphud.sdk.ApphudAttributionProvider.FIREBASE
+import com.apphud.sdk.ApphudAttributionProvider.SINGULAR
+import com.apphud.sdk.ApphudAttributionProvider.TENJIN
+import com.apphud.sdk.ApphudAttributionProvider.TIKTOK
+import com.apphud.sdk.ApphudAttributionProvider.VOLUUM
+import com.apphud.sdk.client.dto.AttributionRequestDto
 import com.apphud.sdk.domain.AdjustInfo
 import com.apphud.sdk.domain.ApphudUser
 import com.apphud.sdk.domain.AppsflyerInfo
@@ -8,176 +18,122 @@ import com.apphud.sdk.domain.FacebookInfo
 import com.apphud.sdk.managers.RequestManager
 import kotlinx.coroutines.launch
 
-internal fun ApphudInternal.addAttribution(
+internal fun ApphudInternal.setAttribution(
+    apphudAttributionData: ApphudAttributionData,
     provider: ApphudAttributionProvider,
-    data: Map<String, Any>? = null,
     identifier: String? = null,
 ) {
-    val body =
-        when (provider) {
-            ApphudAttributionProvider.adjust ->
-                AttributionBody(
-                    deviceId = deviceId,
-                    adid = identifier,
-                    adjustData = data ?: emptyMap(),
-                )
-            ApphudAttributionProvider.facebook -> {
-                val map =
-                    mutableMapOf<String, Any>("fb_device" to true)
-                        .also { map -> data?.let { map.putAll(it) } }
-                        .toMap()
-                AttributionBody(
-                    deviceId = deviceId,
-                    facebookData = map,
-                )
-            }
-            ApphudAttributionProvider.appsFlyer ->
-                when (identifier) {
-                    null -> null
-                    else ->
-                        AttributionBody(
-                            deviceId = deviceId,
-                            appsflyerId = identifier,
-                            appsflyerData = data,
-                        )
-                }
-            ApphudAttributionProvider.firebase ->
-                when (identifier) {
-                    null -> null
-                    else ->
-                        AttributionBody(
-                            deviceId = deviceId,
-                            firebaseId = identifier,
-                        )
-                }
-            ApphudAttributionProvider.custom -> {
-                AttributionBody(
-                    deviceId = deviceId,
-                    attributionData = data?.toMutableMap().also { map ->
-                        identifier?.let { map?.set("attribution_identifier", it) }
-                    }
-                )
-            }
-        }
-
     when (provider) {
-        ApphudAttributionProvider.appsFlyer -> {
+        APPSFLYER -> {
             val temporary = storage.appsflyer
             when {
                 temporary == null -> Unit
-                (temporary.id == body?.appsflyerId) && (temporary.data == body?.appsflyerData) -> {
+                (temporary.id == identifier) && (temporary.data == apphudAttributionData.rawData) -> {
                     ApphudLog.logI("Already submitted the same AppsFlyer attribution, skipping")
                     return
                 }
             }
         }
-        ApphudAttributionProvider.facebook -> {
+        FACEBOOK -> {
             val temporary = storage.facebook
             when {
                 temporary == null -> Unit
-                temporary.data == body?.facebookData -> {
+                temporary.data == apphudAttributionData.rawData -> {
                     ApphudLog.logI("Already submitted the same Facebook attribution, skipping")
                     return
                 }
             }
         }
-        ApphudAttributionProvider.firebase -> {
-            if (storage.firebase == body?.firebaseId) {
+        FIREBASE -> {
+            if (storage.firebase == identifier) {
                 ApphudLog.logI("Already submitted the same Firebase attribution, skipping")
                 return
             }
         }
-        ApphudAttributionProvider.adjust -> {
+        ADJUST -> {
             val temporary = storage.adjust
             when {
                 temporary == null -> Unit
-                (temporary.adid == body?.adid) && (temporary.adjustData == body?.adjustData) -> {
+                (temporary.adid == identifier) && (temporary.adjustData == apphudAttributionData.rawData) -> {
                     ApphudLog.logI("Already submitted the same Adjust attribution, skipping")
                     return
                 }
             }
         }
-        ApphudAttributionProvider.custom -> {
-            // do nothing
-        }
+        else -> Unit
+    }
+
+    val providerIdPair: Pair<String, Any>? = when (provider) {
+        FACEBOOK -> identifier?.let { "fb_anon_id" to it }
+        FIREBASE -> identifier?.let { "firebase_id" to it }
+        APPSFLYER -> identifier?.let { "appsflyer_id" to it }
+        ADJUST -> identifier?.let { "adid" to it }
+        else -> null
     }
 
     performWhenUserRegistered { error ->
         error?.let {
             ApphudLog.logE(it.message)
         } ?: run {
-            body?.let {
-                coroutineScope.launch(errorHandler) {
-                    RequestManager.send(it) { attribution, error ->
-                        mainScope.launch {
-                            when (provider) {
-                                ApphudAttributionProvider.appsFlyer -> {
-                                    val temporary = storage.appsflyer
-                                    storage.appsflyer =
-                                        when {
-                                            temporary == null ->
-                                                AppsflyerInfo(
-                                                    id = body.appsflyerId,
-                                                    data = body.appsflyerData,
-                                                )
+            coroutineScope.launch(errorHandler) {
+                val mergedRawData = apphudAttributionData.rawData.toMutableMap().apply {
+                    providerIdPair?.let { (key, value) -> put(key, value) }
+                }
 
-                                            (temporary.id != body.appsflyerId) || (temporary.data != body.appsflyerData) ->
-                                                AppsflyerInfo(
-                                                    id = body.appsflyerId,
-                                                    data = body.appsflyerData,
-                                                )
-
-                                            else -> temporary
-                                        }
-                                }
-
-                                ApphudAttributionProvider.facebook -> {
-                                    val temporary = storage.facebook
-                                    storage.facebook =
-                                        when {
-                                            temporary == null -> FacebookInfo(body.facebookData)
-                                            temporary.data != body.facebookData -> FacebookInfo(body.facebookData)
-                                            else -> temporary
-                                        }
-                                }
-
-                                ApphudAttributionProvider.firebase -> {
-                                    val temporary = storage.firebase
-                                    storage.firebase =
-                                        when {
-                                            temporary == null -> body.firebaseId
-                                            temporary != body.firebaseId -> body.firebaseId
-                                            else -> temporary
-                                        }
-                                }
-
-                                ApphudAttributionProvider.adjust -> {
-                                    val temporary = storage.adjust
-                                    storage.adjust =
-                                        when {
-                                            temporary == null ->
-                                                AdjustInfo(
-                                                    adid = body.adid,
-                                                    adjustData = body.adjustData,
-                                                )
-
-                                            (temporary.adid != body.adid) || (temporary.adjustData != body.adjustData) ->
-                                                AdjustInfo(
-                                                    adid = body.adid,
-                                                    adjustData = body.adjustData,
-                                                )
-
-                                            else -> temporary
-                                        }
-                                }
-
-                                ApphudAttributionProvider.custom -> {
-                                    // do nothing
-                                }
+                val requestBody = AttributionRequestDto(
+                    deviceId = deviceId,
+                    provider = provider.value,
+                    rawData = mergedRawData,
+                    attribution = listOf(
+                        "ad_network" to apphudAttributionData.adNetwork,
+                        "media_source" to apphudAttributionData.mediaSource,
+                        "campaign" to apphudAttributionData.campaign,
+                        "ad_set" to apphudAttributionData.adSet,
+                        "creative" to apphudAttributionData.creative,
+                        "keyword" to apphudAttributionData.keyword,
+                        "custom_1" to apphudAttributionData.custom1,
+                        "custom_2" to apphudAttributionData.custom2,
+                    )
+                        .mapNotNull { (key, value) ->
+                            value?.let { key to value }
+                        }
+                        .toMap()
+                )
+                RequestManager.send(requestBody) { _, error ->
+                    mainScope.launch {
+                        when (provider) {
+                            APPSFLYER -> {
+                                storage.appsflyer = AppsflyerInfo(
+                                    id = identifier,
+                                    data = apphudAttributionData.rawData,
+                                )
                             }
-                            error?.let {
-                                ApphudLog.logE(message = it.message)
+
+                            FACEBOOK -> {
+                                storage.facebook = FacebookInfo(apphudAttributionData.rawData)
                             }
+
+                            FIREBASE -> {
+                                storage.firebase = identifier
+                            }
+
+                            ADJUST -> {
+                                storage.adjust = AdjustInfo(
+                                    adid = identifier,
+                                    adjustData = apphudAttributionData.rawData,
+                                )
+                            }
+
+                            CUSTOM,
+                            BRANCH,
+                            SINGULAR,
+                            TENJIN,
+                            TIKTOK,
+                            VOLUUM,
+                            -> Unit
+                        }
+                        error?.let {
+                            ApphudLog.logE(message = it.message)
                         }
                     }
                 }
