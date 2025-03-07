@@ -86,7 +86,7 @@ internal fun ApphudInternal.setAttribution(
                     rawData = mergedRawData,
                     attribution = listOf(
                         "ad_network" to apphudAttributionData.adNetwork,
-                        "media_source" to apphudAttributionData.mediaSource,
+                        "channel" to apphudAttributionData.channel,
                         "campaign" to apphudAttributionData.campaign,
                         "ad_set" to apphudAttributionData.adSet,
                         "creative" to apphudAttributionData.creative,
