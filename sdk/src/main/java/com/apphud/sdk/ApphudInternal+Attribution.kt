@@ -68,7 +68,12 @@ internal fun ApphudInternal.setAttribution(
         FIREBASE -> identifier?.let { "firebase_id" to it }
         APPSFLYER -> identifier?.let { "appsflyer_id" to it }
         ADJUST -> identifier?.let { "adid" to it }
-        else -> null
+        CUSTOM -> identifier?.let { "identifier" to it }
+        VOLUUM -> identifier?.let { "identifier" to it }
+        SINGULAR -> identifier?.let { "identifier" to it }
+        TENJIN -> identifier?.let { "identifier" to it }
+        TIKTOK -> identifier?.let { "identifier" to it }
+        BRANCH -> identifier?.let { "identifier" to it }
     }
 
     performWhenUserRegistered { error ->
