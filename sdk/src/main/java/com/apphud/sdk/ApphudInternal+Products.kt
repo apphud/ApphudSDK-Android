@@ -175,7 +175,7 @@ internal suspend fun ApphudInternal.fetchDetails(ids: List<String>, loadingAll: 
 
     ApphudLog.log("Fetching Product Details: ${idsToFetch.toString()}")
     loadingStoreProducts = true
-    if (productsStatus != ApphudProductsStatus.loading) {
+    if (productsStatus != ApphudProductsStatus.loading && loadingAll) {
         productsStatus = ApphudProductsStatus.loading
     }
 
