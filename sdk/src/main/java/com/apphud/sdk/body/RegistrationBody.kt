@@ -47,5 +47,7 @@ internal data class RegistrationBody(
     val observerMode: Boolean,
     @SerializedName("from_web2web")
     val fromWeb2web: Boolean,
-    val email: String?
+    val email: String?,
+    @SerializedName("package_name")
+    val packageName: String? = null
 )

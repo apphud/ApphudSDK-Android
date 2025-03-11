@@ -87,6 +87,7 @@ internal fun ApphudInternal.setAttribution(
 
                 val requestBody = AttributionRequestDto(
                     deviceId = deviceId,
+                    packageName = context.packageName,
                     provider = provider.value,
                     rawData = mergedRawData,
                     attribution = listOf(

@@ -6,4 +6,6 @@ internal data class PurchaseBody(
     @SerializedName("device_id")
     val deviceId: String,
     val purchases: List<Any>,
+    @SerializedName("package_name")
+    val packageName: String? = null
 )

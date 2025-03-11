@@ -22,6 +22,7 @@ import com.apphud.sdk.parser.GsonParser
 import com.apphud.sdk.parser.Parser
 import com.apphud.sdk.storage.SharedPreferencesStorage
 import com.google.gson.GsonBuilder
+import com.google.gson.annotations.SerializedName
 import com.google.gson.reflect.TypeToken
 import kotlinx.coroutines.suspendCancellableCoroutine
 import okhttp3.MediaType.Companion.toMediaType
@@ -1007,7 +1008,8 @@ internal object RequestManager {
             installSource = ApphudUtils.getInstallerPackageName(this.applicationContext) ?: "unknown",
             observerMode = ApphudInternal.observerMode,
             fromWeb2web = ApphudInternal.fromWeb2Web,
-            email = email
+            email = email,
+            packageName = applicationContext.packageName
         )
     }
 
@@ -1058,6 +1060,7 @@ internal object RequestManager {
                         extraMessage = extraMessage
                     ),
                 ),
+            packageName = applicationContext.packageName
         )
     }
 
@@ -1069,6 +1072,7 @@ internal object RequestManager {
         observerMode: Boolean,
     ) = PurchaseBody(
         deviceId = ApphudInternal.deviceId,
+        packageName = applicationContext.packageName,
         purchases =
             purchases.map { purchase ->
                 PurchaseItemBody(
@@ -1105,6 +1109,7 @@ internal object RequestManager {
         observerMode: Boolean,
     ) = PurchaseBody(
         deviceId = ApphudInternal.deviceId,
+        packageName = applicationContext.packageName,
         purchases =
             listOf(
                 PurchaseItemBody(

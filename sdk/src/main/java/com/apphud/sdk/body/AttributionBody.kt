@@ -18,4 +18,6 @@ internal data class AttributionBody(
     val firebaseId: String? = null, // Firebase
     @SerializedName("attribution_data")
     val attributionData: Map<String, Any>? = null,
+    @SerializedName("package_name")
+    val packageName: String? = null
 )

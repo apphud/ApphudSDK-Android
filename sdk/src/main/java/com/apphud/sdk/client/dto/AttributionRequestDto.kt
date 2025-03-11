@@ -14,4 +14,7 @@ internal data class AttributionRequestDto(
 
     @SerializedName("attribution")
     val attribution: Map<String, String>,
+
+    @SerializedName("package_name")
+    val packageName: String? = null
 )
