@@ -589,7 +589,7 @@ internal object RequestManager {
         }
 
     internal fun send(
-        attributionBody: AttributionBody,
+        attributionRequestBody: AttributionRequestDto,
         completionHandler: (Attribution?, ApphudError?) -> Unit,
     ) {
         if (!canPerformRequest()) {
@@ -600,11 +600,11 @@ internal object RequestManager {
         val apphudUrl =
             ApphudUrl.Builder()
                 .host(HeadersInterceptor.HOST)
-                .version(ApphudVersion.V1)
+                .version(ApphudVersion.V2)
                 .path("customers/attribution")
                 .build()
 
-        val request = buildPostRequest(URL(apphudUrl.url), attributionBody)
+        val request = buildPostRequest(URL(apphudUrl.url), attributionRequestBody)
 
         makeUserRegisteredRequest(request) { serverResponse, error ->
             serverResponse?.let {

@@ -7,7 +7,6 @@ import com.android.billingclient.api.Purchase
 import com.apphud.sdk.domain.*
 import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlin.coroutines.resume
-import kotlin.math.max
 
 object Apphud {
     //region === Initialization ===
@@ -576,15 +575,15 @@ object Apphud {
     /**
      * Submits attribution data to Apphud from your attribution network provider.
      *
-     * @param data Required. Attribution dictionary.
+     * @param data Required. Class with attribution dictionary and custom data.
      * @param provider Required. Attribution provider name.
      * @param identifier Optional. Identifier that matches Apphud and the Attribution provider.
      */
-    fun addAttribution(
+    fun setAttribution(
+        data: ApphudAttributionData,
         provider: ApphudAttributionProvider,
-        data: Map<String, Any>? = null,
         identifier: String? = null,
-    ) = ApphudInternal.addAttribution(provider, data, identifier)
+    ) = ApphudInternal.setAttribution(data, provider, identifier)
 
     /**
      * Web-to-Web flow only. Attempts to attribute the user using the provided attribution data.

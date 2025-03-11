@@ -8,8 +8,9 @@ import com.apphud.sdk.ApphudUtils
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 
-class ApphudApplication : Application() {
-    var API_KEY = "YOUR_API_KEY"
+internal class ApphudApplication : Application() {
+    var API_KEY = "app_4sY9cLggXpMDDQMmvc5wXUPGReMp8G"
+
     companion object {
         private lateinit var instance: ApphudApplication
 
