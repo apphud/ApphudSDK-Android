@@ -23,7 +23,7 @@ import com.apphud.sdk.domain.ApphudPaywall
 import com.apphud.sdk.domain.ApphudPlacement
 import com.apphud.sdk.domain.ApphudSubscription
 import com.apphud.sdk.domain.ApphudUser
-import com.apphud.sdk.managers.HeadersInterceptor
+import com.apphud.sdk.managers.LegacyHeadersInterceptor
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -45,7 +45,7 @@ class CustomerFragment : Fragment() {
         val customerId: TextView = binding.customerId
         customerId.text = Apphud.userId()
 
-        binding.sdk.text = "v." + HeadersInterceptor.X_SDK_VERSION
+        binding.sdk.text = "v." + LegacyHeadersInterceptor.X_SDK_VERSION
         binding.appVersion.text = BuildConfig.VERSION_NAME + " (" + BuildConfig.VERSION_CODE + ")"
 
         binding.btnSync.setOnClickListener {

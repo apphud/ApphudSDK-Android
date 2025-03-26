@@ -1,13 +1,14 @@
 package com.apphud.sdk.mappers
 
-import com.apphud.sdk.client.dto.ApphudPlacementDto
+import com.apphud.sdk.internal.data.dto.ApphudPlacementDto
 import com.apphud.sdk.domain.ApphudPlacement
 import com.apphud.sdk.parser.Parser
 
-internal class PlacementsMapper(
+@Deprecated("Use PlacementsMapper")
+internal class PlacementsMapperLegacy(
     parser: Parser,
 ) {
-    private val paywallsMapper = PaywallsMapper(parser)
+    private val paywallsMapperLegacy = PaywallsMapperLegacy(parser)
 
     fun map(dto: List<ApphudPlacementDto>): List<ApphudPlacement> = dto.map { placementDto -> map(placementDto) }
 
@@ -15,7 +16,7 @@ internal class PlacementsMapper(
         val paywallDto = placementDto.paywalls.firstOrNull()
         val paywallObject =
             if (paywallDto != null) {
-                paywallsMapper.map(paywallDto)
+                paywallsMapperLegacy.map(paywallDto)
             } else {
                 null
             }

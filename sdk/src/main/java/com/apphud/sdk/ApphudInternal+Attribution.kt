@@ -10,11 +10,11 @@ import com.apphud.sdk.ApphudAttributionProvider.SINGULAR
 import com.apphud.sdk.ApphudAttributionProvider.TENJIN
 import com.apphud.sdk.ApphudAttributionProvider.TIKTOK
 import com.apphud.sdk.ApphudAttributionProvider.VOLUUM
-import com.apphud.sdk.client.dto.AttributionRequestDto
 import com.apphud.sdk.domain.AdjustInfo
 import com.apphud.sdk.domain.ApphudUser
 import com.apphud.sdk.domain.AppsflyerInfo
 import com.apphud.sdk.domain.FacebookInfo
+import com.apphud.sdk.internal.data.dto.AttributionRequestDto
 import com.apphud.sdk.managers.RequestManager
 import kotlinx.coroutines.launch
 
