@@ -13,6 +13,7 @@ import com.apphud.sdk.domain.*
 import com.apphud.sdk.internal.ServiceLocator
 import com.apphud.sdk.internal.data.dto.ApphudGroupDto
 import com.apphud.sdk.internal.data.dto.AttributionDto
+import com.apphud.sdk.internal.data.dto.AttributionRequestDto
 import com.apphud.sdk.internal.data.dto.CustomerDto
 import com.apphud.sdk.internal.data.dto.ResponseDto
 import com.apphud.sdk.internal.domain.model.PurchaseContext
@@ -23,7 +24,6 @@ import com.apphud.sdk.parser.GsonParser
 import com.apphud.sdk.parser.Parser
 import com.apphud.sdk.storage.SharedPreferencesStorage
 import com.google.gson.GsonBuilder
-import com.google.gson.annotations.SerializedName
 import com.google.gson.reflect.TypeToken
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.runBlocking
