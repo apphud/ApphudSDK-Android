@@ -38,6 +38,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.withContext
 import java.util.UUID
 import kotlin.coroutines.resume
 import kotlin.math.max
@@ -92,6 +93,8 @@ internal object ApphudInternal {
                 handler.removeCallbacks(userPropertiesRunnable)
             }
         }
+
+    @Volatile
     internal var isUpdatingProperties = false
 
     private const val MUST_REGISTER_ERROR = " :You must call `Apphud.start` method before calling any other methods."
@@ -835,32 +838,31 @@ internal object ApphudInternal {
 
                 val body = UserPropertiesBody(this.deviceId, properties, force)
                 coroutineScope.launch(errorHandler) {
-                    RequestManager.userProperties(body) { userProperties, error ->
-                        mainScope.launch {
-                            userProperties?.let {
-                                if (userProperties.success) {
-                                    val propertiesInStorage = storage.properties
-                                    sentPropertiesForSave.forEach {
-                                        propertiesInStorage?.put(it.key, it)
-                                    }
-                                    storage.properties = propertiesInStorage
-
-                                    synchronized(pendingUserProperties) {
-                                        pendingUserProperties.clear()
-                                    }
-
-                                    ApphudLog.logI("User Properties successfully updated.")
-                                } else {
-                                    val message = "User Properties update failed with errors"
-                                    ApphudLog.logE(message)
+                    runCatchingCancellable { RequestManager.postUserProperties(body) }
+                        .onSuccess { userProperties ->
+                            if (userProperties.success) {
+                                val propertiesInStorage = storage.properties
+                                sentPropertiesForSave.forEach {
+                                    propertiesInStorage?.put(it.key, it)
                                 }
+                                storage.properties = propertiesInStorage
+
+                                synchronized(pendingUserProperties) {
+                                    pendingUserProperties.clear()
+                                }
+
+                                ApphudLog.logI("User Properties successfully updated.")
+                            } else {
+                                val message = "User Properties update failed with errors"
+                                ApphudLog.logE(message)
                             }
-                            error?.let {
-                                ApphudLog.logE("Failed to update user properties: " + it.message)
-                            }
-                            isUpdatingProperties = false
-                            completion?.invoke(error == null)
                         }
+                        .onFailure {
+                            ApphudLog.logE("Failed to update user properties: " + it.message)
+                        }
+                    withContext(Dispatchers.Main) {
+                        isUpdatingProperties = false
+                        completion?.invoke(error == null)
                     }
                 }
             }
@@ -921,7 +923,7 @@ internal object ApphudInternal {
             }
         }
     }
-    //endregion
+//endregion
 
     //region === Primary methods ===
     fun grantPromotional(
@@ -1222,10 +1224,10 @@ internal object ApphudInternal {
         setNeedsToUpdateUserProperties = false
     }
 
-    //endregion
+//endregion
 
     //region === Cache ===
-    // Groups cache ======================================
+// Groups cache ======================================
     internal fun cacheGroups(groups: List<ApphudGroup>) {
         storage.productGroups = groups
     }
@@ -1294,5 +1296,5 @@ internal object ApphudInternal {
         }
         return productDetail
     }
-    //endregion
+//endregion
 }

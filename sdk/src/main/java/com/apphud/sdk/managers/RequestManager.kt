@@ -7,7 +7,6 @@ import android.os.Build
 import com.android.billingclient.api.BillingClient
 import com.android.billingclient.api.ProductDetails
 import com.apphud.sdk.*
-import com.apphud.sdk.ApphudInternal.fallbackMode
 import com.apphud.sdk.body.*
 import com.apphud.sdk.client.*
 import com.apphud.sdk.domain.*
@@ -518,41 +517,21 @@ internal object RequestManager {
         }
     }
 
-    internal fun userProperties(
+    internal suspend fun postUserProperties(
         userPropertiesBody: UserPropertiesBody,
-        completionHandler: (Attribution?, ApphudError?) -> Unit,
-    ) {
+    ): Attribution {
         if (!canPerformRequest()) {
-            ApphudLog.logE(::userProperties.name + MUST_REGISTER_ERROR)
-            return
+            ApphudLog.logE(::postUserProperties.name + MUST_REGISTER_ERROR)
+            throw ApphudError("SDK not initialized")
         }
 
-        val apphudUrl =
-            ApphudUrl.Builder()
-                .host(LegacyHeadersInterceptor.HOST)
-                .version(ApphudVersion.V1)
-                .path("customers/properties")
-                .build()
-
-        val request = buildPostRequest(URL(apphudUrl.url), userPropertiesBody)
-
-        makeUserRegisteredRequest(request) { serverResponse, error ->
-            serverResponse?.let {
-                val responseDto: ResponseDto<AttributionDto>? =
-                    parser.fromJson<ResponseDto<AttributionDto>>(
-                        serverResponse,
-                        object : TypeToken<ResponseDto<AttributionDto>>() {}.type,
-                    )
-                responseDto?.let { response ->
-                    val attribution = response.data.results?.let { it1 -> attributionMapper.map(it1) }
-                    completionHandler(attribution, null)
-                } ?: run {
-                    completionHandler(null, ApphudError("Failed to send properties"))
-                }
-            } ?: run {
-                completionHandler(null, error)
-            }
+        if (currentUser == null) {
+            registration(needPaywalls = true, isNew = true)
         }
+
+        val userRemoteRepository = ServiceLocator.instance.userRemoteRepository
+
+        return userRemoteRepository.setUserProperties(userPropertiesBody).getOrThrow()
     }
 
     fun fetchFallbackHost(): String? {

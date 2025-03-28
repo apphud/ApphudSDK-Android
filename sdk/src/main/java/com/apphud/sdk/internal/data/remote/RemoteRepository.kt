@@ -2,7 +2,6 @@ package com.apphud.sdk.internal.data.remote
 
 import com.apphud.sdk.APPHUD_ERROR_NO_INTERNET
 import com.apphud.sdk.ApphudError
-import com.apphud.sdk.ApphudLog
 import com.apphud.sdk.UserId
 import com.apphud.sdk.domain.ApphudGroup
 import com.apphud.sdk.domain.ApphudProduct
@@ -10,23 +9,14 @@ import com.apphud.sdk.domain.ApphudUser
 import com.apphud.sdk.domain.PurchaseRecordDetails
 import com.apphud.sdk.internal.data.dto.ApphudGroupDto
 import com.apphud.sdk.internal.data.dto.CustomerDto
-import com.apphud.sdk.internal.data.dto.ResponseDto
 import com.apphud.sdk.internal.data.mapper.CustomerMapper
 import com.apphud.sdk.internal.data.mapper.ProductMapper
 import com.apphud.sdk.internal.domain.model.GetProductsParams
 import com.apphud.sdk.internal.domain.model.PurchaseContext
 import com.apphud.sdk.internal.util.runCatchingCancellable
-import com.apphud.sdk.managers.RequestManager.parser
 import com.google.gson.Gson
-import com.google.gson.reflect.TypeToken
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.withContext
-import okhttp3.HttpUrl
 import okhttp3.HttpUrl.Companion.toHttpUrl
-import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
-import okhttp3.Request
-import okhttp3.RequestBody.Companion.toRequestBody
 
 internal class RemoteRepository(
     private val okHttpClient: OkHttpClient,
@@ -46,7 +36,7 @@ internal class RemoteRepository(
         runCatchingCancellable {
             val request =
                 buildPostRequest(CUSTOMERS_URL, registrationBodyFactory.create(needPaywalls, isNew, userId, email))
-            executeForResponse<CustomerDto>(request)
+            executeForResponse<CustomerDto>(okHttpClient, gson, request)
         }
             .recoverCatching { e ->
                 val message = e.message ?: "Registration failed"
@@ -62,7 +52,7 @@ internal class RemoteRepository(
         runCatchingCancellable {
             val request =
                 buildPostRequest(SUBSCRIPTIONS_URL, purchaseBodyFactory.create(purchaseContext))
-            executeForResponse<CustomerDto>(request)
+            executeForResponse<CustomerDto>(okHttpClient, gson, request)
         }
             .recoverCatching { e ->
                 val message = e.message ?: "Purchase failed"
@@ -85,7 +75,7 @@ internal class RemoteRepository(
                     SUBSCRIPTIONS_URL,
                     purchaseBodyFactory.create(apphudProduct, purchases, observerMode)
                 )
-            executeForResponse<CustomerDto>(request)
+            executeForResponse<CustomerDto>(okHttpClient, gson, request)
         }
             .recoverCatching { e ->
                 val message = e.message ?: "Purchase failed"
@@ -105,7 +95,7 @@ internal class RemoteRepository(
                 "user_id" to getProductsParams.userId,
             )
             val request = buildGetRequest(PRODUCTS_URL, paramsMap)
-            executeForResponse<List<ApphudGroupDto>>(request)
+            executeForResponse<List<ApphudGroupDto>>(okHttpClient, gson, request)
         }
             .recoverCatching { e ->
                 val message = e.message ?: "Purchase failed"
@@ -116,53 +106,6 @@ internal class RemoteRepository(
                     productMapper.map(customerDto)
                 } ?: throw ApphudError("Purchase failed")
             }
-
-    private suspend inline fun <reified T> executeForResponse(request: Request): ResponseDto<T> =
-        withContext(Dispatchers.IO) {
-            okHttpClient.newCall(request).execute().use { response ->
-                if (!response.isSuccessful) {
-                    val message =
-                        "finish ${request.method} request ${request.url} " +
-                                "failed with code: ${response.code} response: ${
-                                    response.body?.string()
-                                }"
-                    ApphudLog.logE(message)
-                    error(message)
-                }
-                val json = response.body?.string() ?: error(
-                    "finish ${request.method} request ${request.url} with empty body"
-                )
-                val type = object : TypeToken<ResponseDto<T>>() {}.type
-                gson.fromJson(json, type)
-            }
-        }
-
-    private fun buildPostRequest(
-        url: HttpUrl,
-        params: Any,
-    ): Request {
-        val json = parser.toJson(params)
-        val mediaType = "application/json; charset=utf-8".toMediaType()
-        val requestBody = json.toRequestBody(mediaType)
-
-        val request = Request.Builder()
-        return request.url(url)
-            .post(requestBody)
-            .build()
-    }
-
-    private fun buildGetRequest(url: HttpUrl, params: Map<String, String>): Request {
-        val httpUrl = url.newBuilder().apply {
-            params.forEach { (key, value) ->
-                addQueryParameter(key, value)
-            }
-        }.build()
-
-        val request = Request.Builder()
-        return request.url(httpUrl)
-            .get()
-            .build()
-    }
 
     private companion object {
         val CUSTOMERS_URL = "https://gateway.apphud.com/v1/customers".toHttpUrl()
