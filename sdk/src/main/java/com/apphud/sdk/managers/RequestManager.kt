@@ -11,7 +11,6 @@ import com.apphud.sdk.body.*
 import com.apphud.sdk.client.*
 import com.apphud.sdk.domain.*
 import com.apphud.sdk.internal.ServiceLocator
-import com.apphud.sdk.internal.data.dto.AttributionDto
 import com.apphud.sdk.internal.data.dto.AttributionRequestDto
 import com.apphud.sdk.internal.data.dto.CustomerDto
 import com.apphud.sdk.internal.data.dto.ResponseDto
@@ -329,12 +328,6 @@ internal object RequestManager {
             .build()
     }
 
-    private fun buildGetRequest(url: URL): Request {
-        val request = Request.Builder()
-        return request.url(url)
-            .get()
-            .build()
-    }
 
     suspend fun registrationSync(
         needPaywalls: Boolean,
@@ -480,40 +473,23 @@ internal object RequestManager {
         return repository.restorePurchased(apphudProduct, purchaseRecordDetailsSet, observerMode).getOrThrow()
     }
 
-    internal fun send(
+    internal suspend fun send(
         attributionRequestBody: AttributionRequestDto,
-        completionHandler: (Attribution?, ApphudError?) -> Unit,
-    ) {
+    ): Result<Attribution> {
+
         if (!canPerformRequest()) {
             ApphudLog.logE(::send.name + MUST_REGISTER_ERROR)
-            return
+            throw ApphudError("SDK not initialized")
         }
 
-        val apphudUrl =
-            ApphudUrl.Builder()
-                .host(LegacyHeadersInterceptor.HOST)
-                .version(ApphudVersion.V2)
-                .path("customers/attribution")
-                .build()
+        return runCatchingCancellable {
+            val repository = ServiceLocator.instance.remoteRepository
 
-        val request = buildPostRequest(URL(apphudUrl.url), attributionRequestBody)
-
-        makeUserRegisteredRequest(request) { serverResponse, error ->
-            serverResponse?.let {
-                val responseDto: ResponseDto<AttributionDto>? =
-                    parser.fromJson<ResponseDto<AttributionDto>>(
-                        serverResponse,
-                        object : TypeToken<ResponseDto<AttributionDto>>() {}.type,
-                    )
-                responseDto?.let { response ->
-                    val attribution = response.data.results?.let { it1 -> attributionMapper.map(it1) }
-                    completionHandler(attribution, null)
-                } ?: run {
-                    completionHandler(null, ApphudError("Failed to send attribution"))
-                }
-            } ?: run {
-                completionHandler(null, error)
+            if (currentUser == null) {
+                registration(needPaywalls = true, isNew = true)
             }
+
+            repository.sendAttribution(attributionRequestBody).getOrThrow()
         }
     }
 

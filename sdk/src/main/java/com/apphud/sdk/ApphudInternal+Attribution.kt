@@ -16,7 +16,9 @@ import com.apphud.sdk.domain.AppsflyerInfo
 import com.apphud.sdk.domain.FacebookInfo
 import com.apphud.sdk.internal.data.dto.AttributionRequestDto
 import com.apphud.sdk.managers.RequestManager
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 internal fun ApphudInternal.setAttribution(
     apphudAttributionData: ApphudAttributionData,
@@ -105,44 +107,44 @@ internal fun ApphudInternal.setAttribution(
                         }
                         .toMap()
                 )
-                RequestManager.send(requestBody) { _, error ->
-                    mainScope.launch {
-                        when (provider) {
-                            APPSFLYER -> {
-                                storage.appsflyer = AppsflyerInfo(
-                                    id = identifier,
-                                    data = apphudAttributionData.rawData,
-                                )
-                            }
+                RequestManager.send(requestBody)
+                    .onSuccess {
+                        withContext(Dispatchers.Main) {
+                            when (provider) {
+                                APPSFLYER -> {
+                                    storage.appsflyer = AppsflyerInfo(
+                                        id = identifier,
+                                        data = apphudAttributionData.rawData,
+                                    )
+                                }
 
-                            FACEBOOK -> {
-                                storage.facebook = FacebookInfo(apphudAttributionData.rawData)
-                            }
+                                FACEBOOK -> {
+                                    storage.facebook = FacebookInfo(apphudAttributionData.rawData)
+                                }
 
-                            FIREBASE -> {
-                                storage.firebase = identifier
-                            }
+                                FIREBASE -> {
+                                    storage.firebase = identifier
+                                }
 
-                            ADJUST -> {
-                                storage.adjust = AdjustInfo(
-                                    adid = identifier,
-                                    adjustData = apphudAttributionData.rawData,
-                                )
-                            }
+                                ADJUST -> {
+                                    storage.adjust = AdjustInfo(
+                                        adid = identifier,
+                                        adjustData = apphudAttributionData.rawData,
+                                    )
+                                }
 
-                            CUSTOM,
-                            BRANCH,
-                            SINGULAR,
-                            TENJIN,
-                            TIKTOK,
-                            VOLUUM,
-                            -> Unit
+                                CUSTOM,
+                                BRANCH,
+                                SINGULAR,
+                                TENJIN,
+                                TIKTOK,
+                                VOLUUM,
+                                -> Unit
+                            }
                         }
-                        error?.let {
-                            ApphudLog.logE(message = it.message)
-                        }
+                    }.onFailure { error ->
+                        ApphudLog.logE(message = error.message.orEmpty())
                     }
-                }
             }
         }
     }
