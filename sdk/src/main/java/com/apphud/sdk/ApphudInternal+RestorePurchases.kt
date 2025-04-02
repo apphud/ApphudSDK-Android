@@ -102,7 +102,7 @@ internal fun ApphudInternal.syncPurchases(
                     }
 
                     if (purchases.isEmpty()) {
-                        ApphudLog.log(message = "SyncPurchases: Nothing to restore", sendLogToServer = false)
+                        ApphudLog.log(message = "SyncPurchases: Nothing to restore")
                         storage.isNeedSync = false
                         mainScope.launch {
                             refreshEntitlements(true)
@@ -252,7 +252,7 @@ private fun processRestoreCallbackStatus(result: PurchaseRestoredCallbackStatus)
                     secondErrorMessage = result.message,
                     errorCode = result.result?.responseCode,
                 )
-            ApphudLog.log(message = error.toString(), sendLogToServer = true)
+            ApphudLog.log(message = error.toString())
         }
         is PurchaseRestoredCallbackStatus.Success -> {
             return result.purchases

@@ -27,16 +27,13 @@ import com.google.gson.GsonBuilder
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.suspendCancellableCoroutine
-import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
 import okhttp3.Request
-import okhttp3.RequestBody.Companion.toRequestBody
 import okhttp3.Response
 import okio.Buffer
 import org.json.JSONException
 import org.json.JSONObject
 import java.net.SocketTimeoutException
-import java.net.URL
 import java.nio.charset.Charset
 import java.util.*
 import java.util.concurrent.TimeUnit
@@ -169,109 +166,6 @@ internal object RequestManager {
         )
     }
 
-    private fun performRequest(
-        client: OkHttpClient,
-        request: Request,
-        completionHandler: (String?, ApphudError?) -> Unit,
-    ) {
-        try {
-            if (LegacyHeadersInterceptor.isBlocked) {
-                val message =
-                    "Unable to perform API requests, because your account has been suspended."
-                ApphudLog.logE(message)
-                completionHandler(null, ApphudError(message))
-            } else if (true) {
-                logRequestStart(request)
-
-                val start = Date()
-                val response = client.newCall(request).execute()
-                val responseBody = response.body?.string()
-                val finish = Date()
-                val diff = (finish.time - start.time)
-                ApphudLog.logBenchmark(
-                    request.url.encodedPath,
-                    diff,
-                )
-
-                logRequestFinish(request, responseBody, response.code)
-
-                if (response.isSuccessful) {
-                    responseBody?.let {
-                        completionHandler(it, null)
-                    } ?: run {
-                        completionHandler(null, ApphudError("Request failed", null, response.code))
-                    }
-                } else {
-                    checkLock403(request, response)
-                    val message =
-                        "finish ${request.method} request ${request.url} " +
-                                "failed with code: ${response.code} response: ${
-                                    buildPrettyPrintedBy(responseBody.toString())
-                                }"
-                    completionHandler(null, ApphudError(message, null, response.code))
-                }
-
-                response.close()
-
-            } else {
-                val message = "No Internet connection"
-                ApphudLog.logE(message)
-                completionHandler(null, ApphudError(message))
-            }
-        } catch (e: SocketTimeoutException) {
-            ApphudInternal.processFallbackError(request, isTimeout = true)
-            val message = e.message ?: "Undefined error"
-            completionHandler(null, ApphudError(message, null, APPHUD_ERROR_TIMEOUT))
-        } catch (e: Exception) {
-            completionHandler(null, ApphudError.from(e))
-        }
-    }
-
-    @Throws(Exception::class)
-    fun performRequestSync(
-        client: OkHttpClient,
-        request: Request,
-    ): String {
-        if (LegacyHeadersInterceptor.isBlocked) {
-            val message = "SDK networking is locked until application restart"
-            ApphudLog.logE(message)
-            throw Exception(message)
-        } else if (true) {
-            logRequestStart(request)
-
-            val start = Date()
-            val response = client.newCall(request).execute()
-            val responseBody = response.body?.string()
-            val finish = Date()
-            val diff = (finish.time - start.time)
-            ApphudLog.logBenchmark(
-                request.url.encodedPath,
-                diff,
-            )
-
-            logRequestFinish(request, responseBody, response.code)
-
-            response.close()
-
-            if (response.isSuccessful) {
-                return responseBody ?: ""
-            } else {
-                checkLock403(request, response)
-                val message =
-                    "finish ${request.method} request ${request.url} " +
-                            "failed with code: ${response.code} response: ${
-                                buildPrettyPrintedBy(responseBody ?: "")
-                            }"
-                ApphudLog.logE(message)
-                throw Exception(message)
-            }
-        } else {
-            val message = "No Internet connection"
-            ApphudLog.logE(message)
-            throw Exception(message)
-        }
-    }
-
     internal fun checkLock403(
         request: Request,
         response: Response,
@@ -283,50 +177,6 @@ internal object RequestManager {
 
         return LegacyHeadersInterceptor.isBlocked
     }
-
-    private fun makeRequest(
-        request: Request,
-        retry: Boolean = true,
-        completionHandler: (String?, ApphudError?) -> Unit,
-    ) {
-        val httpClient = getOkHttpClient(request, retry)
-        performRequest(httpClient, request, completionHandler)
-    }
-
-    private fun makeUserRegisteredRequest(
-        request: Request,
-        retry: Boolean = true,
-        completionHandler: (String?, ApphudError?) -> Unit,
-    ) {
-        val httpClient = getOkHttpClient(request, retry)
-
-        if (currentUser == null) {
-            registrationLegacy(true, true) { customer, error ->
-                customer?.let {
-                    performRequest(httpClient, request, completionHandler)
-                } ?: run {
-                    completionHandler(null, error)
-                }
-            }
-        } else {
-            performRequest(httpClient, request, completionHandler)
-        }
-    }
-
-    private fun buildPostRequest(
-        url: URL,
-        params: Any,
-    ): Request {
-        val json = parser.toJson(params)
-        val mediaType = "application/json; charset=utf-8".toMediaType()
-        val requestBody = json.toRequestBody(mediaType)
-
-        val request = Request.Builder()
-        return request.url(url)
-            .post(requestBody)
-            .build()
-    }
-
 
     suspend fun registrationSync(
         needPaywalls: Boolean,
@@ -356,7 +206,7 @@ internal object RequestManager {
             }
         }
 
-    internal suspend fun registration(
+    private suspend fun registration(
         needPaywalls: Boolean,
         isNew: Boolean,
         forceRegistration: Boolean = false,
@@ -673,54 +523,6 @@ internal object RequestManager {
         }
     }
 
-    fun sendErrorLogs(message: String) {
-        if (!canPerformRequest()) {
-            ApphudLog.logE(::sendErrorLogs.name + MUST_REGISTER_ERROR)
-            throw ApphudError("SDK not initialized")
-        }
-
-        val body = makeErrorLogsBody(message, ApphudUtils.packageName)
-
-        val apphudUrl =
-            ApphudUrl.Builder()
-                .host(LegacyHeadersInterceptor.HOST)
-                .version(ApphudVersion.V1)
-                .path("logs")
-                .build()
-
-        val request = buildPostRequest(URL(apphudUrl.url), body)
-
-        makeRequest(request, false) { _, error ->
-            error?.let {
-                ApphudLog.logE("Error logs was not send")
-            } ?: run {
-                ApphudLog.logI("Error logs was send successfully")
-            }
-        }
-    }
-
-    internal fun sendBenchmarkLogs(body: BenchmarkBody) {
-        if (!canPerformRequest()) {
-            ApphudLog.logE(::sendErrorLogs.name + MUST_REGISTER_ERROR)
-            return
-        }
-
-        val apphudUrl =
-            ApphudUrl.Builder()
-                .host(LegacyHeadersInterceptor.HOST)
-                .version(ApphudVersion.V2)
-                .path("logs")
-                .build()
-
-        val request = buildPostRequest(URL(apphudUrl.url), body)
-
-        makeRequest(request, false) { _, error ->
-            error?.let {
-                ApphudLog.logE("Benchmark logs is not sent")
-            }
-        }
-    }
-
     private fun makePaywallEventBody(
         name: String,
         paywallId: String?,
@@ -799,18 +601,6 @@ internal object RequestManager {
         }
         return dateInSecond
     }
-
-    private fun makeErrorLogsBody(
-        message: String,
-        apphudProductId: String? = null,
-    ) = ErrorLogsBody(
-        message = message,
-        bundleId = apphudProductId,
-        userId = ApphudInternal.userId,
-        deviceId = ApphudInternal.deviceId,
-        environment = if (applicationContext.isDebuggable()) "sandbox" else "production",
-        timestamp = System.currentTimeMillis(),
-    )
 
     private fun grantPromotionalBody(
         daysCount: Int,

@@ -3,7 +3,6 @@ package com.apphud.sdk.internal.data.remote
 import com.apphud.sdk.APPHUD_ERROR_NO_INTERNET
 import com.apphud.sdk.ApphudError
 import com.apphud.sdk.UserId
-import com.apphud.sdk.internal.data.dto.PaywallEventDto
 import com.apphud.sdk.domain.ApphudGroup
 import com.apphud.sdk.domain.ApphudProduct
 import com.apphud.sdk.domain.ApphudUser
@@ -14,6 +13,7 @@ import com.apphud.sdk.internal.data.dto.AttributionDto
 import com.apphud.sdk.internal.data.dto.AttributionRequestDto
 import com.apphud.sdk.internal.data.dto.CustomerDto
 import com.apphud.sdk.internal.data.dto.GrantPromotionalDto
+import com.apphud.sdk.internal.data.dto.PaywallEventDto
 import com.apphud.sdk.internal.data.mapper.CustomerMapper
 import com.apphud.sdk.internal.data.mapper.ProductMapper
 import com.apphud.sdk.internal.domain.model.GetProductsParams
@@ -154,11 +154,11 @@ internal class RemoteRepository(
             val request = buildPostRequest(EVENTS_URL, event)
             executeForResponse<Unit>(okHttpClient, gson, request)
         }
-        .recoverCatching { e ->
-            val message = e.message ?: "Failed to track paywall event"
-            throw ApphudError(message, null, APPHUD_ERROR_NO_INTERNET, e)
-        }
-        .map { }
+            .recoverCatching { e ->
+                val message = e.message ?: "Failed to track paywall event"
+                throw ApphudError(message, null, APPHUD_ERROR_NO_INTERNET, e)
+            }
+            .map { }
 
     private companion object {
         private const val BASE_URL = "https://gateway.apphud.com"
