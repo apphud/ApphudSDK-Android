@@ -57,6 +57,7 @@ internal class ServiceLocator private constructor(
         purchaseBodyFactory = PurchaseBodyFactory(),
         registrationBodyFactory = RegistrationBodyFactory(registrationProvider),
         productMapper = ProductMapper(),
+        attributionMapper = AttributionMapper()
     )
 
     val userRemoteRepository: UserRemoteRepository = UserRemoteRepository(

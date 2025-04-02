@@ -6,18 +6,23 @@ import com.apphud.sdk.UserId
 import com.apphud.sdk.domain.ApphudGroup
 import com.apphud.sdk.domain.ApphudProduct
 import com.apphud.sdk.domain.ApphudUser
+import com.apphud.sdk.domain.Attribution
 import com.apphud.sdk.domain.PurchaseRecordDetails
 import com.apphud.sdk.internal.data.dto.ApphudGroupDto
+import com.apphud.sdk.internal.data.dto.AttributionDto
+import com.apphud.sdk.internal.data.dto.AttributionRequestDto
 import com.apphud.sdk.internal.data.dto.CustomerDto
 import com.apphud.sdk.internal.data.mapper.CustomerMapper
 import com.apphud.sdk.internal.data.mapper.ProductMapper
 import com.apphud.sdk.internal.domain.model.GetProductsParams
 import com.apphud.sdk.internal.domain.model.PurchaseContext
 import com.apphud.sdk.internal.util.runCatchingCancellable
+import com.apphud.sdk.mappers.AttributionMapper
 import com.google.gson.Gson
 import okhttp3.HttpUrl.Companion.toHttpUrl
 import okhttp3.OkHttpClient
 
+@Suppress("LongParameterList")
 internal class RemoteRepository(
     private val okHttpClient: OkHttpClient,
     private val gson: Gson,
@@ -25,6 +30,7 @@ internal class RemoteRepository(
     private val purchaseBodyFactory: PurchaseBodyFactory,
     private val registrationBodyFactory: RegistrationBodyFactory,
     private val productMapper: ProductMapper,
+    private val attributionMapper: AttributionMapper,
 ) {
 
     suspend fun getCustomers(
@@ -107,9 +113,27 @@ internal class RemoteRepository(
                 } ?: throw ApphudError("Purchase failed")
             }
 
+    suspend fun sendAttribution(
+        attributionRequestBody: AttributionRequestDto,
+    ): Result<Attribution> =
+        runCatchingCancellable {
+            val request = buildPostRequest(ATTRIBUTION_URL, attributionRequestBody)
+            executeForResponse<AttributionDto>(okHttpClient, gson, request)
+        }
+            .recoverCatching { e ->
+                val message = e.message ?: "Failed to send attribution"
+                throw ApphudError(message, null, APPHUD_ERROR_NO_INTERNET, e)
+            }
+            .mapCatching { response ->
+                response.data.results?.let { attributionDto ->
+                    attributionMapper.map(attributionDto)
+                } ?: throw ApphudError("Failed to send attribution")
+            }
+
     private companion object {
         val CUSTOMERS_URL = "https://gateway.apphud.com/v1/customers".toHttpUrl()
         val SUBSCRIPTIONS_URL = "https://gateway.apphud.com/v1/subscriptions".toHttpUrl()
         val PRODUCTS_URL = "https://gateway.apphud.com/v2/products".toHttpUrl()
+        val ATTRIBUTION_URL = "https://gateway.apphud.com/v1/attribution".toHttpUrl()
     }
 }
