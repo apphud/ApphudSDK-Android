@@ -3,6 +3,7 @@ package com.apphud.sdk.internal.data.remote
 import com.apphud.sdk.APPHUD_ERROR_NO_INTERNET
 import com.apphud.sdk.ApphudError
 import com.apphud.sdk.UserId
+import com.apphud.sdk.internal.data.dto.PaywallEventDto
 import com.apphud.sdk.domain.ApphudGroup
 import com.apphud.sdk.domain.ApphudProduct
 import com.apphud.sdk.domain.ApphudUser
@@ -148,6 +149,17 @@ internal class RemoteRepository(
                 } ?: throw ApphudError("Promotional grant failed")
             }
 
+    suspend fun trackEvent(event: PaywallEventDto): Result<Unit> =
+        runCatchingCancellable {
+            val request = buildPostRequest(EVENTS_URL, event)
+            executeForResponse<Unit>(okHttpClient, gson, request)
+        }
+        .recoverCatching { e ->
+            val message = e.message ?: "Failed to track paywall event"
+            throw ApphudError(message, null, APPHUD_ERROR_NO_INTERNET, e)
+        }
+        .map { }
+
     private companion object {
         private const val BASE_URL = "https://gateway.apphud.com"
         val CUSTOMERS_URL = "$BASE_URL/v1/customers".toHttpUrl()
@@ -155,5 +167,6 @@ internal class RemoteRepository(
         val PRODUCTS_URL = "$BASE_URL/v2/products".toHttpUrl()
         val ATTRIBUTION_URL = "$BASE_URL/v1/attribution".toHttpUrl()
         val PROMOTIONS_URL = "$BASE_URL/v1/promotions".toHttpUrl()
+        val EVENTS_URL = "$BASE_URL/v1/events".toHttpUrl()
     }
 }

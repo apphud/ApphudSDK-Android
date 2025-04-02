@@ -13,6 +13,7 @@ import com.apphud.sdk.domain.*
 import com.apphud.sdk.internal.ServiceLocator
 import com.apphud.sdk.internal.data.dto.AttributionRequestDto
 import com.apphud.sdk.internal.data.dto.GrantPromotionalDto
+import com.apphud.sdk.internal.data.dto.PaywallEventDto
 import com.apphud.sdk.internal.data.mapper.ProductMapper
 import com.apphud.sdk.internal.domain.model.GetProductsParams
 import com.apphud.sdk.internal.domain.model.PurchaseContext
@@ -560,7 +561,7 @@ internal object RequestManager {
         }
     }
 
-    fun paywallShown(paywall: ApphudPaywall) {
+    suspend fun paywallShown(paywall: ApphudPaywall) {
         trackPaywallEvent(
             makePaywallEventBody(
                 name = "paywall_shown",
@@ -570,7 +571,7 @@ internal object RequestManager {
         )
     }
 
-    fun paywallClosed(paywall: ApphudPaywall) {
+    suspend fun paywallClosed(paywall: ApphudPaywall) {
         trackPaywallEvent(
             makePaywallEventBody(
                 name = "paywall_closed",
@@ -580,7 +581,7 @@ internal object RequestManager {
         )
     }
 
-    fun sendPaywallLogs(
+    suspend fun sendPaywallLogs(
         launchedAt: Long,
         count: Int,
         userBenchmark: Double,
@@ -604,7 +605,7 @@ internal object RequestManager {
         )
     }
 
-    fun paywallCheckoutInitiated(
+    suspend fun paywallCheckoutInitiated(
         paywallId: String?,
         placementId: String?,
         productId: String?,
@@ -619,7 +620,7 @@ internal object RequestManager {
         )
     }
 
-    fun paywallPaymentCancelled(
+    suspend fun paywallPaymentCancelled(
         paywallId: String?,
         placementId: String?,
         productId: String?,
@@ -634,7 +635,7 @@ internal object RequestManager {
         )
     }
 
-    fun paywallPaymentError(
+    suspend fun paywallPaymentError(
         paywallId: String?,
         placementId: String?,
         productId: String?,
@@ -651,37 +652,31 @@ internal object RequestManager {
         )
     }
 
-    private fun trackPaywallEvent(body: PaywallEventBody) {
+    private suspend fun trackPaywallEvent(body: PaywallEventDto) {
         if (!canPerformRequest()) {
             ApphudLog.logE(::trackPaywallEvent.name + MUST_REGISTER_ERROR)
-            return
+            throw ApphudError("SDK not initialized")
         }
 
-        val apphudUrl =
-            ApphudUrl.Builder()
-                .host(LegacyHeadersInterceptor.HOST)
-                .version(ApphudVersion.V1)
-                .path("events")
-                .build()
-
-        val request = buildPostRequest(URL(apphudUrl.url), body)
-
-        makeUserRegisteredRequest(request) { serverResponse, error ->
-            serverResponse?.let {
-                ApphudLog.logI("Paywall Event log was send successfully")
-            } ?: run {
-                ApphudLog.logI("Failed to send paywall event")
+        runCatchingCancellable {
+            if (currentUser == null) {
+                registration(needPaywalls = true, isNew = true)
             }
-            error?.let {
-                ApphudLog.logE("Paywall Event log was not send")
-            }
+
+            val repository = ServiceLocator.instance.remoteRepository
+
+            repository.trackEvent(body).getOrThrow()
+            ApphudLog.logI("Paywall Event log was sent successfully")
+        }.onFailure { throwable ->
+            val error = if (throwable is ApphudError) throwable else ApphudError.from(throwable)
+            ApphudLog.logE("Failed to send paywall event: ${error.message}")
         }
     }
 
     fun sendErrorLogs(message: String) {
         if (!canPerformRequest()) {
             ApphudLog.logE(::sendErrorLogs.name + MUST_REGISTER_ERROR)
-            return
+            throw ApphudError("SDK not initialized")
         }
 
         val body = makeErrorLogsBody(message, ApphudUtils.packageName)
@@ -732,14 +727,14 @@ internal object RequestManager {
         placementId: String?,
         productId: String? = null,
         errorMessage: String? = null,
-    ): PaywallEventBody {
+    ): PaywallEventDto {
         val properties = mutableMapOf<String, Any>()
         paywallId?.let { properties.put("paywall_id", it) }
         productId?.let { properties.put("product_id", it) }
         placementId?.let { properties.put("placement_id", it) }
         errorMessage?.let { properties.put("error_message", it) }
 
-        return PaywallEventBody(
+        return PaywallEventDto(
             name = name,
             userId = ApphudInternal.userId,
             deviceId = ApphudInternal.deviceId,
@@ -758,7 +753,7 @@ internal object RequestManager {
         error: ApphudError?,
         productsResponseCode: Int,
         success: Boolean,
-    ): PaywallEventBody {
+    ): PaywallEventDto {
         val properties = mutableMapOf<String, Any>()
         properties["launched_at"] = launchedAt
         properties["total_load_time"] = totalLoadTime
@@ -780,7 +775,7 @@ internal object RequestManager {
             properties["failed_attempts"] = retries
         }
 
-        return PaywallEventBody(
+        return PaywallEventDto(
             name = "paywall_products_loaded",
             userId = ApphudInternal.userId,
             deviceId = ApphudInternal.deviceId,
