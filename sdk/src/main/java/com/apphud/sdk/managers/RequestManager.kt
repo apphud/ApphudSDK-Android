@@ -12,8 +12,7 @@ import com.apphud.sdk.client.*
 import com.apphud.sdk.domain.*
 import com.apphud.sdk.internal.ServiceLocator
 import com.apphud.sdk.internal.data.dto.AttributionRequestDto
-import com.apphud.sdk.internal.data.dto.CustomerDto
-import com.apphud.sdk.internal.data.dto.ResponseDto
+import com.apphud.sdk.internal.data.dto.GrantPromotionalDto
 import com.apphud.sdk.internal.data.mapper.ProductMapper
 import com.apphud.sdk.internal.domain.model.GetProductsParams
 import com.apphud.sdk.internal.domain.model.PurchaseContext
@@ -24,7 +23,6 @@ import com.apphud.sdk.parser.GsonParser
 import com.apphud.sdk.parser.Parser
 import com.apphud.sdk.storage.SharedPreferencesStorage
 import com.google.gson.GsonBuilder
-import com.google.gson.reflect.TypeToken
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.suspendCancellableCoroutine
@@ -533,45 +531,32 @@ internal object RequestManager {
         return null
     }
 
-    fun grantPromotional(
+    suspend fun grantPromotional(
         daysCount: Int,
         productId: String?,
         permissionGroup: ApphudGroup?,
-        completionHandler: (ApphudUser?, ApphudError?) -> Unit,
-    ) {
+    ): Result<ApphudUser> {
         if (!canPerformRequest()) {
             ApphudLog.logE(::grantPromotional.name + MUST_REGISTER_ERROR)
-            return
+            throw ApphudError("SDK not initialized")
         }
 
-        val apphudUrl =
-            ApphudUrl.Builder()
-                .host(LegacyHeadersInterceptor.HOST)
-                .version(ApphudVersion.V1)
-                .path("promotions")
-                .build()
-
-        val request = buildPostRequest(URL(apphudUrl.url), grantPromotionalBody(daysCount, productId, permissionGroup))
-        val httpClient = getOkHttpClient(request)
-        try {
-            val serverResponse = performRequestSync(httpClient, request)
-            val responseDto: ResponseDto<CustomerDto>? =
-                parser.fromJson<ResponseDto<CustomerDto>>(
-                    serverResponse,
-                    object : TypeToken<ResponseDto<CustomerDto>>() {}.type,
-                )
-
-            responseDto?.let { cDto ->
-                val currentUser =
-                    cDto.data.results?.let { customerObj ->
-                        customerMapperLegacy.map(customerObj)
-                    }
-                completionHandler(currentUser, null)
-            } ?: run {
-                completionHandler(null, ApphudError("Promotional request failed"))
+        return runCatchingCancellable {
+            if (currentUser == null) {
+                registration(needPaywalls = true, isNew = true)
             }
-        } catch (ex: Exception) {
-            completionHandler(null, ApphudError.from(ex))
+
+            val repository = ServiceLocator.instance.remoteRepository
+
+            val grantPromotionalDto = GrantPromotionalDto(
+                duration = daysCount,
+                userId = ApphudInternal.userId,
+                deviceId = ApphudInternal.deviceId,
+                productId = productId,
+                productGroupId = permissionGroup?.id
+            )
+
+            repository.grantPromotional(grantPromotionalDto).getOrThrow()
         }
     }
 
@@ -809,7 +794,8 @@ internal object RequestManager {
         var dateInSecond: Long? = null
         try {
             this.applicationContext.packageManager?.let { manager ->
-                dateInSecond = manager.getPackageInfo(this.applicationContext.packageName, 0).firstInstallTime / 1000L
+                dateInSecond =
+                    manager.getPackageInfo(this.applicationContext.packageName, 0).firstInstallTime / 1000L
             }
         } catch (ex: Exception) {
             ex.message?.let {
@@ -835,8 +821,8 @@ internal object RequestManager {
         daysCount: Int,
         productId: String? = null,
         permissionGroup: ApphudGroup? = null,
-    ): GrantPromotionalBody {
-        return GrantPromotionalBody(
+    ): GrantPromotionalDto {
+        return GrantPromotionalDto(
             duration = daysCount,
             userId = ApphudInternal.userId,
             deviceId = ApphudInternal.deviceId,

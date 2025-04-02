@@ -937,21 +937,18 @@ internal object ApphudInternal {
                 callback?.invoke(false)
             } ?: run {
                 coroutineScope.launch(errorHandler) {
-                    RequestManager.grantPromotional(daysCount, productId, permissionGroup) { customer, error ->
-                        mainScope.launch {
-                            customer?.let {
+                    val grantPromotionalResult = RequestManager.grantPromotional(daysCount, productId, permissionGroup)
+                    withContext(Dispatchers.Main) {
+                        grantPromotionalResult
+                            .onSuccess {
                                 notifyLoadingCompleted(it)
                                 callback?.invoke(true)
                                 ApphudLog.logI("Promotional is granted")
-                            } ?: run {
+                            }
+                            .onFailure {
                                 callback?.invoke(false)
                                 ApphudLog.logI("Promotional is NOT granted")
                             }
-                            error?.let {
-                                callback?.invoke(false)
-                                ApphudLog.logI("Promotional is NOT granted")
-                            }
-                        }
                     }
                 }
             }
