@@ -12,6 +12,8 @@ import com.apphud.sdk.internal.data.dto.ApphudGroupDto
 import com.apphud.sdk.internal.data.dto.AttributionDto
 import com.apphud.sdk.internal.data.dto.AttributionRequestDto
 import com.apphud.sdk.internal.data.dto.CustomerDto
+import com.apphud.sdk.internal.data.dto.GrantPromotionalDto
+import com.apphud.sdk.internal.data.dto.PaywallEventDto
 import com.apphud.sdk.internal.data.mapper.CustomerMapper
 import com.apphud.sdk.internal.data.mapper.ProductMapper
 import com.apphud.sdk.internal.domain.model.GetProductsParams
@@ -130,10 +132,41 @@ internal class RemoteRepository(
                 } ?: throw ApphudError("Failed to send attribution")
             }
 
+    suspend fun grantPromotional(
+        grantPromotionalDto: GrantPromotionalDto,
+    ): Result<ApphudUser> =
+        runCatchingCancellable {
+            val request = buildPostRequest(PROMOTIONS_URL, grantPromotionalDto)
+            executeForResponse<CustomerDto>(okHttpClient, gson, request)
+        }
+            .recoverCatching { e ->
+                val message = e.message ?: "Promotional grant failed"
+                throw ApphudError(message, null, APPHUD_ERROR_NO_INTERNET, e)
+            }
+            .mapCatching { response ->
+                response.data.results?.let { customerDto ->
+                    customerMapper.map(customerDto)
+                } ?: throw ApphudError("Promotional grant failed")
+            }
+
+    suspend fun trackEvent(event: PaywallEventDto): Result<Unit> =
+        runCatchingCancellable {
+            val request = buildPostRequest(EVENTS_URL, event)
+            executeForResponse<Unit>(okHttpClient, gson, request)
+        }
+            .recoverCatching { e ->
+                val message = e.message ?: "Failed to track paywall event"
+                throw ApphudError(message, null, APPHUD_ERROR_NO_INTERNET, e)
+            }
+            .map { }
+
     private companion object {
-        val CUSTOMERS_URL = "https://gateway.apphud.com/v1/customers".toHttpUrl()
-        val SUBSCRIPTIONS_URL = "https://gateway.apphud.com/v1/subscriptions".toHttpUrl()
-        val PRODUCTS_URL = "https://gateway.apphud.com/v2/products".toHttpUrl()
-        val ATTRIBUTION_URL = "https://gateway.apphud.com/v1/attribution".toHttpUrl()
+        private const val BASE_URL = "https://gateway.apphud.com"
+        val CUSTOMERS_URL = "$BASE_URL/v1/customers".toHttpUrl()
+        val SUBSCRIPTIONS_URL = "$BASE_URL/v1/subscriptions".toHttpUrl()
+        val PRODUCTS_URL = "$BASE_URL/v2/products".toHttpUrl()
+        val ATTRIBUTION_URL = "$BASE_URL/v1/attribution".toHttpUrl()
+        val PROMOTIONS_URL = "$BASE_URL/v1/promotions".toHttpUrl()
+        val EVENTS_URL = "$BASE_URL/v1/events".toHttpUrl()
     }
 }

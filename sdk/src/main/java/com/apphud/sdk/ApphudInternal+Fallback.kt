@@ -2,10 +2,8 @@ package com.apphud.sdk
 
 import android.content.Context
 import com.android.billingclient.api.BillingClient.BillingResponseCode
-import com.apphud.sdk.client.ApiClient
 import com.apphud.sdk.domain.ApphudUser
 import com.apphud.sdk.domain.FallbackJsonObject
-import com.apphud.sdk.managers.RequestManager
 import com.apphud.sdk.mappers.PaywallsMapperLegacy
 import com.apphud.sdk.parser.GsonParser
 import com.apphud.sdk.parser.Parser
@@ -13,63 +11,13 @@ import com.google.gson.Gson
 import com.google.gson.GsonBuilder
 import com.google.gson.reflect.TypeToken
 import kotlinx.coroutines.launch
-import okhttp3.Request
 import java.io.IOException
-import java.net.MalformedURLException
-import java.net.URL
-
-internal fun String.withRemovedScheme(): String {
-    return replace("https://", "")
-}
 
 private val gson = GsonBuilder().serializeNulls().create()
 private val parser: Parser = GsonParser(gson)
 private val paywallsMapperLegacy = PaywallsMapperLegacy(parser)
-internal var fallbackHost: String? = null
 internal var processedFallbackData = false
 
-internal fun ApphudInternal.processFallbackError(request: Request, isTimeout: Boolean) {
-    if ((request.url.encodedPath.endsWith("/customers") ||
-                request.url.encodedPath.endsWith("/subscriptions") ||
-                request.url.encodedPath.endsWith("/products"))
-        && !processedFallbackData
-    ) {
-
-        if (fallbackHost?.withRemovedScheme() == request.url.host) {
-            processFallbackData { _, _ -> }
-        } else {
-            coroutineScope.launch {
-                tryFallbackHost()
-                if (fallbackHost == null || fallbackHost?.withRemovedScheme() == request.url.host) {
-                    processFallbackData { _, _ -> }
-                }
-            }
-        }
-    }
-}
-
-internal fun tryFallbackHost() {
-    val host = RequestManager.fetchFallbackHost()
-    host?.let {
-        if (isValidUrl(it) && it != fallbackHost && ApiClient.host.contains("apphud.com")) {
-            fallbackHost = it
-            ApphudInternal.fallbackMode = true
-            ApiClient.host = fallbackHost!!
-            ApphudLog.logE("Fallback to host $fallbackHost")
-            ApphudInternal.isRegisteringUser = false
-            ApphudInternal.refreshPaywallsIfNeeded()
-        }
-    }
-}
-
-fun isValidUrl(urlString: String): Boolean {
-    return try {
-        URL(urlString)
-        true
-    } catch (e: MalformedURLException) {
-        false
-    }
-}
 
 internal fun ApphudInternal.processFallbackData(callback: PaywallCallback) {
     try {

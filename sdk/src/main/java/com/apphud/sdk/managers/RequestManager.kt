@@ -6,41 +6,39 @@ import android.content.pm.PackageManager.PackageInfoFlags
 import android.os.Build
 import com.android.billingclient.api.BillingClient
 import com.android.billingclient.api.ProductDetails
-import com.apphud.sdk.*
-import com.apphud.sdk.body.*
-import com.apphud.sdk.client.*
-import com.apphud.sdk.domain.*
+import com.apphud.sdk.ApphudError
+import com.apphud.sdk.ApphudInternal
+import com.apphud.sdk.ApphudLog
+import com.apphud.sdk.ApphudUtils
+import com.apphud.sdk.UserId
+import com.apphud.sdk.body.UserPropertiesBody
+import com.apphud.sdk.domain.ApphudGroup
+import com.apphud.sdk.domain.ApphudPaywall
+import com.apphud.sdk.domain.ApphudProduct
+import com.apphud.sdk.domain.ApphudUser
+import com.apphud.sdk.domain.Attribution
+import com.apphud.sdk.domain.PurchaseRecordDetails
 import com.apphud.sdk.internal.ServiceLocator
 import com.apphud.sdk.internal.data.dto.AttributionRequestDto
-import com.apphud.sdk.internal.data.dto.CustomerDto
-import com.apphud.sdk.internal.data.dto.ResponseDto
-import com.apphud.sdk.internal.data.mapper.ProductMapper
+import com.apphud.sdk.internal.data.dto.GrantPromotionalDto
+import com.apphud.sdk.internal.data.dto.PaywallEventDto
 import com.apphud.sdk.internal.domain.model.GetProductsParams
 import com.apphud.sdk.internal.domain.model.PurchaseContext
 import com.apphud.sdk.internal.util.runCatchingCancellable
+import com.apphud.sdk.isDebuggable
 import com.apphud.sdk.managers.AdvertisingIdManager.AdInfo
-import com.apphud.sdk.mappers.*
 import com.apphud.sdk.parser.GsonParser
 import com.apphud.sdk.parser.Parser
+import com.apphud.sdk.processFallbackData
 import com.apphud.sdk.storage.SharedPreferencesStorage
 import com.google.gson.GsonBuilder
-import com.google.gson.reflect.TypeToken
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.suspendCancellableCoroutine
-import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
 import okhttp3.Request
-import okhttp3.RequestBody.Companion.toRequestBody
 import okhttp3.Response
-import okio.Buffer
-import org.json.JSONException
-import org.json.JSONObject
 import java.net.SocketTimeoutException
-import java.net.URL
-import java.nio.charset.Charset
-import java.util.*
-import java.util.concurrent.TimeUnit
 import kotlin.coroutines.resume
 
 internal object RequestManager {
@@ -53,13 +51,6 @@ internal object RequestManager {
 
     val gson = GsonBuilder().serializeNulls().create()
     val parser: Parser = GsonParser(gson)
-
-    private val productMapper = ProductMapper()
-    private val paywallsMapperLegacy = PaywallsMapperLegacy(parser)
-    private val attributionMapper = AttributionMapper()
-    private val placementsMapperLegacy = PlacementsMapperLegacy(parser)
-    private val customerMapperLegacy =
-        CustomerMapperLegacy(SubscriptionMapperLegacy(), paywallsMapperLegacy, placementsMapperLegacy)
 
     // TODO to be settled
     private var apiKey: String? = null
@@ -85,249 +76,6 @@ internal object RequestManager {
         return ::applicationContext.isInitialized &&
                 apiKey != null
     }
-
-    private fun getOkHttpClient(
-        request: Request,
-        retry: Boolean = true,
-    ): OkHttpClient {
-        val retryInterceptor = LegacyHttpRetryInterceptor()
-        val legacyHeadersInterceptor = LegacyHeadersInterceptor(apiKey)
-        /*val logging = HttpLoggingInterceptor {
-            if (parser.isJson(it)) {
-                buildPrettyPrintedBy(it)?.let { formattedJsonString ->
-                    ApphudLog.logI(formattedJsonString)
-                } ?: run {
-                    ApphudLog.logI(it)
-                }
-            } else {
-                ApphudLog.logI(it)
-            }
-        }
-
-        if (BuildConfig.DEBUG) {
-            logging.level = HttpLoggingInterceptor.Level.BODY //BODY
-        } else {
-            logging.level = HttpLoggingInterceptor.Level.NONE
-        }*/
-
-        val callTimeout = if (request.method == "POST" && request.url.toString().contains("subscriptions"))
-            30 else 0
-
-        val builder =
-            OkHttpClient.Builder()
-                //.connectTimeout(APPHUD_DEFAULT_HTTP_CONNECT_TIMEOUT, TimeUnit.SECONDS)
-                .callTimeout(callTimeout.toLong(), TimeUnit.SECONDS)
-        if (retry) builder.addInterceptor(retryInterceptor)
-        builder.addInterceptor(ConnectInterceptor())
-        builder.addNetworkInterceptor(legacyHeadersInterceptor)
-        //builder.addNetworkInterceptor(logging)
-
-        return builder.build()
-    }
-
-    private fun logRequestStart(request: Request) {
-        try {
-            var body: String? = ""
-            if (ApphudUtils.httpLogging) {
-                request.body?.let {
-                    val buffer = Buffer()
-                    it.writeTo(buffer)
-
-                    body = buffer.readString(Charset.forName("UTF-8"))
-                    body?.let {
-                        if (parser.isJson(it)) {
-                            body = buildPrettyPrintedBy(it)
-                        }
-                    }
-
-                    body?.let {
-                        if (it.isNotEmpty()) {
-                            body = "\n" + it
-                        }
-                    } ?: {
-                        body = ""
-                    }
-                }
-            }
-            ApphudLog.logI("Start " + request.method + " request " + request.url + " with params:" + body)
-        } catch (ex: Exception) {
-            ApphudLog.logE("Failed to log request: " + ex.message)
-        }
-    }
-
-    private fun logRequestFinish(
-        request: Request,
-        responseBody: String?,
-        responseCode: Int,
-    ) {
-        var outputBody = ""
-        if (ApphudUtils.httpLogging) {
-            outputBody = buildPrettyPrintedBy(responseBody ?: "") ?: ""
-        }
-
-        ApphudLog.logI(
-            "Finished " + request.method + " request " + request.url + " with response: " + responseCode + "\n" + outputBody,
-        )
-    }
-
-    private fun performRequest(
-        client: OkHttpClient,
-        request: Request,
-        completionHandler: (String?, ApphudError?) -> Unit,
-    ) {
-        try {
-            if (LegacyHeadersInterceptor.isBlocked) {
-                val message =
-                    "Unable to perform API requests, because your account has been suspended."
-                ApphudLog.logE(message)
-                completionHandler(null, ApphudError(message))
-            } else if (true) {
-                logRequestStart(request)
-
-                val start = Date()
-                val response = client.newCall(request).execute()
-                val responseBody = response.body?.string()
-                val finish = Date()
-                val diff = (finish.time - start.time)
-                ApphudLog.logBenchmark(
-                    request.url.encodedPath,
-                    diff,
-                )
-
-                logRequestFinish(request, responseBody, response.code)
-
-                if (response.isSuccessful) {
-                    responseBody?.let {
-                        completionHandler(it, null)
-                    } ?: run {
-                        completionHandler(null, ApphudError("Request failed", null, response.code))
-                    }
-                } else {
-                    checkLock403(request, response)
-                    val message =
-                        "finish ${request.method} request ${request.url} " +
-                                "failed with code: ${response.code} response: ${
-                                    buildPrettyPrintedBy(responseBody.toString())
-                                }"
-                    completionHandler(null, ApphudError(message, null, response.code))
-                }
-
-                response.close()
-
-            } else {
-                val message = "No Internet connection"
-                ApphudLog.logE(message)
-                completionHandler(null, ApphudError(message))
-            }
-        } catch (e: SocketTimeoutException) {
-            ApphudInternal.processFallbackError(request, isTimeout = true)
-            val message = e.message ?: "Undefined error"
-            completionHandler(null, ApphudError(message, null, APPHUD_ERROR_TIMEOUT))
-        } catch (e: Exception) {
-            completionHandler(null, ApphudError.from(e))
-        }
-    }
-
-    @Throws(Exception::class)
-    fun performRequestSync(
-        client: OkHttpClient,
-        request: Request,
-    ): String {
-        if (LegacyHeadersInterceptor.isBlocked) {
-            val message = "SDK networking is locked until application restart"
-            ApphudLog.logE(message)
-            throw Exception(message)
-        } else if (true) {
-            logRequestStart(request)
-
-            val start = Date()
-            val response = client.newCall(request).execute()
-            val responseBody = response.body?.string()
-            val finish = Date()
-            val diff = (finish.time - start.time)
-            ApphudLog.logBenchmark(
-                request.url.encodedPath,
-                diff,
-            )
-
-            logRequestFinish(request, responseBody, response.code)
-
-            response.close()
-
-            if (response.isSuccessful) {
-                return responseBody ?: ""
-            } else {
-                checkLock403(request, response)
-                val message =
-                    "finish ${request.method} request ${request.url} " +
-                            "failed with code: ${response.code} response: ${
-                                buildPrettyPrintedBy(responseBody ?: "")
-                            }"
-                ApphudLog.logE(message)
-                throw Exception(message)
-            }
-        } else {
-            val message = "No Internet connection"
-            ApphudLog.logE(message)
-            throw Exception(message)
-        }
-    }
-
-    internal fun checkLock403(
-        request: Request,
-        response: Response,
-    ): Boolean {
-        if (response.code == 403 && request.method == "POST" && request.url.encodedPath.endsWith("/customers")) {
-            LegacyHeadersInterceptor.isBlocked = true
-            ApphudLog.logE("Unable to perform API requests, because your account has been suspended.")
-        }
-
-        return LegacyHeadersInterceptor.isBlocked
-    }
-
-    private fun makeRequest(
-        request: Request,
-        retry: Boolean = true,
-        completionHandler: (String?, ApphudError?) -> Unit,
-    ) {
-        val httpClient = getOkHttpClient(request, retry)
-        performRequest(httpClient, request, completionHandler)
-    }
-
-    private fun makeUserRegisteredRequest(
-        request: Request,
-        retry: Boolean = true,
-        completionHandler: (String?, ApphudError?) -> Unit,
-    ) {
-        val httpClient = getOkHttpClient(request, retry)
-
-        if (currentUser == null) {
-            registrationLegacy(true, true) { customer, error ->
-                customer?.let {
-                    performRequest(httpClient, request, completionHandler)
-                } ?: run {
-                    completionHandler(null, error)
-                }
-            }
-        } else {
-            performRequest(httpClient, request, completionHandler)
-        }
-    }
-
-    private fun buildPostRequest(
-        url: URL,
-        params: Any,
-    ): Request {
-        val json = parser.toJson(params)
-        val mediaType = "application/json; charset=utf-8".toMediaType()
-        val requestBody = json.toRequestBody(mediaType)
-
-        val request = Request.Builder()
-        return request.url(url)
-            .post(requestBody)
-            .build()
-    }
-
 
     suspend fun registrationSync(
         needPaywalls: Boolean,
@@ -357,7 +105,7 @@ internal object RequestManager {
             }
         }
 
-    internal suspend fun registration(
+    private suspend fun registration(
         needPaywalls: Boolean,
         isNew: Boolean,
         forceRegistration: Boolean = false,
@@ -533,49 +281,36 @@ internal object RequestManager {
         return null
     }
 
-    fun grantPromotional(
+    suspend fun grantPromotional(
         daysCount: Int,
         productId: String?,
         permissionGroup: ApphudGroup?,
-        completionHandler: (ApphudUser?, ApphudError?) -> Unit,
-    ) {
+    ): Result<ApphudUser> {
         if (!canPerformRequest()) {
             ApphudLog.logE(::grantPromotional.name + MUST_REGISTER_ERROR)
-            return
+            throw ApphudError("SDK not initialized")
         }
 
-        val apphudUrl =
-            ApphudUrl.Builder()
-                .host(LegacyHeadersInterceptor.HOST)
-                .version(ApphudVersion.V1)
-                .path("promotions")
-                .build()
-
-        val request = buildPostRequest(URL(apphudUrl.url), grantPromotionalBody(daysCount, productId, permissionGroup))
-        val httpClient = getOkHttpClient(request)
-        try {
-            val serverResponse = performRequestSync(httpClient, request)
-            val responseDto: ResponseDto<CustomerDto>? =
-                parser.fromJson<ResponseDto<CustomerDto>>(
-                    serverResponse,
-                    object : TypeToken<ResponseDto<CustomerDto>>() {}.type,
-                )
-
-            responseDto?.let { cDto ->
-                val currentUser =
-                    cDto.data.results?.let { customerObj ->
-                        customerMapperLegacy.map(customerObj)
-                    }
-                completionHandler(currentUser, null)
-            } ?: run {
-                completionHandler(null, ApphudError("Promotional request failed"))
+        return runCatchingCancellable {
+            if (currentUser == null) {
+                registration(needPaywalls = true, isNew = true)
             }
-        } catch (ex: Exception) {
-            completionHandler(null, ApphudError.from(ex))
+
+            val repository = ServiceLocator.instance.remoteRepository
+
+            val grantPromotionalDto = GrantPromotionalDto(
+                duration = daysCount,
+                userId = ApphudInternal.userId,
+                deviceId = ApphudInternal.deviceId,
+                productId = productId,
+                productGroupId = permissionGroup?.id
+            )
+
+            repository.grantPromotional(grantPromotionalDto).getOrThrow()
         }
     }
 
-    fun paywallShown(paywall: ApphudPaywall) {
+    suspend fun paywallShown(paywall: ApphudPaywall) {
         trackPaywallEvent(
             makePaywallEventBody(
                 name = "paywall_shown",
@@ -585,7 +320,7 @@ internal object RequestManager {
         )
     }
 
-    fun paywallClosed(paywall: ApphudPaywall) {
+    suspend fun paywallClosed(paywall: ApphudPaywall) {
         trackPaywallEvent(
             makePaywallEventBody(
                 name = "paywall_closed",
@@ -595,7 +330,7 @@ internal object RequestManager {
         )
     }
 
-    fun sendPaywallLogs(
+    suspend fun sendPaywallLogs(
         launchedAt: Long,
         count: Int,
         userBenchmark: Double,
@@ -619,7 +354,7 @@ internal object RequestManager {
         )
     }
 
-    fun paywallCheckoutInitiated(
+    suspend fun paywallCheckoutInitiated(
         paywallId: String?,
         placementId: String?,
         productId: String?,
@@ -634,7 +369,7 @@ internal object RequestManager {
         )
     }
 
-    fun paywallPaymentCancelled(
+    suspend fun paywallPaymentCancelled(
         paywallId: String?,
         placementId: String?,
         productId: String?,
@@ -649,7 +384,7 @@ internal object RequestManager {
         )
     }
 
-    fun paywallPaymentError(
+    suspend fun paywallPaymentError(
         paywallId: String?,
         placementId: String?,
         productId: String?,
@@ -666,78 +401,24 @@ internal object RequestManager {
         )
     }
 
-    private fun trackPaywallEvent(body: PaywallEventBody) {
+    private suspend fun trackPaywallEvent(body: PaywallEventDto) {
         if (!canPerformRequest()) {
             ApphudLog.logE(::trackPaywallEvent.name + MUST_REGISTER_ERROR)
-            return
+            throw ApphudError("SDK not initialized")
         }
 
-        val apphudUrl =
-            ApphudUrl.Builder()
-                .host(LegacyHeadersInterceptor.HOST)
-                .version(ApphudVersion.V1)
-                .path("events")
-                .build()
-
-        val request = buildPostRequest(URL(apphudUrl.url), body)
-
-        makeUserRegisteredRequest(request) { serverResponse, error ->
-            serverResponse?.let {
-                ApphudLog.logI("Paywall Event log was send successfully")
-            } ?: run {
-                ApphudLog.logI("Failed to send paywall event")
+        runCatchingCancellable {
+            if (currentUser == null) {
+                registration(needPaywalls = true, isNew = true)
             }
-            error?.let {
-                ApphudLog.logE("Paywall Event log was not send")
-            }
-        }
-    }
 
-    fun sendErrorLogs(message: String) {
-        if (!canPerformRequest()) {
-            ApphudLog.logE(::sendErrorLogs.name + MUST_REGISTER_ERROR)
-            return
-        }
+            val repository = ServiceLocator.instance.remoteRepository
 
-        val body = makeErrorLogsBody(message, ApphudUtils.packageName)
-
-        val apphudUrl =
-            ApphudUrl.Builder()
-                .host(LegacyHeadersInterceptor.HOST)
-                .version(ApphudVersion.V1)
-                .path("logs")
-                .build()
-
-        val request = buildPostRequest(URL(apphudUrl.url), body)
-
-        makeRequest(request, false) { _, error ->
-            error?.let {
-                ApphudLog.logE("Error logs was not send")
-            } ?: run {
-                ApphudLog.logI("Error logs was send successfully")
-            }
-        }
-    }
-
-    internal fun sendBenchmarkLogs(body: BenchmarkBody) {
-        if (!canPerformRequest()) {
-            ApphudLog.logE(::sendErrorLogs.name + MUST_REGISTER_ERROR)
-            return
-        }
-
-        val apphudUrl =
-            ApphudUrl.Builder()
-                .host(LegacyHeadersInterceptor.HOST)
-                .version(ApphudVersion.V2)
-                .path("logs")
-                .build()
-
-        val request = buildPostRequest(URL(apphudUrl.url), body)
-
-        makeRequest(request, false) { _, error ->
-            error?.let {
-                ApphudLog.logE("Benchmark logs is not sent")
-            }
+            repository.trackEvent(body).getOrThrow()
+            ApphudLog.logI("Paywall Event log was sent successfully")
+        }.onFailure { throwable ->
+            val error = if (throwable is ApphudError) throwable else ApphudError.from(throwable)
+            ApphudLog.logE("Failed to send paywall event: ${error.message}")
         }
     }
 
@@ -747,14 +428,14 @@ internal object RequestManager {
         placementId: String?,
         productId: String? = null,
         errorMessage: String? = null,
-    ): PaywallEventBody {
+    ): PaywallEventDto {
         val properties = mutableMapOf<String, Any>()
         paywallId?.let { properties.put("paywall_id", it) }
         productId?.let { properties.put("product_id", it) }
         placementId?.let { properties.put("placement_id", it) }
         errorMessage?.let { properties.put("error_message", it) }
 
-        return PaywallEventBody(
+        return PaywallEventDto(
             name = name,
             userId = ApphudInternal.userId,
             deviceId = ApphudInternal.deviceId,
@@ -773,7 +454,7 @@ internal object RequestManager {
         error: ApphudError?,
         productsResponseCode: Int,
         success: Boolean,
-    ): PaywallEventBody {
+    ): PaywallEventDto {
         val properties = mutableMapOf<String, Any>()
         properties["launched_at"] = launchedAt
         properties["total_load_time"] = totalLoadTime
@@ -795,7 +476,7 @@ internal object RequestManager {
             properties["failed_attempts"] = retries
         }
 
-        return PaywallEventBody(
+        return PaywallEventDto(
             name = "paywall_products_loaded",
             userId = ApphudInternal.userId,
             deviceId = ApphudInternal.deviceId,
@@ -803,61 +484,6 @@ internal object RequestManager {
             timestamp = System.currentTimeMillis(),
             properties = properties.ifEmpty { null }
         )
-    }
-
-    private fun getInstallationDate(): Long? {
-        var dateInSecond: Long? = null
-        try {
-            this.applicationContext.packageManager?.let { manager ->
-                dateInSecond = manager.getPackageInfo(this.applicationContext.packageName, 0).firstInstallTime / 1000L
-            }
-        } catch (ex: Exception) {
-            ex.message?.let {
-                ApphudLog.logE(it)
-            }
-        }
-        return dateInSecond
-    }
-
-    private fun makeErrorLogsBody(
-        message: String,
-        apphudProductId: String? = null,
-    ) = ErrorLogsBody(
-        message = message,
-        bundleId = apphudProductId,
-        userId = ApphudInternal.userId,
-        deviceId = ApphudInternal.deviceId,
-        environment = if (applicationContext.isDebuggable()) "sandbox" else "production",
-        timestamp = System.currentTimeMillis(),
-    )
-
-    private fun grantPromotionalBody(
-        daysCount: Int,
-        productId: String? = null,
-        permissionGroup: ApphudGroup? = null,
-    ): GrantPromotionalBody {
-        return GrantPromotionalBody(
-            duration = daysCount,
-            userId = ApphudInternal.userId,
-            deviceId = ApphudInternal.deviceId,
-            productId = productId,
-            productGroupId = permissionGroup?.id,
-        )
-    }
-
-    private fun buildPrettyPrintedBy(jsonString: String): String? {
-        var jsonObject: JSONObject? = null
-        try {
-            jsonObject = JSONObject(jsonString)
-        } catch (ignored: JSONException) {
-        }
-        try {
-            if (jsonObject != null) {
-                return jsonObject.toString(4)
-            }
-        } catch (ignored: JSONException) {
-        }
-        return null
     }
 
     suspend fun fetchAdvertisingId(): String? =

@@ -1,8 +1,8 @@
-package com.apphud.sdk.body
+package com.apphud.sdk.internal.data.dto
 
 import com.google.gson.annotations.SerializedName
 
-internal class GrantPromotionalBody(
+internal class GrantPromotionalDto(
     val duration: Int,
     @SerializedName("user_id")
     val userId: String?,

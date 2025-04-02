@@ -20,7 +20,6 @@ import com.apphud.sdk.domain.ApphudUser
 import com.apphud.sdk.domain.PurchaseRecordDetails
 import com.apphud.sdk.internal.BillingWrapper
 import com.apphud.sdk.internal.util.runCatchingCancellable
-import com.apphud.sdk.managers.LegacyHttpRetryInterceptor
 import com.apphud.sdk.managers.RequestManager
 import com.apphud.sdk.managers.RequestManager.applicationContext
 import com.apphud.sdk.storage.SharedPreferencesStorage
@@ -588,8 +587,6 @@ internal object ApphudInternal {
                     firstCustomerLoadedTime = System.currentTimeMillis()
                 }
 
-                LegacyHttpRetryInterceptor.MAX_COUNT = APPHUD_DEFAULT_RETRIES
-
                 currentUser = it
                 if (it.paywalls.isNotEmpty()) {
                     synchronized(paywalls) {
@@ -937,21 +934,18 @@ internal object ApphudInternal {
                 callback?.invoke(false)
             } ?: run {
                 coroutineScope.launch(errorHandler) {
-                    RequestManager.grantPromotional(daysCount, productId, permissionGroup) { customer, error ->
-                        mainScope.launch {
-                            customer?.let {
+                    val grantPromotionalResult = RequestManager.grantPromotional(daysCount, productId, permissionGroup)
+                    withContext(Dispatchers.Main) {
+                        grantPromotionalResult
+                            .onSuccess {
                                 notifyLoadingCompleted(it)
                                 callback?.invoke(true)
                                 ApphudLog.logI("Promotional is granted")
-                            } ?: run {
+                            }
+                            .onFailure {
                                 callback?.invoke(false)
                                 ApphudLog.logI("Promotional is NOT granted")
                             }
-                            error?.let {
-                                callback?.invoke(false)
-                                ApphudLog.logI("Promotional is NOT granted")
-                            }
-                        }
                     }
                 }
             }

@@ -105,7 +105,7 @@ private suspend fun ApphudInternal.fetchDetailsAndPurchase(
     } else {
         val message =
             "[${ApphudBillingResponseCodes.getName(responseCode.first)}] Aborting purchase because product unavailable: ${apphudProduct.productId}"
-        ApphudLog.log(message = message, sendLogToServer = true)
+        ApphudLog.log(message = message)
         mainScope.launch {
             callback?.invoke(
                 ApphudPurchaseResult(
@@ -339,7 +339,7 @@ private suspend fun ApphudInternal.handlePurchaseAcknowledgment(
                 is PurchaseCallbackStatus.Error -> {
                     val message =
                         "Sending to server, but failed to acknowledge purchase with code: ${status.error}" + apphudProduct?.let { " [Apphud product ID: " + it.id + "]" }
-                    ApphudLog.log(message = message, sendLogToServer = true)
+                    ApphudLog.log(message = message)
                 }
                 is PurchaseCallbackStatus.Success -> {
                     ApphudLog.log("Purchase successfully acknowledged")
@@ -357,7 +357,7 @@ private suspend fun ApphudInternal.handlePurchaseConsumption(purchase: Purchase,
                 is PurchaseCallbackStatus.Error -> {
                     val message =
                         "Sending to server, but failed to consume purchase with error: ${status.error}" + apphudProduct?.let { " [Apphud product ID: " + it.id + "]" }
-                    ApphudLog.log(message = message, sendLogToServer = true)
+                    ApphudLog.log(message = message)
                 }
                 is PurchaseCallbackStatus.Success -> {
                     ApphudLog.log("Purchase successfully consumed: ${status.message}")
