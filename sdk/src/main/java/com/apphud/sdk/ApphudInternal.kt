@@ -20,7 +20,6 @@ import com.apphud.sdk.domain.ApphudUser
 import com.apphud.sdk.domain.PurchaseRecordDetails
 import com.apphud.sdk.internal.BillingWrapper
 import com.apphud.sdk.internal.util.runCatchingCancellable
-import com.apphud.sdk.managers.LegacyHttpRetryInterceptor
 import com.apphud.sdk.managers.RequestManager
 import com.apphud.sdk.managers.RequestManager.applicationContext
 import com.apphud.sdk.storage.SharedPreferencesStorage
@@ -587,8 +586,6 @@ internal object ApphudInternal {
                 if (firstCustomerLoadedTime == null) {
                     firstCustomerLoadedTime = System.currentTimeMillis()
                 }
-
-                LegacyHttpRetryInterceptor.MAX_COUNT = APPHUD_DEFAULT_RETRIES
 
                 currentUser = it
                 if (it.paywalls.isNotEmpty()) {
