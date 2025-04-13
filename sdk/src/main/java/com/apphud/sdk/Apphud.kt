@@ -5,6 +5,8 @@ import android.app.Activity
 import android.content.Context
 import com.android.billingclient.api.ProductDetails
 import com.android.billingclient.api.Purchase
+import com.apphud.sdk.ApphudInternal.coroutineScope
+import com.apphud.sdk.ApphudInternal.errorHandler
 import com.apphud.sdk.domain.ApphudGroup
 import com.apphud.sdk.domain.ApphudNonRenewingPurchase
 import com.apphud.sdk.domain.ApphudPaywall
@@ -13,7 +15,10 @@ import com.apphud.sdk.domain.ApphudProduct
 import com.apphud.sdk.domain.ApphudSubscription
 import com.apphud.sdk.domain.ApphudUser
 import com.apphud.sdk.internal.ServiceLocator
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.suspendCancellableCoroutine
+import kotlinx.coroutines.withContext
 import kotlin.coroutines.resume
 
 object Apphud {
@@ -634,7 +639,13 @@ object Apphud {
      * along with the updated `ApphudUser` object (if applicable).
      */
     fun attributeFromWeb(data: Map<String, Any>, callback: (Boolean, ApphudUser?) -> Unit) {
-        ApphudInternal.tryWebAttribution(data = data, callback = callback)
+        coroutineScope.launch(errorHandler) {
+            val (success, user) = ApphudInternal.tryWebAttribution(data = data)
+
+            withContext(Dispatchers.Main) {
+                callback(success, user)
+            }
+        }
     }
 
     //endregion

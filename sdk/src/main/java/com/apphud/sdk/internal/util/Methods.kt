@@ -1,6 +1,8 @@
 package com.apphud.sdk.internal.util
 
+import kotlinx.coroutines.CancellableContinuation
 import kotlin.coroutines.cancellation.CancellationException
+import kotlin.coroutines.resume
 
 @Suppress("TooGenericExceptionCaught")
 internal inline fun <R> runCatchingCancellable(block: () -> R): Result<R> =
@@ -11,3 +13,12 @@ internal inline fun <R> runCatchingCancellable(block: () -> R): Result<R> =
     } catch (e: Throwable) {
         Result.failure(e)
     }
+
+fun <T> CancellableContinuation<T>.resumeIfActive(value: T): Boolean {
+    return if (isActive) {
+        resume(value)
+        true
+    } else {
+        false
+    }
+}
