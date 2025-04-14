@@ -597,33 +597,31 @@ private fun handleCheckSubmissionResult(
     ApphudInternal.freshPurchase = null
 }
 
-internal fun ApphudInternal.trackPurchase(
+internal suspend fun ApphudInternal.trackPurchase(
     productId: String,
     offerIdToken: String?,
     paywallIdentifier: String? = null,
     placementIdentifier: String? = null,
 ) {
-    performWhenUserRegistered { error ->
-        error?.let {
-            ApphudLog.logE(it.message)
+    runCatchingCancellable { awaitUserRegistration() }
+        .onFailure { error ->
+            ApphudLog.logE(error.message.orEmpty())
+            return
+        }
+
+    val (purchases, billingResponseCode) = fetchNativePurchases(forceRefresh = true, needSync = false)
+
+    if (billingResponseCode == BillingClient.BillingResponseCode.OK) {
+        val purchase = purchases.firstOrNull { it.products.contains(productId) }
+        purchase?.let { p ->
+            handleObservedPurchase(p, true, paywallIdentifier, placementIdentifier, offerIdToken)
         } ?: run {
-            coroutineScope.launch(errorHandler) {
-                val result = fetchNativePurchases(forceRefresh = true, needSync = false)
-                if (result.second == BillingClient.BillingResponseCode.OK) {
-                    val purchases = result.first
-                    val purchase = purchases.firstOrNull { it.products.contains(productId) }
-                    purchase?.let { p ->
-                        handleObservedPurchase(p, true, paywallIdentifier, placementIdentifier, offerIdToken)
-                    } ?: run {
-                        ApphudLog.logE("trackPurchase: could not found purchase for product $productId")
-                    }
-                } else {
-                    storage.isNeedSync = true
-                    mainScope.launch {
-                        syncPurchases(observerMode = true, callback = null)
-                    }
-                }
-            }
+            ApphudLog.logE("trackPurchase: could not found purchase for product $productId")
+        }
+    } else {
+        storage.isNeedSync = true
+        withContext(Dispatchers.Main) {
+            syncPurchases(observerMode = true, callback = null)
         }
     }
 }

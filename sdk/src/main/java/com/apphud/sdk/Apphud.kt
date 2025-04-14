@@ -540,7 +540,16 @@ object Apphud {
         offerIdToken: String?,
         paywallIdentifier: String? = null,
         placementIdentifier: String? = null,
-    ) = ApphudInternal.trackPurchase(productId, offerIdToken, paywallIdentifier, placementIdentifier)
+    ) {
+        coroutineScope.launch(errorHandler) {
+            ApphudInternal.trackPurchase(
+                productId,
+                offerIdToken,
+                paywallIdentifier,
+                placementIdentifier
+            )
+        }
+    }
 
     /**
      * Implements the 'Restore Purchases' mechanism. This method sends the current Play Market
