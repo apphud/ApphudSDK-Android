@@ -40,6 +40,7 @@ import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.withContext
 import java.util.UUID
 import kotlin.coroutines.resume
+import kotlin.coroutines.resumeWithException
 import kotlin.math.max
 
 @SuppressLint("StaticFieldLeak")
@@ -61,6 +62,8 @@ internal object ApphudInternal {
     internal var paywalls = listOf<ApphudPaywall>()
     internal var placements = listOf<ApphudPlacement>()
     internal var isRegisteringUser = false
+
+    @Volatile
     internal var fromWeb2Web = false
     internal var hasRespondedToPaywallsRequest = false
     internal var refreshUserPending = false
@@ -1011,6 +1014,32 @@ internal object ApphudInternal {
                     }
                 }
             }
+        }
+    }
+
+    internal suspend fun awaitUserRegistration() {
+        if (!isInitialized()) {
+            throw ApphudError(MUST_REGISTER_ERROR)
+        }
+
+        val mCurrentUser = currentUser
+        when {
+            mCurrentUser == null -> {
+                suspendCancellableCoroutine { cont ->
+                    registration(userId, deviceId) { _, error ->
+                        if (error == null) {
+                            if (cont.isActive) cont.resume(Unit)
+                        } else {
+                            if (cont.isActive) cont.resumeWithException(error)
+                        }
+                    }
+                }
+            }
+            mCurrentUser.isTemporary != false -> {
+                refreshPaywallsIfNeeded()
+                throw ApphudError("Fallback mode")
+            }
+            else -> Unit
         }
     }
 

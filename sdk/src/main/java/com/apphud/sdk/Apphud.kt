@@ -5,6 +5,8 @@ import android.app.Activity
 import android.content.Context
 import com.android.billingclient.api.ProductDetails
 import com.android.billingclient.api.Purchase
+import com.apphud.sdk.ApphudInternal.coroutineScope
+import com.apphud.sdk.ApphudInternal.errorHandler
 import com.apphud.sdk.domain.ApphudGroup
 import com.apphud.sdk.domain.ApphudNonRenewingPurchase
 import com.apphud.sdk.domain.ApphudPaywall
@@ -13,7 +15,10 @@ import com.apphud.sdk.domain.ApphudProduct
 import com.apphud.sdk.domain.ApphudSubscription
 import com.apphud.sdk.domain.ApphudUser
 import com.apphud.sdk.internal.ServiceLocator
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.suspendCancellableCoroutine
+import kotlinx.coroutines.withContext
 import kotlin.coroutines.resume
 
 object Apphud {
@@ -535,7 +540,16 @@ object Apphud {
         offerIdToken: String?,
         paywallIdentifier: String? = null,
         placementIdentifier: String? = null,
-    ) = ApphudInternal.trackPurchase(productId, offerIdToken, paywallIdentifier, placementIdentifier)
+    ) {
+        coroutineScope.launch(errorHandler) {
+            ApphudInternal.trackPurchase(
+                productId,
+                offerIdToken,
+                paywallIdentifier,
+                placementIdentifier
+            )
+        }
+    }
 
     /**
      * Implements the 'Restore Purchases' mechanism. This method sends the current Play Market
@@ -546,8 +560,14 @@ object Apphud {
      * @param callback Required. A callback that returns an array of subscriptions, in-app products,
      *                 or an optional error.
      */
-    fun restorePurchases(callback: ApphudPurchasesRestoreCallback) {
-        ApphudInternal.restorePurchases(callback)
+    fun restorePurchases(callback: (ApphudPurchasesRestoreResult) -> Unit) {
+        coroutineScope.launch(errorHandler) {
+            val result = ApphudInternal.restorePurchases()
+            withContext(Dispatchers.Main) {
+                callback(result)
+            }
+        }
+
     }
 
     /**
@@ -634,7 +654,13 @@ object Apphud {
      * along with the updated `ApphudUser` object (if applicable).
      */
     fun attributeFromWeb(data: Map<String, Any>, callback: (Boolean, ApphudUser?) -> Unit) {
-        ApphudInternal.tryWebAttribution(data = data, callback = callback)
+        coroutineScope.launch(errorHandler) {
+            val (success, user) = ApphudInternal.tryWebAttribution(data = data)
+
+            withContext(Dispatchers.Main) {
+                callback(success, user)
+            }
+        }
     }
 
     //endregion

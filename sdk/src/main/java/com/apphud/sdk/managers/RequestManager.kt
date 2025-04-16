@@ -121,7 +121,6 @@ internal object RequestManager {
         return if (currentUserLocal == null || forceRegistration) {
             val repository = ServiceLocator.instance.remoteRepository
 
-
             val getCustomersResult = runBlocking(Dispatchers.IO) {
                 repository.getCustomers(needPaywalls, isNew, userId, email)
             }
