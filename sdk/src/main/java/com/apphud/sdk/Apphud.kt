@@ -560,8 +560,14 @@ object Apphud {
      * @param callback Required. A callback that returns an array of subscriptions, in-app products,
      *                 or an optional error.
      */
-    fun restorePurchases(callback: ApphudPurchasesRestoreCallback) {
-        ApphudInternal.restorePurchases(callback)
+    fun restorePurchases(callback: (ApphudPurchasesRestoreResult) -> Unit) {
+        coroutineScope.launch(errorHandler) {
+            val result = ApphudInternal.restorePurchases()
+            withContext(Dispatchers.Main) {
+                callback(result)
+            }
+        }
+
     }
 
     /**

@@ -621,7 +621,7 @@ internal suspend fun ApphudInternal.trackPurchase(
     } else {
         storage.isNeedSync = true
         withContext(Dispatchers.Main) {
-            syncPurchases(observerMode = true, callback = null)
+            syncPurchases(observerMode = true)
         }
     }
 }

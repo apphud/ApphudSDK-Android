@@ -48,7 +48,7 @@ class CustomerFragment : Fragment() {
         binding.appVersion.text = BuildConfig.VERSION_NAME + " (" + BuildConfig.VERSION_CODE + ")"
 
         binding.btnSync.setOnClickListener {
-            Apphud.restorePurchases { _, _, _ -> }
+            Apphud.restorePurchases { _ -> }
         }
 
         paywallsViewModel = ViewModelProvider(this)[PaywallsViewModel::class.java]
