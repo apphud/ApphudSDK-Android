@@ -15,12 +15,10 @@ import com.apphud.sdk.domain.ApphudUser
 import com.apphud.sdk.domain.AppsflyerInfo
 import com.apphud.sdk.domain.FacebookInfo
 import com.apphud.sdk.internal.data.dto.AttributionRequestDto
-import com.apphud.sdk.internal.util.resumeIfActive
 import com.apphud.sdk.internal.util.runCatchingCancellable
 import com.apphud.sdk.managers.RequestManager
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.withContext
 
 internal fun ApphudInternal.setAttribution(
@@ -144,7 +142,7 @@ internal fun ApphudInternal.setAttribution(
                         TENJIN,
                         TIKTOK,
                         VOLUUM,
-                        -> Unit
+                            -> Unit
                     }
                 }
             }.onFailure { error ->
@@ -175,21 +173,13 @@ internal suspend fun ApphudInternal.tryWebAttribution(
                 true to user
             } else {
                 ApphudLog.logI("Trying to attribute from web by User ID: $userId")
-                suspendCancellableCoroutine<Pair<Boolean, ApphudUser?>> { continuation ->
-                    updateUserId(userId, web2Web = true) { updatedUser ->
-                        continuation.resumeIfActive(true to updatedUser)
-                    }
-                }
+                true to updateUserId(userId, web2Web = true)
             }
         }
 
         !email.isNullOrEmpty() -> {
             ApphudLog.logI("Trying to attribute from web by email: $email")
-            suspendCancellableCoroutine { continuation ->
-                updateUserId(user.userId, email = email, web2Web = true) { updatedUser ->
-                    continuation.resumeIfActive(true to updatedUser)
-                }
-            }
+            true to updateUserId(user.userId, email = email, web2Web = true)
         }
 
         else -> false to null

@@ -110,8 +110,14 @@ object Apphud {
      *
      * @param userId The new user ID value to be set.
      */
-    fun updateUserId(userId: UserId, callback: ((ApphudUser?) -> Unit)? = null) =
-        ApphudInternal.updateUserId(userId, callback = callback)
+    fun updateUserId(userId: UserId, callback: ((ApphudUser?) -> Unit)? = null) {
+        coroutineScope.launch(errorHandler) {
+            val result = ApphudInternal.updateUserId(userId)
+            withContext(Dispatchers.Main) {
+                callback?.invoke(result)
+            }
+        }
+    }
 
     /**
      * Retrieves the current user ID that identifies the user across multiple devices.

@@ -879,56 +879,52 @@ internal object ApphudInternal {
         forceFlushUserProperties(false)
     }
 
-    internal fun updateUserId(
+    internal suspend fun updateUserId(
         userId: UserId,
         email: String? = null,
         web2Web: Boolean? = false,
-        callback: ((ApphudUser?) -> Unit)?,
-    ) {
+    ): ApphudUser? {
         if (userId.isBlank()) {
             ApphudLog.log("Invalid UserId=$userId")
-            callback?.invoke(currentUser)
-            return
+            return currentUser
         }
         ApphudLog.log("Start updateUserId userId=$userId")
 
-        performWhenUserRegistered { error ->
-            error?.let {
-                ApphudLog.logE(it.message)
-                callback?.invoke(currentUser)
-            } ?: run {
-                val originalUserId = this.userId
-                if (web2Web == false) {
-                    this.userId = userId
-                    storage.userId = userId
-                }
-                RequestManager.setParams(this.context, this.apiKey)
+        runCatchingCancellable { awaitUserRegistration() }
+            .onFailure { error ->
+                ApphudLog.logE(error.message.orEmpty())
+                return currentUser
+            }
 
-                coroutineScope.launch(errorHandler) {
-                    if (web2Web == true) {
-                        ApphudInternal.userId = userId
-                        ApphudInternal.fromWeb2Web = true
-                    }
-                    val needPlacementsPaywalls = !didRegisterCustomerAtThisLaunch && !deferPlacements && !observerMode
-                    val customer =
-                        RequestManager.registrationSync(needPlacementsPaywalls, isNew, true, userId = userId, email)
-                    ApphudInternal.userId = customer?.userId ?: currentUser?.userId ?: originalUserId
-                    storage.userId = ApphudInternal.userId
-                    customer?.let {
-                        mainScope.launch {
-                            notifyLoadingCompleted(it)
-                            callback?.invoke(currentUser)
-                        }
-                    } ?: {
-                        callback?.invoke(currentUser)
-                    }
-                    error?.let {
-                        ApphudLog.logE(it.message)
-                    }
-                }
+        val originalUserId = this.userId
+        if (web2Web == false) {
+            this.userId = userId
+            storage.userId = userId
+        }
+        RequestManager.setParams(this.context, this.apiKey)
+
+        if (web2Web == true) {
+            ApphudInternal.userId = userId
+            fromWeb2Web = true
+        }
+        val needPlacementsPaywalls = !didRegisterCustomerAtThisLaunch && !deferPlacements && !observerMode
+        val customer = RequestManager.registrationSync(
+            needPaywalls = needPlacementsPaywalls,
+            isNew = isNew,
+            forceRegistration = true,
+            userId = userId,
+            email = email
+        )
+        ApphudInternal.userId = customer?.userId ?: currentUser?.userId ?: originalUserId
+        storage.userId = ApphudInternal.userId
+        if (customer != null) {
+            mainScope.launch {
+                notifyLoadingCompleted(customer)
             }
         }
+        return currentUser
     }
+
 //endregion
 
     //region === Primary methods ===
