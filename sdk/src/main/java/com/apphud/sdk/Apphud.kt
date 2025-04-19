@@ -1,6 +1,5 @@
 package com.apphud.sdk
 
-import com.apphud.sdk.internal.domain.model.ApiKey as ApiKeyModel
 import android.app.Activity
 import android.content.Context
 import com.android.billingclient.api.ProductDetails
@@ -15,6 +14,7 @@ import com.apphud.sdk.domain.ApphudProduct
 import com.apphud.sdk.domain.ApphudSubscription
 import com.apphud.sdk.domain.ApphudUser
 import com.apphud.sdk.internal.ServiceLocator
+import com.apphud.sdk.internal.domain.model.ApiKey as ApiKeyModel
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.suspendCancellableCoroutine
@@ -567,7 +567,6 @@ object Apphud {
                 callback(result)
             }
         }
-
     }
 
     /**
@@ -714,7 +713,12 @@ object Apphud {
      *     ```
      */
     fun forceFlushUserProperties(completion: ((Boolean) -> Unit)?) {
-        ApphudInternal.forceFlushUserProperties(true, completion)
+        coroutineScope.launch(errorHandler) {
+            val result = ApphudInternal.forceFlushUserProperties(true)
+            withContext(Dispatchers.Main) {
+                completion?.invoke(result)
+            }
+        }
     }
 
     /**

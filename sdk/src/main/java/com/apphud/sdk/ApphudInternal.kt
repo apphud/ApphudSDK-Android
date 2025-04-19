@@ -76,23 +76,26 @@ internal object ApphudInternal {
     internal var latestCustomerLoadError: ApphudError? = null
     private val handler: Handler = Handler(Looper.getMainLooper())
     private val pendingUserProperties = mutableMapOf<String, ApphudUserProperty>()
-    private val userPropertiesRunnable =
-        Runnable {
-            if (currentUser != null) {
-                updateUserProperties()
-            } else {
-                setNeedsToUpdateUserProperties = true
-            }
-        }
+
+    @Volatile
+    private var updateUserPropertiesJob: kotlinx.coroutines.Job? = null
 
     private var setNeedsToUpdateUserProperties: Boolean = false
         set(value) {
             field = value
             if (value) {
-                handler.removeCallbacks(userPropertiesRunnable)
-                handler.postDelayed(userPropertiesRunnable, 1000L)
+                updateUserPropertiesJob?.cancel()
+                updateUserPropertiesJob = coroutineScope.launch(errorHandler) {
+                    delay(1000L)
+                    if (currentUser != null) {
+                        updateUserProperties()
+                    } else {
+                        setNeedsToUpdateUserProperties = true
+                    }
+                }
             } else {
-                handler.removeCallbacks(userPropertiesRunnable)
+                updateUserPropertiesJob?.cancel()
+                updateUserPropertiesJob = null
             }
         }
 
@@ -805,41 +808,43 @@ internal object ApphudInternal {
         setNeedsToUpdateUserProperties = true
     }
 
-
-    internal fun forceFlushUserProperties(force: Boolean, completion: ((Boolean) -> Unit)?) {
+    internal suspend fun forceFlushUserProperties(force: Boolean): Boolean {
         setNeedsToUpdateUserProperties = false
+
         if (pendingUserProperties.isEmpty()) {
-            completion?.invoke(false)
-            return
+            return false
         }
 
         if (isUpdatingProperties && !force) {
-            return
+            return false
         }
         isUpdatingProperties = true
 
-        performWhenUserRegistered { error ->
-            error?.let {
-                ApphudLog.logE("Failed to update user properties: " + it.message)
-                isUpdatingProperties = false
-                completion?.invoke(false)
-            } ?: run {
-                val properties = mutableListOf<Map<String, Any?>>()
-                val sentPropertiesForSave = mutableListOf<ApphudUserProperty>()
-
-                synchronized(pendingUserProperties) {
-                    pendingUserProperties.forEach {
-                        properties.add(it.value.toJSON()!!)
-                        if (!it.value.increment && it.value.value != null) {
-                            sentPropertiesForSave.add(it.value)
-                        }
-                    }
+        try {
+            runCatchingCancellable { awaitUserRegistration() }
+                .onFailure { error ->
+                    ApphudLog.logE("Failed to update user properties: ${error.message}")
+                    return false
                 }
 
-                val body = UserPropertiesBody(this.deviceId, properties, force)
-                coroutineScope.launch(errorHandler) {
-                    runCatchingCancellable { RequestManager.postUserProperties(body) }
-                        .onSuccess { userProperties ->
+            val properties = mutableListOf<Map<String, Any?>>()
+            val sentPropertiesForSave = mutableListOf<ApphudUserProperty>()
+
+            synchronized(pendingUserProperties) {
+                pendingUserProperties.forEach {
+                    properties.add(it.value.toJSON()!!)
+                    if (!it.value.increment && it.value.value != null) {
+                        sentPropertiesForSave.add(it.value)
+                    }
+                }
+            }
+
+            val body = UserPropertiesBody(deviceId, properties, force)
+
+            return withContext(Dispatchers.IO) {
+                runCatchingCancellable { RequestManager.postUserProperties(body) }
+                    .fold(
+                        onSuccess = { userProperties ->
                             if (userProperties.success) {
                                 val propertiesInStorage = storage.properties
                                 sentPropertiesForSave.forEach {
@@ -852,25 +857,26 @@ internal object ApphudInternal {
                                 }
 
                                 ApphudLog.logI("User Properties successfully updated.")
+                                true
                             } else {
-                                val message = "User Properties update failed with errors"
-                                ApphudLog.logE(message)
+                                ApphudLog.logE("User Properties update failed with errors")
+                                false
                             }
+                        },
+                        onFailure = {
+                            ApphudLog.logE("Failed to update user properties: ${it.message}")
+                            false
                         }
-                        .onFailure {
-                            ApphudLog.logE("Failed to update user properties: " + it.message)
-                        }
-                    withContext(Dispatchers.Main) {
-                        isUpdatingProperties = false
-                        completion?.invoke(error == null)
-                    }
-                }
+                    )
             }
+        } finally {
+            isUpdatingProperties = false
         }
     }
 
-    private fun updateUserProperties() {
-        forceFlushUserProperties(false) { _ -> }
+
+    private suspend fun updateUserProperties() {
+        forceFlushUserProperties(false)
     }
 
     internal fun updateUserId(
