@@ -105,6 +105,13 @@ data class ApphudError(
     }
 }
 
+fun Throwable.toApphudError(): ApphudError =
+    if (this is ApphudError) {
+        this
+    } else {
+        ApphudError.from(this)
+    }
+
 const val APPHUD_ERROR_MAX_TIMEOUT_REACHED = -996
 const val APPHUD_ERROR_TIMEOUT = 408
 const val APPHUD_ERROR_NO_INTERNET = -999

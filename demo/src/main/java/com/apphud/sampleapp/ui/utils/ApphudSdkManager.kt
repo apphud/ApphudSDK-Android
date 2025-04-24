@@ -13,7 +13,7 @@ import com.apphud.sampleapp.ui.models.ProductsReadyEvent
 import com.apphud.sdk.Apphud
 import com.apphud.sdk.ApphudError
 import com.apphud.sdk.ApphudListener
-import com.apphud.sdk.ApphudPurchasesRestoreCallback
+import com.apphud.sdk.ApphudPurchasesRestoreResult
 import com.apphud.sdk.ApphudUserPropertyKey
 import com.apphud.sdk.ApphudUtils
 import com.apphud.sdk.domain.ApphudNonRenewingPurchase
@@ -27,7 +27,7 @@ import com.google.gson.GsonBuilder
 import com.google.gson.reflect.TypeToken
 import org.greenrobot.eventbus.EventBus
 
-enum class Placement (val placementId: String, val paywallId: String) {
+enum class Placement(val placementId: String, val paywallId: String) {
     onboarding("pl_onboarding", "pw_onboarding"),
     main("pl_main", "pw_main"),
     settings("pl_settings", "pw_settings");
@@ -45,7 +45,7 @@ enum class Placement (val placementId: String, val paywallId: String) {
 
 object ApphudSdkManager {
     private val API_KEY = "app_q1opvXjFE1ADcjrGnvNnFVYu1tzh6d"
-    private lateinit var application :Application
+    private lateinit var application: Application
 
     var isApphudReady = false
     val gson = GsonBuilder().serializeNulls().create()
@@ -92,7 +92,7 @@ object ApphudSdkManager {
     }
 
 
-    fun start(application: Application){
+    fun start(application: Application) {
         this.application = application
 
         if (BuildConfig.DEBUG) {
@@ -106,46 +106,52 @@ object ApphudSdkManager {
         AnalyticsManager.initAnalytics(application)
     }
 
-    suspend fun getPaywallProducts(placement: Placement) :List<ApphudProduct>{
-        return Apphud.placement(placement.placementId )?.paywall?.products?: listOf()
+    suspend fun getPaywallProducts(placement: Placement): List<ApphudProduct> {
+        return Apphud.placement(placement.placementId)?.paywall?.products ?: listOf()
     }
 
-    suspend fun getPlacementInfo(placement: Placement) :PlacementJson?{
-        var placementJson :PlacementJson? = null
-        Apphud.placement(placement.placementId)?.paywall?.json?.let{
-            placementJson = parser.fromJson<PlacementJson>(Gson().toJson(it), object : TypeToken<PlacementJson>() {}.type)
+    suspend fun getPlacementInfo(placement: Placement): PlacementJson? {
+        var placementJson: PlacementJson? = null
+        Apphud.placement(placement.placementId)?.paywall?.json?.let {
+            placementJson =
+                parser.fromJson<PlacementJson>(Gson().toJson(it), object : TypeToken<PlacementJson>() {}.type)
         }
         return placementJson
     }
 
-    private fun notifyAboutPremium(){
-        if(Apphud.hasPremiumAccess()){
+    private fun notifyAboutPremium() {
+        if (Apphud.hasPremiumAccess()) {
             EventBus.getDefault().post(HasPremiumEvent())
         }
     }
 
-    private fun notifyAboutProducts(){
+    private fun notifyAboutProducts() {
         EventBus.getDefault().post(ProductsReadyEvent())
     }
 
-    fun isPremium() :Boolean? {
+    fun isPremium(): Boolean? {
         return Apphud.hasPremiumAccess()
     }
 
-    fun restorePurchases(completionHandler :(subscriptions: List<ApphudSubscription>?, purchases: List<ApphudNonRenewingPurchase>?, error: ApphudError?) -> Unit) {
-        Apphud.restorePurchases(object : ApphudPurchasesRestoreCallback {
-            override fun invoke(
-                subscriptions: List<ApphudSubscription>?,
-                purchases: List<ApphudNonRenewingPurchase>?,
-                error: ApphudError?
-            ) {
-                completionHandler(subscriptions, purchases, error)
+    fun restorePurchases(completionHandler: (subscriptions: List<ApphudSubscription>?, purchases: List<ApphudNonRenewingPurchase>?, error: ApphudError?) -> Unit) {
+        Apphud.restorePurchases { result ->
+            when (result) {
+                is ApphudPurchasesRestoreResult.Success -> {
+                    completionHandler(result.subscriptions, result.purchases, null)
+                }
+                is ApphudPurchasesRestoreResult.Error -> {
+                    completionHandler(null, null, result.error)
+                }
             }
-        })
+        }
     }
 
-    fun purchaseProduct(activity: Activity, product: ApphudProduct, completionHandler:(isSuccess: Boolean, error: ApphudError?) -> Unit) {
-        if(isApphudReady){
+    fun purchaseProduct(
+        activity: Activity,
+        product: ApphudProduct,
+        completionHandler: (isSuccess: Boolean, error: ApphudError?) -> Unit,
+    ) {
+        if (isApphudReady) {
             Apphud.purchase(activity, product) { result ->
                 result.error?.let { err ->
                     completionHandler(false, err)
@@ -153,24 +159,24 @@ object ApphudSdkManager {
                     completionHandler(true, null)
                 }
             }
-        } else{
+        } else {
             completionHandler(false, ApphudError(ResourceManager.getString(R.string.error_default)))
         }
     }
 
-    suspend fun placementShown(placement: Placement){
-        Apphud.placement(placement.placementId)?.paywall?.let{
+    suspend fun placementShown(placement: Placement) {
+        Apphud.placement(placement.placementId)?.paywall?.let {
             Apphud.paywallShown(it)
         }
     }
 
-    suspend fun placementClosed(placement: Placement){
-        Apphud.placement(placement.placementId)?.paywall?.let{
+    suspend fun placementClosed(placement: Placement) {
+        Apphud.placement(placement.placementId)?.paywall?.let {
             Apphud.paywallShown(it)
         }
     }
 
-    fun addUserProperty(color: String, generationsCount: Int){
+    fun addUserProperty(color: String, generationsCount: Int) {
         Apphud.setUserProperty(
             key = ApphudUserPropertyKey.CustomProperty("copied_color"),
             value = color,
@@ -178,7 +184,8 @@ object ApphudSdkManager {
         )
         Apphud.incrementUserProperty(
             key = ApphudUserPropertyKey.CustomProperty("generations_count"),
-            by = generationsCount)
+            by = generationsCount
+        )
     }
 
     /*var attempt = 0

@@ -2,9 +2,12 @@ package com.apphud.sdk.flutter
 
 import android.app.Activity
 import com.apphud.sdk.ApphudInternal
+import com.apphud.sdk.ApphudInternal.coroutineScope
+import com.apphud.sdk.ApphudInternal.errorHandler
 import com.apphud.sdk.ApphudPurchaseResult
 import com.apphud.sdk.purchase
 import com.apphud.sdk.syncPurchases
+import kotlinx.coroutines.launch
 
 object ApphudFlutter {
     /**
@@ -17,7 +20,11 @@ object ApphudFlutter {
     fun syncPurchases(
         paywallIdentifier: String? = null,
         placementIdentifier: String? = null,
-    ) = ApphudInternal.syncPurchases(paywallIdentifier, placementIdentifier)
+    ) {
+        coroutineScope.launch(errorHandler) {
+            ApphudInternal.syncPurchases(paywallIdentifier, placementIdentifier)
+        }
+    }
 
     /**
      * Purchase product by id and automatically submit Google Play purchase token to Apphud
@@ -40,5 +47,14 @@ object ApphudFlutter {
         replacementMode: Int? = null,
         consumableInappProduct: Boolean = false,
         block: ((ApphudPurchaseResult) -> Unit)?,
-    ) = ApphudInternal.purchase(activity, null, productId, offerIdToken, oldToken, replacementMode, consumableInappProduct, block)
+    ) = ApphudInternal.purchase(
+        activity,
+        null,
+        productId,
+        offerIdToken,
+        oldToken,
+        replacementMode,
+        consumableInappProduct,
+        block
+    )
 }

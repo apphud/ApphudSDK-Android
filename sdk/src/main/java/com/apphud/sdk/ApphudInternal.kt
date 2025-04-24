@@ -40,6 +40,7 @@ import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.withContext
 import java.util.UUID
 import kotlin.coroutines.resume
+import kotlin.coroutines.resumeWithException
 import kotlin.math.max
 
 @SuppressLint("StaticFieldLeak")
@@ -61,6 +62,8 @@ internal object ApphudInternal {
     internal var paywalls = listOf<ApphudPaywall>()
     internal var placements = listOf<ApphudPlacement>()
     internal var isRegisteringUser = false
+
+    @Volatile
     internal var fromWeb2Web = false
     internal var hasRespondedToPaywallsRequest = false
     internal var refreshUserPending = false
@@ -73,23 +76,26 @@ internal object ApphudInternal {
     internal var latestCustomerLoadError: ApphudError? = null
     private val handler: Handler = Handler(Looper.getMainLooper())
     private val pendingUserProperties = mutableMapOf<String, ApphudUserProperty>()
-    private val userPropertiesRunnable =
-        Runnable {
-            if (currentUser != null) {
-                updateUserProperties()
-            } else {
-                setNeedsToUpdateUserProperties = true
-            }
-        }
+
+    @Volatile
+    private var updateUserPropertiesJob: kotlinx.coroutines.Job? = null
 
     private var setNeedsToUpdateUserProperties: Boolean = false
         set(value) {
             field = value
             if (value) {
-                handler.removeCallbacks(userPropertiesRunnable)
-                handler.postDelayed(userPropertiesRunnable, 1000L)
+                updateUserPropertiesJob?.cancel()
+                updateUserPropertiesJob = coroutineScope.launch(errorHandler) {
+                    delay(1000L)
+                    if (currentUser != null) {
+                        updateUserProperties()
+                    } else {
+                        setNeedsToUpdateUserProperties = true
+                    }
+                }
             } else {
-                handler.removeCallbacks(userPropertiesRunnable)
+                updateUserPropertiesJob?.cancel()
+                updateUserPropertiesJob = null
             }
         }
 
@@ -802,41 +808,43 @@ internal object ApphudInternal {
         setNeedsToUpdateUserProperties = true
     }
 
-
-    internal fun forceFlushUserProperties(force: Boolean, completion: ((Boolean) -> Unit)?) {
+    internal suspend fun forceFlushUserProperties(force: Boolean): Boolean {
         setNeedsToUpdateUserProperties = false
+
         if (pendingUserProperties.isEmpty()) {
-            completion?.invoke(false)
-            return
+            return false
         }
 
         if (isUpdatingProperties && !force) {
-            return
+            return false
         }
         isUpdatingProperties = true
 
-        performWhenUserRegistered { error ->
-            error?.let {
-                ApphudLog.logE("Failed to update user properties: " + it.message)
-                isUpdatingProperties = false
-                completion?.invoke(false)
-            } ?: run {
-                val properties = mutableListOf<Map<String, Any?>>()
-                val sentPropertiesForSave = mutableListOf<ApphudUserProperty>()
-
-                synchronized(pendingUserProperties) {
-                    pendingUserProperties.forEach {
-                        properties.add(it.value.toJSON()!!)
-                        if (!it.value.increment && it.value.value != null) {
-                            sentPropertiesForSave.add(it.value)
-                        }
-                    }
+        try {
+            runCatchingCancellable { awaitUserRegistration() }
+                .onFailure { error ->
+                    ApphudLog.logE("Failed to update user properties: ${error.message}")
+                    return false
                 }
 
-                val body = UserPropertiesBody(this.deviceId, properties, force)
-                coroutineScope.launch(errorHandler) {
-                    runCatchingCancellable { RequestManager.postUserProperties(body) }
-                        .onSuccess { userProperties ->
+            val properties = mutableListOf<Map<String, Any?>>()
+            val sentPropertiesForSave = mutableListOf<ApphudUserProperty>()
+
+            synchronized(pendingUserProperties) {
+                pendingUserProperties.forEach {
+                    properties.add(it.value.toJSON()!!)
+                    if (!it.value.increment && it.value.value != null) {
+                        sentPropertiesForSave.add(it.value)
+                    }
+                }
+            }
+
+            val body = UserPropertiesBody(deviceId, properties, force)
+
+            return withContext(Dispatchers.IO) {
+                runCatchingCancellable { RequestManager.postUserProperties(body) }
+                    .fold(
+                        onSuccess = { userProperties ->
                             if (userProperties.success) {
                                 val propertiesInStorage = storage.properties
                                 sentPropertiesForSave.forEach {
@@ -849,77 +857,74 @@ internal object ApphudInternal {
                                 }
 
                                 ApphudLog.logI("User Properties successfully updated.")
+                                true
                             } else {
-                                val message = "User Properties update failed with errors"
-                                ApphudLog.logE(message)
+                                ApphudLog.logE("User Properties update failed with errors")
+                                false
                             }
+                        },
+                        onFailure = {
+                            ApphudLog.logE("Failed to update user properties: ${it.message}")
+                            false
                         }
-                        .onFailure {
-                            ApphudLog.logE("Failed to update user properties: " + it.message)
-                        }
-                    withContext(Dispatchers.Main) {
-                        isUpdatingProperties = false
-                        completion?.invoke(error == null)
-                    }
-                }
+                    )
             }
+        } finally {
+            isUpdatingProperties = false
         }
     }
 
-    private fun updateUserProperties() {
-        forceFlushUserProperties(false) { _ -> }
+
+    private suspend fun updateUserProperties() {
+        forceFlushUserProperties(false)
     }
 
-    internal fun updateUserId(
+    internal suspend fun updateUserId(
         userId: UserId,
         email: String? = null,
         web2Web: Boolean? = false,
-        callback: ((ApphudUser?) -> Unit)?,
-    ) {
+    ): ApphudUser? {
         if (userId.isBlank()) {
             ApphudLog.log("Invalid UserId=$userId")
-            callback?.invoke(currentUser)
-            return
+            return currentUser
         }
         ApphudLog.log("Start updateUserId userId=$userId")
 
-        performWhenUserRegistered { error ->
-            error?.let {
-                ApphudLog.logE(it.message)
-                callback?.invoke(currentUser)
-            } ?: run {
-                val originalUserId = this.userId
-                if (web2Web == false) {
-                    this.userId = userId
-                    storage.userId = userId
-                }
-                RequestManager.setParams(this.context, this.apiKey)
+        runCatchingCancellable { awaitUserRegistration() }
+            .onFailure { error ->
+                ApphudLog.logE(error.message.orEmpty())
+                return currentUser
+            }
 
-                coroutineScope.launch(errorHandler) {
-                    if (web2Web == true) {
-                        ApphudInternal.userId = userId
-                        ApphudInternal.fromWeb2Web = true
-                    }
-                    val needPlacementsPaywalls = !didRegisterCustomerAtThisLaunch && !deferPlacements && !observerMode
-                    val customer =
-                        RequestManager.registrationSync(needPlacementsPaywalls, isNew, true, userId = userId, email)
-                    ApphudInternal.userId = customer?.userId ?: currentUser?.userId ?: originalUserId
-                    storage.userId = ApphudInternal.userId
-                    customer?.let {
-                        mainScope.launch {
-                            notifyLoadingCompleted(it)
-                            callback?.invoke(currentUser)
-                        }
-                    } ?: {
-                        callback?.invoke(currentUser)
-                    }
-                    error?.let {
-                        ApphudLog.logE(it.message)
-                    }
-                }
+        val originalUserId = this.userId
+        if (web2Web == false) {
+            this.userId = userId
+            storage.userId = userId
+        }
+        RequestManager.setParams(this.context, this.apiKey)
+
+        if (web2Web == true) {
+            ApphudInternal.userId = userId
+            fromWeb2Web = true
+        }
+        val needPlacementsPaywalls = !didRegisterCustomerAtThisLaunch && !deferPlacements && !observerMode
+        val customer = RequestManager.registrationSync(
+            needPaywalls = needPlacementsPaywalls,
+            isNew = isNew,
+            forceRegistration = true,
+            userId = userId,
+            email = email
+        )
+        ApphudInternal.userId = customer?.userId ?: currentUser?.userId ?: originalUserId
+        storage.userId = ApphudInternal.userId
+        if (customer != null) {
+            mainScope.launch {
+                notifyLoadingCompleted(customer)
             }
         }
+        return currentUser
     }
+
 //endregion
 
     //region === Primary methods ===
@@ -1011,6 +1016,32 @@ internal object ApphudInternal {
                     }
                 }
             }
+        }
+    }
+
+    internal suspend fun awaitUserRegistration() {
+        if (!isInitialized()) {
+            throw ApphudError(MUST_REGISTER_ERROR)
+        }
+
+        val mCurrentUser = currentUser
+        when {
+            mCurrentUser == null -> {
+                suspendCancellableCoroutine { cont ->
+                    registration(userId, deviceId) { _, error ->
+                        if (error == null) {
+                            if (cont.isActive) cont.resume(Unit)
+                        } else {
+                            if (cont.isActive) cont.resumeWithException(error)
+                        }
+                    }
+                }
+            }
+            mCurrentUser.isTemporary != false -> {
+                refreshPaywallsIfNeeded()
+                throw ApphudError("Fallback mode")
+            }
+            else -> Unit
         }
     }
 
