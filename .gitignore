@@ -18,4 +18,5 @@
 /keys/*
 /qa
 /qa/*
+.vscode/*
 /keystore.properties
