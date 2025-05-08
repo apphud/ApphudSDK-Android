@@ -14,6 +14,11 @@ internal inline fun <R> runCatchingCancellable(block: () -> R): Result<R> =
         Result.failure(e)
     }
 
+internal inline fun <R, T> Result<T>.mapCatchingCancellable(transform: (value: T) -> R): Result<R> =
+    runCatchingCancellable {
+        transform(getOrThrow())
+    }
+
 fun <T> CancellableContinuation<T>.resumeIfActive(value: T): Boolean {
     return if (isActive) {
         resume(value)

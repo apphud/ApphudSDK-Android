@@ -13,7 +13,6 @@ import okhttp3.OkHttpClient
 import okhttp3.Request
 import okhttp3.RequestBody.Companion.toRequestBody
 
-
 internal fun buildPostRequest(
     url: HttpUrl,
     params: Any,
@@ -48,16 +47,17 @@ internal suspend inline fun <reified T> executeForResponse(
 ): ResponseDto<T> =
     withContext(Dispatchers.IO) {
         okHttpClient.newCall(request).execute().use { response ->
+            val responseBody = response.body?.string()
+
             if (!response.isSuccessful) {
                 val message =
                     "finish ${request.method} request ${request.url} " +
-                            "failed with code: ${response.code} response: ${
-                                response.body?.string()
-                            }"
+                            "failed with code: ${response.code} response: $responseBody"
                 ApphudLog.logE(message)
                 error(message)
             }
-            val json = response.body?.string() ?: error(
+
+            val json = responseBody ?: error(
                 "finish ${request.method} request ${request.url} with empty body"
             )
             val type = object : TypeToken<ResponseDto<T>>() {}.type

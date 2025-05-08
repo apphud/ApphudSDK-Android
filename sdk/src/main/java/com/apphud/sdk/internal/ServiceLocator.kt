@@ -1,6 +1,7 @@
 package com.apphud.sdk.internal
 
 import android.content.Context
+import com.apphud.sdk.internal.data.local.LocalRulesScreenRepository
 import com.apphud.sdk.internal.data.mapper.CustomerMapper
 import com.apphud.sdk.internal.data.mapper.PaywallsMapper
 import com.apphud.sdk.internal.data.mapper.PlacementsMapper
@@ -12,7 +13,10 @@ import com.apphud.sdk.internal.data.network.HttpRetryInterceptor
 import com.apphud.sdk.internal.data.remote.PurchaseBodyFactory
 import com.apphud.sdk.internal.data.remote.RegistrationBodyFactory
 import com.apphud.sdk.internal.data.remote.RemoteRepository
+import com.apphud.sdk.internal.data.remote.ScreenRemoteRepository
 import com.apphud.sdk.internal.data.remote.UserRemoteRepository
+import com.apphud.sdk.internal.domain.FetchRulesScreenUseCase
+import com.apphud.sdk.internal.domain.mapper.NotificationMapper
 import com.apphud.sdk.internal.domain.model.ApiKey
 import com.apphud.sdk.internal.provider.RegistrationProvider
 import com.apphud.sdk.mappers.AttributionMapper
@@ -50,14 +54,40 @@ internal class ServiceLocator private constructor(
             .addInterceptor(HttpRetryInterceptor())
             .build()
 
+    private val okHttpClientWithoutHeaders: OkHttpClient =
+        OkHttpClient.Builder()
+            .addInterceptor(HttpLoggingInterceptor().apply {
+                level = if (registrationProvider.isSandbox()) {
+                    HttpLoggingInterceptor.Level.BODY
+                } else {
+                    HttpLoggingInterceptor.Level.BASIC
+                }
+            })
+            .addInterceptor(HostSwitcherInterceptor(OkHttpClient()))
+            .addInterceptor(HttpRetryInterceptor())
+            .build()
+
     val remoteRepository: RemoteRepository = RemoteRepository(
+        apiKey = apiKey,
         okHttpClient = okHttpClient,
         gson = gson,
         customerMapper = customerMapper,
         purchaseBodyFactory = PurchaseBodyFactory(),
         registrationBodyFactory = RegistrationBodyFactory(registrationProvider),
         productMapper = ProductMapper(),
-        attributionMapper = AttributionMapper()
+        attributionMapper = AttributionMapper(),
+        notificationMapper = NotificationMapper(),
+    )
+
+    val screenRemoteRepository: ScreenRemoteRepository = ScreenRemoteRepository(
+        okHttpClient = okHttpClientWithoutHeaders,
+        gson = gson,
+        apiKey = apiKey
+    )
+
+    val localRulesScreenRepository: LocalRulesScreenRepository = LocalRulesScreenRepository(
+        context = applicationContext,
+        gson = gson
     )
 
     val userRemoteRepository: UserRemoteRepository = UserRemoteRepository(
@@ -65,6 +95,13 @@ internal class ServiceLocator private constructor(
         gson = gson,
         attributionMapper = AttributionMapper()
     )
+
+    val fetchRulesScreenUseCase: FetchRulesScreenUseCase =
+        FetchRulesScreenUseCase(
+            remoteRepository = remoteRepository,
+            screenRemoteRepository = screenRemoteRepository,
+            localRulesScreenRepository = localRulesScreenRepository
+        )
 
     internal class ServiceLocatorInstanceFactory {
 

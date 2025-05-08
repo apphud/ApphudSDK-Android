@@ -19,6 +19,7 @@ import com.apphud.sdk.domain.ApphudProduct
 import com.apphud.sdk.domain.ApphudUser
 import com.apphud.sdk.domain.PurchaseRecordDetails
 import com.apphud.sdk.internal.BillingWrapper
+import com.apphud.sdk.internal.ServiceLocator
 import com.apphud.sdk.internal.util.runCatchingCancellable
 import com.apphud.sdk.managers.RequestManager
 import com.apphud.sdk.managers.RequestManager.applicationContext
@@ -185,11 +186,11 @@ internal object ApphudInternal {
         if (!allowIdentifyUser) {
             ApphudLog.logE(
                 " " +
-                        "\n=============================================================" +
-                        "\nAbort initializing, because Apphud SDK already initialized." +
-                        "\nYou can only call `Apphud.start()` once per app lifecycle." +
-                        "\nOr if `Apphud.logout()` was called previously." +
-                        "\n=============================================================",
+                    "\n=============================================================" +
+                    "\nAbort initializing, because Apphud SDK already initialized." +
+                    "\nYou can only call `Apphud.start()` once per app lifecycle." +
+                    "\nOr if `Apphud.logout()` was called previously." +
+                    "\n=============================================================",
             )
             return
         }
@@ -273,6 +274,7 @@ internal object ApphudInternal {
                 }
                 coroutineScope.launch {
                     fetchNativePurchases()
+                    ServiceLocator.instance.fetchRulesScreenUseCase.invoke(deviceId)
                 }
             }
         } else {
@@ -283,6 +285,7 @@ internal object ApphudInternal {
                 }
                 coroutineScope.launch {
                     fetchNativePurchases()
+                    ServiceLocator.instance.fetchRulesScreenUseCase.invoke(deviceId)
                 }
             }
         }
@@ -297,10 +300,10 @@ internal object ApphudInternal {
         cachedUser: ApphudUser?,
     ): Boolean {
         return credentialsChanged ||
-                cachedPaywalls == null ||
-                cachedUser == null ||
-                cachedUser.hasPurchases() ||
-                storage.cacheExpired(cachedUser)
+            cachedPaywalls == null ||
+            cachedUser == null ||
+            cachedUser.hasPurchases() ||
+            storage.cacheExpired(cachedUser)
     }
 
     internal fun refreshEntitlements(
@@ -1211,9 +1214,9 @@ internal object ApphudInternal {
 
     private fun isInitialized(): Boolean {
         return ::context.isInitialized &&
-                ::userId.isInitialized &&
-                ::deviceId.isInitialized &&
-                ::apiKey.isInitialized
+            ::userId.isInitialized &&
+            ::deviceId.isInitialized &&
+            ::apiKey.isInitialized
     }
 
     private fun getType(value: Any?): String {
