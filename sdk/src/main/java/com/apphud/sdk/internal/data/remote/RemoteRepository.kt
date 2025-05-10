@@ -13,10 +13,15 @@ import com.apphud.sdk.internal.data.dto.AttributionDto
 import com.apphud.sdk.internal.data.dto.AttributionRequestDto
 import com.apphud.sdk.internal.data.dto.CustomerDto
 import com.apphud.sdk.internal.data.dto.GrantPromotionalDto
+import com.apphud.sdk.internal.data.dto.NotificationDto
 import com.apphud.sdk.internal.data.dto.PaywallEventDto
+import com.apphud.sdk.internal.data.dto.ReadNotificationsRequestDto
 import com.apphud.sdk.internal.data.mapper.CustomerMapper
 import com.apphud.sdk.internal.data.mapper.ProductMapper
+import com.apphud.sdk.internal.domain.mapper.NotificationMapper
+import com.apphud.sdk.internal.domain.model.ApiKey
 import com.apphud.sdk.internal.domain.model.GetProductsParams
+import com.apphud.sdk.internal.domain.model.Notification
 import com.apphud.sdk.internal.domain.model.PurchaseContext
 import com.apphud.sdk.internal.util.runCatchingCancellable
 import com.apphud.sdk.mappers.AttributionMapper
@@ -33,6 +38,8 @@ internal class RemoteRepository(
     private val registrationBodyFactory: RegistrationBodyFactory,
     private val productMapper: ProductMapper,
     private val attributionMapper: AttributionMapper,
+    private val notificationMapper: NotificationMapper,
+    private val apiKey: ApiKey,
 ) {
 
     suspend fun getCustomers(
@@ -160,6 +167,39 @@ internal class RemoteRepository(
             }
             .map { }
 
+    suspend fun getNotifications(deviceId: String): Result<List<Notification>> =
+        runCatchingCancellable {
+            val paramsMap = mapOf(
+                "device_id" to deviceId,
+            )
+            val request = buildGetRequest(NOTIFICATIONS_URL, paramsMap)
+            executeForResponse<List<NotificationDto>>(okHttpClient, gson, request)
+        }
+            .recoverCatching { e ->
+                val message = e.message ?: "Failed to get notifications"
+                throw ApphudError(message, null, APPHUD_ERROR_NO_INTERNET, e)
+            }
+            .mapCatching { response ->
+                response.data.results?.let { notificationsDto ->
+                    notificationMapper.map(notificationsDto)
+                } ?: throw ApphudError("Failed to get notifications")
+            }
+
+    suspend fun readAllNotifications(ruleId: String, deviceId: String): Result<Unit> =
+        runCatchingCancellable {
+            val requestDto = ReadNotificationsRequestDto(
+                deviceId = deviceId,
+                ruleId = ruleId
+            )
+            val request = buildPostRequest(NOTIFICATIONS_READ_URL, requestDto)
+            executeForResponse<Unit>(okHttpClient, gson, request)
+        }
+            .recoverCatching { e ->
+                val message = e.message ?: "Failed to mark notifications as read"
+                throw ApphudError(message, null, APPHUD_ERROR_NO_INTERNET, e)
+            }
+            .map { }
+
     private companion object {
         private const val BASE_URL = "https://gateway.apphud.com"
         val CUSTOMERS_URL = "$BASE_URL/v1/customers".toHttpUrl()
@@ -168,5 +208,7 @@ internal class RemoteRepository(
         val ATTRIBUTION_URL = "$BASE_URL/v1/attribution".toHttpUrl()
         val PROMOTIONS_URL = "$BASE_URL/v1/promotions".toHttpUrl()
         val EVENTS_URL = "$BASE_URL/v1/events".toHttpUrl()
+        val NOTIFICATIONS_READ_URL = "$BASE_URL/v2/notifications/read".toHttpUrl()
+        val NOTIFICATIONS_URL = "$BASE_URL/v2/notifications".toHttpUrl()
     }
 }

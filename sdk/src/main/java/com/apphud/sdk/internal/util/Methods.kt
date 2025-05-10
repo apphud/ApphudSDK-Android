@@ -1,6 +1,7 @@
 package com.apphud.sdk.internal.util
 
 import kotlinx.coroutines.CancellableContinuation
+import kotlinx.coroutines.Job
 import kotlin.coroutines.cancellation.CancellationException
 import kotlin.coroutines.resume
 
@@ -13,6 +14,14 @@ internal inline fun <R> runCatchingCancellable(block: () -> R): Result<R> =
     } catch (e: Throwable) {
         Result.failure(e)
     }
+
+internal inline fun <R, T> Result<T>.mapCatchingCancellable(transform: (value: T) -> R): Result<R> =
+    runCatchingCancellable {
+        transform(getOrThrow())
+    }
+
+fun Job?.isActive(): Boolean =
+    this?.isActive == true
 
 fun <T> CancellableContinuation<T>.resumeIfActive(value: T): Boolean {
     return if (isActive) {
