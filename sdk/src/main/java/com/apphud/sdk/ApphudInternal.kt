@@ -20,6 +20,8 @@ import com.apphud.sdk.domain.ApphudUser
 import com.apphud.sdk.domain.PurchaseRecordDetails
 import com.apphud.sdk.internal.BillingWrapper
 import com.apphud.sdk.internal.ServiceLocator
+import com.apphud.sdk.internal.domain.model.LifecycleEvent
+import com.apphud.sdk.internal.util.isActive
 import com.apphud.sdk.internal.util.runCatchingCancellable
 import com.apphud.sdk.managers.RequestManager
 import com.apphud.sdk.managers.RequestManager.applicationContext
@@ -30,11 +32,14 @@ import com.google.android.gms.tasks.Task
 import kotlinx.coroutines.CoroutineExceptionHandler
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.Runnable
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.launchIn
+import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.sync.Mutex
@@ -266,6 +271,7 @@ internal object ApphudInternal {
 
         ApphudLog.log("Need to register user: $needRegistration")
 
+        var fetchRuleScreenJob: Job? = null
         if (needRegistration) {
             isRegisteringUser = true
             registration(this.userId, this.deviceId, true) { u, e ->
@@ -274,7 +280,11 @@ internal object ApphudInternal {
                 }
                 coroutineScope.launch {
                     fetchNativePurchases()
-                    ServiceLocator.instance.fetchRulesScreenUseCase.invoke(deviceId)
+                    if (!fetchRuleScreenJob.isActive()) {
+                        fetchRuleScreenJob = launch {
+                            fetchRulesAndShow()
+                        }
+                    }
                 }
             }
         } else {
@@ -285,10 +295,34 @@ internal object ApphudInternal {
                 }
                 coroutineScope.launch {
                     fetchNativePurchases()
-                    ServiceLocator.instance.fetchRulesScreenUseCase.invoke(deviceId)
+                    if (!fetchRuleScreenJob.isActive()) {
+                        fetchRuleScreenJob = launch {
+                            fetchRulesAndShow()
+                        }
+                    }
                 }
             }
         }
+
+        ServiceLocator.instance.lifecycleRepository.get()
+            .onEach { lifecycleEvent ->
+                when (lifecycleEvent) {
+                    LifecycleEvent.Started -> {
+                        if (!fetchRuleScreenJob.isActive()) {
+                            fetchRuleScreenJob = coroutineScope.launch {
+                                fetchRulesAndShow()
+                            }
+                        }
+                    }
+                    LifecycleEvent.Stopped -> Unit
+                }
+            }
+            .launchIn(coroutineScope)
+
+    }
+
+    private suspend fun fetchRulesAndShow() {
+        ServiceLocator.instance.fetchRulesScreenUseCase(deviceId)
     }
 
     //endregion

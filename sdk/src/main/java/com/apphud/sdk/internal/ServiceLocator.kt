@@ -1,6 +1,7 @@
 package com.apphud.sdk.internal
 
 import android.content.Context
+import com.apphud.sdk.internal.data.local.LifecycleRepository
 import com.apphud.sdk.internal.data.local.LocalRulesScreenRepository
 import com.apphud.sdk.internal.data.mapper.CustomerMapper
 import com.apphud.sdk.internal.data.mapper.PaywallsMapper
@@ -91,6 +92,8 @@ internal class ServiceLocator private constructor(
         gson = gson,
         ruleScreenMapper = RuleScreenMapper()
     )
+
+    val lifecycleRepository: LifecycleRepository = LifecycleRepository()
 
     val userRemoteRepository: UserRemoteRepository = UserRemoteRepository(
         okHttpClient = okHttpClient,
