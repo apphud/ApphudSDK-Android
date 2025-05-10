@@ -6,6 +6,7 @@ import com.apphud.sdk.internal.data.mapper.CustomerMapper
 import com.apphud.sdk.internal.data.mapper.PaywallsMapper
 import com.apphud.sdk.internal.data.mapper.PlacementsMapper
 import com.apphud.sdk.internal.data.mapper.ProductMapper
+import com.apphud.sdk.internal.data.mapper.RuleScreenMapper
 import com.apphud.sdk.internal.data.mapper.SubscriptionMapper
 import com.apphud.sdk.internal.data.network.HeadersInterceptor
 import com.apphud.sdk.internal.data.network.HostSwitcherInterceptor
@@ -79,7 +80,7 @@ internal class ServiceLocator private constructor(
         notificationMapper = NotificationMapper(),
     )
 
-    val screenRemoteRepository: ScreenRemoteRepository = ScreenRemoteRepository(
+    private val screenRemoteRepository: ScreenRemoteRepository = ScreenRemoteRepository(
         okHttpClient = okHttpClientWithoutHeaders,
         gson = gson,
         apiKey = apiKey
@@ -87,7 +88,8 @@ internal class ServiceLocator private constructor(
 
     val localRulesScreenRepository: LocalRulesScreenRepository = LocalRulesScreenRepository(
         context = applicationContext,
-        gson = gson
+        gson = gson,
+        ruleScreenMapper = RuleScreenMapper()
     )
 
     val userRemoteRepository: UserRemoteRepository = UserRemoteRepository(
