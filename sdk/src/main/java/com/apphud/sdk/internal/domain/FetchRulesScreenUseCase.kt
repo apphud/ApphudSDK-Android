@@ -3,6 +3,7 @@ package com.apphud.sdk.internal.domain
 import com.apphud.sdk.internal.data.local.LocalRulesScreenRepository
 import com.apphud.sdk.internal.data.remote.RemoteRepository
 import com.apphud.sdk.internal.data.remote.ScreenRemoteRepository
+import com.apphud.sdk.internal.domain.mapper.DateTimeMapper
 import com.apphud.sdk.internal.domain.model.FetchRulesScreenResult
 import com.apphud.sdk.internal.domain.model.RuleScreen
 import com.apphud.sdk.internal.util.runCatchingCancellable
@@ -18,6 +19,7 @@ internal class FetchRulesScreenUseCase(
     private val remoteRepository: RemoteRepository,
     private val screenRemoteRepository: ScreenRemoteRepository,
     private val localRulesScreenRepository: LocalRulesScreenRepository,
+    private val dateTimeMapper: DateTimeMapper,
 ) {
 
     /**
@@ -30,19 +32,26 @@ internal class FetchRulesScreenUseCase(
         runCatchingCancellable {
             val notifications = remoteRepository.getNotifications(deviceId).getOrThrow()
 
-            val ruleWithScreenList = notifications
-                .mapNotNull { it.rule }
-                .map { rule ->
-                    val screenHtml = screenRemoteRepository.loadScreenHtmlData(rule.screenId, deviceId).getOrThrow()
-                    rule to screenHtml
+            val ruleScreenList = notifications
+                .mapNotNull { notification ->
+                    val createdTimeStamp = dateTimeMapper.toTimestamp(notification.createdAt)
+                    if (notification.rule != null && createdTimeStamp != null) {
+                        val screenHtml = screenRemoteRepository.loadScreenHtmlData(
+                            notification.rule.screenId, deviceId
+                        ).getOrThrow()
+
+                        RuleScreen(createdTimeStamp, notification.rule, screenHtml)
+                    } else {
+                        null
+                    }
                 }
 
-            ruleWithScreenList.forEach { (rule, screenHtml) ->
-                localRulesScreenRepository.save(RuleScreen(rule, screenHtml))
+            ruleScreenList.forEach { ruleScreen ->
+                localRulesScreenRepository.save(ruleScreen)
             }
 
-            ruleWithScreenList.forEach { (rule, _) ->
-                remoteRepository.readAllNotifications(rule.id, deviceId)
+            ruleScreenList.forEach { ruleScreen ->
+                remoteRepository.readAllNotifications(ruleScreen.rule.id, deviceId)
             }
 
             FetchRulesScreenResult.Success

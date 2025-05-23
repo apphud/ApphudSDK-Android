@@ -39,8 +39,9 @@ object Apphud {
         context: Context,
         apiKey: ApiKey,
         observerMode: Boolean = false,
+        ruleCallback: ApphudRuleCallback = object : ApphudRuleCallback {},
         callback: ((ApphudUser) -> Unit)? = null,
-    ) = start(context, apiKey, null, null, observerMode, callback)
+    ) = start(context, apiKey, null, null, observerMode, ruleCallback, callback)
 
     /**
      * Initializes Apphud SDK. You should call it during app launch.
@@ -60,8 +61,9 @@ object Apphud {
         apiKey: ApiKey,
         userId: UserId? = null,
         observerMode: Boolean = false,
+        ruleCallback: ApphudRuleCallback = object : ApphudRuleCallback {},
         callback: ((ApphudUser) -> Unit)? = null,
-    ) = start(context, apiKey, userId, null, observerMode, callback)
+    ) = start(context, apiKey, userId, null, observerMode, ruleCallback, callback)
 
     /**
      * Initializes the Apphud SDK. This method should be called during the app launch.
@@ -87,9 +89,14 @@ object Apphud {
         userId: UserId? = null,
         deviceId: DeviceId? = null,
         observerMode: Boolean = false,
+        ruleCallback: ApphudRuleCallback = object : ApphudRuleCallback {},
         callback: ((ApphudUser) -> Unit)? = null,
     ) {
-        ServiceLocator.ServiceLocatorInstanceFactory().create(context, ApiKeyModel(apiKey))
+        ServiceLocator.ServiceLocatorInstanceFactory().create(
+            applicationContext = context,
+            ruleCallback = ruleCallback,
+            apiKey = ApiKeyModel(apiKey)
+        )
 
         ApphudUtils.setPackageName(context.packageName)
         ApphudInternal.initialize(context, apiKey, userId, deviceId, observerMode, callback)
@@ -117,6 +124,18 @@ object Apphud {
                 callback?.invoke(result)
             }
         }
+    }
+
+    /**
+     * Used in conjunction with the delegate method
+     * `apphudShouldShowScreen`, where returning `false` defers the screen display.
+     *
+     * Note: Call this method to show a screen that was deferred due to specific conditions or user actions
+     * in your application. This helps to manage the user experience more effectively, ensuring that screens
+     * are presented at the most appropriate time.
+     */
+    fun showPendingScreen(callback: (Boolean) -> Unit) {
+        ServiceLocator.instance.ruleController.showPendingScreen(callback)
     }
 
     /**

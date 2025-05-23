@@ -81,6 +81,9 @@ dependencies {
     implementation(libs.kotlinx.coroutines.android)
     implementation libs.play.services.appset
     implementation(libs.lifecycle.process)
+    implementation(libs.lifecycle.viewmodel.ktx)
+    implementation(libs.lifecycle.runtime.ktx)
+    implementation(libs.appcompat)
 
     testImplementation libs.junit
     androidTestImplementation libs.ext.junit

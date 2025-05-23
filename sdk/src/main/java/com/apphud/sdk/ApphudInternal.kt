@@ -20,7 +20,10 @@ import com.apphud.sdk.domain.ApphudUser
 import com.apphud.sdk.domain.PurchaseRecordDetails
 import com.apphud.sdk.internal.BillingWrapper
 import com.apphud.sdk.internal.ServiceLocator
+import com.apphud.sdk.internal.domain.RuleScreenResult
+import com.apphud.sdk.internal.domain.model.FetchRulesScreenResult
 import com.apphud.sdk.internal.domain.model.LifecycleEvent
+import com.apphud.sdk.internal.presentation.WebViewActivity
 import com.apphud.sdk.internal.util.isActive
 import com.apphud.sdk.internal.util.runCatchingCancellable
 import com.apphud.sdk.managers.RequestManager
@@ -271,7 +274,7 @@ internal object ApphudInternal {
 
         ApphudLog.log("Need to register user: $needRegistration")
 
-        var fetchRuleScreenJob: Job? = null
+        val ruleController = ServiceLocator.instance.ruleController
         if (needRegistration) {
             isRegisteringUser = true
             registration(this.userId, this.deviceId, true) { u, e ->
@@ -280,11 +283,7 @@ internal object ApphudInternal {
                 }
                 coroutineScope.launch {
                     fetchNativePurchases()
-                    if (!fetchRuleScreenJob.isActive()) {
-                        fetchRuleScreenJob = launch {
-                            fetchRulesAndShow()
-                        }
-                    }
+                    ruleController.start(deviceId)
                 }
             }
         } else {
@@ -295,34 +294,10 @@ internal object ApphudInternal {
                 }
                 coroutineScope.launch {
                     fetchNativePurchases()
-                    if (!fetchRuleScreenJob.isActive()) {
-                        fetchRuleScreenJob = launch {
-                            fetchRulesAndShow()
-                        }
-                    }
+                    ruleController.start(deviceId)
                 }
             }
         }
-
-        ServiceLocator.instance.lifecycleRepository.get()
-            .onEach { lifecycleEvent ->
-                when (lifecycleEvent) {
-                    LifecycleEvent.Started -> {
-                        if (!fetchRuleScreenJob.isActive()) {
-                            fetchRuleScreenJob = coroutineScope.launch {
-                                fetchRulesAndShow()
-                            }
-                        }
-                    }
-                    LifecycleEvent.Stopped -> Unit
-                }
-            }
-            .launchIn(coroutineScope)
-
-    }
-
-    private suspend fun fetchRulesAndShow() {
-        ServiceLocator.instance.fetchRulesScreenUseCase(deviceId)
     }
 
     //endregion
@@ -1269,6 +1244,7 @@ internal object ApphudInternal {
     }
 
     private fun clear() {
+        ServiceLocator.instance.ruleController.stop()
         RequestManager.cleanRegistration()
         currentUser = null
         productsStatus = ApphudProductsStatus.none
