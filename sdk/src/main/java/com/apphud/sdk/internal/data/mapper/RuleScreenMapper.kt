@@ -13,6 +13,7 @@ internal class RuleScreenMapper {
             Base64.NO_WRAP
         )
         return RuleScreenDto(
+            createdAt = ruleScreen.createdAt,
             rule = ruleScreen.rule,
             encodedHtmlScreen = encodedHtml
         )
@@ -25,7 +26,8 @@ internal class RuleScreenMapper {
         )
         return RuleScreen(
             rule = ruleScreenDto.rule,
-            htmlScreen = decodedHtml
+            htmlScreen = decodedHtml,
+            createdAt = ruleScreenDto.createdAt,
         )
     }
 }

@@ -98,4 +98,26 @@ internal class LocalRulesScreenRepository(
                 }
             }
         }
+
+    suspend fun deleteById(ruleId: String): Result<Boolean> =
+        runCatchingCancellable {
+            ApphudLog.log("$logPrefix Deleting rule screen with id: $ruleId")
+            withContext(Dispatchers.IO) {
+                fileMutex.withLock {
+                    val ruleFile = File(rulesDir, "$ruleId.json")
+                    if (!ruleFile.exists()) {
+                        ApphudLog.log("$logPrefix Rule screen file not found for deletion: $ruleId")
+                        return@withLock false
+                    }
+
+                    val deleted = ruleFile.delete()
+                    if (deleted) {
+                        ApphudLog.log("$logPrefix Rule screen deleted successfully: $ruleId")
+                    } else {
+                        ApphudLog.logE("$logPrefix Failed to delete rule screen: $ruleId")
+                    }
+                    deleted
+                }
+            }
+        }
 }
