@@ -34,7 +34,7 @@ import okhttp3.logging.HttpLoggingInterceptor
 
 internal class ServiceLocator(
     private val applicationContext: Context,
-    private val ruleCallback: ApphudRuleCallback,
+    val ruleCallback: ApphudRuleCallback,
     private val apiKey: ApiKey,
 ) {
 

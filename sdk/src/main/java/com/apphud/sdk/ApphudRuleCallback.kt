@@ -20,4 +20,12 @@ interface ApphudRuleCallback {
      * @return true if the screen should be shown immediately; false if showing should be postponed
      */
     fun shouldShowScreen(rule: Rule): Boolean = true
+
+    /**
+     * Called when a purchase is completed from a rule screen.
+     * 
+     * @param rule Apphud rule from which the purchase was initiated
+     * @param result ApphudPurchaseResult containing purchase details and error if any
+     */
+    fun onPurchaseCompleted(rule: Rule, result: ApphudPurchaseResult) = Unit
 }
