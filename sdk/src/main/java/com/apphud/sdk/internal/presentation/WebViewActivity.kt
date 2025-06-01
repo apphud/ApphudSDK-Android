@@ -169,6 +169,7 @@ internal class WebViewActivity : AppCompatActivity() {
     private fun sendResultBroadcast(resultCode: Int) {
         val intent = Intent(RuleController.ACTION_RULE_SCREEN_RESULT).apply {
             putExtra(RuleController.EXTRA_RESULT_CODE, resultCode)
+            setPackage(packageName)
         }
         sendBroadcast(intent)
     }
