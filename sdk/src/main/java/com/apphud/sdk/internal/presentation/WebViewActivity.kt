@@ -16,6 +16,7 @@ import android.webkit.WebSettings
 import android.webkit.WebView
 import android.webkit.WebViewClient
 import android.widget.FrameLayout
+import android.widget.Toast
 import androidx.activity.OnBackPressedCallback
 import androidx.appcompat.app.AppCompatActivity
 import androidx.lifecycle.Lifecycle
@@ -23,11 +24,9 @@ import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.repeatOnLifecycle
 import com.apphud.sdk.Apphud
-import com.apphud.sdk.ApphudInternal
 import com.apphud.sdk.ApphudLog
 import com.apphud.sdk.R
 import com.apphud.sdk.domain.ApphudProduct
-import com.apphud.sdk.purchase
 import kotlinx.coroutines.launch
 
 @Suppress("TooGenericExceptionCaught")
@@ -208,6 +207,11 @@ internal class WebViewActivity : AppCompatActivity() {
                     }
                     WebViewEvent.PurchaseCompleted -> {
                         sendResultBroadcast(RESULT_PURCHASE)
+                        finishAndRemoveTask()
+                    }
+                    WebViewEvent.ProductNotFound -> {
+                        Toast.makeText(this@WebViewActivity, "Product or offer not found", Toast.LENGTH_SHORT).show()
+                        sendResultBroadcast(RESULT_DISMISSED)
                         finishAndRemoveTask()
                     }
                     is WebViewEvent.StartPurchase -> {

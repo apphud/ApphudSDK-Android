@@ -8,6 +8,7 @@ import com.android.billingclient.api.BillingClient
 import com.android.billingclient.api.ProductDetails
 import com.apphud.sdk.ApphudError
 import com.apphud.sdk.ApphudInternal
+import com.apphud.sdk.ApphudInternal.errorHandler
 import com.apphud.sdk.ApphudLog
 import com.apphud.sdk.ApphudUtils
 import com.apphud.sdk.UserId
@@ -33,8 +34,9 @@ import com.apphud.sdk.processFallbackData
 import com.apphud.sdk.storage.SharedPreferencesStorage
 import com.google.gson.GsonBuilder
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.suspendCancellableCoroutine
+import kotlinx.coroutines.withContext
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import okhttp3.Response
@@ -74,7 +76,7 @@ internal object RequestManager {
 
     private fun canPerformRequest(): Boolean {
         return ::applicationContext.isInitialized &&
-                apiKey != null
+            apiKey != null
     }
 
     suspend fun registrationSync(
@@ -113,7 +115,7 @@ internal object RequestManager {
         email: String? = null,
     ): ApphudUser {
         if (!canPerformRequest()) {
-            ApphudLog.logE(::registrationLegacy.name + MUST_REGISTER_ERROR)
+            ApphudLog.logE(::registration.name + MUST_REGISTER_ERROR)
             throw ApphudError("SDK not initialized")
         }
 
@@ -121,7 +123,7 @@ internal object RequestManager {
         return if (currentUserLocal == null || forceRegistration) {
             val repository = ServiceLocator.instance.remoteRepository
 
-            val getCustomersResult = runBlocking(Dispatchers.IO) {
+            val getCustomersResult = withContext(Dispatchers.IO) {
                 repository.getCustomers(needPaywalls, isNew, userId, email)
             }
 
@@ -141,7 +143,6 @@ internal object RequestManager {
     }
 
     @Suppress("LongParameterList")
-    @Synchronized
     fun registrationLegacy(
         needPaywalls: Boolean,
         isNew: Boolean,
@@ -155,7 +156,7 @@ internal object RequestManager {
             return
         }
 
-        runBlocking {
+        ApphudInternal.coroutineScope.launch(errorHandler) {
             runCatchingCancellable {
                 registration(needPaywalls, isNew, forceRegistration, userId, email)
             }
@@ -165,10 +166,14 @@ internal object RequestManager {
                     } else {
                         ApphudError.from(throwable)
                     }
-                    completionHandler(null, error)
+                    withContext(Dispatchers.Main) {
+                        completionHandler(null, error)
+                    }
                 }
                 .onSuccess {
-                    completionHandler(it, null)
+                    withContext(Dispatchers.Main) {
+                        completionHandler(it, null)
+                    }
                 }
         }
     }
@@ -188,7 +193,7 @@ internal object RequestManager {
         purchaseContext: PurchaseContext,
     ): ApphudUser {
         if (!canPerformRequest()) {
-            ApphudLog.logE(::registrationLegacy.name + MUST_REGISTER_ERROR)
+            ApphudLog.logE(::purchased.name + MUST_REGISTER_ERROR)
             throw ApphudError("SDK not initialized")
         }
 

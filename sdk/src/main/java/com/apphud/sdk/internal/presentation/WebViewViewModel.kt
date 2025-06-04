@@ -1,5 +1,6 @@
 package com.apphud.sdk.internal.presentation
 
+import android.widget.Toast
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
@@ -69,6 +70,9 @@ internal class WebViewViewModel(
         if (product == null) {
             ApphudLog.logE("[WebViewViewModel] Product not found: $productId")
             hidePurchaseLoader()
+            viewModelScope.launch {
+                _events.send(WebViewEvent.ProductNotFound)
+            }
             return
         }
 
@@ -85,6 +89,9 @@ internal class WebViewViewModel(
             } else {
                 ApphudLog.logE("[WebViewViewModel] Offer not found: $offerId")
                 hidePurchaseLoader()
+                viewModelScope.launch {
+                    _events.send(WebViewEvent.ProductNotFound)
+                }
                 return
             }
         }
@@ -179,5 +186,6 @@ internal sealed class WebViewState {
 internal sealed class WebViewEvent {
     object CloseScreen : WebViewEvent()
     object PurchaseCompleted : WebViewEvent()
+    object ProductNotFound : WebViewEvent()
     data class StartPurchase(val product: ApphudProduct, val offerToken: String?) : WebViewEvent()
 }

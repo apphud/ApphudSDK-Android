@@ -20,6 +20,15 @@ internal inline fun <R, T> Result<T>.mapCatchingCancellable(transform: (value: T
         transform(getOrThrow())
     }
 
+internal inline fun <R, T : R> Result<T>.recoverCatchingCancellable(
+    crossinline transform:  (exception: Throwable) -> R
+): Result<R> {
+    return when (val exception = exceptionOrNull()) {
+        null -> this
+        else -> runCatchingCancellable { transform(exception) }
+    }
+}
+
 fun Job?.isActive(): Boolean =
     this?.isActive == true
 
