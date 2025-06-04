@@ -23,6 +23,8 @@ import com.apphud.sdk.internal.domain.model.ApiKey
 import com.apphud.sdk.internal.domain.model.GetProductsParams
 import com.apphud.sdk.internal.domain.model.Notification
 import com.apphud.sdk.internal.domain.model.PurchaseContext
+import com.apphud.sdk.internal.util.mapCatchingCancellable
+import com.apphud.sdk.internal.util.recoverCatchingCancellable
 import com.apphud.sdk.internal.util.runCatchingCancellable
 import com.apphud.sdk.mappers.AttributionMapper
 import com.google.gson.Gson
@@ -53,11 +55,11 @@ internal class RemoteRepository(
                 buildPostRequest(CUSTOMERS_URL, registrationBodyFactory.create(needPaywalls, isNew, userId, email))
             executeForResponse<CustomerDto>(okHttpClient, gson, request)
         }
-            .recoverCatching { e ->
+            .recoverCatchingCancellable { e ->
                 val message = e.message ?: "Registration failed"
                 throw ApphudError(message, null, APPHUD_ERROR_NO_INTERNET, e)
             }
-            .mapCatching { response ->
+            .mapCatchingCancellable { response ->
                 response.data.results?.let { customerDto ->
                     customerMapper.map(customerDto)
                 } ?: throw ApphudError("Registration failed")

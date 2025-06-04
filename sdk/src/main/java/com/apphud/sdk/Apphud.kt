@@ -93,7 +93,7 @@ object Apphud {
         callback: ((ApphudUser) -> Unit)? = null,
     ) {
         ServiceLocator.ServiceLocatorInstanceFactory().create(
-            applicationContext = context,
+            applicationContext = context.applicationContext,
             ruleCallback = ruleCallback,
             apiKey = ApiKeyModel(apiKey)
         )

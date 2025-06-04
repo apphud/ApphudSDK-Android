@@ -4,7 +4,9 @@ import android.annotation.SuppressLint
 import android.app.Activity
 import android.content.Context
 import android.content.Intent
+import android.net.Uri
 import android.os.Bundle
+import android.view.View
 import android.webkit.ConsoleMessage
 import android.webkit.WebChromeClient
 import android.webkit.WebResourceError
@@ -13,13 +15,18 @@ import android.webkit.WebResourceResponse
 import android.webkit.WebSettings
 import android.webkit.WebView
 import android.webkit.WebViewClient
+import android.widget.FrameLayout
+import android.widget.Toast
+import androidx.activity.OnBackPressedCallback
 import androidx.appcompat.app.AppCompatActivity
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.repeatOnLifecycle
+import com.apphud.sdk.Apphud
 import com.apphud.sdk.ApphudLog
 import com.apphud.sdk.R
+import com.apphud.sdk.domain.ApphudProduct
 import kotlinx.coroutines.launch
 
 @Suppress("TooGenericExceptionCaught")
@@ -27,17 +34,30 @@ internal class WebViewActivity : AppCompatActivity() {
 
     private lateinit var viewModel: WebViewViewModel
     private lateinit var webView: WebView
+    private lateinit var purchaseLoaderOverlay: FrameLayout
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.apphud_webview_activity_layout)
+
         webView = findViewById(R.id.webView)
+        purchaseLoaderOverlay = findViewById(R.id.purchaseLoaderOverlay)
+
         setupWebView()
 
         viewModel = ViewModelProvider(this, WebViewViewModel.factory)[WebViewViewModel::class.java]
         setupObservers()
 
         processIntent(intent)
+
+        onBackPressedDispatcher.addCallback(
+            this,
+            object : OnBackPressedCallback(true) {
+                override fun handleOnBackPressed() {
+                    viewModel.processBackPressed()
+                }
+            },
+        )
     }
 
     override fun onNewIntent(intent: Intent?) {
@@ -126,7 +146,7 @@ internal class WebViewActivity : AppCompatActivity() {
         }
     }
 
-    private fun handleAction(uri: android.net.Uri) {
+    private fun handleAction(uri: Uri) {
         val type = uri.getQueryParameter("type")
         ApphudLog.log("[WebViewActivity] Handling action: $type, URI: $uri")
 
@@ -135,23 +155,20 @@ internal class WebViewActivity : AppCompatActivity() {
                 viewModel.processDismiss()
             }
             "purchase" -> {
-                val productId = uri.getQueryParameter("product_id")
+                val productId: String? = uri.getQueryParameter("product_id")
+                val offerId: String? = uri.getQueryParameter("offer_id")
                 if (productId != null) {
-                    ApphudLog.log("[WebViewActivity] Purchase action for product: $productId")
-                    viewModel.processPurchase(productId)
+                    ApphudLog.log("[WebViewActivity] Purchase action for product: $productId, offer: $offerId")
+                    viewModel.processPurchase(productId, offerId)
                 }
             }
         }
     }
 
-    override fun onBackPressed() {
-        viewModel.processDismiss()
-        super.onBackPressed()
-    }
-
     private fun sendResultBroadcast(resultCode: Int) {
         val intent = Intent(RuleController.ACTION_RULE_SCREEN_RESULT).apply {
             putExtra(RuleController.EXTRA_RESULT_CODE, resultCode)
+            setPackage(packageName)
         }
         sendBroadcast(intent)
     }
@@ -161,12 +178,20 @@ internal class WebViewActivity : AppCompatActivity() {
             repeatOnLifecycle(Lifecycle.State.STARTED) {
                 viewModel.state.collect { state ->
                     when (state) {
-                        is WebViewState.Loading -> Unit
+                        is WebViewState.Loading -> {
+                            hidePurchaseLoader()
+                        }
                         is WebViewState.Content -> {
                             displayContent(state.ruleScreen.htmlScreen)
+                            hidePurchaseLoader()
+                        }
+                        is WebViewState.ContentWithPurchaseLoading -> {
+                            displayContent(state.ruleScreen.htmlScreen)
+                            showPurchaseLoader()
                         }
                         is WebViewState.Error -> {
                             ApphudLog.logE("[WebViewActivity] Error: ${state.message}")
+                            hidePurchaseLoader()
                         }
                     }
                 }
@@ -180,13 +205,41 @@ internal class WebViewActivity : AppCompatActivity() {
                         sendResultBroadcast(RESULT_DISMISSED)
                         finishAndRemoveTask()
                     }
-                    WebViewEvent.PurchaseEvent -> {
+                    WebViewEvent.PurchaseCompleted -> {
                         sendResultBroadcast(RESULT_PURCHASE)
                         finishAndRemoveTask()
+                    }
+                    WebViewEvent.ProductNotFound -> {
+                        Toast.makeText(this@WebViewActivity, "Product or offer not found", Toast.LENGTH_SHORT).show()
+                        sendResultBroadcast(RESULT_DISMISSED)
+                        finishAndRemoveTask()
+                    }
+                    is WebViewEvent.StartPurchase -> {
+                        startPurchase(event.product, event.offerToken)
                     }
                 }
             }
         }
+    }
+
+    private fun startPurchase(product: ApphudProduct, offerToken: String?) {
+        Apphud.purchase(
+            activity = this,
+            apphudProduct = product,
+            offerIdToken = offerToken
+        ) { result ->
+            viewModel.onPurchaseResult(result)
+        }
+    }
+
+    private fun showPurchaseLoader() {
+        purchaseLoaderOverlay.visibility = View.VISIBLE
+        webView.isEnabled = false
+    }
+
+    private fun hidePurchaseLoader() {
+        purchaseLoaderOverlay.visibility = View.GONE
+        webView.isEnabled = true
     }
 
     @SuppressLint("SetJavaScriptEnabled")
