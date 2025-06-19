@@ -20,11 +20,6 @@ import com.apphud.sdk.domain.ApphudUser
 import com.apphud.sdk.domain.PurchaseRecordDetails
 import com.apphud.sdk.internal.BillingWrapper
 import com.apphud.sdk.internal.ServiceLocator
-import com.apphud.sdk.internal.domain.RuleScreenResult
-import com.apphud.sdk.internal.domain.model.FetchRulesScreenResult
-import com.apphud.sdk.internal.domain.model.LifecycleEvent
-import com.apphud.sdk.internal.presentation.WebViewActivity
-import com.apphud.sdk.internal.util.isActive
 import com.apphud.sdk.internal.util.runCatchingCancellable
 import com.apphud.sdk.managers.RequestManager
 import com.apphud.sdk.managers.RequestManager.applicationContext
@@ -35,14 +30,11 @@ import com.google.android.gms.tasks.Task
 import kotlinx.coroutines.CoroutineExceptionHandler
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.Job
 import kotlinx.coroutines.Runnable
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.delay
-import kotlinx.coroutines.flow.launchIn
-import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.sync.Mutex
@@ -277,7 +269,7 @@ internal object ApphudInternal {
         val ruleController = ServiceLocator.instance.ruleController
         if (needRegistration) {
             isRegisteringUser = true
-            registration(this.userId, this.deviceId, true) { u, e ->
+            registration(true) { u, e ->
                 if (shouldLoadProducts()) {
                     loadProducts()
                 }
@@ -329,7 +321,7 @@ internal object ApphudInternal {
                 isRegisteringUser = true
             }
             ApphudLog.log("RefreshEntitlements: didRegister:$didRegisterCustomerAtThisLaunch force:$forceRefresh wasDeferred: $wasDeferred isDeferred: $deferPlacements")
-            registration(this.userId, this.deviceId, true) { cust, _ ->
+            registration(true) { cust, _ ->
                 if (wasDeferred) {
                     productsStatus = ApphudProductsStatus.none
                 }
@@ -551,8 +543,6 @@ internal object ApphudInternal {
     private val mutex = Mutex()
 
     private fun registration(
-        userId: UserId,
-        deviceId: DeviceId,
         forceRegistration: Boolean = false,
         completionHandler: ((ApphudUser?, ApphudError?) -> Unit)?,
     ) {
@@ -565,13 +555,17 @@ internal object ApphudInternal {
                     mutex.unlock()
                 } catch (e: Exception) {
                     ApphudLog.log("Failed to unlock the mutex, force registration")
-                    startRegistrationCall(userId, deviceId, forceRegistration, completionHandler)
+                    runCatchingCancellable { startRegistrationCall(forceRegistration) }
+                        .onSuccess { completionHandler?.invoke(it, null) }
+                        .onFailure { completionHandler?.invoke(null, it.toApphudError()) }
                 }
             }
             mutex.lock()
             try {
                 if (currentUser == null || forceRegistration) {
-                    startRegistrationCall(userId, deviceId, forceRegistration, completionHandler)
+                    runCatchingCancellable { startRegistrationCall(forceRegistration) }
+                        .onSuccess { completionHandler?.invoke(it, null) }
+                        .onFailure { completionHandler?.invoke(null, it.toApphudError()) }
                 } else {
                     mainScope.launch {
                         isRegisteringUser = false
@@ -586,12 +580,9 @@ internal object ApphudInternal {
         }
     }
 
-    private fun startRegistrationCall(
-        userId: UserId,
-        deviceId: DeviceId,
+    private suspend fun startRegistrationCall(
         forceRegistration: Boolean = false,
-        completionHandler: ((ApphudUser?, ApphudError?) -> Unit)?,
-    ) {
+    ): ApphudUser {
 
         val needPlacementsPaywalls = !didRegisterCustomerAtThisLaunch && !deferPlacements && !observerMode
 
@@ -599,53 +590,59 @@ internal object ApphudInternal {
             "Registration conditions: user_is_null=${currentUser == null}, forceRegistration=$forceRegistration, isTemporary=${currentUser?.isTemporary}, requesting Placements = $needPlacementsPaywalls",
         )
 
-        RequestManager.registrationLegacy(needPlacementsPaywalls, isNew, forceRegistration) { customer, error ->
-            customer?.let {
-                if (firstCustomerLoadedTime == null) {
-                    firstCustomerLoadedTime = System.currentTimeMillis()
-                }
-
-                currentUser = it
-                if (it.paywalls.isNotEmpty()) {
-                    synchronized(paywalls) {
-                        paywalls = it.paywalls
-                    }
-                    synchronized(placements) {
-                        placements = it.placements
-                    }
-                }
-
-                coroutineScope.launch {
-                    storage.lastRegistration = System.currentTimeMillis()
-                }
-
-                mainScope.launch {
-                    // finish registering only here to avoid bug
+        val newUser = runCatchingCancellable {
+            RequestManager.registration(needPlacementsPaywalls, isNew, forceRegistration)
+        }
+            .getOrElse { error ->
+                ApphudLog.logE("Registration failed ${error.message}")
+                withContext(Dispatchers.Main) {
                     isRegisteringUser = false
-                    hasRespondedToPaywallsRequest = needPlacementsPaywalls
-                    notifyLoadingCompleted(it)
-                    completionHandler?.invoke(it, null)
-
-                    if (pendingUserProperties.isNotEmpty() && setNeedsToUpdateUserProperties) {
-                        updateUserProperties()
-                    }
-                }
-
-                if (storage.isNeedSync) {
-                    coroutineScope.launch(errorHandler) {
-                        ApphudLog.log("Registration: isNeedSync true, start syncing")
-                        fetchNativePurchases(forceRefresh = true)
-                    }
-                }
-            } ?: run {
-                ApphudLog.logE("Registration failed ${error?.message}")
-                mainScope.launch {
-                    isRegisteringUser = false
-                    notifyLoadingCompleted(currentUser, null, true, currentUser?.isTemporary ?: false, error)
-                    completionHandler?.invoke(currentUser, error)
+                    notifyLoadingCompleted(
+                        customerLoaded = currentUser,
+                        productDetailsLoaded = null,
+                        fromCache = true,
+                        fromFallback = currentUser?.isTemporary ?: false,
+                        customerError = error.toApphudError()
+                    )
+                    throw error
                 }
             }
+
+        if (firstCustomerLoadedTime == null) {
+            firstCustomerLoadedTime = System.currentTimeMillis()
         }
+
+        currentUser = newUser
+        if (newUser.paywalls.isNotEmpty()) {
+            synchronized(paywalls) {
+                paywalls = newUser.paywalls
+            }
+            synchronized(placements) {
+                placements = newUser.placements
+            }
+        }
+
+        coroutineScope.launch {
+            storage.lastRegistration = System.currentTimeMillis()
+        }
+
+        if (storage.isNeedSync) {
+            coroutineScope.launch(errorHandler) {
+                ApphudLog.log("Registration: isNeedSync true, start syncing")
+                fetchNativePurchases(forceRefresh = true)
+            }
+        }
+
+        // finish registering only here to avoid bug
+        isRegisteringUser = false
+        hasRespondedToPaywallsRequest = needPlacementsPaywalls
+        notifyLoadingCompleted(newUser)
+        coroutineScope.launch {
+            if (pendingUserProperties.isNotEmpty() && setNeedsToUpdateUserProperties) {
+                updateUserProperties()
+            }
+        }
+        return newUser
     }
 
     private suspend fun repeatRegistrationSilent() {
@@ -766,7 +763,7 @@ internal object ApphudInternal {
         return isLoading
     }
 
-    //endregion
+//endregion
 
     //region === User Properties ===
     internal fun setUserProperty(
@@ -1040,7 +1037,7 @@ internal object ApphudInternal {
         when {
             mCurrentUser == null -> {
                 suspendCancellableCoroutine { cont ->
-                    registration(userId, deviceId) { _, error ->
+                    registration { _, error ->
                         if (error == null) {
                             if (cont.isActive) cont.resume(Unit)
                         } else {
@@ -1071,7 +1068,7 @@ internal object ApphudInternal {
                 refreshPaywallsIfNeeded()
             }
         } ?: run {
-            registration(this.userId, this.deviceId) { _, error ->
+            registration { _, error ->
                 callback.invoke(error)
             }
         }
