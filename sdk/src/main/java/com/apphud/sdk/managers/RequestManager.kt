@@ -107,7 +107,7 @@ internal object RequestManager {
             }
         }
 
-    private suspend fun registration(
+    suspend fun registration(
         needPaywalls: Boolean,
         isNew: Boolean,
         forceRegistration: Boolean = false,
