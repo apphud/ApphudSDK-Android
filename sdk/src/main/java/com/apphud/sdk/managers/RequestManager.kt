@@ -85,27 +85,26 @@ internal object RequestManager {
         forceRegistration: Boolean = false,
         userId: UserId? = null,
         email: String? = null,
-    ): ApphudUser? =
-        suspendCancellableCoroutine { continuation ->
-            if (!canPerformRequest()) {
-                ApphudLog.logE("registrationSync $MUST_REGISTER_ERROR")
-                if (continuation.isActive) {
-                    continuation.resume(null)
-                }
-            }
-
-            if (currentUser == null || forceRegistration) {
-                registrationLegacy(needPaywalls, isNew, forceRegistration, userId, email) { customer, error ->
-                    if (continuation.isActive) {
-                        continuation.resume(customer)
-                    }
-                }
-            } else {
-                if (continuation.isActive) {
-                    continuation.resume(currentUser)
-                }
-            }
+    ): ApphudUser? {
+        if (!canPerformRequest()) {
+            ApphudLog.logE("registrationSync $MUST_REGISTER_ERROR")
+            return null
         }
+
+        return if (currentUser == null || forceRegistration) {
+            runCatching {
+                registration(
+                    needPaywalls = needPaywalls,
+                    isNew = isNew,
+                    forceRegistration = forceRegistration,
+                    userId = userId,
+                    email = email
+                )
+            }.getOrNull()
+        } else {
+            currentUser
+        }
+    }
 
     suspend fun registration(
         needPaywalls: Boolean,
@@ -139,42 +138,6 @@ internal object RequestManager {
                 }
         } else {
             currentUserLocal
-        }
-    }
-
-    @Suppress("LongParameterList")
-    fun registrationLegacy(
-        needPaywalls: Boolean,
-        isNew: Boolean,
-        forceRegistration: Boolean = false,
-        userId: UserId? = null,
-        email: String? = null,
-        completionHandler: (ApphudUser?, ApphudError?) -> Unit,
-    ) {
-        if (!canPerformRequest()) {
-            ApphudLog.logE(::registrationLegacy.name + MUST_REGISTER_ERROR)
-            return
-        }
-
-        ApphudInternal.coroutineScope.launch(errorHandler) {
-            runCatchingCancellable {
-                registration(needPaywalls, isNew, forceRegistration, userId, email)
-            }
-                .onFailure { throwable ->
-                    val error = if (throwable is ApphudError) {
-                        throwable
-                    } else {
-                        ApphudError.from(throwable)
-                    }
-                    withContext(Dispatchers.Main) {
-                        completionHandler(null, error)
-                    }
-                }
-                .onSuccess {
-                    withContext(Dispatchers.Main) {
-                        completionHandler(it, null)
-                    }
-                }
         }
     }
 
