@@ -647,12 +647,11 @@ internal object ApphudInternal {
 
     private suspend fun repeatRegistrationSilent() {
         val needPlacementsPaywalls = !didRegisterCustomerAtThisLaunch && !deferPlacements && !observerMode
-        val newUser = RequestManager.registrationSync(needPlacementsPaywalls, isNew, true)
-
-        newUser?.let {
-            storage.lastRegistration = System.currentTimeMillis()
-            mainScope.launch { notifyLoadingCompleted(it) }
-        }
+        runCatchingCancellable { RequestManager.registration(needPlacementsPaywalls, isNew, true) }
+            .onSuccess {
+                storage.lastRegistration = System.currentTimeMillis()
+                mainScope.launch { notifyLoadingCompleted(it) }
+            }
     }
 
     internal fun forceNotifyAllLoaded() {
@@ -917,19 +916,25 @@ internal object ApphudInternal {
             fromWeb2Web = true
         }
         val needPlacementsPaywalls = !didRegisterCustomerAtThisLaunch && !deferPlacements && !observerMode
-        val customer = RequestManager.registrationSync(
-            needPaywalls = needPlacementsPaywalls,
-            isNew = isNew,
-            forceRegistration = true,
-            userId = userId,
-            email = email
-        )
+        val customer: ApphudUser? = runCatchingCancellable {
+            RequestManager.registration(
+                needPaywalls = needPlacementsPaywalls,
+                isNew = isNew,
+                forceRegistration = true,
+                userId = userId,
+                email = email
+            )
+        }.getOrElse { error ->
+            val apphudError = if (error is ApphudError) error else ApphudError.from(error)
+            ApphudLog.logE("updateUserId error: ${apphudError.message}")
+            null
+        }
+
         ApphudInternal.userId = customer?.userId ?: currentUser?.userId ?: originalUserId
         storage.userId = ApphudInternal.userId
-        if (customer != null) {
-            mainScope.launch {
-                notifyLoadingCompleted(customer)
-            }
+
+        customer?.let {
+            mainScope.launch { notifyLoadingCompleted(it) }
         }
         return currentUser
     }
