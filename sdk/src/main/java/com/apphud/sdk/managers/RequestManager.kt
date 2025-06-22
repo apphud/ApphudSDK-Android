@@ -79,33 +79,6 @@ internal object RequestManager {
             apiKey != null
     }
 
-    suspend fun registrationSync(
-        needPaywalls: Boolean,
-        isNew: Boolean,
-        forceRegistration: Boolean = false,
-        userId: UserId? = null,
-        email: String? = null,
-    ): ApphudUser? {
-        if (!canPerformRequest()) {
-            ApphudLog.logE("registrationSync $MUST_REGISTER_ERROR")
-            return null
-        }
-
-        return if (currentUser == null || forceRegistration) {
-            runCatching {
-                registration(
-                    needPaywalls = needPaywalls,
-                    isNew = isNew,
-                    forceRegistration = forceRegistration,
-                    userId = userId,
-                    email = email
-                )
-            }.getOrNull()
-        } else {
-            currentUser
-        }
-    }
-
     suspend fun registration(
         needPaywalls: Boolean,
         isNew: Boolean,
