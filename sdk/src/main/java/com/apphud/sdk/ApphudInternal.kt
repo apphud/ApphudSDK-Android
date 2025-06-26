@@ -503,6 +503,40 @@ internal object ApphudInternal {
         }
     }
 
+//    private fun handlePaywallsAndProductsLoaded(customerError: ApphudError?) {
+//        when {
+//            isDataReady() -> handleSuccessfulLoad()
+//            isErrorOccurred(customerError) -> handleError(customerError)
+//            else -> logNotReadyState()
+//        }
+//    }
+//
+//    private fun isDataReady() =
+//        currentUser != null &&
+//            paywalls.isNotEmpty() &&
+//            productDetails.isNotEmpty() &&
+//            !isRegisteringUser
+//
+//    private fun isErrorOccurred(customerError: ApphudError?) =
+//        !isRegisteringUser &&
+//            (hasRespondedToPaywallsRequest || customerError != null) &&
+//            ((customerError != null && paywalls.isEmpty()) ||
+//                (productsStatus != ApphudProductsStatus.loading &&
+//                    productsResponseCode != BillingClient.BillingResponseCode.OK &&
+//                    productDetails.isEmpty()))
+//
+//    private fun handleSuccessfulLoad() {
+//        // ... реализация успешной загрузки ...
+//    }
+//
+//    private fun handleError(customerError: ApphudError?) {
+//        // ... реализация обработки ошибок ...
+//    }
+//
+//    private fun logNotReadyState() {
+//        // ... логирование неготовности данных ...
+//    }
+
     private fun trackAnalytics(success: Boolean) {
         if (trackedAnalytics) {
             return
