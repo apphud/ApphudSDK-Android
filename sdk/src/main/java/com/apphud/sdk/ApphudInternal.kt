@@ -173,6 +173,9 @@ internal object ApphudInternal {
         allowIdentifyUser = false
         this.observerMode = observerMode
 
+        this.context = context.applicationContext
+        this.apiKey = apiKey
+
         mainScope.launch {
             ProcessLifecycleOwner.get().lifecycle.addObserver(lifecycleEventObserver)
         }
@@ -180,8 +183,6 @@ internal object ApphudInternal {
         ApphudLog.log("Start initialization with userId=$inputUserId, deviceId=$inputDeviceId")
         if (apiKey.isEmpty()) throw Exception("ApiKey can't be empty")
 
-        this.context = context.applicationContext
-        this.apiKey = apiKey
         val isValid = storage.validateCaches()
         if (ignoreCache) {
             ApphudLog.logI("Ignoring local paywalls cache")
