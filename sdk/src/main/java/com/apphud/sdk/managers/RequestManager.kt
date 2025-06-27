@@ -198,29 +198,6 @@ internal object RequestManager {
         return userRemoteRepository.setUserProperties(userPropertiesBody).getOrThrow()
     }
 
-    fun fetchFallbackHost(): String? {
-        val url = "https://apphud.blob.core.windows.net/apphud-gateway/fallback.txt"
-        val client = OkHttpClient()
-
-        val request = Request.Builder().url(url).build()
-        var response: Response? = null
-        try {
-            response = client.newCall(request).execute()
-        } catch (ex: Exception) {
-            ApphudLog.logE("Unable to load fallback host")
-        }
-
-        response?.let {
-            if (it.isSuccessful) {
-                return it.body?.string()
-            }
-        }
-
-        ApphudLog.logE("Fallback host not available")
-
-        return null
-    }
-
     suspend fun grantPromotional(
         daysCount: Int,
         productId: String?,
