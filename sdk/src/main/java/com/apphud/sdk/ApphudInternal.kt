@@ -456,51 +456,81 @@ internal object ApphudInternal {
     }
 
     private fun handlePaywallsAndProductsLoaded(customerError: ApphudError?) {
-        if (currentUser != null && paywalls.isNotEmpty() && productDetails.isNotEmpty() && !isRegisteringUser) {
-            if (!notifiedAboutPaywallsDidFullyLoaded) {
-                apphudListener?.paywallsDidFullyLoad(paywalls)
-                apphudListener?.placementsDidFullyLoad(placements)
-
-                notifiedAboutPaywallsDidFullyLoaded = true
-                ApphudLog.logI("Paywalls and Placements ready")
-            }
-
-            if (offeringsPreparedCallbacks.isNotEmpty()) {
-                ApphudLog.log("handle offeringsPreparedCallbacks latestError: ${latestCustomerLoadError}")
-            }
-            while (offeringsPreparedCallbacks.isNotEmpty()) {
-                val callback = offeringsPreparedCallbacks.removeFirst()
-                callback?.invoke(null)
-            }
-
-            notifiedPaywallsAndPlacementsHandled = true
-            trackAnalytics(true)
-
-            latestCustomerLoadError = null
-        } else if (!isRegisteringUser && (hasRespondedToPaywallsRequest || customerError != null) &&
-            ((customerError != null && paywalls.isEmpty()) || (productsStatus != ApphudProductsStatus.loading && productsResponseCode != BillingClient.BillingResponseCode.OK && productDetails.isEmpty()))
-        ) {
-            val error =
-                latestCustomerLoadError ?: customerError ?: (if (productsResponseCode == APPHUD_NO_REQUEST) ApphudError(
-                    "Paywalls load error",
-                    errorCode = productsResponseCode
-                ) else ApphudError("Google Billing error", errorCode = productsResponseCode))
-            if (offeringsPreparedCallbacks.isNotEmpty()) {
-                ApphudLog.log("handle offeringsPreparedCallbacks with error ${error}")
-            }
-
-            while (offeringsPreparedCallbacks.isNotEmpty()) {
-                val callback = offeringsPreparedCallbacks.removeFirst()
-                callback?.invoke(error)
-            }
-
-            notifiedPaywallsAndPlacementsHandled = true
-            trackAnalytics(false)
-
-            latestCustomerLoadError = null
-        } else {
-//            ApphudLog.log("Not yet ready for callbacks invoke: isRegisteringUser: ${isRegisteringUser}, currentUserExist: ${currentUser != null} customerError: ${customerError}, latestCustomerError: ${latestCustomerLoadError}, paywallsEmpty: ${paywalls.isEmpty()}, productsResponseCode = ${productsResponseCode}, productsStatus: ${productsStatus}, productDetailsEmpty: ${productDetails.isEmpty()}, deferred: $deferPlacements, hasRespondedToPaywallsRequest=$hasRespondedToPaywallsRequest }")
+        when {
+            isDataReady() -> handleSuccessfulLoad()
+            isErrorOccurred(customerError) -> handleError(customerError)
+            else -> logNotReadyState()
         }
+    }
+
+    private fun isDataReady(): Boolean =
+        currentUser != null &&
+            paywalls.isNotEmpty() &&
+            productDetails.isNotEmpty() &&
+            !isRegisteringUser
+
+    private fun isErrorOccurred(customerError: ApphudError?): Boolean =
+        !isRegisteringUser &&
+            hasResponseOrError(customerError) &&
+            hasDataLoadFailed(customerError)
+
+    private fun hasResponseOrError(customerError: ApphudError?) =
+        hasRespondedToPaywallsRequest || customerError != null
+
+    private fun hasDataLoadFailed(customerError: ApphudError?) =
+        (customerError != null && paywalls.isEmpty()) || isProductsLoadFailed()
+
+    private fun isProductsLoadFailed() =
+        productsStatus != ApphudProductsStatus.loading &&
+            productsResponseCode != BillingClient.BillingResponseCode.OK &&
+            productDetails.isEmpty()
+
+    private fun handleSuccessfulLoad() {
+        if (!notifiedAboutPaywallsDidFullyLoaded) {
+            apphudListener?.paywallsDidFullyLoad(paywalls)
+            apphudListener?.placementsDidFullyLoad(placements)
+
+            notifiedAboutPaywallsDidFullyLoaded = true
+            ApphudLog.logI("Paywalls and Placements ready")
+        }
+
+        if (offeringsPreparedCallbacks.isNotEmpty()) {
+            ApphudLog.log("handle offeringsPreparedCallbacks latestError: $latestCustomerLoadError")
+        }
+        while (offeringsPreparedCallbacks.isNotEmpty()) {
+            val callback = offeringsPreparedCallbacks.removeFirst()
+            callback?.invoke(null)
+        }
+
+        notifiedPaywallsAndPlacementsHandled = true
+        trackAnalytics(true)
+
+        latestCustomerLoadError = null
+    }
+
+    private fun handleError(customerError: ApphudError?) {
+        val error = latestCustomerLoadError ?: customerError ?: if (productsResponseCode == APPHUD_NO_REQUEST) {
+            ApphudError("Paywalls load error", errorCode = productsResponseCode)
+        } else {
+            ApphudError("Google Billing error", errorCode = productsResponseCode)
+        }
+
+        if (offeringsPreparedCallbacks.isNotEmpty()) {
+            ApphudLog.log("handle offeringsPreparedCallbacks with error $error")
+        }
+        while (offeringsPreparedCallbacks.isNotEmpty()) {
+            val callback = offeringsPreparedCallbacks.removeFirst()
+            callback?.invoke(error)
+        }
+
+        notifiedPaywallsAndPlacementsHandled = true
+        trackAnalytics(false)
+
+        latestCustomerLoadError = null
+    }
+
+    private fun logNotReadyState() {
+        ApphudLog.log("Not yet ready for callbacks invoke: isRegisteringUser: $isRegisteringUser, currentUserExist: ${currentUser != null}, latestCustomerError: $latestCustomerLoadError, paywallsEmpty: ${paywalls.isEmpty()}, productsResponseCode = $productsResponseCode, productsStatus: $productsStatus, productDetailsEmpty: ${productDetails.isEmpty()}, deferred: $deferPlacements, hasRespondedToPaywallsRequest=$hasRespondedToPaywallsRequest")
     }
 
     private fun trackAnalytics(success: Boolean) {
