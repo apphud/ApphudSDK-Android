@@ -36,29 +36,4 @@ internal object ApphudLog {
     ) {
         Log.e(TAG, message)
     }
-
-    /**
-     * Send Benchmark Logs to Apphud Server
-     * */
-    fun logBenchmark(
-        path: String,
-        time: Long,
-    ) {
-        if (path == "/v1/customers" ||
-            path == "/v2/products" ||
-            path == "/v2/paywall_configs" ||
-            path == "/v1/subscriptions"
-        ) {
-            logI("Benchmark: " + path + ": " + time + "ms")
-            /*val seconds: Double = time / 1000.0
-            synchronized(data){
-                val logItem: MutableMap<String, Any?> = mutableMapOf(
-                    "path" to path,
-                    "duration" to seconds   //.roundTo(2)
-                )
-                data.add(logItem)
-            }
-            startTimer()*/
-        }
-    }
 }
