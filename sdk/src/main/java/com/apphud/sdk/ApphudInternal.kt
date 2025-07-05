@@ -305,7 +305,7 @@ internal object ApphudInternal {
             cachedPaywalls == null ||
             cachedUser == null ||
             cachedUser.hasPurchases() ||
-            storage.cacheExpired(cachedUser)
+            storage.cacheExpired()
     }
 
     internal fun refreshEntitlements(

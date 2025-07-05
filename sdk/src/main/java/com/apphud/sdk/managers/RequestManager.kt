@@ -8,7 +8,6 @@ import com.android.billingclient.api.BillingClient
 import com.android.billingclient.api.ProductDetails
 import com.apphud.sdk.ApphudError
 import com.apphud.sdk.ApphudInternal
-import com.apphud.sdk.ApphudInternal.errorHandler
 import com.apphud.sdk.ApphudLog
 import com.apphud.sdk.ApphudUtils
 import com.apphud.sdk.UserId
@@ -34,12 +33,8 @@ import com.apphud.sdk.processFallbackData
 import com.apphud.sdk.storage.SharedPreferencesStorage
 import com.google.gson.GsonBuilder
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.launch
 import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.withContext
-import okhttp3.OkHttpClient
-import okhttp3.Request
-import okhttp3.Response
 import java.net.SocketTimeoutException
 import kotlin.coroutines.resume
 
