@@ -20,6 +20,7 @@ import com.apphud.sdk.domain.ApphudUser
 import com.apphud.sdk.domain.PurchaseRecordDetails
 import com.apphud.sdk.internal.BillingWrapper
 import com.apphud.sdk.internal.ServiceLocator
+import com.apphud.sdk.internal.data.local.UserRepository
 import com.apphud.sdk.internal.util.runCatchingCancellable
 import com.apphud.sdk.managers.RequestManager
 import com.apphud.sdk.managers.RequestManager.applicationContext
@@ -36,6 +37,7 @@ import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.withContext
@@ -113,8 +115,13 @@ internal object ApphudInternal {
     internal var fallbackMode = false
     internal lateinit var userId: UserId
     internal lateinit var context: Context
-    internal var currentUser: ApphudUser? = null
+    internal val userRepository: UserRepository by lazy {
+        ServiceLocator.instance.userRepository
+    }
     internal var apphudListener: ApphudListener? = null
+
+    internal val currentUser: ApphudUser?
+        get() = runBlocking { userRepository.getCurrentUser() }
     internal var userLoadRetryCount: Int = 1
     internal var notifiedAboutPaywallsDidFullyLoaded = false
     internal var purchasingProduct: ApphudProduct? = null
@@ -212,7 +219,7 @@ internal object ApphudInternal {
             ApphudLog.logI("Ignoring local paywalls cache")
         }
 
-        val cachedUser = if (isValid) storage.apphudUser else null
+        val cachedUser = runBlocking { userRepository.getCurrentUser() }
         val cachedPaywalls = if (ignoreCache || !isValid || observerMode) null else readPaywallsFromCache()
         val cachedPlacements = if (ignoreCache || !isValid || observerMode) null else readPlacementsFromCache()
         val cachedGroups = if (isValid) readGroupsFromCache() else mutableListOf()
@@ -252,7 +259,6 @@ internal object ApphudInternal {
          */
         this.userId = newUserId
         this.deviceId = newDeviceId
-        this.currentUser = cachedUser
         this.productGroups = cachedGroups
         cachedPaywalls?.let { this.paywalls = it }
         cachedPlacements?.let { this.placements = it }
@@ -397,8 +403,9 @@ internal object ApphudInternal {
                     paywallsPrepared = false
                 }
                 coroutineScope.launch {
-                    val changed = storage.updateCustomer(it)
-                    if (changed) {
+                    val userIdChanged = ServiceLocator.instance.updateCustomerUseCase(it)
+                    
+                    if (userIdChanged) {
                         mainScope.launch {
                             apphudListener?.apphudDidChangeUserID(it.userId)
                         }
@@ -419,7 +426,6 @@ internal object ApphudInternal {
                 }
             }
 
-            currentUser = it
             userId = it.userId
             hasRespondedToPaywallsRequest =
                 hasRespondedToPaywallsRequest || paywalls.isNotEmpty() || placements.isNotEmpty() || observerMode
@@ -643,7 +649,7 @@ internal object ApphudInternal {
             firstCustomerLoadedTime = System.currentTimeMillis()
         }
 
-        currentUser = newUser
+        runBlocking { userRepository.updateUser(newUser) }
         if (newUser.paywalls.isNotEmpty()) {
             synchronized(paywalls) {
                 paywalls = newUser.paywalls
@@ -1279,7 +1285,7 @@ internal object ApphudInternal {
     private fun clear() {
         ServiceLocator.instance.ruleController.stop()
         RequestManager.cleanRegistration()
-        currentUser = null
+        runBlocking { userRepository.clearUser() }
         productsStatus = ApphudProductsStatus.none
         productsResponseCode = BillingClient.BillingResponseCode.OK
         customProductsFetchedBlock = null

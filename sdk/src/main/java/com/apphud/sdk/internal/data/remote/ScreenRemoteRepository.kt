@@ -5,7 +5,6 @@ import com.apphud.sdk.ApphudError
 import com.apphud.sdk.ApphudLog
 import com.apphud.sdk.internal.domain.model.ApiKey
 import com.apphud.sdk.internal.util.runCatchingCancellable
-import com.google.gson.Gson
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import okhttp3.HttpUrl.Companion.toHttpUrl
@@ -14,7 +13,6 @@ import java.util.Locale
 
 internal class ScreenRemoteRepository(
     private val okHttpClient: OkHttpClient,
-    private val gson: Gson,
     private val apiKey: ApiKey,
 ) {
 
