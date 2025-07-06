@@ -5,6 +5,7 @@ import com.apphud.sdk.ApphudInternal
 import com.apphud.sdk.ApphudRuleCallback
 import com.apphud.sdk.internal.data.local.LifecycleRepository
 import com.apphud.sdk.internal.data.local.LocalRulesScreenRepository
+import com.apphud.sdk.internal.data.local.UserRepository
 import com.apphud.sdk.internal.data.mapper.CustomerMapper
 import com.apphud.sdk.internal.data.mapper.PaywallsMapper
 import com.apphud.sdk.internal.data.mapper.PlacementsMapper
@@ -21,6 +22,7 @@ import com.apphud.sdk.internal.data.remote.ScreenRemoteRepository
 import com.apphud.sdk.internal.data.remote.UserRemoteRepository
 import com.apphud.sdk.internal.domain.FetchMostActualRuleScreenUseCase
 import com.apphud.sdk.internal.domain.FetchRulesScreenUseCase
+import com.apphud.sdk.internal.domain.UpdateCustomerUseCase
 import com.apphud.sdk.internal.domain.mapper.DateTimeMapper
 import com.apphud.sdk.internal.domain.mapper.NotificationMapper
 import com.apphud.sdk.internal.domain.model.ApiKey
@@ -98,7 +100,6 @@ internal class ServiceLocator(
     private val screenRemoteRepository: ScreenRemoteRepository =
         ScreenRemoteRepository(
             okHttpClient = okHttpClientWithoutHeaders,
-            gson = gson,
             apiKey = apiKey
         )
 
@@ -109,7 +110,9 @@ internal class ServiceLocator(
             ruleScreenMapper = RuleScreenMapper()
         )
 
-    val lifecycleRepository: LifecycleRepository = LifecycleRepository()
+    private val lifecycleRepository: LifecycleRepository = LifecycleRepository()
+
+    val userRepository: UserRepository = UserRepository(SharedPreferencesStorage)
 
     val userRemoteRepository: UserRemoteRepository =
         UserRemoteRepository(
@@ -130,6 +133,10 @@ internal class ServiceLocator(
         FetchMostActualRuleScreenUseCase(
             localRulesScreenRepository = localRulesScreenRepository,
         )
+
+    val updateCustomerUseCase: UpdateCustomerUseCase = UpdateCustomerUseCase(
+        userRepository = userRepository,
+    )
 
     val ruleController: RuleController =
         RuleController(

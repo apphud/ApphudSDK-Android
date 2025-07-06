@@ -22,11 +22,11 @@ internal var processedFallbackData = false
 internal fun ApphudInternal.processFallbackData(callback: PaywallCallback) {
     try {
         if (currentUser == null) {
-            currentUser =
-                ApphudUser(
-                    userId, "", "", listOf(), listOf(), listOf(),
-                    listOf(), true,
-                )
+            val tempUser = ApphudUser(
+                userId, "", "", listOf(), listOf(), listOf(),
+                listOf(), true,
+            )
+            kotlinx.coroutines.runBlocking { userRepository.updateUser(tempUser) }
             ApphudLog.log("Fallback: user created: $userId")
         }
 
