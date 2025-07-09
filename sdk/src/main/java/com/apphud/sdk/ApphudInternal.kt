@@ -24,7 +24,6 @@ import com.apphud.sdk.internal.data.local.UserRepository
 import com.apphud.sdk.internal.util.runCatchingCancellable
 import com.apphud.sdk.managers.RequestManager
 import com.apphud.sdk.managers.RequestManager.applicationContext
-import com.apphud.sdk.storage.SharedPreferencesStorage
 import com.google.android.gms.appset.AppSet
 import com.google.android.gms.appset.AppSetIdInfo
 import com.google.android.gms.tasks.Task
@@ -59,7 +58,6 @@ internal object ApphudInternal {
     internal val FALLBACK_ERRORS = listOf(APPHUD_ERROR_TIMEOUT, 404, 500, 502, 503)
     internal var ignoreCache: Boolean = false
     internal lateinit var billing: BillingWrapper
-    internal val storage by lazy { SharedPreferencesStorage.getInstance(context) }
     internal var prevPurchases = mutableSetOf<PurchaseRecordDetails>()
     internal var productDetails = mutableListOf<ProductDetails>()
     internal var paywalls = listOf<ApphudPaywall>()
@@ -156,17 +154,17 @@ internal object ApphudInternal {
             when (event) {
                 Lifecycle.Event.ON_STOP -> {
                     if (fallbackMode) {
-                        storage.isNeedSync = true
+                        ServiceLocator.instance.sharedPreferencesStorage.isNeedSync = true
                     }
                     isActive = false
-                    ApphudLog.log("Application stopped [need sync ${storage.isNeedSync}]")
+                    ApphudLog.log("Application stopped [need sync ${ServiceLocator.instance.sharedPreferencesStorage.isNeedSync}]")
                 }
                 Lifecycle.Event.ON_START -> {
                     // do nothing
                     ApphudLog.log("Application resumed")
                     isActive = true
 
-                    if (storage.isNeedSync) {
+                    if (ServiceLocator.instance.sharedPreferencesStorage.isNeedSync) {
                         // lookup immediately
                         lookupFreshPurchase(extraMessage = "recover_need_sync")
                     } else if (purchasingProduct != null && purchaseCallbacks.isNotEmpty()) {
@@ -214,7 +212,7 @@ internal object ApphudInternal {
         ApphudLog.log("Start initialization with userId=$inputUserId, deviceId=$inputDeviceId")
         if (apiKey.isEmpty()) throw Exception("ApiKey can't be empty")
 
-        val isValid = storage.validateCaches()
+        val isValid = ServiceLocator.instance.sharedPreferencesStorage.validateCaches()
         if (ignoreCache) {
             ApphudLog.logI("Ignoring local paywalls cache")
         }
@@ -223,8 +221,8 @@ internal object ApphudInternal {
         val cachedPaywalls = if (ignoreCache || !isValid || observerMode) null else readPaywallsFromCache()
         val cachedPlacements = if (ignoreCache || !isValid || observerMode) null else readPlacementsFromCache()
         val cachedGroups = if (isValid) readGroupsFromCache() else mutableListOf()
-        val cachedDeviceId = storage.deviceId
-        val cachedUserId = storage.userId
+        val cachedDeviceId = ServiceLocator.instance.sharedPreferencesStorage.deviceId
+        val cachedUserId = ServiceLocator.instance.sharedPreferencesStorage.userId
 
         sdkLaunchedAt = System.currentTimeMillis()
 
@@ -246,8 +244,8 @@ internal object ApphudInternal {
         val credentialsChanged = cachedUserId != newUserId || cachedDeviceId != newDeviceId
 
         if (credentialsChanged) {
-            storage.userId = newUserId
-            storage.deviceId = newDeviceId
+            ServiceLocator.instance.sharedPreferencesStorage.userId = newUserId
+            ServiceLocator.instance.sharedPreferencesStorage.deviceId = newDeviceId
         }
 
         /**
@@ -311,7 +309,7 @@ internal object ApphudInternal {
             cachedPaywalls == null ||
             cachedUser == null ||
             cachedUser.hasPurchases() ||
-            storage.cacheExpired()
+            ServiceLocator.instance.sharedPreferencesStorage.cacheExpired()
     }
 
     internal fun refreshEntitlements(
@@ -660,10 +658,10 @@ internal object ApphudInternal {
         }
 
         coroutineScope.launch {
-            storage.lastRegistration = System.currentTimeMillis()
+            ServiceLocator.instance.sharedPreferencesStorage.lastRegistration = System.currentTimeMillis()
         }
 
-        if (storage.isNeedSync) {
+        if (ServiceLocator.instance.sharedPreferencesStorage.isNeedSync) {
             coroutineScope.launch(errorHandler) {
                 ApphudLog.log("Registration: isNeedSync true, start syncing")
                 fetchNativePurchases(forceRefresh = true)
@@ -686,7 +684,7 @@ internal object ApphudInternal {
         val needPlacementsPaywalls = !didRegisterCustomerAtThisLaunch && !deferPlacements && !observerMode
         runCatchingCancellable { RequestManager.registration(needPlacementsPaywalls, isNew, true) }
             .onSuccess {
-                storage.lastRegistration = System.currentTimeMillis()
+                ServiceLocator.instance.sharedPreferencesStorage.lastRegistration = System.currentTimeMillis()
                 mainScope.launch { notifyLoadingCompleted(it) }
             }
     }
@@ -833,7 +831,7 @@ internal object ApphudInternal {
                 type = typeString,
             )
 
-        if (!storage.needSendProperty(property)) {
+        if (!ServiceLocator.instance.sharedPreferencesStorage.needSendProperty(property)) {
             return
         }
 
@@ -891,11 +889,11 @@ internal object ApphudInternal {
                     .fold(
                         onSuccess = { userProperties ->
                             if (userProperties.success) {
-                                val propertiesInStorage = storage.properties
+                                val propertiesInStorage = ServiceLocator.instance.sharedPreferencesStorage.properties
                                 sentPropertiesForSave.forEach {
                                     propertiesInStorage?.put(it.key, it)
                                 }
-                                storage.properties = propertiesInStorage
+                                ServiceLocator.instance.sharedPreferencesStorage.properties = propertiesInStorage
 
                                 synchronized(pendingUserProperties) {
                                     pendingUserProperties.clear()
@@ -944,7 +942,7 @@ internal object ApphudInternal {
         val originalUserId = this.userId
         if (web2Web == false) {
             this.userId = userId
-            storage.userId = userId
+            ServiceLocator.instance.sharedPreferencesStorage.userId = userId
         }
         RequestManager.setParams(this.context, this.apiKey)
 
@@ -968,7 +966,7 @@ internal object ApphudInternal {
         }
 
         ApphudInternal.userId = customer?.userId ?: currentUser?.userId ?: originalUserId
-        storage.userId = ApphudInternal.userId
+        ServiceLocator.instance.sharedPreferencesStorage.userId = ApphudInternal.userId
 
         customer?.let {
             mainScope.launch { notifyLoadingCompleted(it) }
@@ -1183,7 +1181,7 @@ internal object ApphudInternal {
     suspend fun loadPermissionGroups(): List<ApphudGroup> {
 
         synchronized(this.productGroups) {
-            if (this.productGroups.isNotEmpty() && !storage.needUpdateProductGroups()) {
+            if (this.productGroups.isNotEmpty() && !ServiceLocator.instance.sharedPreferencesStorage.needUpdateProductGroups()) {
                 return this.productGroups.toList()
             }
         }
@@ -1219,7 +1217,7 @@ internal object ApphudInternal {
         }
 
         coroutineScope.launch(errorHandler) {
-            val cachedIdentifiers = storage.deviceIdentifiers
+            val cachedIdentifiers = ServiceLocator.instance.sharedPreferencesStorage.deviceIdentifiers
             val newIdentifiers = arrayOf("", "", "")
             val threads =
                 listOf(
@@ -1246,7 +1244,7 @@ internal object ApphudInternal {
                 )
             threads.awaitAll().let {
                 if (!newIdentifiers.contentEquals(cachedIdentifiers)) {
-                    storage.deviceIdentifiers = newIdentifiers
+                    ServiceLocator.instance.sharedPreferencesStorage.deviceIdentifiers = newIdentifiers
                     repeatRegistrationSilent()
                 } else {
                     ApphudLog.log("Device Identifiers not changed")
@@ -1292,7 +1290,7 @@ internal object ApphudInternal {
         offeringsPreparedCallbacks.clear()
         purchaseCallbacks.clear()
         freshPurchase = null
-        storage.clean()
+        ServiceLocator.instance.sharedPreferencesStorage.clean()
         prevPurchases.clear()
         productDetails.clear()
         pendingUserProperties.clear()
@@ -1306,11 +1304,11 @@ internal object ApphudInternal {
     //region === Cache ===
 // Groups cache ======================================
     internal fun cacheGroups(groups: List<ApphudGroup>) {
-        storage.productGroups = groups
+        ServiceLocator.instance.sharedPreferencesStorage.productGroups = groups
     }
 
     private fun readGroupsFromCache(): MutableList<ApphudGroup> {
-        return storage.productGroups?.toMutableList() ?: mutableListOf()
+        return ServiceLocator.instance.sharedPreferencesStorage.productGroups?.toMutableList() ?: mutableListOf()
     }
 
     private fun updateGroupsWithProductDetails(productGroups: List<ApphudGroup>) {
@@ -1323,19 +1321,19 @@ internal object ApphudInternal {
 
     // Paywalls cache ======================================
     internal fun cachePaywalls(paywalls: List<ApphudPaywall>) {
-        storage.paywalls = paywalls
+        ServiceLocator.instance.sharedPreferencesStorage.paywalls = paywalls
     }
 
     private fun readPaywallsFromCache(): List<ApphudPaywall>? {
-        return storage.paywalls
+        return ServiceLocator.instance.sharedPreferencesStorage.paywalls
     }
 
     private fun cachePlacements(placements: List<ApphudPlacement>) {
-        storage.placements = placements
+        ServiceLocator.instance.sharedPreferencesStorage.placements = placements
     }
 
     private fun readPlacementsFromCache(): List<ApphudPlacement>? {
-        return storage.placements
+        return ServiceLocator.instance.sharedPreferencesStorage.placements
     }
 
     private fun updatePaywallsAndPlacements() {

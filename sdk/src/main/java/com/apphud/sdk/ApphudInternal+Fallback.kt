@@ -4,6 +4,7 @@ import android.content.Context
 import com.android.billingclient.api.BillingClient.BillingResponseCode
 import com.apphud.sdk.domain.ApphudUser
 import com.apphud.sdk.domain.FallbackJsonObject
+import com.apphud.sdk.internal.ServiceLocator
 import com.apphud.sdk.mappers.PaywallsMapperLegacy
 import com.apphud.sdk.parser.GsonParser
 import com.apphud.sdk.parser.Parser
@@ -112,7 +113,7 @@ internal fun ApphudInternal.disableFallback() {
             ApphudLog.log("Fallback: reload products")
             loadProducts()
         }
-        if (storage.isNeedSync) {
+        if (ServiceLocator.instance.sharedPreferencesStorage.isNeedSync) {
             syncPurchases()
         }
     }

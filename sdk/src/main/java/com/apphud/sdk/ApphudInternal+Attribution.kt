@@ -14,6 +14,7 @@ import com.apphud.sdk.domain.AdjustInfo
 import com.apphud.sdk.domain.ApphudUser
 import com.apphud.sdk.domain.AppsflyerInfo
 import com.apphud.sdk.domain.FacebookInfo
+import com.apphud.sdk.internal.ServiceLocator
 import com.apphud.sdk.internal.data.dto.AttributionRequestDto
 import com.apphud.sdk.internal.util.runCatchingCancellable
 import com.apphud.sdk.managers.RequestManager
@@ -28,7 +29,7 @@ internal fun ApphudInternal.setAttribution(
 ) {
     when (provider) {
         APPSFLYER -> {
-            val temporary = storage.appsflyer
+            val temporary = ServiceLocator.instance.sharedPreferencesStorage.appsflyer
             when {
                 temporary == null -> Unit
                 (temporary.id == identifier) && (temporary.data == apphudAttributionData.rawData) -> {
@@ -38,7 +39,7 @@ internal fun ApphudInternal.setAttribution(
             }
         }
         FACEBOOK -> {
-            val temporary = storage.facebook
+            val temporary = ServiceLocator.instance.sharedPreferencesStorage.facebook
             when {
                 temporary == null -> Unit
                 temporary.data == apphudAttributionData.rawData -> {
@@ -48,13 +49,13 @@ internal fun ApphudInternal.setAttribution(
             }
         }
         FIREBASE -> {
-            if (storage.firebase == identifier) {
+            if (ServiceLocator.instance.sharedPreferencesStorage.firebase == identifier) {
                 ApphudLog.logI("Already submitted the same Firebase attribution, skipping")
                 return
             }
         }
         ADJUST -> {
-            val temporary = storage.adjust
+            val temporary = ServiceLocator.instance.sharedPreferencesStorage.adjust
             when {
                 temporary == null -> Unit
                 (temporary.adid == identifier) && (temporary.adjustData == apphudAttributionData.rawData) -> {
@@ -115,22 +116,23 @@ internal fun ApphudInternal.setAttribution(
                 withContext(Dispatchers.Main) {
                     when (provider) {
                         APPSFLYER -> {
-                            storage.appsflyer = AppsflyerInfo(
+                            ServiceLocator.instance.sharedPreferencesStorage.appsflyer = AppsflyerInfo(
                                 id = identifier,
                                 data = apphudAttributionData.rawData,
                             )
                         }
 
                         FACEBOOK -> {
-                            storage.facebook = FacebookInfo(apphudAttributionData.rawData)
+                            ServiceLocator.instance.sharedPreferencesStorage.facebook =
+                                FacebookInfo(apphudAttributionData.rawData)
                         }
 
                         FIREBASE -> {
-                            storage.firebase = identifier
+                            ServiceLocator.instance.sharedPreferencesStorage.firebase = identifier
                         }
 
                         ADJUST -> {
-                            storage.adjust = AdjustInfo(
+                            ServiceLocator.instance.sharedPreferencesStorage.adjust = AdjustInfo(
                                 adid = identifier,
                                 adjustData = apphudAttributionData.rawData,
                             )

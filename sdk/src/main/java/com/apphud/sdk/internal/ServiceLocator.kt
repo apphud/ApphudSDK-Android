@@ -42,6 +42,8 @@ internal class ServiceLocator(
 
     private val gson: Gson = Gson()
 
+    val sharedPreferencesStorage: SharedPreferencesStorage = SharedPreferencesStorage(applicationContext)
+
     private val paywallsMapper = PaywallsMapper(gson)
     private val placementsMapper = PlacementsMapper(paywallsMapper)
     private val subscriptionMapper = SubscriptionMapper()
@@ -49,7 +51,7 @@ internal class ServiceLocator(
         CustomerMapper(subscriptionMapper, paywallsMapper, placementsMapper)
 
     private val registrationProvider: RegistrationProvider =
-        RegistrationProvider(applicationContext, SharedPreferencesStorage)
+        RegistrationProvider(applicationContext, sharedPreferencesStorage)
 
     private val okHttpClient: OkHttpClient =
         OkHttpClient.Builder()
@@ -112,7 +114,7 @@ internal class ServiceLocator(
 
     private val lifecycleRepository: LifecycleRepository = LifecycleRepository()
 
-    val userRepository: UserRepository = UserRepository(SharedPreferencesStorage)
+    val userRepository: UserRepository = UserRepository(sharedPreferencesStorage)
 
     val userRemoteRepository: UserRemoteRepository =
         UserRemoteRepository(
