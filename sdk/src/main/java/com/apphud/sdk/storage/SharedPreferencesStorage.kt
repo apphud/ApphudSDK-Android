@@ -30,14 +30,6 @@ internal class SharedPreferencesStorage(context: Context) : Storage {
             .serializeNulls().create()
     private val parser: Parser = GsonParser(gson)
 
-    override var userId: String?
-        get() = preferences.getString(USER_ID_KEY, null)
-        set(value) {
-            preferences.edit {
-                putString(USER_ID_KEY, value)
-            }
-        }
-
     override var apphudUser: ApphudUser?
         get() {
             val source = preferences.getString(APPHUD_USER_KEY, null)

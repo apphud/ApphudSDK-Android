@@ -5,6 +5,7 @@ import com.apphud.sdk.storage.Storage
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.asSharedFlow
+import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 
@@ -23,14 +24,14 @@ internal class UserRepository(
 
     suspend fun getCurrentUser(): ApphudUser? {
         return userMutex.withLock {
-            _currentUser.replayCache.first()
+            _currentUser.firstOrNull()
         }
     }
 
     suspend fun updateUser(user: ApphudUser) {
         userMutex.withLock {
             storage.apphudUser = user
-            user.let { storage.userId = it.userId }
+//            user.let { storage.userId = it.userId }
             _currentUser.tryEmit(user)
         }
     }
@@ -39,7 +40,7 @@ internal class UserRepository(
     suspend fun clearUser() {
         userMutex.withLock {
             storage.apphudUser = null
-            storage.userId = null
+//            storage.userId = null
             _currentUser.tryEmit(null)
         }
     }

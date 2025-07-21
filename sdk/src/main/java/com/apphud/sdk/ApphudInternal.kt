@@ -39,6 +39,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import java.util.UUID
 import kotlin.coroutines.resume
@@ -109,9 +110,7 @@ internal object ApphudInternal {
     internal var didRegisterCustomerAtThisLaunch = false
     private var isNew = true
     private lateinit var apiKey: ApiKey
-    lateinit var deviceId: DeviceId
     internal var fallbackMode = false
-    internal lateinit var userId: UserId
     internal lateinit var context: Context
     internal val userRepository: UserRepository by lazy {
         ServiceLocator.instance.userRepository
@@ -222,31 +221,24 @@ internal object ApphudInternal {
         val cachedPlacements = if (ignoreCache || !isValid || observerMode) null else readPlacementsFromCache()
         val cachedGroups = if (isValid) readGroupsFromCache() else mutableListOf()
         val cachedDeviceId = ServiceLocator.instance.sharedPreferencesStorage.deviceId
-        val cachedUserId = ServiceLocator.instance.sharedPreferencesStorage.userId
 
         sdkLaunchedAt = System.currentTimeMillis()
 
         val generatedUUID = UUID.randomUUID().toString()
 
-        val newUserId =
-            if (inputUserId.isNullOrBlank()) {
-                cachedUserId ?: generatedUUID
-            } else {
-                inputUserId
-            }
-        val newDeviceId =
-            if (inputDeviceId.isNullOrBlank()) {
-                cachedDeviceId ?: generatedUUID
-            } else {
-                inputDeviceId
-            }
-
-        val credentialsChanged = cachedUserId != newUserId || cachedDeviceId != newDeviceId
-
-        if (credentialsChanged) {
-            ServiceLocator.instance.sharedPreferencesStorage.userId = newUserId
-            ServiceLocator.instance.sharedPreferencesStorage.deviceId = newDeviceId
+        val newUserId = if (inputUserId.isNullOrBlank()) {
+            cachedUser?.userId ?: generatedUUID
+        } else {
+            inputUserId
         }
+
+        val newDeviceId = if (inputDeviceId.isNullOrBlank()) {
+            cachedDeviceId ?: generatedUUID
+        } else {
+            inputDeviceId
+        }
+
+        val credentialsChanged = cachedUser?.userId != newUserId || cachedDeviceId != newDeviceId
 
         /**
          * We cannot get paywalls and placements from paying current user,
@@ -255,8 +247,7 @@ internal object ApphudInternal {
          *
          * But paywalls and placements must have cache timeout
          */
-        this.userId = newUserId
-        this.deviceId = newDeviceId
+        ServiceLocator.instance.sharedPreferencesStorage.deviceId = newDeviceId
         this.productGroups = cachedGroups
         cachedPaywalls?.let { this.paywalls = it }
         cachedPlacements?.let { this.placements = it }
@@ -274,13 +265,13 @@ internal object ApphudInternal {
         val ruleController = ServiceLocator.instance.ruleController
         if (needRegistration) {
             isRegisteringUser = true
-            registration(true) { u, e ->
+            registration(true) { _, _ ->
                 if (shouldLoadProducts()) {
                     loadProducts()
                 }
                 coroutineScope.launch {
                     fetchNativePurchases()
-                    ruleController.start(deviceId)
+                    ruleController.start(newUserId)
                 }
             }
         } else {
@@ -291,7 +282,7 @@ internal object ApphudInternal {
                 }
                 coroutineScope.launch {
                     fetchNativePurchases()
-                    ruleController.start(deviceId)
+                    ruleController.start(newUserId)
                 }
             }
         }
@@ -402,7 +393,7 @@ internal object ApphudInternal {
                 }
                 coroutineScope.launch {
                     val userIdChanged = ServiceLocator.instance.updateCustomerUseCase(it)
-                    
+
                     if (userIdChanged) {
                         mainScope.launch {
                             apphudListener?.apphudDidChangeUserID(it.userId)
@@ -577,43 +568,18 @@ internal object ApphudInternal {
 
     private val mutex = Mutex()
 
-    private fun registration(
+    private suspend fun registration(
         forceRegistration: Boolean = false,
-        completionHandler: ((ApphudUser?, ApphudError?) -> Unit)?,
-    ) {
-        coroutineScope.launch(errorHandler) {
-            val shouldUnlockMutex =
-                (currentUser == null || currentUser?.isTemporary == true || forceRegistration) && offeringsPreparedCallbacks.isNotEmpty() && !isRegisteringUser && mutex.isLocked
-            if (shouldUnlockMutex) {
-                try {
-                    ApphudLog.log("Unlocking the mutex")
-                    mutex.unlock()
-                } catch (e: Exception) {
-                    ApphudLog.log("Failed to unlock the mutex, force registration")
-                    runCatchingCancellable { startRegistrationCall(forceRegistration) }
-                        .onSuccess { completionHandler?.invoke(it, null) }
-                        .onFailure { completionHandler?.invoke(null, it.toApphudError()) }
-                }
+    ): ApphudUser =
+        mutex.withLock {
+            val cached = userRepository.getCurrentUser()
+            if (cached != null && !forceRegistration) {
+                return@withLock cached
             }
-            mutex.lock()
-            try {
-                if (currentUser == null || forceRegistration) {
-                    runCatchingCancellable { startRegistrationCall(forceRegistration) }
-                        .onSuccess { completionHandler?.invoke(it, null) }
-                        .onFailure { completionHandler?.invoke(null, it.toApphudError()) }
-                } else {
-                    mainScope.launch {
-                        isRegisteringUser = false
-                        completionHandler?.invoke(currentUser, null)
-                    }
-                }
-            } finally {
-                if (mutex.isLocked) {
-                    mutex.unlock()
-                }
-            }
+
+            runCatchingCancellable { startRegistrationCall(forceRegistration) }
+                .getOrElse { throw it.toApphudError() }
         }
-    }
 
     private suspend fun startRegistrationCall(
         forceRegistration: Boolean = false,
@@ -889,7 +855,8 @@ internal object ApphudInternal {
                     .fold(
                         onSuccess = { userProperties ->
                             if (userProperties.success) {
-                                val propertiesInStorage = ServiceLocator.instance.sharedPreferencesStorage.properties
+                                val propertiesInStorage =
+                                    ServiceLocator.instance.sharedPreferencesStorage.properties
                                 sentPropertiesForSave.forEach {
                                     propertiesInStorage?.put(it.key, it)
                                 }
@@ -988,7 +955,8 @@ internal object ApphudInternal {
                 callback?.invoke(false)
             } ?: run {
                 coroutineScope.launch(errorHandler) {
-                    val grantPromotionalResult = RequestManager.grantPromotional(daysCount, productId, permissionGroup)
+                    val grantPromotionalResult =
+                        RequestManager.grantPromotional(daysCount, productId, permissionGroup)
                     withContext(Dispatchers.Main) {
                         grantPromotionalResult
                             .onSuccess {

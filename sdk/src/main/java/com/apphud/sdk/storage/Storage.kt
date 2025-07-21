@@ -11,7 +11,6 @@ import com.apphud.sdk.domain.FacebookInfo
 
 internal interface Storage {
     var lastRegistration: Long
-    var userId: String?
     var deviceId: String?
     var apphudUser: ApphudUser?
     var deviceIdentifiers: Array<String>
