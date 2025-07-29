@@ -31,6 +31,20 @@ import com.google.gson.Gson
 import okhttp3.HttpUrl.Companion.toHttpUrl
 import okhttp3.OkHttpClient
 
+class Repo {
+    companion object {
+        var BASE_URL = "https://gateway.apphud.com"
+        val CUSTOMERS_URL = "$BASE_URL/v1/customers".toHttpUrl()
+        val SUBSCRIPTIONS_URL = "$BASE_URL/v1/subscriptions".toHttpUrl()
+        val PRODUCTS_URL = "$BASE_URL/v2/products".toHttpUrl()
+        val ATTRIBUTION_URL = "$BASE_URL/v1/attribution".toHttpUrl()
+        val PROMOTIONS_URL = "$BASE_URL/v1/promotions".toHttpUrl()
+        val EVENTS_URL = "$BASE_URL/v1/events".toHttpUrl()
+        val NOTIFICATIONS_READ_URL = "$BASE_URL/v2/notifications/read".toHttpUrl()
+        val NOTIFICATIONS_URL = "$BASE_URL/v2/notifications".toHttpUrl()
+    }
+}
+
 @Suppress("LongParameterList")
 internal class RemoteRepository(
     private val okHttpClient: OkHttpClient,
@@ -52,7 +66,7 @@ internal class RemoteRepository(
     ): Result<ApphudUser> =
         runCatchingCancellable {
             val request =
-                buildPostRequest(CUSTOMERS_URL, registrationBodyFactory.create(needPaywalls, isNew, userId, email))
+                buildPostRequest(Repo.CUSTOMERS_URL, registrationBodyFactory.create(needPaywalls, isNew, userId, email))
             executeForResponse<CustomerDto>(okHttpClient, gson, request)
         }
             .recoverCatchingCancellable { e ->
@@ -68,7 +82,7 @@ internal class RemoteRepository(
     suspend fun getPurchased(purchaseContext: PurchaseContext): Result<ApphudUser> =
         runCatchingCancellable {
             val request =
-                buildPostRequest(SUBSCRIPTIONS_URL, purchaseBodyFactory.create(purchaseContext))
+                buildPostRequest(Repo.SUBSCRIPTIONS_URL, purchaseBodyFactory.create(purchaseContext))
             executeForResponse<CustomerDto>(okHttpClient, gson, request)
         }
             .recoverCatching { e ->
@@ -89,7 +103,7 @@ internal class RemoteRepository(
         runCatchingCancellable {
             val request =
                 buildPostRequest(
-                    SUBSCRIPTIONS_URL,
+                    Repo.SUBSCRIPTIONS_URL,
                     purchaseBodyFactory.create(apphudProduct, purchases, observerMode)
                 )
             executeForResponse<CustomerDto>(okHttpClient, gson, request)
@@ -111,7 +125,7 @@ internal class RemoteRepository(
                 "device_id" to getProductsParams.deviceId,
                 "user_id" to getProductsParams.userId,
             )
-            val request = buildGetRequest(PRODUCTS_URL, paramsMap)
+            val request = buildGetRequest(Repo.PRODUCTS_URL, paramsMap)
             executeForResponse<List<ApphudGroupDto>>(okHttpClient, gson, request)
         }
             .recoverCatching { e ->
@@ -128,7 +142,7 @@ internal class RemoteRepository(
         attributionRequestBody: AttributionRequestDto,
     ): Result<Attribution> =
         runCatchingCancellable {
-            val request = buildPostRequest(ATTRIBUTION_URL, attributionRequestBody)
+            val request = buildPostRequest(Repo.ATTRIBUTION_URL, attributionRequestBody)
             executeForResponse<AttributionDto>(okHttpClient, gson, request)
         }
             .recoverCatching { e ->
@@ -145,7 +159,7 @@ internal class RemoteRepository(
         grantPromotionalDto: GrantPromotionalDto,
     ): Result<ApphudUser> =
         runCatchingCancellable {
-            val request = buildPostRequest(PROMOTIONS_URL, grantPromotionalDto)
+            val request = buildPostRequest(Repo.PROMOTIONS_URL, grantPromotionalDto)
             executeForResponse<CustomerDto>(okHttpClient, gson, request)
         }
             .recoverCatching { e ->
@@ -160,7 +174,7 @@ internal class RemoteRepository(
 
     suspend fun trackEvent(event: PaywallEventDto): Result<Unit> =
         runCatchingCancellable {
-            val request = buildPostRequest(EVENTS_URL, event)
+            val request = buildPostRequest(Repo.EVENTS_URL, event)
             executeForResponse<Unit>(okHttpClient, gson, request)
         }
             .recoverCatching { e ->
@@ -174,7 +188,7 @@ internal class RemoteRepository(
             val paramsMap = mapOf(
                 "device_id" to deviceId,
             )
-            val request = buildGetRequest(NOTIFICATIONS_URL, paramsMap)
+            val request = buildGetRequest(Repo.NOTIFICATIONS_URL, paramsMap)
             executeForResponse<List<NotificationDto>>(okHttpClient, gson, request)
         }
             .recoverCatching { e ->
@@ -193,7 +207,7 @@ internal class RemoteRepository(
                 deviceId = deviceId,
                 ruleId = ruleId
             )
-            val request = buildPostRequest(NOTIFICATIONS_READ_URL, requestDto)
+            val request = buildPostRequest(Repo.NOTIFICATIONS_READ_URL, requestDto)
             executeForResponse<Unit>(okHttpClient, gson, request)
         }
             .recoverCatching { e ->
@@ -201,16 +215,4 @@ internal class RemoteRepository(
                 throw ApphudError(message, null, APPHUD_ERROR_NO_INTERNET, e)
             }
             .map { }
-
-    private companion object {
-        private const val BASE_URL = "https://gateway.apphud.com"
-        val CUSTOMERS_URL = "$BASE_URL/v1/customers".toHttpUrl()
-        val SUBSCRIPTIONS_URL = "$BASE_URL/v1/subscriptions".toHttpUrl()
-        val PRODUCTS_URL = "$BASE_URL/v2/products".toHttpUrl()
-        val ATTRIBUTION_URL = "$BASE_URL/v1/attribution".toHttpUrl()
-        val PROMOTIONS_URL = "$BASE_URL/v1/promotions".toHttpUrl()
-        val EVENTS_URL = "$BASE_URL/v1/events".toHttpUrl()
-        val NOTIFICATIONS_READ_URL = "$BASE_URL/v2/notifications/read".toHttpUrl()
-        val NOTIFICATIONS_URL = "$BASE_URL/v2/notifications".toHttpUrl()
-    }
 }
