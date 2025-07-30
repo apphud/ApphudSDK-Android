@@ -38,6 +38,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import java.util.UUID
 import kotlin.coroutines.resume
@@ -571,45 +572,20 @@ internal object ApphudInternal {
         }
     }
 
-    private val mutex = Mutex()
+    private val registrationMutex = Mutex()
 
-    private fun registration(
+    private suspend fun registration(
         forceRegistration: Boolean = false,
-        completionHandler: ((ApphudUser?, ApphudError?) -> Unit)?,
-    ) {
-        coroutineScope.launch(errorHandler) {
-            val shouldUnlockMutex =
-                (currentUser == null || currentUser?.isTemporary == true || forceRegistration) && offeringsPreparedCallbacks.isNotEmpty() && !isRegisteringUser && mutex.isLocked
-            if (shouldUnlockMutex) {
-                try {
-                    ApphudLog.log("Unlocking the mutex")
-                    mutex.unlock()
-                } catch (e: Exception) {
-                    ApphudLog.log("Failed to unlock the mutex, force registration")
-                    runCatchingCancellable { startRegistrationCall(forceRegistration) }
-                        .onSuccess { completionHandler?.invoke(it, null) }
-                        .onFailure { completionHandler?.invoke(null, it.toApphudError()) }
-                }
+    ): ApphudUser =
+        registrationMutex.withLock {
+            val cached = currentUser
+            if (cached != null && !forceRegistration) {
+                return@withLock cached
             }
-            mutex.lock()
-            try {
-                if (currentUser == null || forceRegistration) {
-                    runCatchingCancellable { startRegistrationCall(forceRegistration) }
-                        .onSuccess { completionHandler?.invoke(it, null) }
-                        .onFailure { completionHandler?.invoke(null, it.toApphudError()) }
-                } else {
-                    mainScope.launch {
-                        isRegisteringUser = false
-                        completionHandler?.invoke(currentUser, null)
-                    }
-                }
-            } finally {
-                if (mutex.isLocked) {
-                    mutex.unlock()
-                }
-            }
+
+            runCatchingCancellable { startRegistrationCall(forceRegistration) }
+                .getOrElse { throw it.toApphudError() }
         }
-    }
 
     private suspend fun startRegistrationCall(
         forceRegistration: Boolean = false,
@@ -1068,7 +1044,7 @@ internal object ApphudInternal {
         if (!isInitialized()) {
             throw ApphudError(MUST_REGISTER_ERROR)
         }
-
+//Убрать регистрацию пользователя в репозиторий.
         val mCurrentUser = currentUser
         when {
             mCurrentUser == null -> {
@@ -1090,22 +1066,19 @@ internal object ApphudInternal {
         }
     }
 
-    internal fun performWhenUserRegistered(callback: (ApphudError?) -> Unit) {
+    private suspend fun performWhenUserRegistered(action: (ApphudUser) -> Unit) {
         if (!isInitialized()) {
-            callback.invoke(ApphudError(MUST_REGISTER_ERROR))
-            return
+            throw ApphudError(MUST_REGISTER_ERROR)
         }
 
-        currentUser?.let {
-            if (it.isTemporary == false) {
-                callback.invoke(null)
-            } else {
-                callback.invoke(ApphudError("Fallback mode"))
-                refreshPaywallsIfNeeded()
-            }
-        } ?: run {
-            registration { _, error ->
-                callback.invoke(error)
+        registrationMutex.withLock {
+            currentUser?.let { currentUser ->
+                if (currentUser.isTemporary == false) {
+                    action(currentUser)
+                } else {
+                    refreshPaywallsIfNeeded()
+                    throw ApphudError("Fallback mode")
+                }
             }
         }
     }
