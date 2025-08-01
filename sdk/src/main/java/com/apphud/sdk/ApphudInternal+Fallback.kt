@@ -4,6 +4,7 @@ import android.content.Context
 import com.android.billingclient.api.BillingClient.BillingResponseCode
 import com.apphud.sdk.domain.ApphudUser
 import com.apphud.sdk.domain.FallbackJsonObject
+import com.apphud.sdk.internal.ServiceLocator
 import com.apphud.sdk.mappers.PaywallsMapperLegacy
 import com.apphud.sdk.parser.GsonParser
 import com.apphud.sdk.parser.Parser
@@ -22,11 +23,11 @@ internal var processedFallbackData = false
 internal fun ApphudInternal.processFallbackData(callback: PaywallCallback) {
     try {
         if (currentUser == null) {
-            currentUser =
-                ApphudUser(
-                    userId, "", "", listOf(), listOf(), listOf(),
-                    listOf(), true,
-                )
+            val tempUser = ApphudUser(
+                userId, "", "", listOf(), listOf(), listOf(),
+                listOf(), true,
+            )
+            kotlinx.coroutines.runBlocking { userRepository.updateUser(tempUser) }
             ApphudLog.log("Fallback: user created: $userId")
         }
 
@@ -112,7 +113,7 @@ internal fun ApphudInternal.disableFallback() {
             ApphudLog.log("Fallback: reload products")
             loadProducts()
         }
-        if (storage.isNeedSync) {
+        if (ServiceLocator.instance.sharedPreferencesStorage.isNeedSync) {
             syncPurchases()
         }
     }

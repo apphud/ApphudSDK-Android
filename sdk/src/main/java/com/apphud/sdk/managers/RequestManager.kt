@@ -52,7 +52,6 @@ internal object RequestManager {
     // TODO to be settled
     private var apiKey: String? = null
     lateinit var applicationContext: Context
-    internal lateinit var storage: SharedPreferencesStorage
     var previousException: java.lang.Exception? = null
     var retries: Int = 0
 
@@ -62,7 +61,6 @@ internal object RequestManager {
     ) {
         this.applicationContext = applicationContext
         apiKey?.let { this.apiKey = it }
-        this.storage = SharedPreferencesStorage
     }
 
     fun cleanRegistration() {

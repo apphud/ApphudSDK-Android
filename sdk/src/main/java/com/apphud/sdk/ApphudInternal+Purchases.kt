@@ -8,6 +8,7 @@ import com.apphud.sdk.domain.ApphudNonRenewingPurchase
 import com.apphud.sdk.domain.ApphudProduct
 import com.apphud.sdk.domain.ApphudSubscription
 import com.apphud.sdk.domain.ApphudUser
+import com.apphud.sdk.internal.ServiceLocator
 import com.apphud.sdk.internal.callback_status.PurchaseCallbackStatus
 import com.apphud.sdk.internal.callback_status.PurchaseUpdatedCallbackStatus
 import com.apphud.sdk.internal.domain.model.PurchaseContext
@@ -208,7 +209,7 @@ private fun ApphudInternal.purchaseInternal(
                                         )
                                         ApphudLog.log("Purchase Pending")
                                         callback?.invoke(ApphudPurchaseResult(null, null, purchase, error))
-                                        storage.isNeedSync = true
+                                        ServiceLocator.instance.sharedPreferencesStorage.isNeedSync = true
                                     }
                                     Purchase.PurchaseState.PURCHASED -> {
                                         val product = apphudProduct.productDetails
@@ -292,7 +293,7 @@ internal fun ApphudInternal.lookupFreshPurchase(extraMessage: String = "resend_f
                 mFreshPurchase
             }
         }
-        if ((purchaseCallbacks.isNotEmpty() && purchasingProduct != null) || storage.isNeedSync) {
+        if ((purchaseCallbacks.isNotEmpty() && purchasingProduct != null) || ServiceLocator.instance.sharedPreferencesStorage.isNeedSync) {
 
             launch(Dispatchers.Main) { apphudListener?.apphudDidReceivePurchase(purchase) }
 
@@ -319,7 +320,7 @@ internal fun ApphudInternal.lookupFreshPurchase(extraMessage: String = "resend_f
                         val newPurchases =
                             customer.purchases.firstOrNull { it.productId == purchase.products.first() }
 
-                        storage.isNeedSync = false
+                        ServiceLocator.instance.sharedPreferencesStorage.isNeedSync = false
                         handleCheckSubmissionResult(customer, purchase, newSubscriptions, newPurchases, false)
                     }
                 }
@@ -402,7 +403,7 @@ internal fun ApphudInternal.handleObservedPurchase(
 
 private fun ApphudInternal.processPurchaseError(status: PurchaseUpdatedCallbackStatus.Error) {
     if (status.result.responseCode == BillingClient.BillingResponseCode.ITEM_ALREADY_OWNED) {
-        storage.isNeedSync = true
+        ServiceLocator.instance.sharedPreferencesStorage.isNeedSync = true
         coroutineScope.launch(errorHandler) {
             ApphudLog.log("ProcessPurchaseError: syncPurchases()")
             fetchNativePurchases(forceRefresh = true)
@@ -428,7 +429,7 @@ private suspend fun ApphudInternal.sendCheckToApphud(
 ) {
     val localCurrentUser = currentUser
     when {
-        localCurrentUser == null -> storage.isNeedSync = true
+        localCurrentUser == null -> ServiceLocator.instance.sharedPreferencesStorage.isNeedSync = true
         fallbackMode -> {
             runCatchingCancellable {
                 RequestManager.purchased(
@@ -484,7 +485,7 @@ private suspend fun ApphudInternal.sendCheckToApphud(
                         val newPurchases =
                             customer.purchases.firstOrNull { it.productId == purchase.products.first() }
 
-                        storage.isNeedSync = false
+                        ServiceLocator.instance.sharedPreferencesStorage.isNeedSync = false
                         handleCheckSubmissionResult(customer, purchase, newSubscriptions, newPurchases, false)
                     }
                 }
@@ -513,7 +514,7 @@ private suspend fun ApphudInternal.sendCheckToApphud(
                             }
                         }
                     }
-                    storage.isNeedSync = true
+                    ServiceLocator.instance.sharedPreferencesStorage.isNeedSync = true
 
                     handleCheckSubmissionResult(null, purchase, null, null, false)
                 }
@@ -552,7 +553,7 @@ internal fun ApphudInternal.addTempPurchase(
             // nothing
         }
     }
-    storage.isNeedSync = true
+    ServiceLocator.instance.sharedPreferencesStorage.isNeedSync = true
     handleCheckSubmissionResult(apphudUser, purchase, newSubscription, newPurchase, true)
 }
 
@@ -619,7 +620,7 @@ internal suspend fun ApphudInternal.trackPurchase(
             ApphudLog.logE("trackPurchase: could not found purchase for product $productId")
         }
     } else {
-        storage.isNeedSync = true
+        ServiceLocator.instance.sharedPreferencesStorage.isNeedSync = true
         withContext(Dispatchers.Main) {
             syncPurchases(observerMode = true)
         }

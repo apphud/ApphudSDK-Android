@@ -6,6 +6,7 @@ import com.android.billingclient.api.Purchase
 import com.android.billingclient.api.PurchaseHistoryRecord
 import com.apphud.sdk.domain.ApphudProduct
 import com.apphud.sdk.domain.PurchaseRecordDetails
+import com.apphud.sdk.internal.ServiceLocator
 import com.apphud.sdk.internal.callback_status.PurchaseHistoryCallbackStatus
 import com.apphud.sdk.internal.callback_status.PurchaseRestoredCallbackStatus
 import com.apphud.sdk.internal.util.runCatchingCancellable
@@ -101,7 +102,7 @@ internal suspend fun ApphudInternal.syncPurchases(
 
         if (purchases.isEmpty()) {
             ApphudLog.log(message = "SyncPurchases: Nothing to restore")
-            storage.isNeedSync = false
+            ServiceLocator.instance.sharedPreferencesStorage.isNeedSync = false
             refreshEntitlements(true)
             val user = currentUser
             return if (user != null) {
@@ -146,7 +147,7 @@ internal suspend fun ApphudInternal.syncPurchases(
 
             if (prevPurchases.containsAll(restoredPurchases)) {
                 ApphudLog.log("SyncPurchases: Don't send equal purchases from prev state")
-                storage.isNeedSync = false
+                ServiceLocator.instance.sharedPreferencesStorage.isNeedSync = false
                 mainScope.launch {
                     refreshEntitlements(true)
                 }
@@ -210,7 +211,7 @@ internal suspend fun ApphudInternal.sendPurchasesToApphud(
                 ApphudLog.log("SyncPurchases: customer was successfully updated $customer")
             }
 
-            storage.isNeedSync = false
+            ServiceLocator.instance.sharedPreferencesStorage.isNeedSync = false
             prevPurchases.addAll(tempPurchaseRecordDetails)
 
             userId = customer.userId

@@ -20,10 +20,10 @@ import com.apphud.sdk.domain.ApphudUser
 import com.apphud.sdk.domain.PurchaseRecordDetails
 import com.apphud.sdk.internal.BillingWrapper
 import com.apphud.sdk.internal.ServiceLocator
+import com.apphud.sdk.internal.data.local.UserRepository
 import com.apphud.sdk.internal.util.runCatchingCancellable
 import com.apphud.sdk.managers.RequestManager
 import com.apphud.sdk.managers.RequestManager.applicationContext
-import com.apphud.sdk.storage.SharedPreferencesStorage
 import com.google.android.gms.appset.AppSet
 import com.google.android.gms.appset.AppSetIdInfo
 import com.google.android.gms.tasks.Task
@@ -36,8 +36,10 @@ import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import java.util.UUID
 import kotlin.coroutines.resume
@@ -57,7 +59,6 @@ internal object ApphudInternal {
     internal val FALLBACK_ERRORS = listOf(APPHUD_ERROR_TIMEOUT, 404, 500, 502, 503)
     internal var ignoreCache: Boolean = false
     internal lateinit var billing: BillingWrapper
-    internal val storage by lazy { SharedPreferencesStorage.getInstance(context) }
     internal var prevPurchases = mutableSetOf<PurchaseRecordDetails>()
     internal var productDetails = mutableListOf<ProductDetails>()
     internal var paywalls = listOf<ApphudPaywall>()
@@ -109,12 +110,15 @@ internal object ApphudInternal {
     internal var didRegisterCustomerAtThisLaunch = false
     private var isNew = true
     private lateinit var apiKey: ApiKey
-    lateinit var deviceId: DeviceId
     internal var fallbackMode = false
-    internal lateinit var userId: UserId
     internal lateinit var context: Context
-    internal var currentUser: ApphudUser? = null
+    internal val userRepository: UserRepository by lazy {
+        ServiceLocator.instance.userRepository
+    }
     internal var apphudListener: ApphudListener? = null
+
+    internal val currentUser: ApphudUser?
+        get() = runBlocking { userRepository.getCurrentUser() }
     internal var userLoadRetryCount: Int = 1
     internal var notifiedAboutPaywallsDidFullyLoaded = false
     internal var purchasingProduct: ApphudProduct? = null
@@ -149,17 +153,17 @@ internal object ApphudInternal {
             when (event) {
                 Lifecycle.Event.ON_STOP -> {
                     if (fallbackMode) {
-                        storage.isNeedSync = true
+                        ServiceLocator.instance.sharedPreferencesStorage.isNeedSync = true
                     }
                     isActive = false
-                    ApphudLog.log("Application stopped [need sync ${storage.isNeedSync}]")
+                    ApphudLog.log("Application stopped [need sync ${ServiceLocator.instance.sharedPreferencesStorage.isNeedSync}]")
                 }
                 Lifecycle.Event.ON_START -> {
                     // do nothing
                     ApphudLog.log("Application resumed")
                     isActive = true
 
-                    if (storage.isNeedSync) {
+                    if (ServiceLocator.instance.sharedPreferencesStorage.isNeedSync) {
                         // lookup immediately
                         lookupFreshPurchase(extraMessage = "recover_need_sync")
                     } else if (purchasingProduct != null && purchaseCallbacks.isNotEmpty()) {
@@ -207,41 +211,34 @@ internal object ApphudInternal {
         ApphudLog.log("Start initialization with userId=$inputUserId, deviceId=$inputDeviceId")
         if (apiKey.isEmpty()) throw Exception("ApiKey can't be empty")
 
-        val isValid = storage.validateCaches()
+        val isValid = ServiceLocator.instance.sharedPreferencesStorage.validateCaches()
         if (ignoreCache) {
             ApphudLog.logI("Ignoring local paywalls cache")
         }
 
-        val cachedUser = if (isValid) storage.apphudUser else null
+        val cachedUser = runBlocking { userRepository.getCurrentUser() }
         val cachedPaywalls = if (ignoreCache || !isValid || observerMode) null else readPaywallsFromCache()
         val cachedPlacements = if (ignoreCache || !isValid || observerMode) null else readPlacementsFromCache()
         val cachedGroups = if (isValid) readGroupsFromCache() else mutableListOf()
-        val cachedDeviceId = storage.deviceId
-        val cachedUserId = storage.userId
+        val cachedDeviceId = ServiceLocator.instance.sharedPreferencesStorage.deviceId
 
         sdkLaunchedAt = System.currentTimeMillis()
 
         val generatedUUID = UUID.randomUUID().toString()
 
-        val newUserId =
-            if (inputUserId.isNullOrBlank()) {
-                cachedUserId ?: generatedUUID
-            } else {
-                inputUserId
-            }
-        val newDeviceId =
-            if (inputDeviceId.isNullOrBlank()) {
-                cachedDeviceId ?: generatedUUID
-            } else {
-                inputDeviceId
-            }
-
-        val credentialsChanged = cachedUserId != newUserId || cachedDeviceId != newDeviceId
-
-        if (credentialsChanged) {
-            storage.userId = newUserId
-            storage.deviceId = newDeviceId
+        val newUserId = if (inputUserId.isNullOrBlank()) {
+            cachedUser?.userId ?: generatedUUID
+        } else {
+            inputUserId
         }
+
+        val newDeviceId = if (inputDeviceId.isNullOrBlank()) {
+            cachedDeviceId ?: generatedUUID
+        } else {
+            inputDeviceId
+        }
+
+        val credentialsChanged = cachedUser?.userId != newUserId || cachedDeviceId != newDeviceId
 
         /**
          * We cannot get paywalls and placements from paying current user,
@@ -250,9 +247,7 @@ internal object ApphudInternal {
          *
          * But paywalls and placements must have cache timeout
          */
-        this.userId = newUserId
-        this.deviceId = newDeviceId
-        this.currentUser = cachedUser
+        ServiceLocator.instance.sharedPreferencesStorage.deviceId = newDeviceId
         this.productGroups = cachedGroups
         cachedPaywalls?.let { this.paywalls = it }
         cachedPlacements?.let { this.placements = it }
@@ -270,13 +265,13 @@ internal object ApphudInternal {
         val ruleController = ServiceLocator.instance.ruleController
         if (needRegistration) {
             isRegisteringUser = true
-            registration(true) { u, e ->
+            registration(true) { _, _ ->
                 if (shouldLoadProducts()) {
                     loadProducts()
                 }
                 coroutineScope.launch {
                     fetchNativePurchases()
-                    ruleController.start(deviceId)
+                    ruleController.start(newUserId)
                 }
             }
         } else {
@@ -287,7 +282,7 @@ internal object ApphudInternal {
                 }
                 coroutineScope.launch {
                     fetchNativePurchases()
-                    ruleController.start(deviceId)
+                    ruleController.start(newUserId)
                 }
             }
         }
@@ -305,7 +300,7 @@ internal object ApphudInternal {
             cachedPaywalls == null ||
             cachedUser == null ||
             cachedUser.hasPurchases() ||
-            storage.cacheExpired()
+            ServiceLocator.instance.sharedPreferencesStorage.cacheExpired()
     }
 
     internal fun refreshEntitlements(
@@ -397,8 +392,9 @@ internal object ApphudInternal {
                     paywallsPrepared = false
                 }
                 coroutineScope.launch {
-                    val changed = storage.updateCustomer(it)
-                    if (changed) {
+                    val userIdChanged = ServiceLocator.instance.updateCustomerUseCase(it)
+
+                    if (userIdChanged) {
                         mainScope.launch {
                             apphudListener?.apphudDidChangeUserID(it.userId)
                         }
@@ -419,7 +415,6 @@ internal object ApphudInternal {
                 }
             }
 
-            currentUser = it
             userId = it.userId
             hasRespondedToPaywallsRequest =
                 hasRespondedToPaywallsRequest || paywalls.isNotEmpty() || placements.isNotEmpty() || observerMode
@@ -573,43 +568,18 @@ internal object ApphudInternal {
 
     private val mutex = Mutex()
 
-    private fun registration(
+    private suspend fun registration(
         forceRegistration: Boolean = false,
-        completionHandler: ((ApphudUser?, ApphudError?) -> Unit)?,
-    ) {
-        coroutineScope.launch(errorHandler) {
-            val shouldUnlockMutex =
-                (currentUser == null || currentUser?.isTemporary == true || forceRegistration) && offeringsPreparedCallbacks.isNotEmpty() && !isRegisteringUser && mutex.isLocked
-            if (shouldUnlockMutex) {
-                try {
-                    ApphudLog.log("Unlocking the mutex")
-                    mutex.unlock()
-                } catch (e: Exception) {
-                    ApphudLog.log("Failed to unlock the mutex, force registration")
-                    runCatchingCancellable { startRegistrationCall(forceRegistration) }
-                        .onSuccess { completionHandler?.invoke(it, null) }
-                        .onFailure { completionHandler?.invoke(null, it.toApphudError()) }
-                }
+    ): ApphudUser =
+        mutex.withLock {
+            val cached = userRepository.getCurrentUser()
+            if (cached != null && !forceRegistration) {
+                return@withLock cached
             }
-            mutex.lock()
-            try {
-                if (currentUser == null || forceRegistration) {
-                    runCatchingCancellable { startRegistrationCall(forceRegistration) }
-                        .onSuccess { completionHandler?.invoke(it, null) }
-                        .onFailure { completionHandler?.invoke(null, it.toApphudError()) }
-                } else {
-                    mainScope.launch {
-                        isRegisteringUser = false
-                        completionHandler?.invoke(currentUser, null)
-                    }
-                }
-            } finally {
-                if (mutex.isLocked) {
-                    mutex.unlock()
-                }
-            }
+
+            runCatchingCancellable { startRegistrationCall(forceRegistration) }
+                .getOrElse { throw it.toApphudError() }
         }
-    }
 
     private suspend fun startRegistrationCall(
         forceRegistration: Boolean = false,
@@ -643,7 +613,7 @@ internal object ApphudInternal {
             firstCustomerLoadedTime = System.currentTimeMillis()
         }
 
-        currentUser = newUser
+        runBlocking { userRepository.updateUser(newUser) }
         if (newUser.paywalls.isNotEmpty()) {
             synchronized(paywalls) {
                 paywalls = newUser.paywalls
@@ -654,10 +624,10 @@ internal object ApphudInternal {
         }
 
         coroutineScope.launch {
-            storage.lastRegistration = System.currentTimeMillis()
+            ServiceLocator.instance.sharedPreferencesStorage.lastRegistration = System.currentTimeMillis()
         }
 
-        if (storage.isNeedSync) {
+        if (ServiceLocator.instance.sharedPreferencesStorage.isNeedSync) {
             coroutineScope.launch(errorHandler) {
                 ApphudLog.log("Registration: isNeedSync true, start syncing")
                 fetchNativePurchases(forceRefresh = true)
@@ -680,7 +650,7 @@ internal object ApphudInternal {
         val needPlacementsPaywalls = !didRegisterCustomerAtThisLaunch && !deferPlacements && !observerMode
         runCatchingCancellable { RequestManager.registration(needPlacementsPaywalls, isNew, true) }
             .onSuccess {
-                storage.lastRegistration = System.currentTimeMillis()
+                ServiceLocator.instance.sharedPreferencesStorage.lastRegistration = System.currentTimeMillis()
                 mainScope.launch { notifyLoadingCompleted(it) }
             }
     }
@@ -827,7 +797,7 @@ internal object ApphudInternal {
                 type = typeString,
             )
 
-        if (!storage.needSendProperty(property)) {
+        if (!ServiceLocator.instance.sharedPreferencesStorage.needSendProperty(property)) {
             return
         }
 
@@ -885,11 +855,12 @@ internal object ApphudInternal {
                     .fold(
                         onSuccess = { userProperties ->
                             if (userProperties.success) {
-                                val propertiesInStorage = storage.properties
+                                val propertiesInStorage =
+                                    ServiceLocator.instance.sharedPreferencesStorage.properties
                                 sentPropertiesForSave.forEach {
                                     propertiesInStorage?.put(it.key, it)
                                 }
-                                storage.properties = propertiesInStorage
+                                ServiceLocator.instance.sharedPreferencesStorage.properties = propertiesInStorage
 
                                 synchronized(pendingUserProperties) {
                                     pendingUserProperties.clear()
@@ -938,7 +909,7 @@ internal object ApphudInternal {
         val originalUserId = this.userId
         if (web2Web == false) {
             this.userId = userId
-            storage.userId = userId
+            ServiceLocator.instance.sharedPreferencesStorage.userId = userId
         }
         RequestManager.setParams(this.context, this.apiKey)
 
@@ -962,7 +933,7 @@ internal object ApphudInternal {
         }
 
         ApphudInternal.userId = customer?.userId ?: currentUser?.userId ?: originalUserId
-        storage.userId = ApphudInternal.userId
+        ServiceLocator.instance.sharedPreferencesStorage.userId = ApphudInternal.userId
 
         customer?.let {
             mainScope.launch { notifyLoadingCompleted(it) }
@@ -984,7 +955,8 @@ internal object ApphudInternal {
                 callback?.invoke(false)
             } ?: run {
                 coroutineScope.launch(errorHandler) {
-                    val grantPromotionalResult = RequestManager.grantPromotional(daysCount, productId, permissionGroup)
+                    val grantPromotionalResult =
+                        RequestManager.grantPromotional(daysCount, productId, permissionGroup)
                     withContext(Dispatchers.Main) {
                         grantPromotionalResult
                             .onSuccess {
@@ -1177,7 +1149,7 @@ internal object ApphudInternal {
     suspend fun loadPermissionGroups(): List<ApphudGroup> {
 
         synchronized(this.productGroups) {
-            if (this.productGroups.isNotEmpty() && !storage.needUpdateProductGroups()) {
+            if (this.productGroups.isNotEmpty() && !ServiceLocator.instance.sharedPreferencesStorage.needUpdateProductGroups()) {
                 return this.productGroups.toList()
             }
         }
@@ -1213,7 +1185,7 @@ internal object ApphudInternal {
         }
 
         coroutineScope.launch(errorHandler) {
-            val cachedIdentifiers = storage.deviceIdentifiers
+            val cachedIdentifiers = ServiceLocator.instance.sharedPreferencesStorage.deviceIdentifiers
             val newIdentifiers = arrayOf("", "", "")
             val threads =
                 listOf(
@@ -1240,7 +1212,7 @@ internal object ApphudInternal {
                 )
             threads.awaitAll().let {
                 if (!newIdentifiers.contentEquals(cachedIdentifiers)) {
-                    storage.deviceIdentifiers = newIdentifiers
+                    ServiceLocator.instance.sharedPreferencesStorage.deviceIdentifiers = newIdentifiers
                     repeatRegistrationSilent()
                 } else {
                     ApphudLog.log("Device Identifiers not changed")
@@ -1279,14 +1251,14 @@ internal object ApphudInternal {
     private fun clear() {
         ServiceLocator.instance.ruleController.stop()
         RequestManager.cleanRegistration()
-        currentUser = null
+        runBlocking { userRepository.clearUser() }
         productsStatus = ApphudProductsStatus.none
         productsResponseCode = BillingClient.BillingResponseCode.OK
         customProductsFetchedBlock = null
         offeringsPreparedCallbacks.clear()
         purchaseCallbacks.clear()
         freshPurchase = null
-        storage.clean()
+        ServiceLocator.instance.sharedPreferencesStorage.clean()
         prevPurchases.clear()
         productDetails.clear()
         pendingUserProperties.clear()
@@ -1300,11 +1272,11 @@ internal object ApphudInternal {
     //region === Cache ===
 // Groups cache ======================================
     internal fun cacheGroups(groups: List<ApphudGroup>) {
-        storage.productGroups = groups
+        ServiceLocator.instance.sharedPreferencesStorage.productGroups = groups
     }
 
     private fun readGroupsFromCache(): MutableList<ApphudGroup> {
-        return storage.productGroups?.toMutableList() ?: mutableListOf()
+        return ServiceLocator.instance.sharedPreferencesStorage.productGroups?.toMutableList() ?: mutableListOf()
     }
 
     private fun updateGroupsWithProductDetails(productGroups: List<ApphudGroup>) {
@@ -1317,19 +1289,19 @@ internal object ApphudInternal {
 
     // Paywalls cache ======================================
     internal fun cachePaywalls(paywalls: List<ApphudPaywall>) {
-        storage.paywalls = paywalls
+        ServiceLocator.instance.sharedPreferencesStorage.paywalls = paywalls
     }
 
     private fun readPaywallsFromCache(): List<ApphudPaywall>? {
-        return storage.paywalls
+        return ServiceLocator.instance.sharedPreferencesStorage.paywalls
     }
 
     private fun cachePlacements(placements: List<ApphudPlacement>) {
-        storage.placements = placements
+        ServiceLocator.instance.sharedPreferencesStorage.placements = placements
     }
 
     private fun readPlacementsFromCache(): List<ApphudPlacement>? {
-        return storage.placements
+        return ServiceLocator.instance.sharedPreferencesStorage.placements
     }
 
     private fun updatePaywallsAndPlacements() {
