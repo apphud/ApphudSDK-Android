@@ -84,7 +84,6 @@ internal class ServiceLocator(
 
     val remoteRepository: RemoteRepository =
         RemoteRepository(
-            apiKey = apiKey,
             okHttpClient = okHttpClient,
             gson = gson,
             customerMapper = customerMapper,

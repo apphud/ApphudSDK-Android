@@ -19,7 +19,6 @@ import com.apphud.sdk.internal.data.dto.ReadNotificationsRequestDto
 import com.apphud.sdk.internal.data.mapper.CustomerMapper
 import com.apphud.sdk.internal.data.mapper.ProductMapper
 import com.apphud.sdk.internal.domain.mapper.NotificationMapper
-import com.apphud.sdk.internal.domain.model.ApiKey
 import com.apphud.sdk.internal.domain.model.GetProductsParams
 import com.apphud.sdk.internal.domain.model.Notification
 import com.apphud.sdk.internal.domain.model.PurchaseContext
@@ -55,7 +54,6 @@ internal class RemoteRepository(
     private val productMapper: ProductMapper,
     private val attributionMapper: AttributionMapper,
     private val notificationMapper: NotificationMapper,
-    private val apiKey: ApiKey,
 ) {
 
     suspend fun getCustomers(
