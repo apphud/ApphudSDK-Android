@@ -14,5 +14,6 @@ internal data class ApphudPaywallDto(
     @SerializedName("variation_name")
     val variationName: String?,
     @SerializedName("from_paywall")
-    val fromPaywall: String?
+    val fromPaywall: String?,
+    val screen: ApphudPaywallScreenDto?,
 )

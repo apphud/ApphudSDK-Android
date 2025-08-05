@@ -6,19 +6,24 @@ import com.android.billingclient.api.ProductDetails
 import com.android.billingclient.api.Purchase
 import com.apphud.sdk.ApphudInternal.coroutineScope
 import com.apphud.sdk.ApphudInternal.errorHandler
+import com.apphud.sdk.domain.ActivityAnimationConfig
 import com.apphud.sdk.domain.ApphudGroup
 import com.apphud.sdk.domain.ApphudNonRenewingPurchase
 import com.apphud.sdk.domain.ApphudPaywall
+import com.apphud.sdk.domain.ApphudPaywallScreenShowResult
 import com.apphud.sdk.domain.ApphudPlacement
 import com.apphud.sdk.domain.ApphudProduct
 import com.apphud.sdk.domain.ApphudSubscription
 import com.apphud.sdk.domain.ApphudUser
 import com.apphud.sdk.internal.ServiceLocator
 import com.apphud.sdk.internal.domain.model.ApiKey as ApiKeyModel
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.TimeoutCancellationException
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.withTimeout
 import kotlin.coroutines.resume
 
 object Apphud {
@@ -356,6 +361,46 @@ object Apphud {
      */
     fun paywallClosed(paywall: ApphudPaywall) {
         ApphudInternal.paywallClosed(paywall)
+    }
+
+    /**
+     * Asynchronously fetches a paywall Screen for the provided paywall.
+     *
+     * This API mirrors the behaviour of iOS `Apphud.fetchPaywallScreen(...)`.
+     * The implementation is currently stubbed and will be implemented in future releases.
+     *
+     * @param paywall      Paywall whose Screen needs to be displayed.
+     * @param maxTimeout   Maximum time in seconds to wait for the Screen to load. Defaults to [APPHUD_PAYWALL_SCREEN_LOAD_TIMEOUT].
+     * @param callback     Returns [ApphudPaywallScreenShowResult] which can be either `Success` or `Error`.
+     */
+    fun showPaywallScreen(
+        context: Context,
+        paywall: ApphudPaywall,
+        activityAnimationConfig: ActivityAnimationConfig = ActivityAnimationConfig(),
+        maxTimeout: Long = APPHUD_PAYWALL_SCREEN_LOAD_TIMEOUT,
+        callback: (ApphudPaywallScreenShowResult) -> Unit,
+    ) {
+        coroutineScope.launch(errorHandler) {
+            try {
+                withTimeout(maxTimeout) {
+                    // TODO: Implement actual screen fetching logic
+                    val result = ApphudPaywallScreenShowResult.Error(ApphudError("Not implemented"))
+                    withContext(Dispatchers.Main) {
+                        callback(result)
+                    }
+                }
+            } catch (e: TimeoutCancellationException) {
+                withContext(Dispatchers.Main) {
+                    callback(ApphudPaywallScreenShowResult.Error(e.toApphudError()))
+                }
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                withContext(Dispatchers.Main) {
+                    callback(ApphudPaywallScreenShowResult.Error(e.toApphudError()))
+                }
+            }
+        }
     }
 
     /**
