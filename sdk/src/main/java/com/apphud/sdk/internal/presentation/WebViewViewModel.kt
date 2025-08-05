@@ -1,6 +1,5 @@
 package com.apphud.sdk.internal.presentation
 
-import android.widget.Toast
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope

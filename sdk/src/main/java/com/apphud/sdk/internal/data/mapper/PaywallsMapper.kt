@@ -1,8 +1,9 @@
 package com.apphud.sdk.internal.data.mapper
 
-import com.apphud.sdk.internal.data.dto.ApphudPaywallDto
 import com.apphud.sdk.domain.ApphudPaywall
+import com.apphud.sdk.domain.ApphudPaywallScreen
 import com.apphud.sdk.domain.ApphudProduct
+import com.apphud.sdk.internal.data.dto.ApphudPaywallDto
 import com.google.gson.Gson
 
 internal class PaywallsMapper(
@@ -18,18 +19,25 @@ internal class PaywallsMapper(
             default = paywallDto.default,
             json = runCatching { gson.fromJson<Map<String, Any>>(paywallDto.json, Map::class.java) }.getOrNull(),
             products =
-            paywallDto.items.map { item ->
-                ApphudProduct(
-                    id = item.id, // product bundle id
-                    productId = item.productId,
-                    name = item.name,
-                    store = item.store,
-                    basePlanId = item.basePlanId,
-                    productDetails = null,
-                    paywallId = paywallDto.id,
-                    paywallIdentifier = paywallDto.identifier,
-                    placementId = null,
-                    placementIdentifier = null,
+                paywallDto.items.map { item ->
+                    ApphudProduct(
+                        id = item.id, // product bundle id
+                        productId = item.productId,
+                        name = item.name,
+                        store = item.store,
+                        basePlanId = item.basePlanId,
+                        productDetails = null,
+                        paywallId = paywallDto.id,
+                        paywallIdentifier = paywallDto.identifier,
+                        placementId = null,
+                        placementIdentifier = null,
+                    )
+                },
+            screen = paywallDto.screen?.let {
+                ApphudPaywallScreen(
+                    id = it.id,
+                    defaultUrl = it.defaultURL,
+                    urls = it.urls
                 )
             },
             experimentName = paywallDto.experimentName,
