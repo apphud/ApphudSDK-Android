@@ -1,4 +1,4 @@
-package com.apphud.sdk.internal.presentation
+package com.apphud.sdk.internal.presentation.rule
 
 import android.content.BroadcastReceiver
 import android.content.Context
@@ -152,7 +152,7 @@ internal class RuleController(
             ruleCallback.shouldShowScreen(pendingRule)
         }
         if (shouldShowScreen) {
-            val intent = WebViewActivity.getIntent(context, pendingRule.id)
+            val intent = RuleWebViewActivity.getIntent(context, pendingRule.id)
             context.startActivity(intent)
             state.value = RuleState.RuleActivityAlreadyOpen(pendingRule)
         }

@@ -1,4 +1,4 @@
-package com.apphud.sdk.internal.presentation
+package com.apphud.sdk.internal.presentation.rule
 
 import android.annotation.SuppressLint
 import android.app.Activity
@@ -30,22 +30,22 @@ import com.apphud.sdk.domain.ApphudProduct
 import kotlinx.coroutines.launch
 
 @Suppress("TooGenericExceptionCaught")
-internal class WebViewActivity : AppCompatActivity() {
+internal class RuleWebViewActivity : AppCompatActivity() {
 
-    private lateinit var viewModel: WebViewViewModel
+    private lateinit var viewModel: RuleViewModel
     private lateinit var webView: WebView
     private lateinit var purchaseLoaderOverlay: FrameLayout
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        setContentView(R.layout.apphud_webview_activity_layout)
+        setContentView(R.layout.apphud_rule_webview_activity_layout)
 
         webView = findViewById(R.id.webView)
         purchaseLoaderOverlay = findViewById(R.id.purchaseLoaderOverlay)
 
         setupWebView()
 
-        viewModel = ViewModelProvider(this, WebViewViewModel.factory)[WebViewViewModel::class.java]
+        viewModel = ViewModelProvider(this, RuleViewModel.factory)[RuleViewModel::class.java]
         setupObservers()
 
         processIntent(intent)
@@ -70,7 +70,7 @@ internal class WebViewActivity : AppCompatActivity() {
 
     private fun processIntent(intent: Intent) {
         val ruleId = intent.getStringExtra(EXTRA_RULE_ID)
-        ApphudLog.log("[WebViewActivity] Processing intent: ruleId: $ruleId")
+        ApphudLog.log("[RuleWebViewActivity] Processing intent: ruleId: $ruleId")
         viewModel.processRuleId(ruleId)
     }
 
@@ -107,12 +107,12 @@ internal class WebViewActivity : AppCompatActivity() {
                 error: WebResourceError?,
             ) {
                 super.onReceivedError(view, request, error)
-                ApphudLog.logE("[WebViewActivity] WebView error: ${error?.description}, URL: ${request?.url}")
+                ApphudLog.logE("[RuleWebViewActivity] WebView error: ${error?.description}, URL: ${request?.url}")
             }
 
             override fun onPageFinished(view: WebView?, url: String?) {
                 super.onPageFinished(view, url)
-                ApphudLog.log("[WebViewActivity] Page loaded: $url")
+                ApphudLog.log("[RuleWebViewActivity] Page loaded: $url")
             }
 
             override fun onReceivedHttpError(
@@ -121,7 +121,7 @@ internal class WebViewActivity : AppCompatActivity() {
                 errorResponse: WebResourceResponse?,
             ) {
                 super.onReceivedHttpError(view, request, errorResponse)
-                ApphudLog.logE("[WebViewActivity] HTTP Error: ${errorResponse?.statusCode} - ${errorResponse?.reasonPhrase} for URL: ${request?.url}")
+                ApphudLog.logE("[RuleWebViewActivity] HTTP Error: ${errorResponse?.statusCode} - ${errorResponse?.reasonPhrase} for URL: ${request?.url}")
             }
 
             override fun shouldOverrideUrlLoading(view: WebView?, request: WebResourceRequest?): Boolean {
@@ -135,7 +135,7 @@ internal class WebViewActivity : AppCompatActivity() {
                         } else if (path == "/link") {
                             val externalUrl = uri.getQueryParameter("url")
                             externalUrl?.let {
-                                ApphudLog.log("[WebViewActivity] External link: $it")
+                                ApphudLog.log("[RuleWebViewActivity] External link: $it")
                             }
                             return true
                         }
@@ -148,7 +148,7 @@ internal class WebViewActivity : AppCompatActivity() {
 
     private fun handleAction(uri: Uri) {
         val type = uri.getQueryParameter("type")
-        ApphudLog.log("[WebViewActivity] Handling action: $type, URI: $uri")
+        ApphudLog.log("[RuleWebViewActivity] Handling action: $type, URI: $uri")
 
         when (type) {
             "dismiss" -> {
@@ -158,7 +158,7 @@ internal class WebViewActivity : AppCompatActivity() {
                 val productId: String? = uri.getQueryParameter("product_id")
                 val offerId: String? = uri.getQueryParameter("offer_id")
                 if (productId != null) {
-                    ApphudLog.log("[WebViewActivity] Purchase action for product: $productId, offer: $offerId")
+                    ApphudLog.log("[RuleWebViewActivity] Purchase action for product: $productId, offer: $offerId")
                     viewModel.processPurchase(productId, offerId)
                 }
             }
@@ -190,7 +190,7 @@ internal class WebViewActivity : AppCompatActivity() {
                             showPurchaseLoader()
                         }
                         is WebViewState.Error -> {
-                            ApphudLog.logE("[WebViewActivity] Error: ${state.message}")
+                            ApphudLog.logE("[RuleWebViewActivity] Error: ${state.message}")
                             hidePurchaseLoader()
                         }
                     }
@@ -210,7 +210,7 @@ internal class WebViewActivity : AppCompatActivity() {
                         finishAndRemoveTask()
                     }
                     WebViewEvent.ProductNotFound -> {
-                        Toast.makeText(this@WebViewActivity, "Product or offer not found", Toast.LENGTH_SHORT).show()
+                        Toast.makeText(this@RuleWebViewActivity, "Product or offer not found", Toast.LENGTH_SHORT).show()
                         sendResultBroadcast(RESULT_DISMISSED)
                         finishAndRemoveTask()
                     }
@@ -253,7 +253,7 @@ internal class WebViewActivity : AppCompatActivity() {
                 null
             )
         } catch (e: Exception) {
-            ApphudLog.logE("[WebViewActivity] Error loading HTML: ${e.message}")
+            ApphudLog.logE("[RuleWebViewActivity] Error loading HTML: ${e.message}")
             e.printStackTrace()
         }
     }
@@ -268,7 +268,7 @@ internal class WebViewActivity : AppCompatActivity() {
             ruleId: String,
         ): Intent = Intent(
             context,
-            WebViewActivity::class.java,
+            RuleWebViewActivity::class.java,
         ).apply {
             putExtra(EXTRA_RULE_ID, ruleId)
             flags = Intent.FLAG_ACTIVITY_SINGLE_TOP
