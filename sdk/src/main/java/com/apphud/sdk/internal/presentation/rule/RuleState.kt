@@ -1,4 +1,4 @@
-package com.apphud.sdk.internal.presentation
+package com.apphud.sdk.internal.presentation.rule
 
 import com.apphud.sdk.internal.domain.model.Rule
 

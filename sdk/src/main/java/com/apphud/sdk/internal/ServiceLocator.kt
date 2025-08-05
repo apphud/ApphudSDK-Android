@@ -24,7 +24,7 @@ import com.apphud.sdk.internal.domain.FetchRulesScreenUseCase
 import com.apphud.sdk.internal.domain.mapper.DateTimeMapper
 import com.apphud.sdk.internal.domain.mapper.NotificationMapper
 import com.apphud.sdk.internal.domain.model.ApiKey
-import com.apphud.sdk.internal.presentation.RuleController
+import com.apphud.sdk.internal.presentation.rule.RuleController
 import com.apphud.sdk.internal.provider.RegistrationProvider
 import com.apphud.sdk.mappers.AttributionMapper
 import com.apphud.sdk.storage.SharedPreferencesStorage

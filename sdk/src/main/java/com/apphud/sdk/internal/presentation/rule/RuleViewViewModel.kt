@@ -1,4 +1,4 @@
-package com.apphud.sdk.internal.presentation
+package com.apphud.sdk.internal.presentation.rule
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
@@ -17,7 +17,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.launch
 
-internal class WebViewViewModel(
+internal class RuleViewModel(
     private val localRulesScreenRepository: LocalRulesScreenRepository,
     private val ruleCallback: ApphudRuleCallback,
 ) : ViewModel() {
@@ -166,7 +166,7 @@ internal class WebViewViewModel(
             override fun <T : ViewModel> create(modelClass: Class<T>): T {
                 val serviceLocator = ServiceLocator.instance
                 @Suppress("UNCHECKED_CAST")
-                return WebViewViewModel(
+                return RuleViewModel(
                     serviceLocator.localRulesScreenRepository,
                     serviceLocator.ruleCallback
                 ) as T
