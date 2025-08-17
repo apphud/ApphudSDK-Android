@@ -1,8 +1,8 @@
 package com.apphud.sdk.internal.data.mapper
 
-import com.apphud.sdk.internal.data.dto.ApphudGroupDto
 import com.apphud.sdk.domain.ApphudGroup
 import com.apphud.sdk.domain.ApphudProduct
+import com.apphud.sdk.internal.data.dto.ApphudGroupDto
 
 internal class ProductMapper {
     fun map(dto: List<ApphudGroupDto>): List<ApphudGroup> =
@@ -23,6 +23,7 @@ internal class ProductMapper {
                             paywallIdentifier = null,
                             placementId = null,
                             placementIdentifier = null,
+                            itemId = item.itemId,
                         )
                     },
             )

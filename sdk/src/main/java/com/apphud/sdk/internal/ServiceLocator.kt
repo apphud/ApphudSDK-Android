@@ -21,6 +21,7 @@ import com.apphud.sdk.internal.data.remote.ScreenRemoteRepository
 import com.apphud.sdk.internal.data.remote.UserRemoteRepository
 import com.apphud.sdk.internal.domain.FetchMostActualRuleScreenUseCase
 import com.apphud.sdk.internal.domain.FetchRulesScreenUseCase
+import com.apphud.sdk.internal.domain.RenderPaywallPropertiesUseCase
 import com.apphud.sdk.internal.domain.mapper.DateTimeMapper
 import com.apphud.sdk.internal.domain.mapper.NotificationMapper
 import com.apphud.sdk.internal.domain.model.ApiKey
@@ -129,6 +130,9 @@ internal class ServiceLocator(
         FetchMostActualRuleScreenUseCase(
             localRulesScreenRepository = localRulesScreenRepository,
         )
+
+    val renderPaywallPropertiesUseCase: RenderPaywallPropertiesUseCase =
+        RenderPaywallPropertiesUseCase()
 
     val ruleController: RuleController =
         RuleController(

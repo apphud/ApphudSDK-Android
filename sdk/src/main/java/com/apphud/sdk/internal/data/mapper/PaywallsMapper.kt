@@ -1,5 +1,6 @@
 package com.apphud.sdk.internal.data.mapper
 
+import android.util.Log
 import com.apphud.sdk.domain.ApphudPaywall
 import com.apphud.sdk.domain.ApphudPaywallScreen
 import com.apphud.sdk.domain.ApphudProduct
@@ -20,6 +21,7 @@ internal class PaywallsMapper(
             json = runCatching { gson.fromJson<Map<String, Any>>(paywallDto.json, Map::class.java) }.getOrNull(),
             products =
                 paywallDto.items.map { item ->
+                    Log.d("sssssss", "$item  !!  ${item.itemId}")
                     ApphudProduct(
                         id = item.id, // product bundle id
                         productId = item.productId,
@@ -31,6 +33,7 @@ internal class PaywallsMapper(
                         paywallIdentifier = paywallDto.identifier,
                         placementId = null,
                         placementIdentifier = null,
+                        itemId = item.itemId,
                     )
                 },
             screen = paywallDto.screen?.let {

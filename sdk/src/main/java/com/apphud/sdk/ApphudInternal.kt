@@ -12,8 +12,10 @@ import com.android.billingclient.api.BillingClient
 import com.android.billingclient.api.ProductDetails
 import com.android.billingclient.api.Purchase
 import com.apphud.sdk.body.UserPropertiesBody
+import com.apphud.sdk.domain.ActivityAnimationConfig
 import com.apphud.sdk.domain.ApphudGroup
 import com.apphud.sdk.domain.ApphudPaywall
+import com.apphud.sdk.domain.ApphudPaywallScreenShowResult
 import com.apphud.sdk.domain.ApphudPlacement
 import com.apphud.sdk.domain.ApphudProduct
 import com.apphud.sdk.domain.ApphudUser
@@ -1023,6 +1025,31 @@ internal object ApphudInternal {
                     RequestManager.paywallClosed(paywall)
                 }
             }
+        }
+    }
+
+    suspend fun showPaywallScreen(
+        context: Context,
+        paywall: ApphudPaywall,
+        activityAnimationConfig: ActivityAnimationConfig = ActivityAnimationConfig(),
+        maxTimeout: Long = APPHUD_PAYWALL_SCREEN_LOAD_TIMEOUT,
+        callback: (ApphudPaywallScreenShowResult) -> Unit
+    ) {
+        try {
+            ApphudLog.logI("Starting to show paywall screen for paywall: ${paywall.identifier}")
+            
+            // Первым делом вызываем рендер проперти через use case
+            ServiceLocator.instance.renderPaywallPropertiesUseCase(paywall)
+            
+            // Здесь будет дополнительная логика показа paywall screen
+            // Пока что считаем что показ прошел успешно
+            ApphudLog.logI("Paywall screen shown successfully for paywall: ${paywall.identifier}")
+            
+            callback(ApphudPaywallScreenShowResult.Success)
+            
+        } catch (e: Exception) {
+            ApphudLog.logE("Error showing paywall screen: ${e.message}")
+            callback(ApphudPaywallScreenShowResult.Error(ApphudError("Failed to show paywall screen: ${e.message}")))
         }
     }
 
