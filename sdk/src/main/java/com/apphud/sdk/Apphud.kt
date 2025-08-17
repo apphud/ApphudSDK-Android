@@ -383,11 +383,7 @@ object Apphud {
         coroutineScope.launch(errorHandler) {
             try {
                 withTimeout(maxTimeout) {
-                    // TODO: Implement actual screen fetching logic
-                    val result = ApphudPaywallScreenShowResult.Error(ApphudError("Not implemented"))
-                    withContext(Dispatchers.Main) {
-                        callback(result)
-                    }
+                    ApphudInternal.showPaywallScreen(context, paywall, activityAnimationConfig, maxTimeout, callback)
                 }
             } catch (e: TimeoutCancellationException) {
                 withContext(Dispatchers.Main) {
