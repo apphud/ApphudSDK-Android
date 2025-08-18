@@ -383,12 +383,13 @@ object Apphud {
         coroutineScope.launch(errorHandler) {
             try {
                 withTimeout(maxTimeout) {
-                    ApphudInternal.showPaywallScreen(context, paywall, activityAnimationConfig, maxTimeout, callback)
+                    ApphudInternal.showPaywallScreen(context, paywall, callback)
                 }
             } catch (e: TimeoutCancellationException) {
                 withContext(Dispatchers.Main) {
                     callback(ApphudPaywallScreenShowResult.Error(e.toApphudError()))
                 }
+                throw e
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {

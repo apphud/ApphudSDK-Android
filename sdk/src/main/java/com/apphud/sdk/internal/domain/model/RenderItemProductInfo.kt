@@ -2,7 +2,7 @@ package com.apphud.sdk.internal.domain.model
 
 import com.google.gson.annotations.SerializedName
 
-internal data class RenderItemProductDetails(
+internal data class RenderItemProductInfo(
     @SerializedName("currency_code")
     val currencyCode: String,
     @SerializedName("currency_symbol")
@@ -17,7 +17,7 @@ internal data class RenderItemProductDetails(
     val formattedIntroPrice: Double,
 ) {
     companion object {
-        fun empty() = RenderItemProductDetails(
+        fun empty() = RenderItemProductInfo(
             currencyCode = "",
             currencySymbol = "",
             formattedPrice = "",
