@@ -8,5 +8,9 @@
             android:name=".internal.presentation.rule.RuleWebViewActivity"
             android:exported="false"
             android:theme="@style/Theme.TransparentActivity" />
+        <activity
+            android:name=".internal.presentation.figma.FigmaWebViewActivity"
+            android:exported="false"
+            android:theme="@style/Theme.TransparentActivity" />
     </application>
 </manifest>

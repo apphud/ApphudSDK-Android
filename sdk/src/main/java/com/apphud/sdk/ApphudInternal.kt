@@ -1,10 +1,14 @@
 package com.apphud.sdk
 
 import android.annotation.SuppressLint
+import android.content.BroadcastReceiver
 import android.content.Context
+import android.content.Intent
+import android.content.IntentFilter
 import android.os.Handler
 import android.os.Looper
 import android.provider.Settings
+import androidx.core.content.ContextCompat
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.ProcessLifecycleOwner
@@ -22,6 +26,7 @@ import com.apphud.sdk.domain.ApphudUser
 import com.apphud.sdk.domain.PurchaseRecordDetails
 import com.apphud.sdk.internal.BillingWrapper
 import com.apphud.sdk.internal.ServiceLocator
+import com.apphud.sdk.internal.presentation.figma.FigmaWebViewActivity
 import com.apphud.sdk.internal.util.runCatchingCancellable
 import com.apphud.sdk.managers.RequestManager
 import com.apphud.sdk.managers.RequestManager.applicationContext
@@ -36,6 +41,7 @@ import kotlinx.coroutines.Runnable
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.awaitCancellation
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.suspendCancellableCoroutine
@@ -1031,25 +1037,98 @@ internal object ApphudInternal {
     suspend fun showPaywallScreen(
         context: Context,
         paywall: ApphudPaywall,
-        activityAnimationConfig: ActivityAnimationConfig = ActivityAnimationConfig(),
-        maxTimeout: Long = APPHUD_PAYWALL_SCREEN_LOAD_TIMEOUT,
-        callback: (ApphudPaywallScreenShowResult) -> Unit
+        callback: (ApphudPaywallScreenShowResult) -> Unit,
     ) {
+        ApphudLog.logI("Starting to show paywall screen for paywall: ${paywall.identifier}")
+
+        // Variable to store receiver
+        var receiver: BroadcastReceiver? = null
+        
+        // Function for safe receiver unregistration
+        val unregisterReceiver = {
+            receiver?.let { rec ->
+                try {
+                    context.unregisterReceiver(rec)
+                    ApphudLog.log("[ApphudInternal] BroadcastReceiver unregistered")
+                    receiver = null
+                } catch (e: IllegalArgumentException) {
+                    ApphudLog.logE("[ApphudInternal] Receiver was already unregistered: ${e.message}")
+                }
+            }
+        }
+
+        // Register BroadcastReceiver to get results
+        receiver = object : BroadcastReceiver() {
+            override fun onReceive(context: Context?, intent: Intent?) {
+                if (intent?.action == FigmaWebViewActivity.ACTION_FIGMA_SCREEN_RESULT) {
+                    val resultCode = intent.getIntExtra(FigmaWebViewActivity.EXTRA_RESULT_CODE, -1)
+                    ApphudLog.log("[ApphudInternal] Received Figma screen result: $resultCode")
+
+                    // Call callback in main thread only for specific results
+                    var shouldUnregister = false
+                    mainScope.launch {
+                        when (resultCode) {
+                            FigmaWebViewActivity.RESULT_PURCHASE -> {
+                                ApphudLog.log("[ApphudInternal] Purchase completed via broadcast")
+                                callback(ApphudPaywallScreenShowResult.Success)
+                                shouldUnregister = true
+                            }
+                            FigmaWebViewActivity.RESULT_RESTORE_SUCCESS -> {
+                                ApphudLog.log("[ApphudInternal] Restore successful via broadcast")
+                                callback(ApphudPaywallScreenShowResult.Success)
+                                shouldUnregister = true
+                            }
+                            FigmaWebViewActivity.RESULT_DISMISSED -> {
+                                ApphudLog.log("[ApphudInternal] Screen dismissed via broadcast")
+                                callback(ApphudPaywallScreenShowResult.Error(ApphudError("Screen was dismissed by user")))
+                                shouldUnregister = true
+                            }
+                            FigmaWebViewActivity.RESULT_PURCHASE_ERROR -> {
+                                ApphudLog.log("[ApphudInternal] Purchase failed via broadcast - no callback")
+                                // Don't call callback for purchase errors - keep receiver active
+                            }
+                            FigmaWebViewActivity.RESULT_RESTORE_ERROR -> {
+                                ApphudLog.log("[ApphudInternal] Restore failed via broadcast - no callback")
+                                // Don't call callback for restore errors - keep receiver active
+                            }
+                            FigmaWebViewActivity.RESULT_INVALID_PURCHASE_INDEX -> {
+                                ApphudLog.log("[ApphudInternal] Invalid purchase index via broadcast")
+                                callback(ApphudPaywallScreenShowResult.Error(ApphudError("Invalid purchase index")))
+                                shouldUnregister = true
+                            }
+                            else -> {
+                                ApphudLog.log("[ApphudInternal] Unknown result code: $resultCode")
+                                callback(ApphudPaywallScreenShowResult.Error(ApphudError("Unknown result code: $resultCode")))
+                                shouldUnregister = true
+                            }
+                        }
+                        
+                        // Only unregister receiver when callback is called
+                        if (shouldUnregister) {
+                            unregisterReceiver()
+                        }
+                    }
+                }
+            }
+        }
+
         try {
-            ApphudLog.logI("Starting to show paywall screen for paywall: ${paywall.identifier}")
-            
-            // Первым делом вызываем рендер проперти через use case
-            ServiceLocator.instance.renderPaywallPropertiesUseCase(paywall)
-            
-            // Здесь будет дополнительная логика показа paywall screen
-            // Пока что считаем что показ прошел успешно
+            val intentFilter = IntentFilter(FigmaWebViewActivity.ACTION_FIGMA_SCREEN_RESULT)
+            ContextCompat.registerReceiver(context, receiver!!, intentFilter, ContextCompat.RECEIVER_NOT_EXPORTED)
+            ApphudLog.log("[ApphudInternal] BroadcastReceiver registered for paywall screen")
+
+            val renderResult = ServiceLocator.instance.renderPaywallPropertiesUseCase(paywall).getOrThrow()
+
+            val renderItemsJson = ServiceLocator.instance.renderResultMapperWithSerializer.toJson(renderResult)
+            ApphudLog.logI("Serialized render items: $renderItemsJson")
+
+            val intent = FigmaWebViewActivity.getIntent(context, paywall.id, renderItemsJson)
+            context.startActivity(intent)
+
             ApphudLog.logI("Paywall screen shown successfully for paywall: ${paywall.identifier}")
-            
-            callback(ApphudPaywallScreenShowResult.Success)
-            
         } catch (e: Exception) {
-            ApphudLog.logE("Error showing paywall screen: ${e.message}")
-            callback(ApphudPaywallScreenShowResult.Error(ApphudError("Failed to show paywall screen: ${e.message}")))
+            unregisterReceiver()
+            throw e
         }
     }
 

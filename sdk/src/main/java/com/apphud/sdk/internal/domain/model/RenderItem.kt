@@ -5,5 +5,6 @@ import com.google.gson.annotations.SerializedName
 internal data class RenderItem(
     @SerializedName("item_id")
     val itemId: String,
-    val productDetails: RenderItemProductDetails
+    @SerializedName("product_info")
+    val productDetails: RenderItemProductInfo
 )

@@ -1,9 +1,12 @@
 package com.apphud.sdk.internal.domain
 
+import com.apphud.sdk.ApphudError
 import com.apphud.sdk.ApphudLog
 import com.apphud.sdk.domain.ApphudPaywall
+import com.apphud.sdk.domain.RenderResult
+import com.apphud.sdk.internal.data.remote.RenderRemoteRepository
 import com.apphud.sdk.internal.domain.model.RenderItem
-import com.apphud.sdk.internal.domain.model.RenderItemProductDetails
+import com.apphud.sdk.internal.domain.model.RenderItemProductInfo
 import com.apphud.sdk.managers.priceCurrencyCode
 import java.util.Currency
 
@@ -13,28 +16,25 @@ import java.util.Currency
  * This class handles the process of checking if paywall properties need to be rendered
  * and sending them to the backend to replace macros.
  */
-internal class RenderPaywallPropertiesUseCase {
+internal class RenderPaywallPropertiesUseCase(
+    private val renderRemoteRepository: RenderRemoteRepository,
+) {
 
     /**
      * Renders paywall properties if needed.
      *
      * @param paywall The paywall whose properties need to be rendered
      */
-    suspend operator fun invoke(paywall: ApphudPaywall) {
-        try {
-            val items = itemsToRender(paywall)
-            if (items.isEmpty()) {
-                ApphudLog.log("No products macros to render, skipping")
-                return
-            }
-
-            // TODO: Integrate with backend API when available.
-            // For now we just log.
-            ApphudLog.log("renderPropertiesIfNeeded: would send ${'$'}{items.size} items to backend")
-        } catch (e: Exception) {
-            ApphudLog.logE("Error rendering properties for paywall ${paywall.identifier}: ${e.message}")
-            throw e
+    suspend operator fun invoke(paywall: ApphudPaywall): Result<RenderResult> {
+        val items = itemsToRender(paywall)
+        if (items.isEmpty()) {
+            ApphudLog.log("No products to render")
+            return Result.failure(ApphudError("No products to render"))
         }
+
+        ApphudLog.log("renderPropertiesIfNeeded: sending ${items.size} items to backend")
+
+        return renderRemoteRepository.renderPaywallProperties(items)
     }
 
     /**
@@ -54,16 +54,16 @@ internal class RenderPaywallPropertiesUseCase {
 
             val productDetailsData = productDetails?.let { details ->
                 val subscriptionOffers = details.subscriptionOfferDetails
-                
+
                 if (!subscriptionOffers.isNullOrEmpty()) {
                     val currencyCode = details.priceCurrencyCode() ?: ""
                     val currencySymbol = getCurrencySymbol(currencyCode) ?: ""
-                    
+
                     val lastOffer = subscriptionOffers.last()
                     val lastPhase = lastOffer.pricingPhases.pricingPhaseList.lastOrNull()
                     val formattedPrice = lastPhase?.formattedPrice ?: ""
                     val price = lastPhase?.let { it.priceAmountMicros / 1_000_000.0 } ?: 0.0
-                    
+
                     val firstOffer = subscriptionOffers.first()
                     val firstPhase = firstOffer.pricingPhases.pricingPhaseList.firstOrNull()
                     val (introPrice, formattedIntroPrice) = firstPhase?.let { phase ->
@@ -74,8 +74,8 @@ internal class RenderPaywallPropertiesUseCase {
                             (phase.formattedPrice ?: "") to (phase.priceAmountMicros / 1_000_000.0)
                         }
                     } ?: ("" to 0.0)
-                    
-                    RenderItemProductDetails(
+
+                    RenderItemProductInfo(
                         currencyCode = currencyCode,
                         currencySymbol = currencySymbol,
                         formattedPrice = formattedPrice,
@@ -84,12 +84,12 @@ internal class RenderPaywallPropertiesUseCase {
                         formattedIntroPrice = formattedIntroPrice
                     )
                 } else {
-                    RenderItemProductDetails.empty()
+                    RenderItemProductInfo.empty()
                 }
-            } ?: RenderItemProductDetails.empty()
+            } ?: RenderItemProductInfo.empty()
 
             val renderItem = RenderItem(
-                itemId = product.productId,
+                itemId = product.itemId,
                 productDetails = productDetailsData
             )
 

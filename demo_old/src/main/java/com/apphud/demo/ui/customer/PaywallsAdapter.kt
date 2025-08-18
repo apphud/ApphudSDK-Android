@@ -15,7 +15,8 @@ import com.apphud.demo.R
 import com.apphud.sdk.Apphud
 import com.apphud.sdk.domain.ApphudPaywallScreenShowResult
 
-class PaywallsAdapter(private val paywallsViewModel: PaywallsViewModel, private val context: Context?) : RecyclerView.Adapter<PaywallsAdapter.BaseViewHolder<*>>() {
+class PaywallsAdapter(private val paywallsViewModel: PaywallsViewModel, private val context: Context?) :
+    RecyclerView.Adapter<PaywallsAdapter.BaseViewHolder<*>>() {
     var selectItem: ((item: AdapterItem) -> Unit)? = null
 
     abstract class BaseViewHolder<T>(itemView: View) : RecyclerView.ViewHolder(itemView) {
@@ -124,11 +125,15 @@ class PaywallsAdapter(private val paywallsViewModel: PaywallsViewModel, private 
             try {
                 Apphud.showPaywallScreen(
                     context = ctx,
-                    paywall = paywall
+                    paywall = paywall,
+                    maxTimeout = 120_000L,
                 ) { result ->
                     when (result) {
                         is ApphudPaywallScreenShowResult.Success -> {
-                            Log.d("PaywallsAdapter", "Paywall screen показан успешно для paywall: ${paywall.identifier}")
+                            Log.d(
+                                "PaywallsAdapter",
+                                "Paywall screen показан успешно для paywall: ${paywall.identifier}"
+                            )
                             Toast.makeText(ctx, "Paywall screen показан: ${paywall.name}", Toast.LENGTH_SHORT).show()
                         }
                         is ApphudPaywallScreenShowResult.Error -> {

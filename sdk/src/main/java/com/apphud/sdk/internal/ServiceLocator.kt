@@ -5,10 +5,12 @@ import com.apphud.sdk.ApphudInternal
 import com.apphud.sdk.ApphudRuleCallback
 import com.apphud.sdk.internal.data.local.LifecycleRepository
 import com.apphud.sdk.internal.data.local.LocalRulesScreenRepository
+import com.apphud.sdk.internal.data.local.PaywallRepository
 import com.apphud.sdk.internal.data.mapper.CustomerMapper
 import com.apphud.sdk.internal.data.mapper.PaywallsMapper
 import com.apphud.sdk.internal.data.mapper.PlacementsMapper
 import com.apphud.sdk.internal.data.mapper.ProductMapper
+import com.apphud.sdk.internal.data.mapper.RenderResultMapper
 import com.apphud.sdk.internal.data.mapper.RuleScreenMapper
 import com.apphud.sdk.internal.data.mapper.SubscriptionMapper
 import com.apphud.sdk.internal.data.network.HeadersInterceptor
@@ -19,6 +21,8 @@ import com.apphud.sdk.internal.data.remote.RegistrationBodyFactory
 import com.apphud.sdk.internal.data.remote.RemoteRepository
 import com.apphud.sdk.internal.data.remote.ScreenRemoteRepository
 import com.apphud.sdk.internal.data.remote.UserRemoteRepository
+import com.apphud.sdk.internal.data.remote.RenderRemoteRepository
+import com.apphud.sdk.internal.data.serializer.RenderItemsSerializer
 import com.apphud.sdk.internal.domain.FetchMostActualRuleScreenUseCase
 import com.apphud.sdk.internal.domain.FetchRulesScreenUseCase
 import com.apphud.sdk.internal.domain.RenderPaywallPropertiesUseCase
@@ -39,7 +43,7 @@ internal class ServiceLocator(
     private val apiKey: ApiKey,
 ) {
 
-    private val gson: Gson = Gson()
+    val gson: Gson = Gson()
 
     private val paywallsMapper = PaywallsMapper(gson)
     private val placementsMapper = PlacementsMapper(paywallsMapper)
@@ -118,6 +122,15 @@ internal class ServiceLocator(
             attributionMapper = AttributionMapper()
         )
 
+    private val renderResultMapper: RenderResultMapper = RenderResultMapper()
+
+    val renderRemoteRepository: RenderRemoteRepository =
+        RenderRemoteRepository(
+            okHttpClient = okHttpClient,
+            gson = gson,
+            renderResultMapper = renderResultMapper
+        )
+
     val fetchRulesScreenUseCase: FetchRulesScreenUseCase =
         FetchRulesScreenUseCase(
             remoteRepository = remoteRepository,
@@ -132,7 +145,13 @@ internal class ServiceLocator(
         )
 
     val renderPaywallPropertiesUseCase: RenderPaywallPropertiesUseCase =
-        RenderPaywallPropertiesUseCase()
+        RenderPaywallPropertiesUseCase(renderRemoteRepository)
+
+    val paywallRepository: PaywallRepository = PaywallRepository()
+
+    val renderItemsSerializer: RenderItemsSerializer = RenderItemsSerializer(gson)
+
+    val renderResultMapperWithSerializer: RenderResultMapper = RenderResultMapper(renderItemsSerializer)
 
     val ruleController: RuleController =
         RuleController(
