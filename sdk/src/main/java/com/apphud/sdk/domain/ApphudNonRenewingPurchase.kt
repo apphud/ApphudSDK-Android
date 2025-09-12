@@ -27,6 +27,12 @@ data class ApphudNonRenewingPurchase(
       Returns true if purchase was consumed
      */
     val isConsumable: Boolean = false,
+
+    /**
+     * Platform, where subscription was purchased on.
+     * Available values: ios, android, web.
+     */
+    val platform: String
 ) {
     companion object {
         fun createTemporary(productId: String): ApphudNonRenewingPurchase {
@@ -36,7 +42,8 @@ data class ApphudNonRenewingPurchase(
                 purchasedAt = time,
                 canceledAt = time + 3_600_000L,
                 isTemporary = true,
-                purchaseToken = ""
+                purchaseToken = "",
+                platform = "android"
             )
         }
     }

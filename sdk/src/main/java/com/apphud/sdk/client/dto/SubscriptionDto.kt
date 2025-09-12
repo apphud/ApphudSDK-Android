@@ -31,4 +31,8 @@ internal data class SubscriptionDto(
     val status: String,
     @SerializedName("is_consumable")
     val isConsumable: Boolean?,
+    @SerializedName("base_plan_id")
+    val basePlanId: String?,
+    @SerializedName("platform")
+    val platform: String
 )
