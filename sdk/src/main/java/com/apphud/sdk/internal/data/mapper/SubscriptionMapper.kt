@@ -33,6 +33,8 @@ internal class SubscriptionMapper {
                     isIntroductoryActivated = dto.introductoryActivated,
                     isAutoRenewEnabled = dto.autorenewEnabled,
                     groupId = "",
+                    platform = dto.platform,
+                    basePlanId = dto.basePlanId
                 )
         }
 
@@ -46,6 +48,7 @@ internal class SubscriptionMapper {
                     canceledAt = buildDate(dto.cancelledAt),
                     purchaseToken = dto.originalTransactionId,
                     isConsumable = dto.isConsumable ?: false,
+                    platform = dto.platform
                 )
         }
     }

@@ -1,5 +1,6 @@
 package com.apphud.sdk.domain
 
+
 data class ApphudSubscription(
     /**
      Status of the subscription. It can only be in one state at any moment.
@@ -48,11 +49,23 @@ data class ApphudSubscription(
      True value means that user has already used introductory or free trial offer.
      */
     val isIntroductoryActivated: Boolean,
-    val kind: ApphudKind,
-    val groupId: String,
+
     /**
-     For internal usage
+     * Base plan id, if available.
      */
+    val basePlanId: String?,
+
+    /**
+     * Platform, where subscription was purchased on.
+     * Available values: ios, android, web.
+     */
+    val platform: String,
+
+    /**
+     For internal use
+     */
+    val groupId: String,
+    val kind: ApphudKind,
     val isTemporary: Boolean = false,
 ) {
     companion object {
@@ -70,6 +83,8 @@ data class ApphudSubscription(
                 isIntroductoryActivated = false,
                 kind = ApphudKind.AUTORENEWABLE,
                 groupId = "",
+                basePlanId = "",
+                platform = "android",
                 isTemporary = true,
             )
         }
