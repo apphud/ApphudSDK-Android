@@ -123,7 +123,7 @@ generate_checksums_and_signatures() {
     cd "$TARGET_DIR"
     
     # Find all main artifact files (excluding already generated checksums and signatures)
-    find . -name "*.aar" -o -name "*.pom" -o -name "*.jar" | while read -r file; do
+    find . -name "*.aar" -o -name "*.pom" -o -name "*.jar" -o -name "*.module" | while read -r file; do
         if [[ ! "$file" =~ \.(asc|md5|sha1)$ ]]; then
             log_info "Processing: $file"
             
@@ -180,8 +180,8 @@ verify_archive() {
     echo ""
     
     # Count expected files
-    expected_files=("\.aar" "\.pom" "-sources\.jar" "-javadoc\.jar")
-    expected_names=("*.aar" "*.pom" "*-sources.jar" "*-javadoc.jar")
+    expected_files=("\.aar" "\.pom" "-sources\.jar" "-javadoc\.jar" "\.module")
+    expected_names=("*.aar" "*.pom" "*-sources.jar" "*-javadoc.jar" "*.module")
     
     for i in "${!expected_files[@]}"; do
         pattern="${expected_files[$i]}"
@@ -195,9 +195,9 @@ verify_archive() {
     done
     
     # Check for signatures and checksums
-    sig_count=$(unzip -l "build/$ARCHIVE_NAME" | grep -c "\.asc$" || echo "0")
-    md5_count=$(unzip -l "build/$ARCHIVE_NAME" | grep -c "\.md5$" || echo "0")
-    sha1_count=$(unzip -l "build/$ARCHIVE_NAME" | grep -c "\.sha1$" || echo "0")
+    sig_count=$(unzip -l "build/$ARCHIVE_NAME" | grep -c "\.asc$" || true)
+    md5_count=$(unzip -l "build/$ARCHIVE_NAME" | grep -c "\.md5$" || true)
+    sha1_count=$(unzip -l "build/$ARCHIVE_NAME" | grep -c "\.sha1$" || true)
     
     log_info "Signatures (.asc): $sig_count"
     log_info "MD5 checksums (.md5): $md5_count"
@@ -225,6 +225,7 @@ print_usage_instructions() {
     echo "${GROUP_PATH}/${ARTIFACT_ID}/${VERSION}/"
     echo "├── ${ARTIFACT_ID}-${VERSION}.aar (+ .asc, .md5, .sha1)"
     echo "├── ${ARTIFACT_ID}-${VERSION}.pom (+ .asc, .md5, .sha1)"
+    echo "├── ${ARTIFACT_ID}-${VERSION}.module (+ .asc, .md5, .sha1)"
     echo "├── ${ARTIFACT_ID}-${VERSION}-sources.jar (+ .asc, .md5, .sha1)"
     echo "└── ${ARTIFACT_ID}-${VERSION}-javadoc.jar (+ .asc, .md5, .sha1)"
     echo ""

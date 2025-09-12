@@ -36,7 +36,7 @@ From the project root directory:
 2. **Publish Locally**: Publish to local Maven repository (`~/.m2/repository`)
 3. **Create Structure**: Set up proper Maven Repository Layout directory structure
 4. **Generate Files**: Create all required files:
-   - Main artifacts (`.aar`, `.pom`, `-sources.jar`, `-javadoc.jar`)
+   - Main artifacts (`.aar`, `.pom`, `.module`, `-sources.jar`, `-javadoc.jar`)
    - MD5 checksums (`.md5`)
    - SHA1 checksums (`.sha1`)
    - GPG signatures (`.asc`) - if GPG is configured
@@ -63,6 +63,10 @@ com/
             ├── ApphudSDK-Android-{VERSION}.pom.asc
             ├── ApphudSDK-Android-{VERSION}.pom.md5
             ├── ApphudSDK-Android-{VERSION}.pom.sha1
+            ├── ApphudSDK-Android-{VERSION}.module
+            ├── ApphudSDK-Android-{VERSION}.module.asc
+            ├── ApphudSDK-Android-{VERSION}.module.md5
+            ├── ApphudSDK-Android-{VERSION}.module.sha1
             ├── ApphudSDK-Android-{VERSION}-sources.jar
             ├── ApphudSDK-Android-{VERSION}-sources.jar.asc
             ├── ApphudSDK-Android-{VERSION}-sources.jar.md5

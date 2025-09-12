@@ -113,7 +113,7 @@ task generateCentralPortalArchive(type: Zip) {
         
         // Generate checksums and signatures for required files
         fileTree(targetDir).matching {
-            include '*.aar', '*.pom', '*.jar'
+            include '*.aar', '*.pom', '*.jar', '*.module'
             exclude '*.asc', '*.md5', '*.sha1'
         }.each { file ->
             generateChecksumsAndSignatures(file)
