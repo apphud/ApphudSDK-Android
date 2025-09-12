@@ -10,8 +10,15 @@ task androidSourcesJar(type: Jar) {
     }
 }
 
+task androidJavadocJar(type: Jar) {
+    archiveClassifier.set('javadoc')
+    // For Android libraries, create an empty javadoc jar or generate from KDoc
+    // You can customize this to generate actual documentation
+}
+
 artifacts {
     archives androidSourcesJar
+    archives androidJavadocJar
 }
 
 group = PUBLISH_GROUP_ID
@@ -35,6 +42,7 @@ afterEvaluate {
                 }
 
                 artifact androidSourcesJar
+                artifact androidJavadocJar
 
                 // Mostly self-explanatory metadata
                 pom {
@@ -74,4 +82,85 @@ ext["signing.secretKeyRingFile"] = rootProject.ext["signing.secretKeyRingFile"]
 
 signing {
     sign publishing.publications
+}
+
+// Task to generate Central Publisher Portal archive
+task generateCentralPortalArchive(type: Zip) {
+    dependsOn 'publishToMavenLocal'
+    
+    archiveFileName = "${PUBLISH_ARTIFACT_ID}-${PUBLISH_VERSION}-central-portal.zip"
+    destinationDirectory = file("${project.buildDir}/central-portal")
+    
+    doFirst {
+        def localRepo = "${System.getProperty('user.home')}/.m2/repository"
+        def artifactPath = "${PUBLISH_GROUP_ID.replace('.', '/')}/${PUBLISH_ARTIFACT_ID}/${PUBLISH_VERSION}"
+        def sourceDir = file("${localRepo}/${artifactPath}")
+        
+        if (!sourceDir.exists()) {
+            throw new GradleException("Local Maven repository artifacts not found at ${sourceDir}. Run 'publishToMavenLocal' first.")
+        }
+        
+        // Create temp directory for archive structure
+        def tempDir = file("${buildDir}/tmp/central-portal-archive")
+        def targetDir = file("${tempDir}/${artifactPath}")
+        targetDir.mkdirs()
+        
+        // Copy all files from local Maven repo
+        copy {
+            from sourceDir
+            into targetDir
+        }
+        
+        // Generate checksums and signatures for required files
+        fileTree(targetDir).matching {
+            include '*.aar', '*.pom', '*.jar'
+            exclude '*.asc', '*.md5', '*.sha1'
+        }.each { file ->
+            generateChecksumsAndSignatures(file)
+        }
+        
+        // Set the archive source to our temp directory
+        from tempDir
+    }
+}
+
+def generateChecksumsAndSignatures(File file) {
+    def fileName = file.name
+    def parentDir = file.parent
+    
+    // Generate MD5 checksum
+    def md5File = new File(parentDir, "${fileName}.md5")
+    md5File.text = calculateMd5(file)
+    
+    // Generate SHA1 checksum
+    def sha1File = new File(parentDir, "${fileName}.sha1")
+    sha1File.text = calculateSha1(file)
+    
+    // Generate GPG signature (if GPG is available)
+    try {
+        def ascFile = new File(parentDir, "${fileName}.asc")
+        def process = "gpg --armor --detach-sign --output ${ascFile.absolutePath} ${file.absolutePath}".execute()
+        process.waitFor()
+        if (process.exitValue() != 0) {
+            logger.warn("GPG signing failed for ${fileName}. Please ensure GPG is installed and configured.")
+        }
+    } catch (Exception e) {
+        logger.warn("GPG signing failed for ${fileName}: ${e.message}")
+    }
+}
+
+def calculateMd5(File file) {
+    def digest = java.security.MessageDigest.getInstance("MD5")
+    file.eachByte(4096) { buffer, length ->
+        digest.update(buffer, 0, length)
+    }
+    return digest.digest().collect { String.format("%02x", it) }.join('')
+}
+
+def calculateSha1(File file) {
+    def digest = java.security.MessageDigest.getInstance("SHA-1")
+    file.eachByte(4096) { buffer, length ->
+        digest.update(buffer, 0, length)
+    }
+    return digest.digest().collect { String.format("%02x", it) }.join('')
 }
