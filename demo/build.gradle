@@ -94,10 +94,8 @@ dependencies {
     implementation 'com.facebook.android:facebook-android-sdk:latest.release'
     implementation 'com.amplitude:analytics-android:1.14.0'
     implementation 'com.appsflyer:af-android-sdk:6.3.2'
-    implementation 'io.branch.sdk.android:library:5.+'
 
     implementation project(path: ':sdk')
-    //implementation "com.apphud:ApphudSDK-Android:2.7.4"
 
 
     testImplementation 'junit:junit:4.13.2'

@@ -102,8 +102,6 @@ object ApphudSdkManager {
         Apphud.setListener(listener)
         Apphud.start(application, API_KEY)
         Apphud.collectDeviceIdentifiers()
-
-        AnalyticsManager.initAnalytics(application)
     }
 
     suspend fun getPaywallProducts(placement: Placement): List<ApphudProduct> {
