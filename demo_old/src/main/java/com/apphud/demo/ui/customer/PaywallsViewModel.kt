@@ -19,13 +19,15 @@ class PaywallsViewModel : ViewModel() {
         if (showPlacements) {
             items.clear()
             val placements = Apphud.rawPlacements()
-            placements.forEach {
+            val sortedPlacements = placements.sortedBy { it.paywall?.name ?: "" }
+            sortedPlacements.forEach {
                 items.add(AdapterItem(null, it))
             }
         } else {
             val list = Apphud.rawPaywalls()
             items.clear()
-            list.forEach {
+            val sortedPaywalls = list.sortedBy { it.name ?: "" }
+            sortedPaywalls.forEach {
                 items.add(AdapterItem(it, null))
             }
         }

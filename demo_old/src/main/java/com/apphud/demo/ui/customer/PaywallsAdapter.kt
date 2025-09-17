@@ -2,15 +2,21 @@ package com.apphud.demo.ui.customer
 
 import android.content.Context
 import android.graphics.Color
+import android.util.Log
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
+import android.widget.Button
 import android.widget.LinearLayout
 import android.widget.TextView
+import android.widget.Toast
 import androidx.recyclerview.widget.RecyclerView
 import com.apphud.demo.R
+import com.apphud.sdk.Apphud
+import com.apphud.sdk.domain.ApphudPaywallScreenShowResult
 
-class PaywallsAdapter(private val paywallsViewModel: PaywallsViewModel, private val context: Context?) : RecyclerView.Adapter<PaywallsAdapter.BaseViewHolder<*>>() {
+class PaywallsAdapter(private val paywallsViewModel: PaywallsViewModel, private val context: Context?) :
+    RecyclerView.Adapter<PaywallsAdapter.BaseViewHolder<*>>() {
     var selectItem: ((item: AdapterItem) -> Unit)? = null
 
     abstract class BaseViewHolder<T>(itemView: View) : RecyclerView.ViewHolder(itemView) {
@@ -28,6 +34,7 @@ class PaywallsAdapter(private val paywallsViewModel: PaywallsViewModel, private 
         private val paywallVariation: TextView = itemView.findViewById(R.id.paywallVariation)
         private val paywallJson: TextView = itemView.findViewById(R.id.paywallJson)
         private val layoutHolder: LinearLayout = itemView.findViewById(R.id.layoutHolder)
+        private val btnShowPaywallScreen: Button = itemView.findViewById(R.id.btnShowPaywallScreen)
 
         override fun bind(
             item: AdapterItem,
@@ -63,6 +70,12 @@ class PaywallsAdapter(private val paywallsViewModel: PaywallsViewModel, private 
             itemView.setOnClickListener {
                 paywall?.let { paywall ->
                     selectItem?.invoke(item)
+                }
+            }
+
+            btnShowPaywallScreen.setOnClickListener {
+                paywall?.let { paywall ->
+                    showPaywallScreen(paywall)
                 }
             }
         }
@@ -106,4 +119,33 @@ class PaywallsAdapter(private val paywallsViewModel: PaywallsViewModel, private 
     }
 
     override fun getItemCount() = paywallsViewModel.items.size
+
+    private fun showPaywallScreen(paywall: com.apphud.sdk.domain.ApphudPaywall) {
+        context?.let { ctx ->
+            try {
+                Apphud.showPaywallScreen(
+                    context = ctx.applicationContext,
+                    paywall = paywall,
+                    maxTimeout = 120_000L,
+                ) { result ->
+                    when (result) {
+                        is ApphudPaywallScreenShowResult.Success -> {
+                            Log.d(
+                                "PaywallsAdapter",
+                                "Paywall screen показан успешно для paywall: ${paywall.identifier}"
+                            )
+                            Toast.makeText(ctx, "Paywall screen показан: ${paywall.name}", Toast.LENGTH_SHORT).show()
+                        }
+                        is ApphudPaywallScreenShowResult.Error -> {
+                            Log.e("PaywallsAdapter", "Ошибка показа paywall screen: ${result.error.message}")
+                            Toast.makeText(ctx, "Ошибка: ${result.error.message}", Toast.LENGTH_SHORT).show()
+                        }
+                    }
+                }
+            } catch (e: Exception) {
+                Log.e("PaywallsAdapter", "Исключение при показе paywall screen", e)
+                Toast.makeText(ctx, "Исключение: ${e.message}", Toast.LENGTH_SHORT).show()
+            }
+        }
+    }
 }

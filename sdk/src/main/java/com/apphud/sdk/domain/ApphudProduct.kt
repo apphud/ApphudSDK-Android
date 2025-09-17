@@ -70,6 +70,17 @@ data class ApphudProduct(
      * For internal usage
      */
     internal var paywallId: String?,
+
+    internal val itemId: String,
+
+    //данные для рендера беру из productDetails.
+
+    //Добавить!!!!
+//    item_id -- добавил
+    //properties - Нужно заполнить из продуктов гугл плея и item_id после отправить на рендер, только тогда они появятся.//отрендеренные или плейсхолдеры?
+
+
+    //Передать обновленный пропертис после рендера в PaywallSDK.shared().processDomMacros(string)
 ) {
 
     fun type(): ApphudProductType? {
@@ -165,7 +176,7 @@ data class ApphudProduct(
 
     companion object {
         fun apphudProduct(id: String): ApphudProduct {
-            return ApphudProduct(id, id, id, "play_store", null, null, null, null, null, null)
+            return ApphudProduct(id, id, id, "play_store", null, null, null, null, null, null, "")
         }
     }
 

@@ -10,4 +10,6 @@ internal data class ApphudProductDto(
     val store: String,
     @SerializedName("base_plan_id")
     val basePlanId: String?,
+    @SerializedName("item_id")
+    val itemId: String,
 )
