@@ -6,7 +6,6 @@ import com.android.billingclient.api.ProductDetails
 import com.android.billingclient.api.Purchase
 import com.apphud.sdk.ApphudInternal.coroutineScope
 import com.apphud.sdk.ApphudInternal.errorHandler
-import com.apphud.sdk.domain.ActivityAnimationConfig
 import com.apphud.sdk.domain.ApphudGroup
 import com.apphud.sdk.domain.ApphudNonRenewingPurchase
 import com.apphud.sdk.domain.ApphudPaywall
@@ -376,7 +375,6 @@ object Apphud {
     fun showPaywallScreen(
         context: Context,
         paywall: ApphudPaywall,
-        activityAnimationConfig: ActivityAnimationConfig = ActivityAnimationConfig(),
         maxTimeout: Long = APPHUD_PAYWALL_SCREEN_LOAD_TIMEOUT,
         callback: (ApphudPaywallScreenShowResult) -> Unit,
     ) {

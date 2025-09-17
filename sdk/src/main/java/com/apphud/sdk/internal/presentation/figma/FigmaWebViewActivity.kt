@@ -5,8 +5,11 @@ import android.app.Activity
 import android.content.Context
 import android.content.Intent
 import android.net.Uri
+import android.os.Build
 import android.os.Bundle
 import android.view.View
+import android.view.WindowInsets
+import android.view.WindowInsetsController
 import android.view.WindowManager
 import android.webkit.ConsoleMessage
 import android.webkit.WebChromeClient
@@ -42,7 +45,6 @@ internal class FigmaWebViewActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.apphud_rule_webview_activity_layout)
 
-        // Настройка полноэкранного режима после установки контента
         setupFullscreen()
 
         webView = findViewById(R.id.webView)
@@ -95,16 +97,12 @@ internal class FigmaWebViewActivity : AppCompatActivity() {
 
             setGeolocationEnabled(true)
 
-            // Настройки для предотвращения дублирования статус бара
             setSupportZoom(false)
             builtInZoomControls = false
             displayZoomControls = false
-
-            // Отключаем viewport meta tag обработку для предотвращения дублирования статус бара
             layoutAlgorithm = WebSettings.LayoutAlgorithm.NORMAL
         }
 
-        // Устанавливаем начальный масштаб для предотвращения дублирования статус бара
         webView.setInitialScale(100)
 
         webView.webChromeClient = object : WebChromeClient() {
@@ -141,7 +139,6 @@ internal class FigmaWebViewActivity : AppCompatActivity() {
                 super.onPageFinished(view, url)
                 ApphudLog.log("[RuleWebViewActivity] Page loaded: $url")
 
-                // Вызываем JS функцию для обработки DOM макросов
                 val renderItemsJson = viewModel.getCurrentRenderItemsJson()
                 renderItemsJson?.let { renderJson ->
                     try {
@@ -317,27 +314,31 @@ internal class FigmaWebViewActivity : AppCompatActivity() {
 
     private fun setupFullscreen() {
         try {
-            // Для всех версий Android используем legacy флаги
-            @Suppress("DEPRECATION")
-            window.decorView.systemUiVisibility = (
-                View.SYSTEM_UI_FLAG_LAYOUT_STABLE or
-                    View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION or
-                    View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN or
-                    View.SYSTEM_UI_FLAG_HIDE_NAVIGATION or
-                    View.SYSTEM_UI_FLAG_FULLSCREEN or
-                    View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY
-                )
-
-            // Дополнительные настройки окна
             window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
-
-            // Убеждаемся что status bar прозрачный
             window.statusBarColor = android.graphics.Color.TRANSPARENT
             window.navigationBarColor = android.graphics.Color.TRANSPARENT
 
-            ApphudLog.log("[RuleWebViewActivity] Fullscreen setup completed")
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+                window.setDecorFitsSystemWindows(false)
+                window.insetsController?.let { controller ->
+                    controller.hide(WindowInsets.Type.statusBars() or WindowInsets.Type.navigationBars())
+                    controller.systemBarsBehavior = WindowInsetsController.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
+                }
+            } else {
+                @Suppress("DEPRECATION")
+                window.decorView.systemUiVisibility = (
+                    View.SYSTEM_UI_FLAG_LAYOUT_STABLE or
+                        View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION or
+                        View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN or
+                        View.SYSTEM_UI_FLAG_HIDE_NAVIGATION or
+                        View.SYSTEM_UI_FLAG_FULLSCREEN or
+                        View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY
+                    )
+            }
+
+            ApphudLog.log("[FigmaWebViewActivity] Fullscreen setup completed")
         } catch (e: Exception) {
-            ApphudLog.logE("[RuleWebViewActivity] Error setting up fullscreen: ${e.message}")
+            ApphudLog.logE("[FigmaWebViewActivity] Error setting up fullscreen: ${e.message}")
         }
     }
 

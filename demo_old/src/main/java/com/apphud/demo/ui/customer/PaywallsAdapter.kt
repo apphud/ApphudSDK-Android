@@ -124,7 +124,7 @@ class PaywallsAdapter(private val paywallsViewModel: PaywallsViewModel, private 
         context?.let { ctx ->
             try {
                 Apphud.showPaywallScreen(
-                    context = ctx,
+                    context = ctx.applicationContext,
                     paywall = paywall,
                     maxTimeout = 120_000L,
                 ) { result ->
