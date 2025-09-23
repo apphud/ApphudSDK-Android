@@ -15,22 +15,35 @@ internal class HeadersInterceptor(private val apiKey: ApiKey) : Interceptor {
         val userAgentRequest: Request =
             chain.request()
                 .newBuilder()
-                .header("User-Agent", "Apphud Android ($X_SDK $X_SDK_VERSION)")
+                .header("User-Agent", "Apphud Android (${SdkHeaders.X_SDK} ${SdkHeaders.X_SDK_VERSION})")
                 .header("Authorization", "Bearer ${apiKey.value}")
                 .header("Accept", "application/json; utf-8")
                 .header("Content-Type", "application/json; charset=utf-8")
                 .header("X-Platform", "android")
                 .header("X-Store", "play_store")
-                .header("X-SDK", X_SDK)
-                .header("X-SDK-VERSION", X_SDK_VERSION)
+                .header("X-SDK", SdkHeaders.X_SDK)
+                .header("X-SDK-VERSION", SdkHeaders.X_SDK_VERSION)
                 .header("Idempotency-Key", UUID.randomUUID().toString())
                 .build()
 
         return chain.proceed(userAgentRequest)
     }
+}
 
-    companion object {
-        const val X_SDK_VERSION: String = BuildConfig.VERSION_NAME
-        const val X_SDK: String = "Kotlin"
-    }
+/**
+ * Public configuration object for SDK headers.
+ * Allows customization of SDK identification values used in API requests.
+ */
+object SdkHeaders {
+    /**
+     * The SDK version string used in headers.
+     * Can be modified to customize the version reported to the API.
+     */
+    var X_SDK_VERSION: String = BuildConfig.VERSION_NAME
+
+    /**
+     * The SDK identifier string used in headers.
+     * Can be modified to customize the SDK identifier reported to the API.
+     */
+    var X_SDK: String = "Kotlin"
 }
