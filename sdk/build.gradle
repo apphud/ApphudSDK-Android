@@ -19,7 +19,10 @@ ext {
     PUBLISH_SCM_URL = 'https://github.com/apphud/ApphudSDK-Android/tree/master'
 }
 
-apply from: "${rootProject.projectDir}/scripts/publish-module.gradle"
+// Apply full publishing script for Maven Central, but not for JitPack
+if (!project.hasProperty('group') || !project.group.toString().startsWith('com.github.')) {
+    apply from: "${rootProject.projectDir}/scripts/publish-module.gradle"
+}
 
 android {
     defaultConfig {
@@ -60,15 +63,18 @@ android {
     }
 }
 
-//afterEvaluate {
-//    publishing {
-//        publications {
-//            release(MavenPublication) {
-//                from components.release
-//            }
-//        }
-//    }
-//}
+// Simple publishing configuration for JitPack only
+if (project.hasProperty('group') && project.group.toString().startsWith('com.github.')) {
+    afterEvaluate {
+        publishing {
+            publications {
+                release(MavenPublication) {
+                    from components.release
+                }
+            }
+        }
+    }
+}
 
 dependencies {
     implementation fileTree(dir: "libs", include: ["*.jar"])
