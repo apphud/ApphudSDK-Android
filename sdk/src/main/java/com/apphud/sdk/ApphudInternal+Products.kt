@@ -166,10 +166,16 @@ internal suspend fun ApphudInternal.fetchDetails(ids: List<String>, loadingAll: 
 
     if (existingIds.isNotEmpty() && idsToFetch.isEmpty()) {
         // All Ids already loaded, return OK
+        if (loadingAll) {
+            productsStatus = ApphudProductsStatus.loaded
+        }
         return Pair(BillingResponseCode.OK, null)
     }  else if (idsToFetch.isEmpty()) {
         // If none ids to load, return immediately
         ApphudLog.log("NO REQUEST TO FETCH PRODUCT DETAILS")
+        if (loadingAll) {
+            productsStatus = ApphudProductsStatus.loaded
+        }
         return Pair(APPHUD_NO_REQUEST, null)
     }
 
