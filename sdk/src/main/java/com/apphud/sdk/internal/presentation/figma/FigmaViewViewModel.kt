@@ -50,14 +50,22 @@ internal class FigmaViewViewModel(
             return
         }
 
-        // Проверяем, не загружается ли уже этот контент
         val currentState = _state.value
-        if (currentState is WebViewState.Content) {
-            return
+        when (currentState) {
+            is WebViewState.Content -> {
+                if (currentState.paywall.identifier == ruleId &&
+                    currentState.renderItemsJson == renderItemsJson
+                ) return
+            }
+            is WebViewState.ContentWithPurchaseLoading -> {
+                if (currentState.paywall.identifier == ruleId &&
+                    currentState.renderItemsJson == renderItemsJson
+                ) return
+            }
+            else -> {}
         }
 
         viewModelScope.launch {
-            // Сначала проверяем, существует ли пейвол
             paywallRepository.getPaywallById(ruleId).fold(
                 onSuccess = { paywall ->
                     ApphudLog.log("[WebViewViewModel] Paywall found: ${paywall.name}")
@@ -181,15 +189,6 @@ internal class FigmaViewViewModel(
         }
     }
 
-    fun getCurrentPaywall(): ApphudPaywall? {
-        val currentState = _state.value
-        return when (currentState) {
-            is WebViewState.Content -> currentState.paywall
-            is WebViewState.ContentWithPurchaseLoading -> currentState.paywall
-            else -> null
-        }
-    }
-
     fun getCurrentRenderItemsJson(): String? {
         val currentState = _state.value
         return when (currentState) {
@@ -217,7 +216,6 @@ internal class FigmaViewViewModel(
             return addLiveParameter(paywall.screen.defaultUrl)
         }
 
-        // Получаем текущую локаль
         val currentLocale = Locale.getDefault().language
         ApphudLog.log("[WebViewViewModel] Current locale: $currentLocale")
 
