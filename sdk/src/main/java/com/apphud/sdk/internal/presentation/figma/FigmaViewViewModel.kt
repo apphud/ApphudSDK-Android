@@ -4,12 +4,16 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import com.apphud.sdk.Apphud
+import com.apphud.sdk.ApphudError
 import com.apphud.sdk.ApphudLog
 import com.apphud.sdk.ApphudPurchaseResult
 import com.apphud.sdk.ApphudPurchasesRestoreResult
 import com.apphud.sdk.ApphudRuleCallback
 import com.apphud.sdk.domain.ApphudPaywall
+import com.apphud.sdk.domain.ApphudPaywallScreenShowResult
 import com.apphud.sdk.domain.ApphudProduct
+import com.apphud.sdk.domain.PaywallEvent
+import com.apphud.sdk.internal.PaywallEventManager
 import com.apphud.sdk.internal.ServiceLocator
 import com.apphud.sdk.internal.data.local.PaywallRepository
 import kotlinx.coroutines.channels.Channel
@@ -22,6 +26,7 @@ import java.util.Locale
 internal class FigmaViewViewModel(
     private val paywallRepository: PaywallRepository,
     private val ruleCallback: ApphudRuleCallback,
+    private val eventManager: PaywallEventManager,
 ) : ViewModel() {
 
     private val _state = MutableStateFlow<WebViewState>(WebViewState.Loading)
@@ -30,12 +35,23 @@ internal class FigmaViewViewModel(
     private val _events = Channel<WebViewEvent>()
     val events = _events.receiveAsFlow()
 
+    init {
+        eventManager.activate()
+    }
+
+    override fun onCleared() {
+        super.onCleared()
+        eventManager.deactivate()
+    }
+
     fun init(ruleId: String?, renderItemsJson: String?) {
         ApphudLog.log("[WebViewViewModel] Initializing with ruleId: $ruleId")
 
         if (ruleId == null) {
             ApphudLog.logE("[WebViewViewModel] Rule ID is null")
             _state.value = WebViewState.Error
+            val error = ApphudError("Rule ID is null")
+            emitPaywallEvent(PaywallEvent.ScreenError(error))
             viewModelScope.launch {
                 _events.send(WebViewEvent.CloseScreen)
             }
@@ -44,6 +60,8 @@ internal class FigmaViewViewModel(
         if (renderItemsJson == null) {
             ApphudLog.logE("[WebViewViewModel] renderItemsJson is null")
             _state.value = WebViewState.Error
+            val error = ApphudError("renderItemsJson is null")
+            emitPaywallEvent(PaywallEvent.ScreenError(error))
             viewModelScope.launch {
                 _events.send(WebViewEvent.CloseScreen)
             }
@@ -74,6 +92,8 @@ internal class FigmaViewViewModel(
                 onFailure = { error ->
                     ApphudLog.logE("[WebViewViewModel] Paywall not found or error: ${error.message}")
                     _state.value = WebViewState.Error
+                    val apphudError = ApphudError("Paywall not found: ${error.message}")
+                    emitPaywallEvent(PaywallEvent.ScreenError(apphudError))
                     _events.send(WebViewEvent.CloseScreen)
                 }
             )
@@ -82,6 +102,7 @@ internal class FigmaViewViewModel(
 
 
     fun processDismiss() {
+        emitPaywallEvent(PaywallEvent.CloseButtonTapped)
         viewModelScope.launch {
             _events.send(WebViewEvent.CloseScreen)
         }
@@ -99,6 +120,7 @@ internal class FigmaViewViewModel(
             return
         }
 
+        emitPaywallEvent(PaywallEvent.TransactionStarted(product))
         viewModelScope.launch {
             _events.send(WebViewEvent.StartPurchase(product))
         }
@@ -115,9 +137,10 @@ internal class FigmaViewViewModel(
             if (result.error != null) {
                 ApphudLog.logE("[WebViewViewModel] Purchase failed: ${result.error}")
                 hidePurchaseLoader()
-                _events.send(WebViewEvent.PurchaseError)
+                emitTransactionCompleted(result)
             } else {
                 ApphudLog.log("[WebViewViewModel] Purchase successful")
+                emitTransactionCompleted(result)
                 _events.send(WebViewEvent.PurchaseCompleted)
             }
         }
@@ -126,15 +149,49 @@ internal class FigmaViewViewModel(
     fun processRestore() {
         ApphudLog.log("[WebViewViewModel] Starting restore purchases")
 
+        emitPaywallEvent(PaywallEvent.TransactionStarted(null))
+
         Apphud.restorePurchases { result ->
             viewModelScope.launch {
                 when (result) {
                     is ApphudPurchasesRestoreResult.Success -> {
                         ApphudLog.log("[WebViewViewModel] Restore successful: ${result.subscriptions.size} subscriptions, ${result.purchases.size} purchases")
+
+                        if (result.subscriptions.isNotEmpty()) {
+                            val subscriptionResult = ApphudPaywallScreenShowResult.SubscriptionResult(
+                                subscription = result.subscriptions.firstOrNull(),
+                                purchase = null,
+                                error = null
+                            )
+                            emitPaywallEvent(PaywallEvent.TransactionCompleted(subscriptionResult))
+                        }
+
+                        if (result.purchases.isNotEmpty()) {
+                            val nonRenewingResult = ApphudPaywallScreenShowResult.NonRenewingResult(
+                                nonRenewingPurchase = result.purchases.firstOrNull(),
+                                purchase = null,
+                                error = null
+                            )
+                            emitPaywallEvent(PaywallEvent.TransactionCompleted(nonRenewingResult))
+                        }
+
+                        if (result.subscriptions.isEmpty() && result.purchases.isEmpty()) {
+                            val emptyResult = ApphudPaywallScreenShowResult.SubscriptionResult(
+                                subscription = null,
+                                purchase = null,
+                                error = null
+                            )
+                            emitPaywallEvent(PaywallEvent.TransactionCompleted(emptyResult))
+                        }
+
                         _events.send(WebViewEvent.RestoreCompleted(true, "Purchases restored successfully"))
                     }
                     is ApphudPurchasesRestoreResult.Error -> {
                         ApphudLog.logE("[WebViewViewModel] Restore failed: ${result.error.message}")
+
+                        val paywallResult = ApphudPaywallScreenShowResult.TransactionError(result.error)
+                        emitPaywallEvent(PaywallEvent.TransactionCompleted(paywallResult))
+
                         _events.send(WebViewEvent.RestoreCompleted(false, "Failed to restore purchases"))
                     }
                 }
@@ -159,12 +216,16 @@ internal class FigmaViewViewModel(
                 processPurchase(product)
             } else {
                 ApphudLog.logE("[WebViewViewModel] Invalid product index: $index, products size: ${products?.size ?: 0}")
+                val error = ApphudError("Invalid product index: $index, products size: ${products?.size ?: 0}")
+                emitPaywallEvent(PaywallEvent.ScreenError(error))
                 viewModelScope.launch {
                     _events.send(WebViewEvent.InvalidPurchaseIndex)
                 }
             }
         } else {
             ApphudLog.logE("[WebViewViewModel] Cannot process purchase - invalid state: $currentState")
+            val error = ApphudError("Cannot process purchase - invalid state: $currentState")
+            emitPaywallEvent(PaywallEvent.ScreenError(error))
             viewModelScope.launch {
                 _events.send(WebViewEvent.InvalidPurchaseIndex)
             }
@@ -176,6 +237,7 @@ internal class FigmaViewViewModel(
         if (currentState is WebViewState.ContentWithPurchaseLoading) {
             return
         }
+        emitPaywallEvent(PaywallEvent.CloseButtonTapped)
         viewModelScope.launch {
             _events.send(WebViewEvent.CloseScreen)
         }
@@ -184,6 +246,8 @@ internal class FigmaViewViewModel(
     fun processWebViewError(errorMessage: String) {
         ApphudLog.logE("[WebViewViewModel] WebView load error: $errorMessage")
         _state.value = WebViewState.WebViewLoadError
+        val error = ApphudError("WebView load error: $errorMessage")
+        emitPaywallEvent(PaywallEvent.ScreenError(error))
         viewModelScope.launch {
             _events.send(WebViewEvent.CloseScreen)
         }
@@ -219,29 +283,25 @@ internal class FigmaViewViewModel(
         val currentLocale = Locale.getDefault().language
         ApphudLog.log("[WebViewViewModel] Current locale: $currentLocale")
 
-        // Ищем URL по текущей локали
         val urlByLocale = urls[currentLocale]
         if (urlByLocale != null) {
             ApphudLog.log("[WebViewViewModel] Found URL for locale $currentLocale: $urlByLocale")
             return addLiveParameter(urlByLocale)
         }
 
-        // Если не найден по локали, берем английский как fallback
         val englishUrl = urls["en"]
         if (englishUrl != null) {
             ApphudLog.log("[WebViewViewModel] Using English fallback URL: $englishUrl")
             return addLiveParameter(englishUrl)
         }
 
-        // Если английского тоже нет, берем первый доступный
         val firstUrl = urls.values.firstOrNull()
         if (firstUrl != null) {
             ApphudLog.log("[WebViewViewModel] Using first available URL: $firstUrl")
             return addLiveParameter(firstUrl)
         }
 
-        // В крайнем случае используем defaultUrl
-        val defaultUrl = paywall.screen?.defaultUrl
+        val defaultUrl = paywall.screen.defaultUrl
         ApphudLog.log("[WebViewViewModel] Using default URL: $defaultUrl")
         return addLiveParameter(defaultUrl)
     }
@@ -263,6 +323,8 @@ internal class FigmaViewViewModel(
         if (url == null) {
             ApphudLog.logE("[WebViewViewModel] No URL found for paywall: ${paywall.identifier}")
             _state.value = WebViewState.Error
+            val error = ApphudError("No URL found for paywall: ${paywall.identifier}")
+            emitPaywallEvent(PaywallEvent.ScreenError(error))
             viewModelScope.launch {
                 _events.send(WebViewEvent.CloseScreen)
             }
@@ -274,6 +336,37 @@ internal class FigmaViewViewModel(
             renderItemsJson = renderItemsJson,
             url = url
         )
+
+        emitPaywallEvent(PaywallEvent.ScreenShown)
+    }
+
+    private fun emitPaywallEvent(event: PaywallEvent) {
+        eventManager.emitEvent(event)
+    }
+
+    private fun emitTransactionCompleted(purchaseResult: ApphudPurchaseResult) {
+        val paywallResult = when {
+            purchaseResult.subscription != null -> {
+                ApphudPaywallScreenShowResult.SubscriptionResult(
+                    subscription = purchaseResult.subscription,
+                    purchase = purchaseResult.purchase,
+                    error = purchaseResult.error
+                )
+            }
+            purchaseResult.nonRenewingPurchase != null -> {
+                ApphudPaywallScreenShowResult.NonRenewingResult(
+                    nonRenewingPurchase = purchaseResult.nonRenewingPurchase,
+                    purchase = purchaseResult.purchase,
+                    error = purchaseResult.error
+                )
+            }
+            else -> {
+                ApphudPaywallScreenShowResult.TransactionError(
+                    error = purchaseResult.error ?: ApphudError("Unknown purchase error")
+                )
+            }
+        }
+        emitPaywallEvent(PaywallEvent.TransactionCompleted(paywallResult))
     }
 
     companion object {
@@ -283,7 +376,8 @@ internal class FigmaViewViewModel(
                 @Suppress("UNCHECKED_CAST")
                 return FigmaViewViewModel(
                     serviceLocator.paywallRepository,
-                    serviceLocator.ruleCallback
+                    serviceLocator.ruleCallback,
+                    serviceLocator.paywallEventManager
                 ) as T
             }
         }
@@ -314,10 +408,8 @@ internal sealed class WebViewState {
 internal sealed class WebViewEvent {
     object CloseScreen : WebViewEvent()
     object PurchaseCompleted : WebViewEvent()
-    object ProductNotFound : WebViewEvent()
     data class StartPurchase(val product: ApphudProduct) : WebViewEvent()
     data class RestoreCompleted(val isSuccess: Boolean, val message: String) : WebViewEvent()
     object ShowPurchaseLoader : WebViewEvent()
     object InvalidPurchaseIndex : WebViewEvent()
-    object PurchaseError : WebViewEvent()
 }
