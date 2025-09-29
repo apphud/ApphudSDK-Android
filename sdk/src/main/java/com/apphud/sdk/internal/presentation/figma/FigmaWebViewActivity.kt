@@ -31,7 +31,6 @@ import com.apphud.sdk.ApphudLog
 import com.apphud.sdk.R
 import com.apphud.sdk.domain.ApphudProduct
 import com.apphud.sdk.purchase
-
 import kotlinx.coroutines.launch
 
 private class WebViewWrapper(private val webView: WebView) {
@@ -104,6 +103,7 @@ internal class FigmaWebViewActivity : AppCompatActivity() {
         setupWebView()
 
         viewModel = ViewModelProvider(this, FigmaViewViewModel.factory)[FigmaViewViewModel::class.java]
+
         setupObservers()
 
         processIntent(intent)
@@ -262,14 +262,6 @@ internal class FigmaWebViewActivity : AppCompatActivity() {
     }
 
 
-    private fun sendResultBroadcast(resultCode: Int) {
-        val intent = Intent(ACTION_FIGMA_SCREEN_RESULT).apply {
-            putExtra(EXTRA_RESULT_CODE, resultCode)
-            setPackage(packageName)
-        }
-        sendBroadcast(intent)
-    }
-
     private fun setupObservers() {
         lifecycleScope.launch {
             repeatOnLifecycle(Lifecycle.State.STARTED) {
@@ -305,35 +297,19 @@ internal class FigmaWebViewActivity : AppCompatActivity() {
         lifecycleScope.launch {
             viewModel.events.collect { event ->
                 when (event) {
-                    is WebViewEvent.CloseScreen -> {
-                        sendResultBroadcast(RESULT_DISMISSED)
+                    is WebViewEvent.CloseScreen,
+                    WebViewEvent.PurchaseCompleted,
+                    is WebViewEvent.RestoreCompleted,
+                    WebViewEvent.InvalidPurchaseIndex,
+                    -> {
                         finishAndRemoveTask()
-                    }
-                    WebViewEvent.PurchaseCompleted -> {
-                        sendResultBroadcast(RESULT_PURCHASE)
-                        finishAndRemoveTask()
-                    }
-                    WebViewEvent.ProductNotFound -> {
-                        sendResultBroadcast(RESULT_DISMISSED)
-                        finishAndRemoveTask()
-                    }
-
-                    is WebViewEvent.RestoreCompleted -> {
-                        if (event.isSuccess) {
-                            sendResultBroadcast(RESULT_RESTORE_SUCCESS)
-                        }
                     }
                     WebViewEvent.ShowPurchaseLoader -> {
                         showPurchaseLoader()
                     }
-                    WebViewEvent.InvalidPurchaseIndex -> {
-                        sendResultBroadcast(RESULT_INVALID_PURCHASE_INDEX)
-                        finishAndRemoveTask()
-                    }
                     is WebViewEvent.StartPurchase -> {
                         startPurchase(event.product)
                     }
-                    WebViewEvent.PurchaseError -> Unit
                 }
             }
         }
@@ -444,17 +420,9 @@ internal class FigmaWebViewActivity : AppCompatActivity() {
     }
 
     internal companion object {
-        const val RESULT_PURCHASE = 100
-        const val RESULT_DISMISSED = 101
-        const val RESULT_PURCHASE_ERROR = 102
-        const val RESULT_RESTORE_SUCCESS = 103
-        const val RESULT_RESTORE_ERROR = 104
-        const val RESULT_INVALID_PURCHASE_INDEX = 105
         private const val EXTRA_PAYWALL_ID = "EXTRA_PAYWALL_ID"
         private const val EXTRA_RENDER_ITEMS = "EXTRA_RENDER_ITEMS"
 
-        const val ACTION_FIGMA_SCREEN_RESULT = "com.apphud.sdk.FIGMA_SCREEN_RESULT"
-        const val EXTRA_RESULT_CODE = "result_code"
 
         internal fun getIntent(
             context: Context,
