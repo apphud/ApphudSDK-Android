@@ -49,7 +49,6 @@ internal class HttpRetryInterceptor : Interceptor {
         }
     }
 
-    // Придумать как ловить фолбэки!!!!!
     private companion object {
         const val RETRY_DELAY = 2_000L
         const val MAX_COUNT = 3
