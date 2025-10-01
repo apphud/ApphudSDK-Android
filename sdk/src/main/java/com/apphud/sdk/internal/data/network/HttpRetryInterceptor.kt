@@ -37,6 +37,7 @@ internal class HttpRetryInterceptor : Interceptor {
                 if (response.code in NO_RETRY_RANGE || response.code == TOO_MANY_REQUESTS) {
                     return response
                 } else {
+                    response.close()
                     tryCount++
                     if (tryCount == MAX_COUNT) error(APPHUD_NO_TIME_TO_RETRY)
                     Thread.sleep(RETRY_DELAY)

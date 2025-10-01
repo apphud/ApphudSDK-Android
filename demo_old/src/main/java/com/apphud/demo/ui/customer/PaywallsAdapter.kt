@@ -138,34 +138,26 @@ class PaywallsAdapter(private val paywallsViewModel: PaywallsViewModel, private 
                         onTransactionCompleted = { result ->
                             when (result) {
                                 is ApphudPaywallScreenShowResult.SubscriptionResult -> {
-                                    val error = result.error
-                                    if (error == null) {
-                                        Log.d("PaywallsAdapter", "Subscription purchased: ${result.subscription?.productId}")
-                                        Toast.makeText(ctx, "Subscription purchased!", Toast.LENGTH_SHORT).show()
-                                    } else {
-                                        Log.e("PaywallsAdapter", "Subscription purchase failed: ${error.message}")
-                                        Toast.makeText(ctx, "Subscription purhase failed: ${error.message}", Toast.LENGTH_SHORT).show()
-                                    }
+                                    Log.d("PaywallsAdapter", "Subscription purchased: ${result.subscription?.productId}")
+                                    Toast.makeText(ctx, "Subscription purchased!", Toast.LENGTH_SHORT).show()
                                 }
                                 is ApphudPaywallScreenShowResult.NonRenewingResult -> {
-                                    val error = result.error
-                                    if (error == null) {
-                                        Log.d("PaywallsAdapter", "In-App purchased: ${result.nonRenewingPurchase?.productId}")
-                                        Toast.makeText(ctx, "In-App purchased!", Toast.LENGTH_SHORT).show()
-                                    } else {
-                                        Log.e("PaywallsAdapter", "Purchase failed: ${error.message}")
-                                        Toast.makeText(ctx, "Purchase failed: ${error.message}", Toast.LENGTH_SHORT).show()
-                                    }
+                                    Log.d("PaywallsAdapter", "In-App purchased: ${result.nonRenewingPurchase?.productId}")
+                                    Toast.makeText(ctx, "In-App purchased!", Toast.LENGTH_SHORT).show()
                                 }
                                 is ApphudPaywallScreenShowResult.TransactionError -> {
-                                    Log.e("PaywallsAdapter", "Screen show error: ${result.error.message}")
-                                    Toast.makeText(ctx, "Screen show error: ${result.error.message}", Toast.LENGTH_SHORT).show()
+                                    Log.e("PaywallsAdapter", "Transaction error: ${result.error.message}")
+                                    Toast.makeText(ctx, "Transaction error: ${result.error.message}", Toast.LENGTH_SHORT).show()
                                 }
                             }
                         },
                         onCloseButtonTapped = {
                             Log.d("PaywallsAdapter", "Paywall screen closed by user")
                             Toast.makeText(ctx, "Paywall screen closed by user", Toast.LENGTH_SHORT).show()
+                        },
+                        onScreenError = { error ->
+                            Log.e("PaywallsAdapter", "Screen error: ${error.message}")
+                            Toast.makeText(ctx, "Screen error: ${error.message}", Toast.LENGTH_SHORT).show()
                         }
                     ),
                     maxTimeout = 120_000L
