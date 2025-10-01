@@ -161,7 +161,6 @@ internal class FigmaViewViewModel(
                             val subscriptionResult = ApphudPaywallScreenShowResult.SubscriptionResult(
                                 subscription = result.subscriptions.firstOrNull(),
                                 purchase = null,
-                                error = null
                             )
                             emitPaywallEvent(PaywallEvent.TransactionCompleted(subscriptionResult))
                         }
@@ -170,7 +169,6 @@ internal class FigmaViewViewModel(
                             val nonRenewingResult = ApphudPaywallScreenShowResult.NonRenewingResult(
                                 nonRenewingPurchase = result.purchases.firstOrNull(),
                                 purchase = null,
-                                error = null
                             )
                             emitPaywallEvent(PaywallEvent.TransactionCompleted(nonRenewingResult))
                         }
@@ -179,7 +177,6 @@ internal class FigmaViewViewModel(
                             val emptyResult = ApphudPaywallScreenShowResult.SubscriptionResult(
                                 subscription = null,
                                 purchase = null,
-                                error = null
                             )
                             emitPaywallEvent(PaywallEvent.TransactionCompleted(emptyResult))
                         }
@@ -346,24 +343,25 @@ internal class FigmaViewViewModel(
 
     private fun emitTransactionCompleted(purchaseResult: ApphudPurchaseResult) {
         val paywallResult = when {
+            purchaseResult.error != null -> {
+                ApphudPaywallScreenShowResult.TransactionError(
+                    error = purchaseResult.error ?: ApphudError("Unknown purchase error")
+                )
+            }
             purchaseResult.subscription != null -> {
                 ApphudPaywallScreenShowResult.SubscriptionResult(
                     subscription = purchaseResult.subscription,
                     purchase = purchaseResult.purchase,
-                    error = purchaseResult.error
                 )
             }
             purchaseResult.nonRenewingPurchase != null -> {
                 ApphudPaywallScreenShowResult.NonRenewingResult(
                     nonRenewingPurchase = purchaseResult.nonRenewingPurchase,
                     purchase = purchaseResult.purchase,
-                    error = purchaseResult.error
                 )
             }
             else -> {
-                ApphudPaywallScreenShowResult.TransactionError(
-                    error = purchaseResult.error ?: ApphudError("Unknown purchase error")
-                )
+                ApphudPaywallScreenShowResult.TransactionError(ApphudError("Unknown purchase error"))
             }
         }
         emitPaywallEvent(PaywallEvent.TransactionCompleted(paywallResult))

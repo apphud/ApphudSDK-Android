@@ -1,6 +1,5 @@
 package com.apphud.sdk.domain
 
-import com.android.billingclient.api.BillingClient
 import com.android.billingclient.api.Purchase
 import com.apphud.sdk.ApphudError
 
@@ -17,21 +16,13 @@ sealed class ApphudPaywallScreenShowResult {
     data class SubscriptionResult(
         val subscription: ApphudSubscription?,
         val purchase: Purchase?,
-        val error: ApphudError? = null
-    ) : ApphudPaywallScreenShowResult() {
-        fun isSuccess(): Boolean = error == null
-        fun userCanceled(): Boolean = error?.errorCode == BillingClient.BillingResponseCode.USER_CANCELED
-    }
+    ) : ApphudPaywallScreenShowResult()
 
     /** Non-renewing purchase transaction completed */
     data class NonRenewingResult(
         val nonRenewingPurchase: ApphudNonRenewingPurchase?,
         val purchase: Purchase?,
-        val error: ApphudError? = null
-    ) : ApphudPaywallScreenShowResult() {
-        fun isSuccess(): Boolean = error == null
-        fun userCanceled(): Boolean = error?.errorCode == BillingClient.BillingResponseCode.USER_CANCELED
-    }
+    ) : ApphudPaywallScreenShowResult()
 
     /** Transaction error */
     data class TransactionError(val error: ApphudError) : ApphudPaywallScreenShowResult()
