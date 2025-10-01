@@ -16,8 +16,11 @@ import com.apphud.sdk.domain.FacebookInfo
 import com.apphud.sdk.isDebuggable
 import com.apphud.sdk.parser.GsonParser
 import com.apphud.sdk.parser.Parser
+import com.google.gson.ExclusionStrategy
+import com.google.gson.FieldAttributes
 import com.google.gson.GsonBuilder
 import com.google.gson.reflect.TypeToken
+import com.android.billingclient.api.ProductDetails
 
 internal object SharedPreferencesStorage : Storage {
     private var cacheTimeout: Long = 90000L
@@ -55,10 +58,23 @@ internal object SharedPreferencesStorage : Storage {
     private const val LAST_REGISTRATION_KEY = "lastRegistrationKey"
     private const val CURRENT_CACHE_VERSION = "2"
 
+    private val productDetailsExclusionStrategy = object : ExclusionStrategy {
+        override fun shouldSkipField(f: FieldAttributes): Boolean {
+            return f.declaredType == ProductDetails::class.java
+        }
+
+        override fun shouldSkipClass(clazz: Class<*>): Boolean {
+            return clazz == ProductDetails::class.java
+        }
+    }
+
     private val gson =
         GsonBuilder()
             .setPrettyPrinting()
-            .serializeNulls().create()
+            .serializeNulls()
+            .addSerializationExclusionStrategy(productDetailsExclusionStrategy)
+            .addDeserializationExclusionStrategy(productDetailsExclusionStrategy)
+            .create()
     private val parser: Parser = GsonParser(gson)
 
     override var userId: String?
