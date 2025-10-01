@@ -2,6 +2,7 @@ package com.apphud.sdk.storage
 
 import android.content.Context
 import android.content.SharedPreferences
+import androidx.core.content.edit
 import com.apphud.sdk.ApphudInternal
 import com.apphud.sdk.ApphudLog
 import com.apphud.sdk.ApphudUserProperty
@@ -79,9 +80,9 @@ internal object SharedPreferencesStorage : Storage {
     override var userId: String?
         get() = preferences.getString(USER_ID_KEY, null)
         set(value) {
-            val editor = preferences.edit()
-            editor.putString(USER_ID_KEY, value)
-            editor.apply()
+            preferences.edit {
+                putString(USER_ID_KEY, value)
+            }
         }
 
     override var apphudUser: ApphudUser?
@@ -92,17 +93,17 @@ internal object SharedPreferencesStorage : Storage {
         }
         set(value) {
             val source = parser.toJson(value)
-            val editor = preferences.edit()
-            editor.putString(APPHUD_USER_KEY, source)
-            editor.apply()
+            preferences.edit {
+                putString(APPHUD_USER_KEY, source)
+            }
         }
 
     override var deviceId: String?
         get() = preferences.getString(DEVICE_ID_KEY, null)
         set(value) {
-            val editor = preferences.edit()
-            editor.putString(DEVICE_ID_KEY, value)
-            editor.apply()
+            preferences.edit {
+                putString(DEVICE_ID_KEY, value)
+            }
         }
 
     override var deviceIdentifiers: Array<String>
@@ -112,20 +113,18 @@ internal object SharedPreferencesStorage : Storage {
             return if (ids?.count() == 3) ids.toTypedArray() else arrayOf("", "", "")
         }
         set(value) {
-            val editor = preferences.edit()
-
-            val idsString = value?.joinToString("|") ?: ""
-
-            editor.putString(DEVICE_IDENTIFIERS_KEY, idsString)
-            editor.apply()
+            val idsString = value.joinToString("|")
+            preferences.edit {
+                putString(DEVICE_IDENTIFIERS_KEY, idsString)
+            }
         }
 
     override var isNeedSync: Boolean
         get() = preferences.getBoolean(NEED_RESTART_KEY, false)
         set(value) {
-            val editor = preferences.edit()
-            editor.putBoolean(NEED_RESTART_KEY, value)
-            editor.apply()
+            preferences.edit {
+                putBoolean(NEED_RESTART_KEY, value)
+            }
         }
 
     override var facebook: FacebookInfo?
@@ -136,17 +135,17 @@ internal object SharedPreferencesStorage : Storage {
         }
         set(value) {
             val source = parser.toJson(value)
-            val editor = preferences.edit()
-            editor.putString(FACEBOOK_KEY, source)
-            editor.apply()
+            preferences.edit {
+                putString(FACEBOOK_KEY, source)
+            }
         }
 
     override var firebase: String?
         get() = preferences.getString(FIREBASE_KEY, null)
         set(value) {
-            val editor = preferences.edit()
-            editor.putString(FIREBASE_KEY, value)
-            editor.apply()
+            preferences.edit {
+                putString(FIREBASE_KEY, value)
+            }
         }
 
     override var appsflyer: AppsflyerInfo?
@@ -157,9 +156,9 @@ internal object SharedPreferencesStorage : Storage {
         }
         set(value) {
             val source = parser.toJson(value)
-            val editor = preferences.edit()
-            editor.putString(APPSFLYER_KEY, source)
-            editor.apply()
+            preferences.edit {
+                putString(APPSFLYER_KEY, source)
+            }
         }
 
     override var adjust: AdjustInfo?
@@ -170,9 +169,9 @@ internal object SharedPreferencesStorage : Storage {
         }
         set(value) {
             val source = parser.toJson(value)
-            val editor = preferences.edit()
-            editor.putString(ADJUST_KEY, source)
-            editor.apply()
+            preferences.edit {
+                putString(ADJUST_KEY, source)
+            }
         }
 
     fun needUpdateProductGroups(): Boolean {
@@ -189,10 +188,10 @@ internal object SharedPreferencesStorage : Storage {
         }
         set(value) {
             val source = parser.toJson(value)
-            val editor = preferences.edit()
-            editor.putLong(GROUP_TIMESTAMP_KEY, System.currentTimeMillis())
-            editor.putString(GROUP_KEY, source)
-            editor.apply()
+            preferences.edit {
+                putLong(GROUP_TIMESTAMP_KEY, System.currentTimeMillis())
+                putString(GROUP_KEY, source)
+            }
         }
 
     override var paywalls: List<ApphudPaywall>?
@@ -210,10 +209,10 @@ internal object SharedPreferencesStorage : Storage {
         }
         set(value) {
             val source = parser.toJson(value)
-            val editor = preferences.edit()
-            editor.putLong(PAYWALLS_TIMESTAMP_KEY, System.currentTimeMillis())
-            editor.putString(PAYWALLS_KEY, source)
-            editor.apply()
+            preferences.edit {
+                putLong(PAYWALLS_TIMESTAMP_KEY, System.currentTimeMillis())
+                putString(PAYWALLS_KEY, source)
+            }
         }
 
     override var placements: List<ApphudPlacement>?
@@ -231,10 +230,10 @@ internal object SharedPreferencesStorage : Storage {
         }
         set(value) {
             val source = parser.toJson(value)
-            val editor = preferences.edit()
-            editor.putLong(PLACEMENTS_TIMESTAMP_KEY, System.currentTimeMillis())
-            editor.putString(PLACEMENTS_KEY, source)
-            editor.apply()
+            preferences.edit {
+                putLong(PLACEMENTS_TIMESTAMP_KEY, System.currentTimeMillis())
+                putString(PLACEMENTS_KEY, source)
+            }
         }
 
     override var productDetails: List<String>?
@@ -251,18 +250,18 @@ internal object SharedPreferencesStorage : Storage {
         }
         set(value) {
             val source = parser.toJson(value)
-            val editor = preferences.edit()
-            editor.putLong(SKU_TIMESTAMP_KEY, System.currentTimeMillis())
-            editor.putString(SKU_KEY, source)
-            editor.apply()
+            preferences.edit {
+                putLong(SKU_TIMESTAMP_KEY, System.currentTimeMillis())
+                putString(SKU_KEY, source)
+            }
         }
 
     override var lastRegistration: Long
         get() = preferences.getLong(LAST_REGISTRATION_KEY, 0L)
         set(value) {
-            val editor = preferences.edit()
-            editor.putLong(LAST_REGISTRATION_KEY, value)
-            editor.apply()
+            preferences.edit {
+                putLong(LAST_REGISTRATION_KEY, value)
+            }
         }
 
     fun updateCustomer(apphudUser: ApphudUser): Boolean {
@@ -314,24 +313,22 @@ internal object SharedPreferencesStorage : Storage {
     override var cacheVersion: String?
         get() = preferences.getString("APPHUD_CACHE_VERSION", null)
         set(value) {
-            val editor = preferences.edit()
-            editor.putString("APPHUD_CACHE_VERSION", value)
-            editor.apply()
+            preferences.edit {
+                putString("APPHUD_CACHE_VERSION", value)
+            }
         }
 
-    fun cacheExpired(user: ApphudUser): Boolean {
-        val timestamp = lastRegistration + (cacheTimeout * 1000)
+    fun cacheExpired(): Boolean {
+        val expirationTime = lastRegistration + (cacheTimeout * 1000)
         val currentTime = System.currentTimeMillis()
 
-        val result = currentTime > timestamp
-        if (result) {
+        val expired = currentTime > expirationTime
+        if (expired) {
             ApphudLog.logI("Cached ApphudUser found, but cache expired")
         } else {
-            val minutes = (timestamp - currentTime) / 60_000L
-            val seconds = (timestamp - currentTime - minutes * 60_000L) / 1_000L
             ApphudLog.logI("Using cached ApphudUser")
         }
-        return result
+        return expired
     }
 
     override var properties: HashMap<String, ApphudUserProperty>?
@@ -342,49 +339,56 @@ internal object SharedPreferencesStorage : Storage {
         }
         set(value) {
             val source = parser.toJson(value)
-            val editor = preferences.edit()
-            editor.putString(PROPERTIES_KEY, source)
-            editor.apply()
+            preferences.edit {
+                putString(PROPERTIES_KEY, source)
+            }
         }
 
     fun needSendProperty(property: ApphudUserProperty): Boolean {
-        if (properties == null) {
-            properties = hashMapOf()
-        }
-        properties?.let {
-            if (property.value == null) {
-                // clean property
-                if (it.containsKey(property.key)) {
-                    it.remove(property.key)
-                    properties = it
-                }
-                return true
-            }
+        val currentProperties = properties ?: hashMapOf()
+        val existingProperty = currentProperties[property.key]
 
-            if (it.containsKey(property.key)) {
-                if (it[property.key]?.setOnce == true) {
+        if (property.value == null) {
+            if (existingProperty == null) {
+                return false
+            }
+            currentProperties.remove(property.key)
+            properties = currentProperties
+            return true
+        }
+
+        if (property.increment) {
+            if (existingProperty != null) {
+                if (existingProperty.setOnce) {
                     val message =
                         "Sending a property with key '${property.key}' is skipped. The property was previously specified as not updatable"
                     ApphudLog.logI(message)
                     return false
                 }
-                if (property.increment) {
-                    // clean property to allow to set any value after increment
-                    if (it.containsKey(property.key)) {
-                        it.remove(property.key)
-                        properties = it
-                    }
-                    return true
-                }
-                if (it[property.key]?.getValue() == property.getValue() && !property.setOnce) {
-                    val message =
-                        "Sending a property with key '${property.key}' is skipped. Property value was not changed"
-                    ApphudLog.logI(message)
-                    return false
-                }
+                currentProperties.remove(property.key)
+                properties = currentProperties
+            }
+            return true
+        }
+
+        if (existingProperty != null) {
+            if (existingProperty.setOnce) {
+                val message =
+                    "Sending a property with key '${property.key}' is skipped. The property was previously specified as not updatable"
+                ApphudLog.logI(message)
+                return false
+            }
+
+            if (existingProperty.getValue() == property.getValue()) {
+                val message =
+                    "Sending a property with key '${property.key}' is skipped. Property value was not changed"
+                ApphudLog.logI(message)
+                return false
             }
         }
 
+        currentProperties[property.key] = property
+        properties = currentProperties
         return true
     }
 }

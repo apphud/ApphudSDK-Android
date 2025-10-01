@@ -1,75 +1,23 @@
 package com.apphud.sdk
 
 import android.content.Context
-import android.content.SharedPreferences
 import com.android.billingclient.api.BillingClient.BillingResponseCode
-import com.apphud.sdk.client.ApiClient
 import com.apphud.sdk.domain.ApphudUser
 import com.apphud.sdk.domain.FallbackJsonObject
-import com.apphud.sdk.managers.RequestManager
-import com.apphud.sdk.mappers.PaywallsMapper
+import com.apphud.sdk.mappers.PaywallsMapperLegacy
 import com.apphud.sdk.parser.GsonParser
 import com.apphud.sdk.parser.Parser
-import com.apphud.sdk.storage.SharedPreferencesStorage
 import com.google.gson.Gson
 import com.google.gson.GsonBuilder
 import com.google.gson.reflect.TypeToken
 import kotlinx.coroutines.launch
-import okhttp3.Request
 import java.io.IOException
-import java.net.MalformedURLException
-import java.net.URL
-
-internal fun String.withRemovedScheme(): String {
-    return replace("https://", "")
-}
 
 private val gson = GsonBuilder().serializeNulls().create()
 private val parser: Parser = GsonParser(gson)
-private val paywallsMapper = PaywallsMapper(parser)
-internal var fallbackHost: String? = null
+private val paywallsMapperLegacy = PaywallsMapperLegacy(parser)
 internal var processedFallbackData = false
-internal fun ApphudInternal.processFallbackError(request: Request, isTimeout: Boolean) {
-    if ((request.url.encodedPath.endsWith("/customers") ||
-        request.url.encodedPath.endsWith("/subscriptions") ||
-                request.url.encodedPath.endsWith("/products"))
-        && !processedFallbackData) {
 
-        if (fallbackHost?.withRemovedScheme() == request.url.host) {
-            processFallbackData { _, _ -> }
-        } else {
-            coroutineScope.launch {
-                tryFallbackHost()
-                if (fallbackHost == null || fallbackHost?.withRemovedScheme() == request.url.host) {
-                    processFallbackData { _, _ -> }
-                }
-            }
-        }
-    }
-}
-
-internal fun tryFallbackHost() {
-    val host = RequestManager.fetchFallbackHost()
-    host?.let {
-        if (isValidUrl(it) && it != fallbackHost && ApiClient.host.contains("apphud.com")) {
-            fallbackHost = it
-            ApphudInternal.fallbackMode = true
-            ApiClient.host = fallbackHost!!
-            ApphudLog.logE("Fallback to host $fallbackHost")
-            ApphudInternal.isRegisteringUser = false
-            ApphudInternal.refreshPaywallsIfNeeded()
-        }
-    }
-}
-
-fun isValidUrl(urlString: String): Boolean {
-    return try {
-        URL(urlString)
-        true
-    } catch (e: MalformedURLException) {
-        false
-    }
-}
 
 internal fun ApphudInternal.processFallbackData(callback: PaywallCallback) {
     try {
@@ -92,7 +40,7 @@ internal fun ApphudInternal.processFallbackData(callback: PaywallCallback) {
             val gson = Gson()
             val contentType = object : TypeToken<FallbackJsonObject>() {}.type
             val fallbackJson: FallbackJsonObject = gson.fromJson(jsonFileString, contentType)
-            val paywallToParse = paywallsMapper.map(fallbackJson.data.results)
+            val paywallToParse = paywallsMapperLegacy.map(fallbackJson.data.results)
             ids = paywallToParse.map { it.products?.map { it.productId } ?: listOf() }.flatten()
             cachePaywalls(paywallToParse)
         }
@@ -111,7 +59,12 @@ internal fun ApphudInternal.processFallbackData(callback: PaywallCallback) {
         ApphudLog.log("Fallback: ENABLED")
         coroutineScope.launch {
             val response = fetchDetails(ids, loadingAll = true)
-            val error = if (response.first == BillingResponseCode.OK) null else (if (response.first == APPHUD_NO_REQUEST) ApphudError("Paywalls load error", errorCode = response.first) else ApphudError("Google Billing error", errorCode = response.first))
+            val error = if (response.first == BillingResponseCode.OK) {
+                null
+            } else (if (response.first == APPHUD_NO_REQUEST) ApphudError(
+                "Paywalls load error",
+                errorCode = response.first
+            ) else ApphudError("Google Billing error", errorCode = response.first))
             val details = response.second ?: productDetails
             mainScope.launch {
                 notifyLoadingCompleted(
@@ -147,17 +100,20 @@ private fun getJsonDataFromAsset(
 }
 
 internal fun ApphudInternal.disableFallback() {
-    if (currentUser?.isTemporary == true) { return }
+    if (currentUser?.isTemporary == true) {
+        return
+    }
     fallbackMode = false
     processedFallbackData = false
     ApphudLog.log("Fallback: DISABLED")
     coroutineScope.launch(errorHandler) {
-        if (productGroups.isEmpty()) { // if fallback raised on start, there no product groups, so reload products and details
+        // if fallback raised on start, there no product groups, so reload products and details
+        if (productGroups.isEmpty()) {
             ApphudLog.log("Fallback: reload products")
             loadProducts()
         }
-    }
-    if (storage.isNeedSync) {
-        syncPurchases { _, _, _ ->  }
+        if (storage.isNeedSync) {
+            syncPurchases()
+        }
     }
 }

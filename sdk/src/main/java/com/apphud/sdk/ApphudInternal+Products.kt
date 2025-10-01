@@ -3,24 +3,16 @@ package com.apphud.sdk
 import com.android.billingclient.api.BillingClient
 import com.android.billingclient.api.BillingClient.BillingResponseCode
 import com.android.billingclient.api.ProductDetails
-import com.apphud.sdk.client.dto.ApphudGroupDto
 import com.apphud.sdk.domain.ApphudGroup
 import com.apphud.sdk.domain.ApphudPaywall
 import com.apphud.sdk.domain.ApphudPlacement
-import com.apphud.sdk.domain.ApphudUser
-import com.apphud.sdk.managers.RequestManager
 import kotlinx.coroutines.async
 import kotlinx.coroutines.coroutineScope
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.suspendCancellableCoroutine
-import kotlinx.coroutines.sync.Mutex
-import kotlinx.coroutines.sync.withLock
-import kotlin.coroutines.resume
 
 internal var productsStatus = ApphudProductsStatus.none
 internal var respondedWithProducts = false
-private  var loadingStoreProducts = false
+private var loadingStoreProducts = false
 internal var productsResponseCode = BillingClient.BillingResponseCode.OK
 private var loadedDetails = mutableListOf<ProductDetails>()
 
@@ -92,13 +84,19 @@ internal fun respondWithProducts() {
 
 internal fun isRetriableProductsRequest(): Boolean {
     return ApphudInternal.productDetails.isEmpty() && productsStatus == ApphudProductsStatus.failed && isRetriableErrorCode(
-        productsResponseCode) && ApphudInternal.isActive && !ApphudUtils.isEmulator()
+        productsResponseCode
+    ) && ApphudInternal.isActive && !ApphudUtils.isEmulator()
 }
 
 internal fun retryProductsLoad() {
     val delay: Long = 300
-    ApphudLog.logI("Load products from store status code: (${ApphudBillingResponseCodes.getName(
-        productsResponseCode)}), will retry in $delay ms")
+    ApphudLog.logI(
+        "Load products from store status code: (${
+            ApphudBillingResponseCodes.getName(
+                productsResponseCode
+            )
+        }), will retry in $delay ms"
+    )
     Thread.sleep(delay)
     ApphudInternal.loadProducts()
 }
@@ -114,19 +112,12 @@ private fun isRetriableErrorCode(code: Int): Boolean {
     ).contains(code)
 }
 
-private suspend fun awaitUserRegistered(): ApphudUser? =
-    suspendCancellableCoroutine { continuation ->
-        ApphudInternal.performWhenUserRegistered {
-            continuation.resume(ApphudInternal.currentUser)
-        }
-    }
-
 internal suspend fun ApphudInternal.fetchProducts(): Int {
 
     if (getPlacements().isEmpty() && getPaywalls().isEmpty()) {
         if (currentUser == null) {
             ApphudLog.log("Awaiting for user registration before proceeding to products load")
-            awaitUserRegistered()
+            awaitUserRegistration()
             ApphudLog.log("User registered, continue to fetch ProductDetails")
         }
     }
@@ -136,10 +127,15 @@ internal suspend fun ApphudInternal.fetchProducts(): Int {
     return fetchDetails(ids, loadingAll = true).first
 }
 
-private fun allAvailableProductIds(groups: List<ApphudGroup>, paywalls: List<ApphudPaywall>, placements: List<ApphudPlacement>): List<String> {
+private fun allAvailableProductIds(
+    groups: List<ApphudGroup>,
+    paywalls: List<ApphudPaywall>,
+    placements: List<ApphudPlacement>,
+): List<String> {
     val ids = paywalls.map { p -> p.products?.map { it.productId } ?: listOf() }.flatten().toMutableList()
     val idsGroups = groups.map { it -> it.products?.map { it.productId } ?: listOf() }.flatten()
-    val idsFromPlacements = placements.map { pl -> pl.paywall?.products?.map { it.productId } ?: listOf() }.flatten().toMutableList()
+    val idsFromPlacements =
+        placements.map { pl -> pl.paywall?.products?.map { it.productId } ?: listOf() }.flatten().toMutableList()
 
     idsGroups.forEach {
         if (!ids.contains(it) && it != null) {
@@ -155,7 +151,10 @@ private fun allAvailableProductIds(groups: List<ApphudGroup>, paywalls: List<App
     return ids.toSet().toList()
 }
 
-internal suspend fun ApphudInternal.fetchDetails(ids: List<String>, loadingAll: Boolean = false): Pair<Int, List<ProductDetails>?> {
+internal suspend fun ApphudInternal.fetchDetails(
+    ids: List<String>,
+    loadingAll: Boolean = false,
+): Pair<Int, List<ProductDetails>?> {
     if (loadingAll) {
         loadedDetails.clear()
     }
@@ -170,7 +169,7 @@ internal suspend fun ApphudInternal.fetchDetails(ids: List<String>, loadingAll: 
             productsStatus = ApphudProductsStatus.loaded
         }
         return Pair(BillingResponseCode.OK, null)
-    }  else if (idsToFetch.isEmpty()) {
+    } else if (idsToFetch.isEmpty()) {
         // If none ids to load, return immediately
         ApphudLog.log("NO REQUEST TO FETCH PRODUCT DETAILS")
         if (loadingAll) {

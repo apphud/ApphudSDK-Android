@@ -1,14 +1,18 @@
 package com.apphud.sdk.internal
 
-import com.android.billingclient.api.*
-import com.apphud.sdk.*
+import com.android.billingclient.api.BillingClient
+import com.android.billingclient.api.ProductDetails
+import com.android.billingclient.api.PurchaseHistoryRecord
+import com.android.billingclient.api.QueryProductDetailsParams
 import com.apphud.sdk.ApphudLog
+import com.apphud.sdk.ProductId
 import com.apphud.sdk.domain.PurchaseRecordDetails
 import com.apphud.sdk.internal.callback_status.PurchaseRestoredCallbackStatus
+import com.apphud.sdk.isSuccess
+import com.apphud.sdk.logMessage
 import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlin.concurrent.thread
 import kotlin.coroutines.resume
-import kotlin.coroutines.resumeWithException
 
 internal typealias ProductType = String
 internal typealias ApphudProductDetailsCallback = (List<ProductDetails>) -> Unit
@@ -44,10 +48,8 @@ internal class ProductDetailsWrapper(
                     kotlin.runCatching {
                         when (result.isSuccess()) {
                             true -> {
-                                val values = details ?: emptyList()
-
                                 val purchases = mutableListOf<PurchaseRecordDetails>()
-                                for (productDetails in values) {
+                                for (productDetails in details) {
                                     val record = records.firstOrNull { it.products.contains(productDetails.productId) }
                                     record?.let {
                                         purchases.add(
@@ -61,16 +63,26 @@ internal class ProductDetailsWrapper(
 
                                 when (purchases.isEmpty()) {
                                     true -> {
-                                        val message = "ProductsDetails return empty list for $type and records: $records"
+                                        val message =
+                                            "ProductsDetails return empty list for $type and records: $records"
                                         if (continuation.isActive && !continuation.isCompleted) {
                                             continuation.resume(
-                                                PurchaseRestoredCallbackStatus.Error(type = type, result = null, message = message),
+                                                PurchaseRestoredCallbackStatus.Error(
+                                                    type = type,
+                                                    result = null,
+                                                    message = message
+                                                ),
                                             )
                                         }
                                     }
                                     else -> {
-                                        if (continuation.isActive&& !continuation.isCompleted) {
-                                            continuation.resume(PurchaseRestoredCallbackStatus.Success(type = type, purchases))
+                                        if (continuation.isActive && !continuation.isCompleted) {
+                                            continuation.resume(
+                                                PurchaseRestoredCallbackStatus.Success(
+                                                    type = type,
+                                                    purchases
+                                                )
+                                            )
                                         }
                                     }
                                 }
@@ -78,7 +90,13 @@ internal class ProductDetailsWrapper(
                             else -> {
                                 result.logMessage("RestoreAsync failed for type: $type products: $products")
                                 if (continuation.isActive && !continuation.isCompleted) {
-                                    continuation.resume(PurchaseRestoredCallbackStatus.Error(type = type, result = result, message = type))
+                                    continuation.resume(
+                                        PurchaseRestoredCallbackStatus.Error(
+                                            type = type,
+                                            result = result,
+                                            message = type
+                                        )
+                                    )
                                 }
                             }
                         }
@@ -91,7 +109,8 @@ internal class ProductDetailsWrapper(
 
     /**
      * This function will return ProductsDetails according to the requested product list.
-     * If manualCallback was defined then the result will be moved to this callback, otherwise detailsCallback will be used
+     * If manualCallback was defined then the result will be moved to this callback,
+     * otherwise detailsCallback will be used
      * */
     fun queryAsync(
         @BillingClient.ProductType type: ProductType,

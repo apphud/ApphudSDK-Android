@@ -6,6 +6,7 @@ import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import android.widget.TextView
+
 import androidx.fragment.app.Fragment
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.lifecycleScope
@@ -20,10 +21,10 @@ import com.apphud.sdk.Apphud
 import com.apphud.sdk.ApphudListener
 import com.apphud.sdk.domain.ApphudNonRenewingPurchase
 import com.apphud.sdk.domain.ApphudPaywall
+
 import com.apphud.sdk.domain.ApphudPlacement
 import com.apphud.sdk.domain.ApphudSubscription
 import com.apphud.sdk.domain.ApphudUser
-import com.apphud.sdk.managers.HeadersInterceptor
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -45,12 +46,14 @@ class CustomerFragment : Fragment() {
         val customerId: TextView = binding.customerId
         customerId.text = Apphud.userId()
 
-        binding.sdk.text = "v." + HeadersInterceptor.X_SDK_VERSION
+        binding.sdk.text = "DEPRECATED"
         binding.appVersion.text = BuildConfig.VERSION_NAME + " (" + BuildConfig.VERSION_CODE + ")"
 
         binding.btnSync.setOnClickListener {
-            Apphud.restorePurchases { _, _, _ -> }
+            Apphud.restorePurchases { _ -> }
         }
+
+
 
         paywallsViewModel = ViewModelProvider(this)[PaywallsViewModel::class.java]
         viewAdapter = PaywallsAdapter(paywallsViewModel, context)
@@ -137,6 +140,8 @@ class CustomerFragment : Fragment() {
             }
         }
     }
+
+
 
     override fun onDestroyView() {
         super.onDestroyView()

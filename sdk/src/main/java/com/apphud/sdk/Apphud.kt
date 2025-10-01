@@ -4,8 +4,25 @@ import android.app.Activity
 import android.content.Context
 import com.android.billingclient.api.ProductDetails
 import com.android.billingclient.api.Purchase
-import com.apphud.sdk.domain.*
+import com.apphud.sdk.ApphudInternal.coroutineScope
+import com.apphud.sdk.ApphudInternal.errorHandler
+import com.apphud.sdk.domain.ApphudGroup
+import com.apphud.sdk.domain.ApphudNonRenewingPurchase
+import com.apphud.sdk.domain.ApphudPaywall
+import com.apphud.sdk.domain.ApphudPaywallScreenShowResult
+import com.apphud.sdk.domain.ApphudPlacement
+import com.apphud.sdk.domain.ApphudProduct
+import com.apphud.sdk.domain.ApphudSubscription
+import com.apphud.sdk.domain.ApphudUser
+import com.apphud.sdk.internal.ServiceLocator
+import com.apphud.sdk.internal.domain.model.ApiKey as ApiKeyModel
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.TimeoutCancellationException
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.suspendCancellableCoroutine
+import kotlinx.coroutines.withContext
+import kotlinx.coroutines.withTimeout
 import kotlin.coroutines.resume
 
 object Apphud {
@@ -26,8 +43,9 @@ object Apphud {
         context: Context,
         apiKey: ApiKey,
         observerMode: Boolean = false,
+        ruleCallback: ApphudRuleCallback = object : ApphudRuleCallback {},
         callback: ((ApphudUser) -> Unit)? = null,
-    ) = start(context, apiKey, null,  null, observerMode, callback)
+    ) = start(context, apiKey, null, null, observerMode, ruleCallback, callback)
 
     /**
      * Initializes Apphud SDK. You should call it during app launch.
@@ -47,8 +65,9 @@ object Apphud {
         apiKey: ApiKey,
         userId: UserId? = null,
         observerMode: Boolean = false,
+        ruleCallback: ApphudRuleCallback = object : ApphudRuleCallback {},
         callback: ((ApphudUser) -> Unit)? = null,
-    ) = start(context, apiKey, userId, null, observerMode, callback)
+    ) = start(context, apiKey, userId, null, observerMode, ruleCallback, callback)
 
     /**
      * Initializes the Apphud SDK. This method should be called during the app launch.
@@ -74,8 +93,15 @@ object Apphud {
         userId: UserId? = null,
         deviceId: DeviceId? = null,
         observerMode: Boolean = false,
+        ruleCallback: ApphudRuleCallback = object : ApphudRuleCallback {},
         callback: ((ApphudUser) -> Unit)? = null,
     ) {
+        ServiceLocator.ServiceLocatorInstanceFactory().create(
+            applicationContext = context.applicationContext,
+            ruleCallback = ruleCallback,
+            apiKey = ApiKeyModel(apiKey)
+        )
+
         ApphudUtils.setPackageName(context.packageName)
         ApphudInternal.initialize(context, apiKey, userId, deviceId, observerMode, callback)
     }
@@ -95,8 +121,26 @@ object Apphud {
      *
      * @param userId The new user ID value to be set.
      */
-    fun updateUserId(userId: UserId, callback: ((ApphudUser?) -> Unit)? = null) =
-        ApphudInternal.updateUserId(userId, callback = callback)
+    fun updateUserId(userId: UserId, callback: ((ApphudUser?) -> Unit)? = null) {
+        coroutineScope.launch(errorHandler) {
+            val result = ApphudInternal.updateUserId(userId)
+            withContext(Dispatchers.Main) {
+                callback?.invoke(result)
+            }
+        }
+    }
+
+    /**
+     * Used in conjunction with the delegate method
+     * `apphudShouldShowScreen`, where returning `false` defers the screen display.
+     *
+     * Note: Call this method to show a screen that was deferred due to specific conditions or user actions
+     * in your application. This helps to manage the user experience more effectively, ensuring that screens
+     * are presented at the most appropriate time.
+     */
+    fun showPendingScreen(callback: (Boolean) -> Unit) {
+        ServiceLocator.instance.ruleController.showPendingScreen(callback)
+    }
 
     /**
      * Retrieves the current user ID that identifies the user across multiple devices.
@@ -196,8 +240,16 @@ object Apphud {
      * on Google (BillingClient issue) or Apphud side.
      *
      */
-    fun fetchPlacements(preferredTimeout: Double = APPHUD_DEFAULT_MAX_TIMEOUT, callback: (List<ApphudPlacement>, ApphudError?) -> Unit) {
-        ApphudInternal.performWhenOfferingsPrepared(preferredTimeout = preferredTimeout) { callback(ApphudInternal.placements, it) }
+    fun fetchPlacements(
+        preferredTimeout: Double = APPHUD_DEFAULT_MAX_TIMEOUT,
+        callback: (List<ApphudPlacement>, ApphudError?) -> Unit,
+    ) {
+        ApphudInternal.performWhenOfferingsPrepared(preferredTimeout = preferredTimeout) {
+            callback(
+                ApphudInternal.placements,
+                it
+            )
+        }
     }
 
     /** Returns:
@@ -278,8 +330,16 @@ object Apphud {
         "Deprecated in favor of Placements",
         ReplaceWith("this.placementsDidLoadCallback(callback)"),
     )
-    fun paywallsDidLoadCallback(preferredTimeout: Double = APPHUD_DEFAULT_MAX_TIMEOUT, callback: (List<ApphudPaywall>, ApphudError?) -> Unit) {
-        ApphudInternal.performWhenOfferingsPrepared(preferredTimeout = preferredTimeout) { callback(ApphudInternal.paywalls, it) }
+    fun paywallsDidLoadCallback(
+        preferredTimeout: Double = APPHUD_DEFAULT_MAX_TIMEOUT,
+        callback: (List<ApphudPaywall>, ApphudError?) -> Unit,
+    ) {
+        ApphudInternal.performWhenOfferingsPrepared(preferredTimeout = preferredTimeout) {
+            callback(
+                ApphudInternal.paywalls,
+                it
+            )
+        }
     }
 
     /**
@@ -300,6 +360,42 @@ object Apphud {
      */
     fun paywallClosed(paywall: ApphudPaywall) {
         ApphudInternal.paywallClosed(paywall)
+    }
+
+    /**
+     * Asynchronously fetches a paywall Screen for the provided paywall.
+     *
+     * This API mirrors the behaviour of iOS `Apphud.fetchPaywallScreen(...)`.
+     * The implementation is currently stubbed and will be implemented in future releases.
+     *
+     * @param paywall      Paywall whose Screen needs to be displayed.
+     * @param maxTimeout   Maximum time in seconds to wait for the Screen to load. Defaults to [APPHUD_PAYWALL_SCREEN_LOAD_TIMEOUT].
+     * @param callback     Returns [ApphudPaywallScreenShowResult] which can be either `Success` or `Error`.
+     */
+    fun showPaywallScreen(
+        context: Context,
+        paywall: ApphudPaywall,
+        maxTimeout: Long = APPHUD_PAYWALL_SCREEN_LOAD_TIMEOUT,
+        callback: (ApphudPaywallScreenShowResult) -> Unit,
+    ) {
+        coroutineScope.launch(errorHandler) {
+            try {
+                withTimeout(maxTimeout) {
+                    ApphudInternal.showPaywallScreen(context, paywall, callback)
+                }
+            } catch (e: TimeoutCancellationException) {
+                withContext(Dispatchers.Main) {
+                    callback(ApphudPaywallScreenShowResult.Error(e.toApphudError()))
+                }
+                throw e
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                withContext(Dispatchers.Main) {
+                    callback(ApphudPaywallScreenShowResult.Error(e.toApphudError()))
+                }
+            }
+        }
     }
 
     /**
@@ -509,7 +605,16 @@ object Apphud {
         offerIdToken: String?,
         paywallIdentifier: String? = null,
         placementIdentifier: String? = null,
-    ) = ApphudInternal.trackPurchase(productId, offerIdToken, paywallIdentifier, placementIdentifier)
+    ) {
+        coroutineScope.launch(errorHandler) {
+            ApphudInternal.trackPurchase(
+                productId,
+                offerIdToken,
+                paywallIdentifier,
+                placementIdentifier
+            )
+        }
+    }
 
     /**
      * Implements the 'Restore Purchases' mechanism. This method sends the current Play Market
@@ -520,8 +625,13 @@ object Apphud {
      * @param callback Required. A callback that returns an array of subscriptions, in-app products,
      *                 or an optional error.
      */
-    fun restorePurchases(callback: ApphudPurchasesRestoreCallback) {
-        ApphudInternal.restorePurchases(callback)
+    fun restorePurchases(callback: (ApphudPurchasesRestoreResult) -> Unit) {
+        coroutineScope.launch(errorHandler) {
+            val result = ApphudInternal.restorePurchases()
+            withContext(Dispatchers.Main) {
+                callback(result)
+            }
+        }
     }
 
     /**
@@ -557,7 +667,8 @@ object Apphud {
      * Apphud will automatically track and validate them in the background,
      * so developer doesn't need to call `Apphud.restorePurchases` afterwards.
      */
-    suspend fun nativePurchases(forceRefresh: Boolean = false): Pair<List<Purchase>, Int> = ApphudInternal.fetchNativePurchases(forceRefresh = forceRefresh)
+    suspend fun nativePurchases(forceRefresh: Boolean = false): Pair<List<Purchase>, Int> =
+        ApphudInternal.fetchNativePurchases(forceRefresh = forceRefresh)
 
     //endregion
     //region === Attribution ===
@@ -607,7 +718,13 @@ object Apphud {
      * along with the updated `ApphudUser` object (if applicable).
      */
     fun attributeFromWeb(data: Map<String, Any>, callback: (Boolean, ApphudUser?) -> Unit) {
-        ApphudInternal.tryWebAttribution(data = data, callback = callback)
+        coroutineScope.launch(errorHandler) {
+            val (success, user) = ApphudInternal.tryWebAttribution(data = data)
+
+            withContext(Dispatchers.Main) {
+                callback(success, user)
+            }
+        }
     }
 
     //endregion
@@ -661,7 +778,12 @@ object Apphud {
      *     ```
      */
     fun forceFlushUserProperties(completion: ((Boolean) -> Unit)?) {
-        ApphudInternal.forceFlushUserProperties(true, completion)
+        coroutineScope.launch(errorHandler) {
+            val result = ApphudInternal.forceFlushUserProperties(true)
+            withContext(Dispatchers.Main) {
+                completion?.invoke(result)
+            }
+        }
     }
 
     /**

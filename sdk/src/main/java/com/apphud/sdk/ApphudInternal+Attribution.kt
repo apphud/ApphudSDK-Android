@@ -10,13 +10,16 @@ import com.apphud.sdk.ApphudAttributionProvider.SINGULAR
 import com.apphud.sdk.ApphudAttributionProvider.TENJIN
 import com.apphud.sdk.ApphudAttributionProvider.TIKTOK
 import com.apphud.sdk.ApphudAttributionProvider.VOLUUM
-import com.apphud.sdk.client.dto.AttributionRequestDto
 import com.apphud.sdk.domain.AdjustInfo
 import com.apphud.sdk.domain.ApphudUser
 import com.apphud.sdk.domain.AppsflyerInfo
 import com.apphud.sdk.domain.FacebookInfo
+import com.apphud.sdk.internal.data.dto.AttributionRequestDto
+import com.apphud.sdk.internal.util.runCatchingCancellable
 import com.apphud.sdk.managers.RequestManager
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 internal fun ApphudInternal.setAttribution(
     apphudAttributionData: ApphudAttributionData,
@@ -76,120 +79,109 @@ internal fun ApphudInternal.setAttribution(
         BRANCH -> identifier?.let { "identifier" to it }
     }
 
-    performWhenUserRegistered { error ->
-        error?.let {
-            ApphudLog.logE(it.message)
-        } ?: run {
-            coroutineScope.launch(errorHandler) {
-                val mergedRawData = apphudAttributionData.rawData.toMutableMap().apply {
-                    providerIdPair?.let { (key, value) -> put(key, value) }
+    coroutineScope.launch(errorHandler) {
+        runCatchingCancellable { awaitUserRegistration() }
+            .onFailure { error ->
+                ApphudLog.logE(error.message.orEmpty())
+                return@launch
+            }
+
+        val mergedRawData = apphudAttributionData.rawData.toMutableMap().apply {
+            providerIdPair?.let { (key, value) -> put(key, value) }
+        }
+
+        val requestBody = AttributionRequestDto(
+            deviceId = deviceId,
+            packageName = context.packageName,
+            provider = provider.value,
+            rawData = mergedRawData,
+            attribution = listOf(
+                "ad_network" to apphudAttributionData.adNetwork,
+                "channel" to apphudAttributionData.channel,
+                "campaign" to apphudAttributionData.campaign,
+                "ad_set" to apphudAttributionData.adSet,
+                "creative" to apphudAttributionData.creative,
+                "keyword" to apphudAttributionData.keyword,
+                "custom_1" to apphudAttributionData.custom1,
+                "custom_2" to apphudAttributionData.custom2,
+            )
+                .mapNotNull { (key, value) ->
+                    value?.let { key to value }
                 }
-
-                val requestBody = AttributionRequestDto(
-                    deviceId = deviceId,
-                    packageName = context.packageName,
-                    provider = provider.value,
-                    rawData = mergedRawData,
-                    attribution = listOf(
-                        "ad_network" to apphudAttributionData.adNetwork,
-                        "channel" to apphudAttributionData.channel,
-                        "campaign" to apphudAttributionData.campaign,
-                        "ad_set" to apphudAttributionData.adSet,
-                        "creative" to apphudAttributionData.creative,
-                        "keyword" to apphudAttributionData.keyword,
-                        "custom_1" to apphudAttributionData.custom1,
-                        "custom_2" to apphudAttributionData.custom2,
-                    )
-                        .mapNotNull { (key, value) ->
-                            value?.let { key to value }
+                .toMap()
+        )
+        RequestManager.send(requestBody)
+            .onSuccess {
+                withContext(Dispatchers.Main) {
+                    when (provider) {
+                        APPSFLYER -> {
+                            storage.appsflyer = AppsflyerInfo(
+                                id = identifier,
+                                data = apphudAttributionData.rawData,
+                            )
                         }
-                        .toMap()
-                )
-                RequestManager.send(requestBody) { _, error ->
-                    mainScope.launch {
-                        when (provider) {
-                            APPSFLYER -> {
-                                storage.appsflyer = AppsflyerInfo(
-                                    id = identifier,
-                                    data = apphudAttributionData.rawData,
-                                )
-                            }
 
-                            FACEBOOK -> {
-                                storage.facebook = FacebookInfo(apphudAttributionData.rawData)
-                            }
+                        FACEBOOK -> {
+                            storage.facebook = FacebookInfo(apphudAttributionData.rawData)
+                        }
 
-                            FIREBASE -> {
-                                storage.firebase = identifier
-                            }
+                        FIREBASE -> {
+                            storage.firebase = identifier
+                        }
 
-                            ADJUST -> {
-                                storage.adjust = AdjustInfo(
-                                    adid = identifier,
-                                    adjustData = apphudAttributionData.rawData,
-                                )
-                            }
+                        ADJUST -> {
+                            storage.adjust = AdjustInfo(
+                                adid = identifier,
+                                adjustData = apphudAttributionData.rawData,
+                            )
+                        }
 
-                            CUSTOM,
-                            BRANCH,
-                            SINGULAR,
-                            TENJIN,
-                            TIKTOK,
-                            VOLUUM,
+                        CUSTOM,
+                        BRANCH,
+                        SINGULAR,
+                        TENJIN,
+                        TIKTOK,
+                        VOLUUM,
                             -> Unit
-                        }
-                        error?.let {
-                            ApphudLog.logE(message = it.message)
-                        }
                     }
                 }
+            }.onFailure { error ->
+                ApphudLog.logE(message = error.message.orEmpty())
             }
-        }
     }
 }
 
-internal fun ApphudInternal.tryWebAttribution(data: Map<String, Any>, callback: (Boolean, ApphudUser?) -> Unit) {
-
+internal suspend fun ApphudInternal.tryWebAttribution(
+    data: Map<String, Any>,
+): Pair<Boolean, ApphudUser?> {
     val userId = (data["aph_user_id"] as? String) ?: (data["apphud_user_id"] as? String)
     val email = (data["email"] as? String) ?: (data["apphud_user_email"] as? String)
 
     if (userId.isNullOrEmpty() && email.isNullOrEmpty()) {
-        callback.invoke(false, currentUser)
-        return
+        return false to currentUser
     }
 
-    performWhenUserRegistered { error ->
-        currentUser?.let { user ->
-            fromWeb2Web = true
+    runCatchingCancellable { awaitUserRegistration() }
 
-            if (!userId.isNullOrEmpty()) {
+    val user = currentUser ?: return false to null
+    fromWeb2Web = true
 
-                if (user.userId == userId) {
-                    ApphudLog.logI("Already web2web user, skipping")
-                    callback.invoke(true, user)
-                    return@let
-                }
-
+    return when {
+        !userId.isNullOrEmpty() -> {
+            if (user.userId == userId) {
+                ApphudLog.logI("Already web2web user, skipping")
+                true to user
+            } else {
                 ApphudLog.logI("Trying to attribute from web by User ID: $userId")
-                updateUserId(userId, web2Web = true) {
-                    if (it?.userId == userId) {
-                        callback.invoke(true, it)
-                    } else {
-                        callback.invoke(false, it)
-                    }
-                }
-            } else if (!email.isNullOrEmpty()) {
-                ApphudLog.logI("Trying to attribute from web by email: $email")
-                updateUserId(user.userId, email = email, web2Web = true) {
-                    if (it?.userId == userId) {
-                        callback.invoke(true, it)
-                    } else {
-                        callback.invoke(false, it)
-                    }
-                }
+                true to updateUserId(userId, web2Web = true)
             }
-        } ?: run {
-            callback.invoke(false, currentUser)
         }
+
+        !email.isNullOrEmpty() -> {
+            ApphudLog.logI("Trying to attribute from web by email: $email")
+            true to updateUserId(user.userId, email = email, web2Web = true)
+        }
+
+        else -> false to null
     }
 }
