@@ -126,22 +126,50 @@ class PaywallsAdapter(private val paywallsViewModel: PaywallsViewModel, private 
                 Apphud.showPaywallScreen(
                     context = ctx.applicationContext,
                     paywall = paywall,
-                    maxTimeout = 120_000L,
-                ) { result ->
-                    when (result) {
-                        is ApphudPaywallScreenShowResult.Success -> {
-                            Log.d(
-                                "PaywallsAdapter",
-                                "Paywall screen показан успешно для paywall: ${paywall.identifier}"
-                            )
+                    callbacks = Apphud.ApphudPaywallScreenCallbacks(
+                        onScreenShown = {
+                            Log.d("PaywallsAdapter", "Paywall screen показан для paywall: ${paywall.identifier}")
                             Toast.makeText(ctx, "Paywall screen показан: ${paywall.name}", Toast.LENGTH_SHORT).show()
+                        },
+                        onTransactionStarted = { product ->
+                            Log.d("PaywallsAdapter", "Транзакция начата для продукта: ${product?.productId}")
+                            Toast.makeText(ctx, "Покупка начата: ${product?.productId}", Toast.LENGTH_SHORT).show()
+                        },
+                        onTransactionCompleted = { result ->
+                            when (result) {
+                                is ApphudPaywallScreenShowResult.SubscriptionResult -> {
+                                    val error = result.error
+                                    if (error == null) {
+                                        Log.d("PaywallsAdapter", "Подписка успешно оформлена: ${result.subscription?.productId}")
+                                        Toast.makeText(ctx, "Подписка оформлена!", Toast.LENGTH_SHORT).show()
+                                    } else {
+                                        Log.e("PaywallsAdapter", "Ошибка подписки: ${error.message}")
+                                        Toast.makeText(ctx, "Ошибка подписки: ${error.message}", Toast.LENGTH_SHORT).show()
+                                    }
+                                }
+                                is ApphudPaywallScreenShowResult.NonRenewingResult -> {
+                                    val error = result.error
+                                    if (error == null) {
+                                        Log.d("PaywallsAdapter", "Покупка успешно завершена: ${result.nonRenewingPurchase?.productId}")
+                                        Toast.makeText(ctx, "Покупка завершена!", Toast.LENGTH_SHORT).show()
+                                    } else {
+                                        Log.e("PaywallsAdapter", "Ошибка покупки: ${error.message}")
+                                        Toast.makeText(ctx, "Ошибка покупки: ${error.message}", Toast.LENGTH_SHORT).show()
+                                    }
+                                }
+                                is ApphudPaywallScreenShowResult.TransactionError -> {
+                                    Log.e("PaywallsAdapter", "Ошибка экрана: ${result.error.message}")
+                                    Toast.makeText(ctx, "Ошибка: ${result.error.message}", Toast.LENGTH_SHORT).show()
+                                }
+                            }
+                        },
+                        onCloseButtonTapped = {
+                            Log.d("PaywallsAdapter", "Paywall screen закрыт пользователем")
+                            Toast.makeText(ctx, "Paywall закрыт", Toast.LENGTH_SHORT).show()
                         }
-                        is ApphudPaywallScreenShowResult.Error -> {
-                            Log.e("PaywallsAdapter", "Ошибка показа paywall screen: ${result.error.message}")
-                            Toast.makeText(ctx, "Ошибка: ${result.error.message}", Toast.LENGTH_SHORT).show()
-                        }
-                    }
-                }
+                    ),
+                    maxTimeout = 120_000L
+                )
             } catch (e: Exception) {
                 Log.e("PaywallsAdapter", "Исключение при показе paywall screen", e)
                 Toast.makeText(ctx, "Исключение: ${e.message}", Toast.LENGTH_SHORT).show()

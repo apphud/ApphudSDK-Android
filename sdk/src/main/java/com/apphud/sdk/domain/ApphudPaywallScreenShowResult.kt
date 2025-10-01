@@ -1,19 +1,38 @@
 package com.apphud.sdk.domain
 
+import com.android.billingclient.api.BillingClient
+import com.android.billingclient.api.Purchase
 import com.apphud.sdk.ApphudError
 
 /**
  * Result returned in the callback of `Apphud.showPaywallScreen(...)`.
  *
- * Success — screen was loaded and displayed.
- * Error   — an error occurred while loading or showing the screen (e.g. timeout,
- * network issues, or missing screen configuration for the selected paywall).
+ * SubscriptionResult — subscription transaction completed (successfully or with error).
+ * NonRenewingResult  — non-renewing purchase transaction completed (successfully or with error).
+ * TransactionError   — an error occurred during transaction processing.
  */
 sealed class ApphudPaywallScreenShowResult {
 
-    /** Screen was shown successfully. */
-    object Success : ApphudPaywallScreenShowResult()
+    /** Subscription transaction completed */
+    data class SubscriptionResult(
+        val subscription: ApphudSubscription?,
+        val purchase: Purchase?,
+        val error: ApphudError? = null
+    ) : ApphudPaywallScreenShowResult() {
+        fun isSuccess(): Boolean = error == null
+        fun userCanceled(): Boolean = error?.errorCode == BillingClient.BillingResponseCode.USER_CANCELED
+    }
 
-    /** Error occurred while loading or showing the screen. */
-    data class Error(val error: ApphudError) : ApphudPaywallScreenShowResult()
+    /** Non-renewing purchase transaction completed */
+    data class NonRenewingResult(
+        val nonRenewingPurchase: ApphudNonRenewingPurchase?,
+        val purchase: Purchase?,
+        val error: ApphudError? = null
+    ) : ApphudPaywallScreenShowResult() {
+        fun isSuccess(): Boolean = error == null
+        fun userCanceled(): Boolean = error?.errorCode == BillingClient.BillingResponseCode.USER_CANCELED
+    }
+
+    /** Transaction error */
+    data class TransactionError(val error: ApphudError) : ApphudPaywallScreenShowResult()
 }

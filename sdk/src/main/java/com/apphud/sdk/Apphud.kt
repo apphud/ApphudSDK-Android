@@ -363,36 +363,56 @@ object Apphud {
     }
 
     /**
-     * Asynchronously fetches a paywall Screen for the provided paywall.
+     * Callbacks for paywall screen events.
      *
-     * This API mirrors the behaviour of iOS `Apphud.fetchPaywallScreen(...)`.
-     * The implementation is currently stubbed and will be implemented in future releases.
+     * @param onScreenShown Called when the paywall screen is successfully shown.
+     * @param onTransactionStarted Called when user starts a transaction (purchase or restore).
+     *                             @param product The product being purchased, or null for restore operations.
+     * @param onTransactionCompleted Called when a transaction is completed (successfully or with error).
+     *                               @param result The result of the transaction.
+     * @param onCloseButtonTapped Called when user taps the close button to dismiss the paywall.
+     * @param onScreenError Called when a screen error occurs (not related to transactions).
+     *                      @param error The error that occurred.
+     */
+    data class ApphudPaywallScreenCallbacks(
+        val onScreenShown: (() -> Unit) = {},
+        val onTransactionStarted: ((ApphudProduct?) -> Unit) = {},
+        val onTransactionCompleted: ((ApphudPaywallScreenShowResult) -> Unit) = {},
+        val onCloseButtonTapped: (() -> Unit) = {},
+        val onScreenError: ((ApphudError) -> Unit) = {}
+    )
+
+    /**
+     * Displays the paywall screen for the provided paywall.
      *
+     * This API mirrors the behaviour of iOS `Apphud.showPaywallScreen(...)`.
+     *
+     * @param context      Context where the paywall screen will be displayed.
      * @param paywall      Paywall whose Screen needs to be displayed.
+     * @param callbacks    Callbacks for paywall screen events.
      * @param maxTimeout   Maximum time in seconds to wait for the Screen to load. Defaults to [APPHUD_PAYWALL_SCREEN_LOAD_TIMEOUT].
-     * @param callback     Returns [ApphudPaywallScreenShowResult] which can be either `Success` or `Error`.
      */
     fun showPaywallScreen(
         context: Context,
         paywall: ApphudPaywall,
+        callbacks: ApphudPaywallScreenCallbacks = ApphudPaywallScreenCallbacks(),
         maxTimeout: Long = APPHUD_PAYWALL_SCREEN_LOAD_TIMEOUT,
-        callback: (ApphudPaywallScreenShowResult) -> Unit,
     ) {
         coroutineScope.launch(errorHandler) {
             try {
                 withTimeout(maxTimeout) {
-                    ApphudInternal.showPaywallScreen(context, paywall, callback)
+                    ApphudInternal.showPaywallScreen(context, paywall, callbacks)
                 }
             } catch (e: TimeoutCancellationException) {
                 withContext(Dispatchers.Main) {
-                    callback(ApphudPaywallScreenShowResult.Error(e.toApphudError()))
+                    callbacks.onTransactionCompleted(ApphudPaywallScreenShowResult.TransactionError(e.toApphudError()))
                 }
                 throw e
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
                 withContext(Dispatchers.Main) {
-                    callback(ApphudPaywallScreenShowResult.Error(e.toApphudError()))
+                    callbacks.onTransactionCompleted(ApphudPaywallScreenShowResult.TransactionError(e.toApphudError()))
                 }
             }
         }

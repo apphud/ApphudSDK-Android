@@ -1,14 +1,10 @@
 package com.apphud.sdk
 
 import android.annotation.SuppressLint
-import android.content.BroadcastReceiver
 import android.content.Context
-import android.content.Intent
-import android.content.IntentFilter
 import android.os.Handler
 import android.os.Looper
 import android.provider.Settings
-import androidx.core.content.ContextCompat
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.ProcessLifecycleOwner
@@ -16,13 +12,13 @@ import com.android.billingclient.api.BillingClient
 import com.android.billingclient.api.ProductDetails
 import com.android.billingclient.api.Purchase
 import com.apphud.sdk.body.UserPropertiesBody
-import com.apphud.sdk.domain.ActivityAnimationConfig
 import com.apphud.sdk.domain.ApphudGroup
 import com.apphud.sdk.domain.ApphudPaywall
 import com.apphud.sdk.domain.ApphudPaywallScreenShowResult
 import com.apphud.sdk.domain.ApphudPlacement
 import com.apphud.sdk.domain.ApphudProduct
 import com.apphud.sdk.domain.ApphudUser
+import com.apphud.sdk.domain.PaywallEvent
 import com.apphud.sdk.domain.PurchaseRecordDetails
 import com.apphud.sdk.internal.BillingWrapper
 import com.apphud.sdk.internal.ServiceLocator
@@ -41,13 +37,13 @@ import kotlinx.coroutines.Runnable
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
-import kotlinx.coroutines.awaitCancellation
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.withContext
 import java.util.UUID
+import java.util.concurrent.CancellationException
 import kotlin.coroutines.resume
 import kotlin.coroutines.resumeWithException
 import kotlin.math.max
@@ -1034,89 +1030,59 @@ internal object ApphudInternal {
         }
     }
 
+
     suspend fun showPaywallScreen(
         context: Context,
         paywall: ApphudPaywall,
-        callback: (ApphudPaywallScreenShowResult) -> Unit,
+        callbacks: Apphud.ApphudPaywallScreenCallbacks,
     ) {
         ApphudLog.logI("Starting to show paywall screen for paywall: ${paywall.identifier}")
 
-        // Variable to store receiver
-        var receiver: BroadcastReceiver? = null
-        
-        // Function for safe receiver unregistration
-        val unregisterReceiver = {
-            receiver?.let { rec ->
-                try {
-                    context.unregisterReceiver(rec)
-                    ApphudLog.log("[ApphudInternal] BroadcastReceiver unregistered")
-                    receiver = null
-                } catch (e: IllegalArgumentException) {
-                    ApphudLog.logE("[ApphudInternal] Receiver was already unregistered: ${e.message}")
-                }
-            }
-        }
-
-        // Register BroadcastReceiver to get results
-        receiver = object : BroadcastReceiver() {
-            override fun onReceive(context: Context?, intent: Intent?) {
-                if (intent?.action == FigmaWebViewActivity.ACTION_FIGMA_SCREEN_RESULT) {
-                    val resultCode = intent.getIntExtra(FigmaWebViewActivity.EXTRA_RESULT_CODE, -1)
-                    ApphudLog.log("[ApphudInternal] Received Figma screen result: $resultCode")
-
-                    // Call callback in main thread only for specific results
-                    var shouldUnregister = false
-                    mainScope.launch {
-                        when (resultCode) {
-                            FigmaWebViewActivity.RESULT_PURCHASE -> {
-                                ApphudLog.log("[ApphudInternal] Purchase completed via broadcast")
-                                callback(ApphudPaywallScreenShowResult.Success)
-                                shouldUnregister = true
+        val eventJob = coroutineScope.launch {
+            try {
+                ServiceLocator.instance.paywallEventManager.events.collect { event ->
+                    withContext(Dispatchers.Main) {
+                        when (event) {
+                            is PaywallEvent.ScreenShown -> {
+                                ApphudLog.logI("[ApphudInternal] Paywall screen shown via event bus")
+                                callbacks.onScreenShown()
                             }
-                            FigmaWebViewActivity.RESULT_RESTORE_SUCCESS -> {
-                                ApphudLog.log("[ApphudInternal] Restore successful via broadcast")
-                                callback(ApphudPaywallScreenShowResult.Success)
-                                shouldUnregister = true
+                            is PaywallEvent.TransactionStarted -> {
+                                ApphudLog.logI("[ApphudInternal] Transaction started via event bus: product=${event.product?.productId}")
+                                callbacks.onTransactionStarted(event.product)
                             }
-                            FigmaWebViewActivity.RESULT_DISMISSED -> {
-                                ApphudLog.log("[ApphudInternal] Screen dismissed via broadcast")
-                                callback(ApphudPaywallScreenShowResult.Error(ApphudError("Screen was dismissed by user")))
-                                shouldUnregister = true
+                            is PaywallEvent.TransactionCompleted -> {
+                                ApphudLog.logI("[ApphudInternal] Transaction completed via event bus")
+                                callbacks.onTransactionCompleted(event.result)
+                                if (event.result !is ApphudPaywallScreenShowResult.TransactionError) {
+                                    ApphudLog.logI("[ApphudInternal] Transaction completed successfully, terminating event stream")
+                                    throw CancellationException("Transaction completed successfully")
+                                }
                             }
-                            FigmaWebViewActivity.RESULT_PURCHASE_ERROR -> {
-                                ApphudLog.log("[ApphudInternal] Purchase failed via broadcast - no callback")
-                                // Don't call callback for purchase errors - keep receiver active
+                            is PaywallEvent.CloseButtonTapped -> {
+                                ApphudLog.logI("[ApphudInternal] Close button tapped via event bus")
+                                callbacks.onCloseButtonTapped()
+                                ApphudLog.logI("[ApphudInternal] Paywall closed, terminating event stream")
+                                throw CancellationException("Paywall closed")
                             }
-                            FigmaWebViewActivity.RESULT_RESTORE_ERROR -> {
-                                ApphudLog.log("[ApphudInternal] Restore failed via broadcast - no callback")
-                                // Don't call callback for restore errors - keep receiver active
+                            is PaywallEvent.ScreenError -> {
+                                ApphudLog.logE("[ApphudInternal] Screen error via event bus: ${event.error.message}")
+                                callbacks.onScreenError(event.error)
+                                ApphudLog.logI("[ApphudInternal] Screen error occurred, terminating event stream")
+                                throw CancellationException("Screen error occurred")
                             }
-                            FigmaWebViewActivity.RESULT_INVALID_PURCHASE_INDEX -> {
-                                ApphudLog.log("[ApphudInternal] Invalid purchase index via broadcast")
-                                callback(ApphudPaywallScreenShowResult.Error(ApphudError("Invalid purchase index")))
-                                shouldUnregister = true
-                            }
-                            else -> {
-                                ApphudLog.log("[ApphudInternal] Unknown result code: $resultCode")
-                                callback(ApphudPaywallScreenShowResult.Error(ApphudError("Unknown result code: $resultCode")))
-                                shouldUnregister = true
-                            }
-                        }
-                        
-                        // Only unregister receiver when callback is called
-                        if (shouldUnregister) {
-                            unregisterReceiver()
                         }
                     }
                 }
+            } catch (e: CancellationException) {
+                ApphudLog.logI("[ApphudInternal] Event subscription cancelled: ${e.message}")
+                throw e
+            } catch (e: Exception) {
+                ApphudLog.logE("[ApphudInternal] Error in event subscription: ${e.message}")
             }
         }
 
         try {
-            val intentFilter = IntentFilter(FigmaWebViewActivity.ACTION_FIGMA_SCREEN_RESULT)
-            ContextCompat.registerReceiver(context, receiver!!, intentFilter, ContextCompat.RECEIVER_NOT_EXPORTED)
-            ApphudLog.log("[ApphudInternal] BroadcastReceiver registered for paywall screen")
-
             val renderResult = ServiceLocator.instance.renderPaywallPropertiesUseCase(paywall).getOrThrow()
 
             val renderItemsJson = ServiceLocator.instance.renderResultMapperWithSerializer.toJson(renderResult)
@@ -1127,7 +1093,7 @@ internal object ApphudInternal {
 
             ApphudLog.logI("Paywall screen shown successfully for paywall: ${paywall.identifier}")
         } catch (e: Exception) {
-            unregisterReceiver()
+            eventJob.cancel()
             throw e
         }
     }

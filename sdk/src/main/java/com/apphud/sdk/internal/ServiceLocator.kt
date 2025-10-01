@@ -164,6 +164,8 @@ internal class ServiceLocator(
             ruleCallback = ruleCallback,
         )
 
+    val paywallEventManager: PaywallEventManager = PaywallEventManager()
+
     internal class ServiceLocatorInstanceFactory {
 
         fun create(

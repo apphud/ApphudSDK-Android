@@ -31,28 +31,79 @@ import com.apphud.sdk.ApphudLog
 import com.apphud.sdk.R
 import com.apphud.sdk.domain.ApphudProduct
 import com.apphud.sdk.purchase
-
 import kotlinx.coroutines.launch
+
+private class WebViewWrapper(private val webView: WebView) {
+    private var currentUrl: String? = null
+    private var isLoading: Boolean = false
+
+    fun loadUrl(url: String) {
+        ApphudLog.log("[WebViewWrapper] Attempting to load URL: $url")
+        ApphudLog.log("[WebViewWrapper] Current URL: $currentUrl, isLoading: $isLoading")
+
+        if (currentUrl == url && !isLoading) {
+            ApphudLog.log("[WebViewWrapper] URL already loaded, skipping: $url")
+            return
+        }
+
+        if (isLoading && currentUrl == url) {
+            ApphudLog.log("[WebViewWrapper] Same URL is already loading, skipping: $url")
+            return
+        }
+
+        currentUrl = url
+        isLoading = true
+        ApphudLog.log("[WebViewWrapper] Loading URL: $url")
+        webView.loadUrl(url)
+    }
+
+    fun onPageStarted(url: String?) {
+        ApphudLog.log("[WebViewWrapper] onPageStarted: $url")
+        isLoading = true
+        currentUrl = url
+    }
+
+    fun onPageFinished(url: String?) {
+        ApphudLog.log("[WebViewWrapper] onPageFinished: $url")
+        isLoading = false
+        currentUrl = url
+    }
+
+    fun onLoadError() {
+        ApphudLog.log("[WebViewWrapper] onLoadError")
+        isLoading = false
+    }
+
+    fun reset() {
+        ApphudLog.log("[WebViewWrapper] reset")
+        currentUrl = null
+        isLoading = false
+    }
+}
 
 @Suppress("TooGenericExceptionCaught")
 internal class FigmaWebViewActivity : AppCompatActivity() {
 
     private lateinit var viewModel: FigmaViewViewModel
     private lateinit var webView: WebView
+    private lateinit var webViewWrapper: WebViewWrapper
     private lateinit var purchaseLoaderOverlay: FrameLayout
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        ApphudLog.log("[FigmaWebViewActivity] onCreate, savedInstanceState: ${if (savedInstanceState != null) "exists" else "null"}")
         setContentView(R.layout.apphud_rule_webview_activity_layout)
 
         setupFullscreen()
 
         webView = findViewById(R.id.webView)
         purchaseLoaderOverlay = findViewById(R.id.purchaseLoaderOverlay)
+        webViewWrapper = WebViewWrapper(webView)
 
         setupWebView()
 
         viewModel = ViewModelProvider(this, FigmaViewViewModel.factory)[FigmaViewViewModel::class.java]
+
         setupObservers()
 
         processIntent(intent)
@@ -69,11 +120,40 @@ internal class FigmaWebViewActivity : AppCompatActivity() {
 
     override fun onNewIntent(intent: Intent?) {
         super.onNewIntent(intent)
+        ApphudLog.log("[FigmaWebViewActivity] onNewIntent")
         if (intent != null) {
             setIntent(intent)
             processIntent(intent)
         }
     }
+
+    override fun onStart() {
+        super.onStart()
+        ApphudLog.log("[FigmaWebViewActivity] onStart")
+    }
+
+    override fun onResume() {
+        super.onResume()
+        ApphudLog.log("[FigmaWebViewActivity] onResume")
+        setupFullscreen()
+    }
+
+    override fun onPause() {
+        super.onPause()
+        ApphudLog.log("[FigmaWebViewActivity] onPause")
+    }
+
+    override fun onStop() {
+        super.onStop()
+        ApphudLog.log("[FigmaWebViewActivity] onStop")
+    }
+
+    override fun onDestroy() {
+        super.onDestroy()
+        ApphudLog.log("[FigmaWebViewActivity] onDestroy")
+        webViewWrapper.reset()
+    }
+
 
     private fun processIntent(intent: Intent) {
         val ruleId = intent.getStringExtra(EXTRA_PAYWALL_ID)
@@ -113,16 +193,25 @@ internal class FigmaWebViewActivity : AppCompatActivity() {
                 }
                 return true
             }
+
         }
 
         webView.webViewClient = object : WebViewClient() {
             override fun shouldOverrideUrlLoading(view: WebView?, request: WebResourceRequest?): Boolean {
                 val url = request?.url
+                ApphudLog.log("[WebViewClient] shouldOverrideUrlLoading: $url")
                 if (url != null) {
                     return handleSpecialUrl(url)
                 }
                 return false
             }
+
+            override fun onPageStarted(view: WebView?, url: String?, favicon: android.graphics.Bitmap?) {
+                super.onPageStarted(view, url, favicon)
+                ApphudLog.log("[WebViewClient] onPageStarted: $url")
+                webViewWrapper.onPageStarted(url)
+            }
+
 
             override fun onReceivedError(
                 view: WebView?,
@@ -131,24 +220,26 @@ internal class FigmaWebViewActivity : AppCompatActivity() {
             ) {
                 super.onReceivedError(view, request, error)
                 val errorMessage = "WebView error: ${error?.description}, URL: ${request?.url}"
-                ApphudLog.logE("[RuleWebViewActivity] $errorMessage")
+                ApphudLog.logE("[WebViewClient] $errorMessage")
+                webViewWrapper.onLoadError()
                 viewModel.processWebViewError(errorMessage)
             }
 
             override fun onPageFinished(view: WebView?, url: String?) {
                 super.onPageFinished(view, url)
-                ApphudLog.log("[RuleWebViewActivity] Page loaded: $url")
+                ApphudLog.log("[WebViewClient] onPageFinished: $url")
+                webViewWrapper.onPageFinished(url)
 
                 val renderItemsJson = viewModel.getCurrentRenderItemsJson()
                 renderItemsJson?.let { renderJson ->
                     try {
                         val jsCode = "PaywallSDK.shared().processDomMacros($renderJson)"
-                        ApphudLog.log("[RuleWebViewActivity] Executing JS with escaped JSON")
+                        ApphudLog.log("[WebViewClient] Executing JS with escaped JSON")
                         view?.evaluateJavascript(jsCode) { result ->
-                            ApphudLog.log("[RuleWebViewActivity] JS execution result: $result")
+                            ApphudLog.log("[WebViewClient] JS execution result: $result")
                         }
                     } catch (e: Exception) {
-                        ApphudLog.logE("[RuleWebViewActivity] Error executing JS: ${e.message}")
+                        ApphudLog.logE("[WebViewClient] Error executing JS: ${e.message}")
                     }
                 }
             }
@@ -161,24 +252,15 @@ internal class FigmaWebViewActivity : AppCompatActivity() {
                 super.onReceivedHttpError(view, request, errorResponse)
                 val errorMessage =
                     "HTTP Error: ${errorResponse?.statusCode} - ${errorResponse?.reasonPhrase} for URL: ${request?.url}"
-                ApphudLog.logE("[RuleWebViewActivity] $errorMessage")
+                ApphudLog.logE("[WebViewClient] $errorMessage")
                 if (errorResponse?.statusCode != 200) {
                     viewModel.processWebViewError(errorMessage)
                 }
             }
 
-
         }
     }
 
-
-    private fun sendResultBroadcast(resultCode: Int) {
-        val intent = Intent(ACTION_FIGMA_SCREEN_RESULT).apply {
-            putExtra(EXTRA_RESULT_CODE, resultCode)
-            setPackage(packageName)
-        }
-        sendBroadcast(intent)
-    }
 
     private fun setupObservers() {
         lifecycleScope.launch {
@@ -215,35 +297,19 @@ internal class FigmaWebViewActivity : AppCompatActivity() {
         lifecycleScope.launch {
             viewModel.events.collect { event ->
                 when (event) {
-                    is WebViewEvent.CloseScreen -> {
-                        sendResultBroadcast(RESULT_DISMISSED)
+                    is WebViewEvent.CloseScreen,
+                    WebViewEvent.PurchaseCompleted,
+                    is WebViewEvent.RestoreCompleted,
+                    WebViewEvent.InvalidPurchaseIndex,
+                    -> {
                         finishAndRemoveTask()
-                    }
-                    WebViewEvent.PurchaseCompleted -> {
-                        sendResultBroadcast(RESULT_PURCHASE)
-                        finishAndRemoveTask()
-                    }
-                    WebViewEvent.ProductNotFound -> {
-                        sendResultBroadcast(RESULT_DISMISSED)
-                        finishAndRemoveTask()
-                    }
-
-                    is WebViewEvent.RestoreCompleted -> {
-                        if (event.isSuccess) {
-                            sendResultBroadcast(RESULT_RESTORE_SUCCESS)
-                        }
                     }
                     WebViewEvent.ShowPurchaseLoader -> {
                         showPurchaseLoader()
                     }
-                    WebViewEvent.InvalidPurchaseIndex -> {
-                        sendResultBroadcast(RESULT_INVALID_PURCHASE_INDEX)
-                        finishAndRemoveTask()
-                    }
                     is WebViewEvent.StartPurchase -> {
                         startPurchase(event.product)
                     }
-                    WebViewEvent.PurchaseError -> Unit
                 }
             }
         }
@@ -346,7 +412,7 @@ internal class FigmaWebViewActivity : AppCompatActivity() {
     private fun displayPaywallUrl(url: String) {
         try {
             ApphudLog.log("[RuleWebViewActivity] Loading paywall URL: $url")
-            webView.loadUrl(url)
+            webViewWrapper.loadUrl(url)
         } catch (e: Exception) {
             ApphudLog.logE("[RuleWebViewActivity] Error loading paywall URL: ${e.message}")
             viewModel.processWebViewError("Error loading paywall URL: ${e.message}")
@@ -354,17 +420,9 @@ internal class FigmaWebViewActivity : AppCompatActivity() {
     }
 
     internal companion object {
-        const val RESULT_PURCHASE = 100
-        const val RESULT_DISMISSED = 101
-        const val RESULT_PURCHASE_ERROR = 102
-        const val RESULT_RESTORE_SUCCESS = 103
-        const val RESULT_RESTORE_ERROR = 104
-        const val RESULT_INVALID_PURCHASE_INDEX = 105
         private const val EXTRA_PAYWALL_ID = "EXTRA_PAYWALL_ID"
         private const val EXTRA_RENDER_ITEMS = "EXTRA_RENDER_ITEMS"
 
-        const val ACTION_FIGMA_SCREEN_RESULT = "com.apphud.sdk.FIGMA_SCREEN_RESULT"
-        const val EXTRA_RESULT_CODE = "result_code"
 
         internal fun getIntent(
             context: Context,

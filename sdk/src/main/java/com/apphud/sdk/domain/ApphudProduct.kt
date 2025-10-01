@@ -71,16 +71,7 @@ data class ApphudProduct(
      */
     internal var paywallId: String?,
 
-    internal val itemId: String,
-
-    //данные для рендера беру из productDetails.
-
-    //Добавить!!!!
-//    item_id -- добавил
-    //properties - Нужно заполнить из продуктов гугл плея и item_id после отправить на рендер, только тогда они появятся.//отрендеренные или плейсхолдеры?
-
-
-    //Передать обновленный пропертис после рендера в PaywallSDK.shared().processDomMacros(string)
+    internal val itemId: String
 ) {
 
     fun type(): ApphudProductType? {
