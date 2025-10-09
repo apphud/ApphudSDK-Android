@@ -24,9 +24,9 @@ internal class HostSwitcherInterceptor(private val dummyOkHttpClient: OkHttpClie
     }
 
     private fun getFallbackHost(): String {
-        val response = dummyOkHttpClient.newCall(Request.Builder().url(FALLBACK_HOST_URL).build()).execute()
-
-        return response.body?.string() ?: error("Get fallback hosts error: empty body")
+        dummyOkHttpClient.newCall(Request.Builder().url(FALLBACK_HOST_URL).build()).execute().use { response ->
+            return response.body?.string() ?: error("Get fallback hosts error: empty body")
+        }
     }
 
     private companion object {
