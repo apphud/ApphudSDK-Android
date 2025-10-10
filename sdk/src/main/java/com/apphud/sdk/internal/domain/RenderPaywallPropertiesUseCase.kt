@@ -99,7 +99,7 @@ internal class RenderPaywallPropertiesUseCase(
     }
 
     /**
-     * Получает символ валюты по коду валюты
+     * Gets currency symbol by currency code
      */
     private fun getCurrencySymbol(currencyCode: String): String? {
         return try {

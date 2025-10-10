@@ -19,9 +19,9 @@ internal class RenderResultMapper(
         resultsDto
 
     /**
-     * Сериализует рендер элементы в JSON строку
-     * @param renderItems список мап для сериализации
-     * @return JSON строка или null в случае ошибки
+     * Serializes render items to JSON string
+     * @param renderItems list of maps to serialize
+     * @return JSON string or null in case of error
      */
     fun toJson(renderItems: RenderResult?): String? {
         ApphudLog.log("[RenderResultMapper] Starting serialization to JSON")
@@ -42,9 +42,9 @@ internal class RenderResultMapper(
     }
 
     /**
-     * Десериализует JSON строку в рендер элементы
-     * @param json JSON строка для десериализации
-     * @return список мап или null в случае ошибки
+     * Deserializes JSON string to render items
+     * @param json JSON string to deserialize
+     * @return list of maps or null in case of error
      */
     fun fromJson(json: String?): RenderResult? {
         ApphudLog.log("[RenderResultMapper] Starting deserialization from JSON")
