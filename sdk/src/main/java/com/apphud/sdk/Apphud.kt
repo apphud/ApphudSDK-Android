@@ -399,22 +399,7 @@ object Apphud {
         maxTimeout: Long = APPHUD_PAYWALL_SCREEN_LOAD_TIMEOUT,
     ) {
         coroutineScope.launch(errorHandler) {
-            try {
-                withTimeout(maxTimeout) {
-                    ApphudInternal.showPaywallScreen(context, paywall, callbacks)
-                }
-            } catch (e: TimeoutCancellationException) {
-                withContext(Dispatchers.Main) {
-                    callbacks.onTransactionCompleted(ApphudPaywallScreenShowResult.TransactionError(e.toApphudError()))
-                }
-                throw e
-            } catch (e: CancellationException) {
-                throw e
-            } catch (e: Exception) {
-                withContext(Dispatchers.Main) {
-                    callbacks.onTransactionCompleted(ApphudPaywallScreenShowResult.TransactionError(e.toApphudError()))
-                }
-            }
+            ApphudInternal.showPaywallScreen(context, paywall, callbacks, maxTimeout)
         }
     }
 

@@ -11,6 +11,7 @@ import androidx.lifecycle.ProcessLifecycleOwner
 import com.android.billingclient.api.BillingClient
 import com.android.billingclient.api.ProductDetails
 import com.android.billingclient.api.Purchase
+import com.apphud.sdk.ApphudInternal.coroutineScope
 import com.apphud.sdk.body.UserPropertiesBody
 import com.apphud.sdk.domain.ApphudGroup
 import com.apphud.sdk.domain.ApphudPaywall
@@ -35,13 +36,16 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Runnable
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.TimeoutCancellationException
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.withTimeout
 import java.util.UUID
 import java.util.concurrent.CancellationException
 import kotlin.coroutines.resume
@@ -1035,66 +1039,92 @@ internal object ApphudInternal {
         context: Context,
         paywall: ApphudPaywall,
         callbacks: Apphud.ApphudPaywallScreenCallbacks,
+        maxTimeout: Long,
     ) {
         ApphudLog.logI("Starting to show paywall screen for paywall: ${paywall.identifier}")
 
-        val eventJob = coroutineScope.launch {
-            try {
-                ServiceLocator.instance.paywallEventManager.events.collect { event ->
-                    withContext(Dispatchers.Main) {
-                        when (event) {
-                            is PaywallEvent.ScreenShown -> {
-                                ApphudLog.logI("[ApphudInternal] Paywall screen shown via event bus")
-                                callbacks.onScreenShown()
-                            }
-                            is PaywallEvent.TransactionStarted -> {
-                                ApphudLog.logI("[ApphudInternal] Transaction started via event bus: product=${event.product?.productId}")
-                                callbacks.onTransactionStarted(event.product)
-                            }
-                            is PaywallEvent.TransactionCompleted -> {
-                                ApphudLog.logI("[ApphudInternal] Transaction completed via event bus")
-                                callbacks.onTransactionCompleted(event.result)
-                                if (event.result !is ApphudPaywallScreenShowResult.TransactionError) {
-                                    ApphudLog.logI("[ApphudInternal] Transaction completed successfully, terminating event stream")
-                                    throw CancellationException("Transaction completed successfully")
+        coroutineScope {
+            val eventsJob = launch {
+                try {
+                    ServiceLocator.instance.paywallEventManager.events.collect { event ->
+                        withContext(Dispatchers.Main) {
+                            when (event) {
+                                is PaywallEvent.ScreenShown -> {
+                                    ApphudLog.logI("[ApphudInternal] Paywall screen shown via event bus")
+                                    callbacks.onScreenShown()
                                 }
-                            }
-                            is PaywallEvent.CloseButtonTapped -> {
-                                ApphudLog.logI("[ApphudInternal] Close button tapped via event bus")
-                                callbacks.onCloseButtonTapped()
-                                ApphudLog.logI("[ApphudInternal] Paywall closed, terminating event stream")
-                                throw CancellationException("Paywall closed")
-                            }
-                            is PaywallEvent.ScreenError -> {
-                                ApphudLog.logE("[ApphudInternal] Screen error via event bus: ${event.error.message}")
-                                callbacks.onScreenError(event.error)
-                                ApphudLog.logI("[ApphudInternal] Screen error occurred, terminating event stream")
-                                throw CancellationException("Screen error occurred")
+                                is PaywallEvent.TransactionStarted -> {
+                                    ApphudLog.logI("[ApphudInternal] Transaction started via event bus: product=${event.product?.productId}")
+                                    callbacks.onTransactionStarted(event.product)
+                                }
+                                is PaywallEvent.TransactionCompleted -> {
+                                    ApphudLog.logI("[ApphudInternal] Transaction completed via event bus")
+                                    callbacks.onTransactionCompleted(event.result)
+                                    if (event.result !is ApphudPaywallScreenShowResult.TransactionError) {
+                                        ApphudLog.logI("[ApphudInternal] Transaction completed successfully, terminating event stream")
+                                        throw CancellationException("Transaction completed successfully")
+                                    }
+                                }
+                                is PaywallEvent.CloseButtonTapped -> {
+                                    ApphudLog.logI("[ApphudInternal] Close button tapped via event bus")
+                                    callbacks.onCloseButtonTapped()
+                                    ApphudLog.logI("[ApphudInternal] Paywall closed, terminating event stream")
+                                    throw CancellationException("Paywall closed")
+                                }
+                                is PaywallEvent.ScreenError -> {
+                                    ApphudLog.logE("[ApphudInternal] Screen error via event bus: ${event.error.message}")
+                                    callbacks.onScreenError(event.error)
+                                    ApphudLog.logI("[ApphudInternal] Screen error occurred, terminating event stream")
+                                    throw CancellationException("Screen error occurred")
+                                }
                             }
                         }
                     }
+                } catch (e: CancellationException) {
+                    ApphudLog.logI("[ApphudInternal] Event subscription cancelled: ${e.message}")
+                    throw e
+                } catch (e: Exception) {
+                    val error = e.toApphudError()
+                    ApphudLog.logE("[ApphudInternal] Error in event subscription: ${error.message}")
+                    withContext(Dispatchers.Main) {
+                        callbacks.onScreenError(error)
+                    }
                 }
-            } catch (e: CancellationException) {
-                ApphudLog.logI("[ApphudInternal] Event subscription cancelled: ${e.message}")
-                throw e
-            } catch (e: Exception) {
-                ApphudLog.logE("[ApphudInternal] Error in event subscription: ${e.message}")
             }
-        }
 
-        try {
-            val renderResult = ServiceLocator.instance.renderPaywallPropertiesUseCase(paywall).getOrThrow()
+            try {
+                withTimeout(maxTimeout) {
+                    val renderResult = ServiceLocator.instance.renderPaywallPropertiesUseCase(paywall).getOrThrow()
 
-            val renderItemsJson = ServiceLocator.instance.renderResultMapperWithSerializer.toJson(renderResult)
-            ApphudLog.logI("Serialized render items: $renderItemsJson")
+                    val renderItemsJson = ServiceLocator.instance.renderResultMapperWithSerializer.toJson(renderResult)
+                    ApphudLog.logI("Serialized render items: $renderItemsJson")
 
-            val intent = FigmaWebViewActivity.getIntent(context, paywall.id, renderItemsJson)
-            context.startActivity(intent)
+                    val intent = FigmaWebViewActivity.getIntent(context, paywall.id, renderItemsJson)
+                    context.startActivity(intent)
 
-            ApphudLog.logI("Paywall screen shown successfully for paywall: ${paywall.identifier}")
-        } catch (e: Exception) {
-            eventJob.cancel()
-            throw e
+                    ApphudLog.logI("Paywall screen shown successfully for paywall: ${paywall.identifier}")
+                }
+
+                eventsJob.join()
+            } catch (e: TimeoutCancellationException) {
+                eventsJob.cancel()
+                val error = e.toApphudError()
+                ApphudLog.logE("[ApphudInternal] Timeout showing paywall screen: ${error.message}")
+                withContext(Dispatchers.Main) {
+                    callbacks.onScreenError(error)
+                }
+                throw e
+            } catch (e: CancellationException) {
+                eventsJob.cancel()
+                throw e
+            } catch (e: Throwable) {
+                eventsJob.cancel()
+                val error = e.toApphudError()
+                ApphudLog.logE("[ApphudInternal] Error showing paywall screen: ${error.message}")
+                withContext(Dispatchers.Main) {
+                    callbacks.onScreenError(error)
+                }
+            }
         }
     }
 
