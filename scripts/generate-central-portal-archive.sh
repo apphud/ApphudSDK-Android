@@ -80,9 +80,12 @@ check_prerequisites() {
 build_artifacts() {
     log_info "Building artifacts..."
     
-    # Clean and build
+    # Clean and build with Maven Central configuration
+    # This uses the conditional publishing setup in sdk/build.gradle
+    # - Without -PmavenCentral: Uses JitPack config (simple)
+    # - With -PmavenCentral: Uses full Maven Central config (complete)
     ./gradlew clean
-    ./gradlew sdk:publishToMavenLocal
+    ./gradlew -PmavenCentral sdk:publishToMavenLocal
     
     log_success "Artifacts built and published to local Maven repository"
 }
