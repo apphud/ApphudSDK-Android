@@ -204,4 +204,12 @@
         android:text="Show Paywall Screen"
         style="@style/button_main" />
 
+    <Button
+        android:id="@+id/btnPreloadPaywallScreen"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="4dp"
+        android:text="Preload Paywall Screen"
+        style="@style/button_main" />
+
 </LinearLayout>

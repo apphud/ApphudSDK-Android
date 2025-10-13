@@ -33,7 +33,13 @@ internal class ApphudApplication : Application() {
     override fun onCreate() {
         super.onCreate()
         ApphudUtils.enableAllLogs()
-        Apphud.start(this, API_KEY, observerMode = false)
+        Apphud.start(
+            this,
+            API_KEY,
+            "b1b90dd8-9875-4810-9dca-e4f875f84e37",
+            "b1b90dd8-9875-4810-9dca-e4f875f84e37",
+            observerMode = false
+        )
         Apphud.collectDeviceIdentifiers()
         fetchPlacements()
     }

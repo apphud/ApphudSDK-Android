@@ -7,6 +7,7 @@ import com.android.billingclient.api.Purchase
 import com.apphud.sdk.ApphudInternal.coroutineScope
 import com.apphud.sdk.ApphudInternal.errorHandler
 import com.apphud.sdk.domain.ApphudGroup
+import com.apphud.sdk.internal.util.wrapToMainThread
 import com.apphud.sdk.domain.ApphudNonRenewingPurchase
 import com.apphud.sdk.domain.ApphudPaywall
 import com.apphud.sdk.domain.ApphudPaywallScreenShowResult
@@ -124,9 +125,7 @@ object Apphud {
     fun updateUserId(userId: UserId, callback: ((ApphudUser?) -> Unit)? = null) {
         coroutineScope.launch(errorHandler) {
             val result = ApphudInternal.updateUserId(userId)
-            withContext(Dispatchers.Main) {
-                callback?.invoke(result)
-            }
+            callback.wrapToMainThread(coroutineScope)?.invoke(result)
         }
     }
 
@@ -404,6 +403,32 @@ object Apphud {
     }
 
     /**
+     * Prewarms (preloads) the paywall screen by loading HTML and resources in the background.
+     * This significantly improves the paywall display speed when `showPaywallScreen` is called later.
+     *
+     * Prewarming loads:
+     * - HTML content
+     * - CSS, JavaScript, images, and fonts
+     * - All resources are cached via OkHttp for instant display
+     *
+     * Best practice: Call this method when the user is likely to see the paywall soon,
+     * for example, when they open the pricing screen or reach a paywall trigger point.
+     *
+     * @param context The application context.
+     * @param paywall The paywall to prewarm.
+     * @param callback (Optional) Returns true if prewarming was successful.
+     */
+    fun prewarmPaywallScreen(
+        context: Context,
+        paywall: ApphudPaywall,
+        callback: ((Boolean) -> Unit)? = null
+    ) {
+        coroutineScope.launch(errorHandler) {
+            ApphudInternal.prewarmPaywallScreen(context, paywall, callback)
+        }
+    }
+
+    /**
      * Asynchronously fetches permission groups configured in the Apphud > Product Hub.
      * Groups are cached on the device.
      *
@@ -548,14 +573,6 @@ object Apphud {
         consumableInAppProduct: Boolean = false,
         block: ((ApphudPurchaseResult) -> Unit)?,
     ) {
-        val wrappedCallback: ((ApphudPurchaseResult) -> Unit)? = block?.let { callback ->
-            { result ->
-                coroutineScope.launch(Dispatchers.Main) {
-                    callback(result)
-                }
-            }
-        }
-
         ApphudInternal.purchase(
             activity = activity,
             apphudProduct = apphudProduct,
@@ -564,7 +581,7 @@ object Apphud {
             oldToken = oldToken,
             replacementMode = replacementMode,
             consumableInappProduct = consumableInAppProduct,
-            callback = wrappedCallback,
+            callback = block.wrapToMainThread(coroutineScope),
         )
     }
 
@@ -590,14 +607,6 @@ object Apphud {
         consumableInAppProduct: Boolean = false,
         block: ((ApphudPurchaseResult) -> Unit)?,
     ) {
-        val wrappedCallback: ((ApphudPurchaseResult) -> Unit)? = block?.let { callback ->
-            { result ->
-                coroutineScope.launch(Dispatchers.Main) {
-                    callback(result)
-                }
-            }
-        }
-
         ApphudInternal.purchase(
             activity = activity,
             apphudProduct = null,
@@ -607,7 +616,7 @@ object Apphud {
             replacementMode = replacementMode,
             fromScreen = false,
             consumableInappProduct = consumableInAppProduct,
-            callback = wrappedCallback,
+            callback = block.wrapToMainThread(coroutineScope),
         )
     }
 
@@ -654,9 +663,7 @@ object Apphud {
     fun restorePurchases(callback: (ApphudPurchasesRestoreResult) -> Unit) {
         coroutineScope.launch(errorHandler) {
             val result = ApphudInternal.restorePurchases()
-            withContext(Dispatchers.Main) {
-                callback(result)
-            }
+            callback.wrapToMainThread(coroutineScope)?.invoke(result)
         }
     }
 
@@ -746,10 +753,7 @@ object Apphud {
     fun attributeFromWeb(data: Map<String, Any>, callback: (Boolean, ApphudUser?) -> Unit) {
         coroutineScope.launch(errorHandler) {
             val (success, user) = ApphudInternal.tryWebAttribution(data = data)
-
-            withContext(Dispatchers.Main) {
-                callback(success, user)
-            }
+            callback.wrapToMainThread(coroutineScope)?.invoke(success, user)
         }
     }
 
@@ -806,9 +810,7 @@ object Apphud {
     fun forceFlushUserProperties(completion: ((Boolean) -> Unit)?) {
         coroutineScope.launch(errorHandler) {
             val result = ApphudInternal.forceFlushUserProperties(true)
-            withContext(Dispatchers.Main) {
-                completion?.invoke(result)
-            }
+            completion.wrapToMainThread(coroutineScope)?.invoke(result)
         }
     }
 

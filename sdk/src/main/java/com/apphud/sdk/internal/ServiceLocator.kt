@@ -33,6 +33,7 @@ import com.apphud.sdk.internal.presentation.rule.RuleController
 import com.apphud.sdk.internal.provider.RegistrationProvider
 import com.apphud.sdk.mappers.AttributionMapper
 import com.apphud.sdk.storage.SharedPreferencesStorage
+import com.apphud.sdk.internal.preloader.di.PreloaderModule
 import com.google.gson.Gson
 import okhttp3.OkHttpClient
 import okhttp3.logging.HttpLoggingInterceptor
@@ -165,6 +166,8 @@ internal class ServiceLocator(
         )
 
     val paywallEventManager: PaywallEventManager = PaywallEventManager()
+
+    val preloaderModule: PreloaderModule = PreloaderModule(applicationContext)
 
     internal class ServiceLocatorInstanceFactory {
 

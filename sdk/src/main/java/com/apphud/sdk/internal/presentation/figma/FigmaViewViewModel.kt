@@ -250,7 +250,7 @@ internal class FigmaViewViewModel(
         }
     }
 
-    fun getCurrentRenderItemsJson(): String? {
+    fun getRenderItemsJson(): String? {
         val currentState = _state.value
         return when (currentState) {
             is WebViewState.Content -> currentState.renderItemsJson

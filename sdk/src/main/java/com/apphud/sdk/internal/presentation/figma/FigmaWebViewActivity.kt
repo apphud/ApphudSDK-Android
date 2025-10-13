@@ -30,6 +30,7 @@ import com.apphud.sdk.ApphudInternal
 import com.apphud.sdk.ApphudLog
 import com.apphud.sdk.R
 import com.apphud.sdk.domain.ApphudProduct
+import com.apphud.sdk.internal.ServiceLocator
 import com.apphud.sdk.purchase
 import kotlinx.coroutines.launch
 
@@ -89,6 +90,10 @@ internal class FigmaWebViewActivity : AppCompatActivity() {
     private lateinit var webViewWrapper: WebViewWrapper
     private lateinit var purchaseLoaderOverlay: FrameLayout
 
+    private val webViewPreloadHelper by lazy {
+        ServiceLocator.instance.preloaderModule.webViewPreloadHelper
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         ApphudLog.log("[FigmaWebViewActivity] onCreate, savedInstanceState: ${if (savedInstanceState != null) "exists" else "null"}")
@@ -100,12 +105,11 @@ internal class FigmaWebViewActivity : AppCompatActivity() {
         purchaseLoaderOverlay = findViewById(R.id.purchaseLoaderOverlay)
         webViewWrapper = WebViewWrapper(webView)
 
-        setupWebView()
-
         viewModel = ViewModelProvider(this, FigmaViewViewModel.factory)[FigmaViewViewModel::class.java]
 
+        // Setup observers and WebView
         setupObservers()
-
+        setupWebView()
         processIntent(intent)
 
         onBackPressedDispatcher.addCallback(
@@ -158,33 +162,18 @@ internal class FigmaWebViewActivity : AppCompatActivity() {
     private fun processIntent(intent: Intent) {
         val ruleId = intent.getStringExtra(EXTRA_PAYWALL_ID)
         val renderItemsJson = intent.getStringExtra(EXTRA_RENDER_ITEMS)
-        ApphudLog.log("[RuleWebViewActivity] Processing intent: ruleId: $ruleId")
+        ApphudLog.log("[FigmaWebViewActivity] Processing intent: ruleId: $ruleId")
         viewModel.init(ruleId, renderItemsJson)
     }
 
     @SuppressLint("SetJavaScriptEnabled")
     private fun setupWebView() {
-        webView.settings.apply {
-            javaScriptEnabled = true
-            domStorageEnabled = true
-            loadsImagesAutomatically = true
-            useWideViewPort = true
-            loadWithOverviewMode = true
+        ApphudLog.log("[FigmaWebViewActivity] Setting up WebView")
 
-            mixedContentMode = WebSettings.MIXED_CONTENT_ALWAYS_ALLOW
+        // Configure WebView settings
+        setupWebViewSettings()
 
-            allowFileAccess = true
-
-            setGeolocationEnabled(true)
-
-            setSupportZoom(false)
-            builtInZoomControls = false
-            displayZoomControls = false
-            layoutAlgorithm = WebSettings.LayoutAlgorithm.NORMAL
-        }
-
-        webView.setInitialScale(100)
-
+        // Set up Chrome client for console logging
         webView.webChromeClient = object : WebChromeClient() {
             override fun onConsoleMessage(consoleMessage: ConsoleMessage?): Boolean {
                 consoleMessage?.let {
@@ -193,71 +182,6 @@ internal class FigmaWebViewActivity : AppCompatActivity() {
                 }
                 return true
             }
-
-        }
-
-        webView.webViewClient = object : WebViewClient() {
-            override fun shouldOverrideUrlLoading(view: WebView?, request: WebResourceRequest?): Boolean {
-                val url = request?.url
-                ApphudLog.log("[WebViewClient] shouldOverrideUrlLoading: $url")
-                if (url != null) {
-                    return handleSpecialUrl(url)
-                }
-                return false
-            }
-
-            override fun onPageStarted(view: WebView?, url: String?, favicon: android.graphics.Bitmap?) {
-                super.onPageStarted(view, url, favicon)
-                ApphudLog.log("[WebViewClient] onPageStarted: $url")
-                webViewWrapper.onPageStarted(url)
-            }
-
-
-            override fun onReceivedError(
-                view: WebView?,
-                request: WebResourceRequest?,
-                error: WebResourceError?,
-            ) {
-                super.onReceivedError(view, request, error)
-                val errorMessage = "WebView error: ${error?.description}, URL: ${request?.url}"
-                ApphudLog.logE("[WebViewClient] $errorMessage")
-                webViewWrapper.onLoadError()
-                viewModel.processWebViewError(errorMessage)
-            }
-
-            override fun onPageFinished(view: WebView?, url: String?) {
-                super.onPageFinished(view, url)
-                ApphudLog.log("[WebViewClient] onPageFinished: $url")
-                webViewWrapper.onPageFinished(url)
-
-                val renderItemsJson = viewModel.getCurrentRenderItemsJson()
-                renderItemsJson?.let { renderJson ->
-                    try {
-                        val jsCode = "PaywallSDK.shared().processDomMacros($renderJson)"
-                        ApphudLog.log("[WebViewClient] Executing JS with escaped JSON")
-                        view?.evaluateJavascript(jsCode) { result ->
-                            ApphudLog.log("[WebViewClient] JS execution result: $result")
-                        }
-                    } catch (e: Exception) {
-                        ApphudLog.logE("[WebViewClient] Error executing JS: ${e.message}")
-                    }
-                }
-            }
-
-            override fun onReceivedHttpError(
-                view: WebView?,
-                request: WebResourceRequest?,
-                errorResponse: WebResourceResponse?,
-            ) {
-                super.onReceivedHttpError(view, request, errorResponse)
-                val errorMessage =
-                    "HTTP Error: ${errorResponse?.statusCode} - ${errorResponse?.reasonPhrase} for URL: ${request?.url}"
-                ApphudLog.logE("[WebViewClient] $errorMessage")
-                if (errorResponse?.statusCode != 200) {
-                    viewModel.processWebViewError(errorMessage)
-                }
-            }
-
         }
     }
 
@@ -410,12 +334,55 @@ internal class FigmaWebViewActivity : AppCompatActivity() {
     }
 
     @SuppressLint("SetJavaScriptEnabled")
+    private fun setupWebViewSettings() {
+        webView.settings.apply {
+            javaScriptEnabled = true
+            domStorageEnabled = true
+            loadsImagesAutomatically = true
+            useWideViewPort = true
+            loadWithOverviewMode = true
+
+            mixedContentMode = WebSettings.MIXED_CONTENT_ALWAYS_ALLOW
+
+            allowFileAccess = true
+
+            setGeolocationEnabled(true)
+
+            setSupportZoom(false)
+            builtInZoomControls = false
+            displayZoomControls = false
+            layoutAlgorithm = WebSettings.LayoutAlgorithm.NORMAL
+        }
+
+        webView.setInitialScale(100)
+    }
+
+    @SuppressLint("SetJavaScriptEnabled")
     private fun displayPaywallUrl(url: String) {
         try {
-            ApphudLog.log("[RuleWebViewActivity] Loading paywall URL: $url")
-            webViewWrapper.loadUrl(url)
+            ApphudLog.log("[FigmaWebViewActivity] Loading paywall URL: $url")
+
+            // Set up WebView with OkHttp client and load URL
+            webViewPreloadHelper.setupWebView(
+                webView = webView,
+                url = url,
+                renderItemsJson = viewModel.getRenderItemsJson(),
+                onPageStarted = { pageUrl ->
+                    ApphudLog.log("[FigmaWebViewActivity] Page started: $pageUrl")
+                    webViewWrapper.onPageStarted(pageUrl)
+                },
+                onPageFinished = { pageUrl ->
+                    ApphudLog.log("[FigmaWebViewActivity] Page finished: $pageUrl")
+                    webViewWrapper.onPageFinished(pageUrl)
+                },
+                onReceivedError = { _, description, _ ->
+                    ApphudLog.logE("[FigmaWebViewActivity] Error loading page: $description")
+                    webViewWrapper.onLoadError()
+                    viewModel.processWebViewError("Error: $description")
+                }
+            )
         } catch (e: Exception) {
-            ApphudLog.logE("[RuleWebViewActivity] Error loading paywall URL: ${e.message}")
+            ApphudLog.logE("[FigmaWebViewActivity] Error loading paywall URL: ${e.message}")
             viewModel.processWebViewError("Error loading paywall URL: ${e.message}")
         }
     }
