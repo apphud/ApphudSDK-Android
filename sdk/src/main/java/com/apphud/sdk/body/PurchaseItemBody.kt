@@ -34,5 +34,7 @@ internal data class PurchaseItemBody(
     val productType: String?,
     val timestamp: Long?,
     @SerializedName("extra_message")
-    val extraMessage: String?
+    val extraMessage: String?,
+    @SerializedName("screen_id")
+    val screenId: String? = null
 )

@@ -30,6 +30,7 @@ internal class PurchaseBodyFactory {
                         subscriptionPeriod = productDetails?.subscriptionPeriod(),
                         paywallId = paywallId,
                         placementId = placementId,
+                        screenId = screenId,
                         productBundleId = productBundleId,
                         observerMode = false,
                         billingVersion = BILLING_VERSION,
@@ -40,8 +41,7 @@ internal class PurchaseBodyFactory {
                         extraMessage = extraMessage
                     )
                 },
-            ),
-            fromScreen = purchaseContext.fromScreen
+            )
         )
 
     fun create(
@@ -65,6 +65,7 @@ internal class PurchaseBodyFactory {
                         null
                     },
                     subscriptionPeriod = purchase.details.subscriptionPeriod(),
+                    screenId = null,
                     paywallId = if (apphudProduct?.productDetails?.productId == purchase.details.productId) {
                         apphudProduct.paywallId
                     } else {
@@ -89,7 +90,6 @@ internal class PurchaseBodyFactory {
                     extraMessage = null
                 )
             }.sortedByDescending { it.purchaseTime },
-            fromScreen = false
         )
 
     private companion object {

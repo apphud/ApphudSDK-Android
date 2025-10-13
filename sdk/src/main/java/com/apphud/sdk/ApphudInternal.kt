@@ -1132,13 +1132,14 @@ internal object ApphudInternal {
         paywallId: String?,
         placementId: String?,
         productId: String?,
+        screenId: String?
     ) {
         performWhenUserRegistered { error ->
             error?.let {
                 ApphudLog.logI(error.message)
             } ?: run {
                 coroutineScope.launch(errorHandler) {
-                    RequestManager.paywallCheckoutInitiated(paywallId, placementId, productId)
+                    RequestManager.paywallCheckoutInitiated(paywallId, placementId, productId, screenId)
                 }
             }
         }

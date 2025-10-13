@@ -270,6 +270,7 @@ internal object RequestManager {
         paywallId: String?,
         placementId: String?,
         productId: String?,
+        screenId: String?
     ) {
         trackPaywallEvent(
             makePaywallEventBody(
@@ -277,6 +278,7 @@ internal object RequestManager {
                 paywallId = paywallId,
                 placementId = placementId,
                 productId = productId,
+                screenId = screenId
             ),
         )
     }
@@ -339,6 +341,7 @@ internal object RequestManager {
         paywallId: String?,
         placementId: String?,
         productId: String? = null,
+        screenId: String? = null,
         errorMessage: String? = null,
     ): PaywallEventDto {
         val properties = mutableMapOf<String, Any>()
@@ -346,6 +349,7 @@ internal object RequestManager {
         productId?.let { properties.put("product_id", it) }
         placementId?.let { properties.put("placement_id", it) }
         errorMessage?.let { properties.put("error_message", it) }
+        screenId?.let { properties.put("screen_id", it) }
 
         return PaywallEventDto(
             name = name,

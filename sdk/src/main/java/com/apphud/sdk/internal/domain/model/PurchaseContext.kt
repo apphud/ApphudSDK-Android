@@ -12,5 +12,5 @@ data class PurchaseContext(
     val offerToken: String?,
     val oldToken: String?,
     val extraMessage: String?,
-    val fromScreen: Boolean?
+    val screenId: String?
 )

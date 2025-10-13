@@ -153,7 +153,9 @@ private fun ApphudInternal.purchaseInternal(
             ApphudLog.logE("OfferToken not set. You are required to pass offer token in Apphud.purchase method when purchasing subscription. Passing first offerToken as a fallback.")
         }
 
-        paywallCheckoutInitiated(apphudProduct.paywallId, apphudProduct.placementId, apphudProduct.productId)
+        val currentPaywallScreenId = if (fromScreen) { getPaywalls().firstOrNull { it.id == apphudProduct.paywallId }?.screen?.id } else null
+
+        paywallCheckoutInitiated(apphudProduct.paywallId, apphudProduct.placementId, apphudProduct.productId, currentPaywallScreenId)
         purchasingProduct = apphudProduct
         purchaseStartedAt = System.currentTimeMillis()
         callback?.let { rememberCallback(callback) }
@@ -316,7 +318,7 @@ internal fun ApphudInternal.lookupFreshPurchase(extraMessage: String = "resend_f
                         null,
                         null,
                         extraMessage,
-                        fromScreen = false,
+                        screenId = null,
                     )
                 )
             }
@@ -435,6 +437,8 @@ private suspend fun ApphudInternal.sendCheckToApphud(
     fromScreen: Boolean,
     callback: ((ApphudPurchaseResult) -> Unit)?,
 ) {
+    val currentPaywallScreenId = if (fromScreen) { getPaywalls().firstOrNull { it.id == paywallId }?.screen?.id } else null
+
     val localCurrentUser = currentUser
     when {
         localCurrentUser == null -> storage.isNeedSync = true
@@ -450,7 +454,7 @@ private suspend fun ApphudInternal.sendCheckToApphud(
                         offerIdToken,
                         oldToken,
                         "fallback_mode",
-                        fromScreen
+                        screenId = currentPaywallScreenId
                     )
                 )
             }
@@ -484,7 +488,7 @@ private suspend fun ApphudInternal.sendCheckToApphud(
                         offerIdToken,
                         oldToken,
                         null,
-                        fromScreen,
+                        currentPaywallScreenId,
                     )
                 )
             }
