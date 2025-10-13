@@ -24,6 +24,7 @@ internal fun ApphudInternal.purchase(
     offerIdToken: String?,
     oldToken: String?,
     replacementMode: Int?,
+    fromScreen: Boolean = false,
     consumableInappProduct: Boolean,
     callback: ((ApphudPurchaseResult) -> Unit)?,
 ) {
@@ -57,6 +58,7 @@ internal fun ApphudInternal.purchase(
                 oldToken,
                 replacementMode,
                 consumableInappProduct,
+                fromScreen = fromScreen,
                 callback
             )
         } ?: run {
@@ -67,6 +69,7 @@ internal fun ApphudInternal.purchase(
                     offerIdToken,
                     oldToken,
                     replacementMode,
+                    fromScreen = fromScreen,
                     consumableInappProduct,
                     callback
                 )
@@ -84,6 +87,7 @@ private suspend fun ApphudInternal.fetchDetailsAndPurchase(
     offerIdToken: String?,
     oldToken: String?,
     prorationMode: Int?,
+    fromScreen: Boolean = false,
     consumableInappProduct: Boolean,
     callback: ((ApphudPurchaseResult) -> Unit)?,
 ) {
@@ -99,6 +103,7 @@ private suspend fun ApphudInternal.fetchDetailsAndPurchase(
                 oldToken,
                 prorationMode,
                 consumableInappProduct,
+                fromScreen = fromScreen,
                 callback
             )
         }
@@ -127,6 +132,7 @@ private fun ApphudInternal.purchaseInternal(
     oldToken: String?,
     replacementMode: Int?,
     consumableInappProduct: Boolean,
+    fromScreen: Boolean = false,
     callback: ((ApphudPurchaseResult) -> Unit)?,
 ) {
     billing.purchasesCallback?.let {
@@ -221,6 +227,7 @@ private fun ApphudInternal.purchaseInternal(
                                             apphudProduct.placementId,
                                             token,
                                             oldToken,
+                                            fromScreen,
                                             callback
                                         )
 
@@ -308,7 +315,8 @@ internal fun ApphudInternal.lookupFreshPurchase(extraMessage: String = "resend_f
                         purchasingProduct?.placementId,
                         null,
                         null,
-                        extraMessage
+                        extraMessage,
+                        fromScreen = false,
                     )
                 )
             }
@@ -395,7 +403,7 @@ internal fun ApphudInternal.handleObservedPurchase(
             purchasingProduct,
             purchasingProduct?.productDetails ?: productDetails,
             paywallIdentifier ?: purchasingProduct?.paywallId,
-            placementIdentifier ?: purchasingProduct?.placementId, offerIdToken, null, callback = null
+            placementIdentifier ?: purchasingProduct?.placementId, offerIdToken, null, false,callback = null
         )
     }
 }
@@ -424,6 +432,7 @@ private suspend fun ApphudInternal.sendCheckToApphud(
     placementId: String?,
     offerIdToken: String?,
     oldToken: String?,
+    fromScreen: Boolean,
     callback: ((ApphudPurchaseResult) -> Unit)?,
 ) {
     val localCurrentUser = currentUser
@@ -440,7 +449,8 @@ private suspend fun ApphudInternal.sendCheckToApphud(
                         placementId,
                         offerIdToken,
                         oldToken,
-                        "fallback_mode"
+                        "fallback_mode",
+                        fromScreen
                     )
                 )
             }
@@ -473,7 +483,8 @@ private suspend fun ApphudInternal.sendCheckToApphud(
                         placementId,
                         offerIdToken,
                         oldToken,
-                        null
+                        null,
+                        fromScreen,
                     )
                 )
             }

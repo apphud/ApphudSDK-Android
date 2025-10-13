@@ -586,6 +586,7 @@ object Apphud {
         offerIdToken = offerIdToken,
         oldToken = oldToken,
         replacementMode = replacementMode,
+        fromScreen = false,
         consumableInappProduct = consumableInAppProduct,
         callback = block,
     )

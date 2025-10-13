@@ -54,6 +54,7 @@ object ApphudFlutter {
         offerIdToken,
         oldToken,
         replacementMode,
+        fromScreen = false,
         consumableInappProduct,
         block
     )

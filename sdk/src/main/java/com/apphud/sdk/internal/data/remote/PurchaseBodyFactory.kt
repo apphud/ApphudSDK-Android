@@ -41,6 +41,7 @@ internal class PurchaseBodyFactory {
                     )
                 },
             ),
+            fromScreen = purchaseContext.fromScreen
         )
 
     fun create(
@@ -88,6 +89,7 @@ internal class PurchaseBodyFactory {
                     extraMessage = null
                 )
             }.sortedByDescending { it.purchaseTime },
+            fromScreen = false
         )
 
     private companion object {

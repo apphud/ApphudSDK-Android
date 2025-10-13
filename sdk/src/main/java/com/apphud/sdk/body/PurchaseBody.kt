@@ -7,5 +7,7 @@ internal data class PurchaseBody(
     val deviceId: String,
     val purchases: List<Any>,
     @SerializedName("package_name")
-    val packageName: String? = null
+    val packageName: String? = null,
+    @SerializedName("from_screen")
+    val fromScreen: Boolean? = false
 )

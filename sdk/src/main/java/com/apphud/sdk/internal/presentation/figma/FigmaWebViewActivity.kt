@@ -324,6 +324,7 @@ internal class FigmaWebViewActivity : AppCompatActivity() {
             oldToken = null,
             replacementMode = null,
             consumableInappProduct = false,
+            fromScreen = true,
             callback = { result ->
                 viewModel.onPurchaseResult(result)
             }
