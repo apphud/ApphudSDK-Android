@@ -6,16 +6,16 @@ import com.google.gson.Gson
 import com.google.gson.reflect.TypeToken
 
 /**
- * Сериализатор для рендер элементов
+ * Serializer for render items
  */
 internal class RenderItemsSerializer(
     private val gson: Gson
 ) {
 
     /**
-     * Сериализует рендер элементы в JSON строку
-     * @param renderItems список мап для сериализации
-     * @return JSON строка или null в случае ошибки
+     * Serializes render items to JSON string
+     * @param renderItems list of maps to serialize
+     * @return JSON string or null in case of error
      */
     fun serialize(renderItems: RenderResult?): String? {
         return try {
@@ -34,9 +34,9 @@ internal class RenderItemsSerializer(
     }
 
     /**
-     * Десериализует JSON строку в рендер элементы
-     * @param json JSON строка для десериализации
-     * @return список мап или null в случае ошибки
+     * Deserializes JSON string to render items
+     * @param json JSON string to deserialize
+     * @return list of maps or null in case of error
      */
     fun deserialize(json: String?): RenderResult? {
         return try {
@@ -56,9 +56,9 @@ internal class RenderItemsSerializer(
     }
 
     /**
-     * Проверяет, является ли JSON строка валидной для десериализации
-     * @param json JSON строка для проверки
-     * @return true если JSON валидный, false иначе
+     * Checks if JSON string is valid for deserialization
+     * @param json JSON string to validate
+     * @return true if JSON is valid, false otherwise
      */
     fun isValidJson(json: String?): Boolean {
         return try {

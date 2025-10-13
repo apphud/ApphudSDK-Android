@@ -5,14 +5,14 @@ import com.apphud.sdk.ApphudLog
 import com.apphud.sdk.domain.ApphudPaywall
 
 /**
- * Repository для работы с пейволами
+ * Repository for working with paywalls
  */
 internal class PaywallRepository {
 
     /**
-     * Получает пейвол по ID из Apphud
-     * @param paywallId ID пейвола для поиска
-     * @return Result содержащий пейвол или ошибку, если не найден
+     * Gets paywall by ID from Apphud
+     * @param paywallId paywall ID to search for
+     * @return Result containing paywall or error if not found
      */
     fun getPaywallById(paywallId: String): Result<ApphudPaywall> =
         runCatching {

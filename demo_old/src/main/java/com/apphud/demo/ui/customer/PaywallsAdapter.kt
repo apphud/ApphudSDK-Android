@@ -78,6 +78,12 @@ class PaywallsAdapter(private val paywallsViewModel: PaywallsViewModel, private 
                     showPaywallScreen(paywall)
                 }
             }
+
+            btnShowPaywallScreen.visibility = if (paywall?.screen != null) {
+                View.VISIBLE
+            } else {
+                View.GONE
+            }
         }
     }
 
@@ -138,16 +144,26 @@ class PaywallsAdapter(private val paywallsViewModel: PaywallsViewModel, private 
                         onTransactionCompleted = { result ->
                             when (result) {
                                 is ApphudPaywallScreenShowResult.SubscriptionResult -> {
-                                    Log.d("PaywallsAdapter", "Subscription purchased: ${result.subscription?.productId}")
+                                    Log.d(
+                                        "PaywallsAdapter",
+                                        "Subscription purchased: ${result.subscription?.productId}"
+                                    )
                                     Toast.makeText(ctx, "Subscription purchased!", Toast.LENGTH_SHORT).show()
                                 }
                                 is ApphudPaywallScreenShowResult.NonRenewingResult -> {
-                                    Log.d("PaywallsAdapter", "In-App purchased: ${result.nonRenewingPurchase?.productId}")
+                                    Log.d(
+                                        "PaywallsAdapter",
+                                        "In-App purchased: ${result.nonRenewingPurchase?.productId}"
+                                    )
                                     Toast.makeText(ctx, "In-App purchased!", Toast.LENGTH_SHORT).show()
                                 }
                                 is ApphudPaywallScreenShowResult.TransactionError -> {
                                     Log.e("PaywallsAdapter", "Transaction error: ${result.error.message}")
-                                    Toast.makeText(ctx, "Transaction error: ${result.error.message}", Toast.LENGTH_SHORT).show()
+                                    Toast.makeText(
+                                        ctx,
+                                        "Transaction error: ${result.error.message}",
+                                        Toast.LENGTH_SHORT
+                                    ).show()
                                 }
                             }
                         },
@@ -159,8 +175,7 @@ class PaywallsAdapter(private val paywallsViewModel: PaywallsViewModel, private 
                             Log.e("PaywallsAdapter", "Screen error: ${error.message}")
                             Toast.makeText(ctx, "Screen error: ${error.message}", Toast.LENGTH_SHORT).show()
                         }
-                    ),
-                    maxTimeout = 120_000L
+                    )
                 )
             } catch (e: Exception) {
                 Log.e("PaywallsAdapter", "Exception", e)
