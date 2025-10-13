@@ -30,6 +30,7 @@ import com.apphud.sdk.ApphudInternal
 import com.apphud.sdk.ApphudLog
 import com.apphud.sdk.R
 import com.apphud.sdk.domain.ApphudProduct
+import com.apphud.sdk.internal.ServiceLocator
 import com.apphud.sdk.purchase
 import kotlinx.coroutines.launch
 
@@ -100,13 +101,46 @@ internal class FigmaWebViewActivity : AppCompatActivity() {
         purchaseLoaderOverlay = findViewById(R.id.purchaseLoaderOverlay)
         webViewWrapper = WebViewWrapper(webView)
 
-        setupWebView()
-
         viewModel = ViewModelProvider(this, FigmaViewViewModel.factory)[FigmaViewViewModel::class.java]
 
+        val paywallId = intent.getStringExtra(EXTRA_PAYWALL_ID)
+        val renderItemsJson = intent.getStringExtra(EXTRA_RENDER_ITEMS)
+
+        // Start observing preloaded data and set up observers
         setupObservers()
 
-        processIntent(intent)
+        // Check for preloaded data via ViewModel Flow
+        if (paywallId != null) {
+            viewModel.observePreloadedData(paywallId)
+
+            // Observe first emission to decide setup strategy
+            var isFirstEmission = true
+            lifecycleScope.launch {
+                repeatOnLifecycle(Lifecycle.State.CREATED) {
+                    viewModel.preloadedData.collect { preloadedData ->
+                        if (isFirstEmission) {
+                            isFirstEmission = false
+
+                            if (preloadedData != null) {
+                                ApphudLog.log("[FigmaWebViewActivity] Using preloaded data for paywall: $paywallId")
+                                setupWithPreloadedData(preloadedData)
+                                viewModel.init(paywallId, renderItemsJson)
+                            } else {
+                                ApphudLog.log("[FigmaWebViewActivity] No preloaded data, loading normally for paywall: $paywallId")
+                                setupWebView()
+                                processIntent(intent)
+                            }
+                        } else {
+                            // Subsequent emissions (e.g., from prewarm) - just log
+                            ApphudLog.log("[FigmaWebViewActivity] Preloaded data updated: ${preloadedData?.getCacheInfo() ?: "null"}")
+                        }
+                    }
+                }
+            }
+        } else {
+            setupWebView()
+            processIntent(intent)
+        }
 
         onBackPressedDispatcher.addCallback(
             this,
@@ -162,28 +196,34 @@ internal class FigmaWebViewActivity : AppCompatActivity() {
         viewModel.init(ruleId, renderItemsJson)
     }
 
+    private fun setupWithPreloadedData(preloadedData: com.apphud.sdk.internal.preloader.domain.model.PreloadedPaywallData) {
+        ApphudLog.log("[FigmaWebViewActivity] Setting up WebView with preloaded data")
+
+        // Configure WebView settings
+        setupWebViewSettings()
+
+        // Use the preloader helper to set up WebView with cached resources
+        ServiceLocator.instance.preloaderModule.webViewPreloadHelper.setupWebViewWithPreloadedData(
+            webView = webView,
+            preloadedData = preloadedData,
+            onPageStarted = { url ->
+                ApphudLog.log("[FigmaWebViewActivity] Page started (preloaded): $url")
+                webViewWrapper.onPageStarted(url)
+            },
+            onPageFinished = { url ->
+                ApphudLog.log("[FigmaWebViewActivity] Page finished (preloaded): $url")
+                webViewWrapper.onPageFinished(url)
+            },
+            onReceivedError = { errorCode, description, failingUrl ->
+                ApphudLog.logE("[FigmaWebViewActivity] Error loading preloaded content: $description")
+                viewModel.processWebViewError("Error: $description")
+            }
+        )
+    }
+
     @SuppressLint("SetJavaScriptEnabled")
     private fun setupWebView() {
-        webView.settings.apply {
-            javaScriptEnabled = true
-            domStorageEnabled = true
-            loadsImagesAutomatically = true
-            useWideViewPort = true
-            loadWithOverviewMode = true
-
-            mixedContentMode = WebSettings.MIXED_CONTENT_ALWAYS_ALLOW
-
-            allowFileAccess = true
-
-            setGeolocationEnabled(true)
-
-            setSupportZoom(false)
-            builtInZoomControls = false
-            displayZoomControls = false
-            layoutAlgorithm = WebSettings.LayoutAlgorithm.NORMAL
-        }
-
-        webView.setInitialScale(100)
+        setupWebViewSettings()
 
         webView.webChromeClient = object : WebChromeClient() {
             override fun onConsoleMessage(consoleMessage: ConsoleMessage?): Boolean {
@@ -407,6 +447,30 @@ internal class FigmaWebViewActivity : AppCompatActivity() {
         } catch (e: Exception) {
             ApphudLog.logE("[FigmaWebViewActivity] Error setting up fullscreen: ${e.message}")
         }
+    }
+
+    @SuppressLint("SetJavaScriptEnabled")
+    private fun setupWebViewSettings() {
+        webView.settings.apply {
+            javaScriptEnabled = true
+            domStorageEnabled = true
+            loadsImagesAutomatically = true
+            useWideViewPort = true
+            loadWithOverviewMode = true
+
+            mixedContentMode = WebSettings.MIXED_CONTENT_ALWAYS_ALLOW
+
+            allowFileAccess = true
+
+            setGeolocationEnabled(true)
+
+            setSupportZoom(false)
+            builtInZoomControls = false
+            displayZoomControls = false
+            layoutAlgorithm = WebSettings.LayoutAlgorithm.NORMAL
+        }
+
+        webView.setInitialScale(100)
     }
 
     @SuppressLint("SetJavaScriptEnabled")

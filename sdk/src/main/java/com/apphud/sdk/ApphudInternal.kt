@@ -11,7 +11,6 @@ import androidx.lifecycle.ProcessLifecycleOwner
 import com.android.billingclient.api.BillingClient
 import com.android.billingclient.api.ProductDetails
 import com.android.billingclient.api.Purchase
-import com.apphud.sdk.ApphudInternal.coroutineScope
 import com.apphud.sdk.body.UserPropertiesBody
 import com.apphud.sdk.domain.ApphudGroup
 import com.apphud.sdk.domain.ApphudPaywall
@@ -1124,6 +1123,48 @@ internal object ApphudInternal {
                 withContext(Dispatchers.Main) {
                     callbacks.onScreenError(error)
                 }
+            }
+        }
+    }
+
+    internal suspend fun prewarmPaywallScreen(
+        context: Context,
+        paywall: ApphudPaywall,
+        callback: ((Boolean) -> Unit)?
+    ) {
+        try {
+            ApphudLog.logI("[ApphudInternal] Starting prewarm for paywall: ${paywall.identifier}")
+
+            // Prepare render data (same as in showPaywallScreen)
+            val renderResult = ServiceLocator.instance.renderPaywallPropertiesUseCase(paywall).getOrElse {
+                ApphudLog.logE("[ApphudInternal] Failed to render paywall properties: ${it.message}")
+                withContext(Dispatchers.Main) {
+                    callback?.invoke(false)
+                }
+                return
+            }
+
+            val renderItemsJson = ServiceLocator.instance.renderResultMapperWithSerializer.toJson(renderResult)
+
+            // Use the prewarm use case
+            val result = ServiceLocator.instance.preloaderModule.prewarmPaywallUseCase(
+                paywall = paywall,
+                renderItemsJson = renderItemsJson
+            )
+
+            withContext(Dispatchers.Main) {
+                if (result.isSuccess) {
+                    ApphudLog.logI("[ApphudInternal] Successfully prewarmed paywall: ${paywall.identifier}")
+                    callback?.invoke(true)
+                } else {
+                    ApphudLog.logE("[ApphudInternal] Failed to prewarm paywall: ${result.exceptionOrNull()?.message}")
+                    callback?.invoke(false)
+                }
+            }
+        } catch (e: Exception) {
+            ApphudLog.logE("[ApphudInternal] Exception during prewarm: ${e.message}")
+            withContext(Dispatchers.Main) {
+                callback?.invoke(false)
             }
         }
     }

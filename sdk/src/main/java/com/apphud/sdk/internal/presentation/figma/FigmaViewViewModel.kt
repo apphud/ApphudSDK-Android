@@ -16,6 +16,8 @@ import com.apphud.sdk.domain.PaywallEvent
 import com.apphud.sdk.internal.PaywallEventManager
 import com.apphud.sdk.internal.ServiceLocator
 import com.apphud.sdk.internal.data.local.PaywallRepository
+import com.apphud.sdk.internal.preloader.domain.model.PreloadedPaywallData
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -35,13 +37,37 @@ internal class FigmaViewViewModel(
     private val _events = Channel<WebViewEvent>()
     val events = _events.receiveAsFlow()
 
+    private val _preloadedData = MutableStateFlow<PreloadedPaywallData?>(null)
+    val preloadedData: StateFlow<PreloadedPaywallData?> = _preloadedData
+
+    private var preloadObserverJob: Job? = null
+
     init {
         eventManager.activate()
     }
 
     override fun onCleared() {
         super.onCleared()
+        preloadObserverJob?.cancel()
         eventManager.deactivate()
+    }
+
+    /**
+     * Starts observing preloaded data for the given paywall ID
+     * This should be called before init() to enable reactive preloaded data updates
+     */
+    fun observePreloadedData(paywallId: String) {
+        ApphudLog.log("[WebViewViewModel] Starting to observe preloaded data for paywall: $paywallId")
+
+        preloadObserverJob?.cancel()
+        preloadObserverJob = viewModelScope.launch {
+            ServiceLocator.instance.preloaderModule
+                .getPreloadedPaywallUseCase(paywallId)
+                .collect { data ->
+                    ApphudLog.log("[WebViewViewModel] Preloaded data Flow emitted: ${data?.getCacheInfo() ?: "null"}")
+                    _preloadedData.value = data
+                }
+        }
     }
 
     fun init(ruleId: String?, renderItemsJson: String?) {

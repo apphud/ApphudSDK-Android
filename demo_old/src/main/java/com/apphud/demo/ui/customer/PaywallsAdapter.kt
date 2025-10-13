@@ -35,6 +35,7 @@ class PaywallsAdapter(private val paywallsViewModel: PaywallsViewModel, private 
         private val paywallJson: TextView = itemView.findViewById(R.id.paywallJson)
         private val layoutHolder: LinearLayout = itemView.findViewById(R.id.layoutHolder)
         private val btnShowPaywallScreen: Button = itemView.findViewById(R.id.btnShowPaywallScreen)
+        private val btnPreloadPaywallScreen: Button = itemView.findViewById(R.id.btnPreloadPaywallScreen)
 
         override fun bind(
             item: AdapterItem,
@@ -79,11 +80,15 @@ class PaywallsAdapter(private val paywallsViewModel: PaywallsViewModel, private 
                 }
             }
 
-            btnShowPaywallScreen.visibility = if (paywall?.screen != null) {
-                View.VISIBLE
-            } else {
-                View.GONE
+            btnPreloadPaywallScreen.setOnClickListener {
+                paywall?.let { paywall ->
+                    preloadPaywallScreen(paywall)
+                }
             }
+
+            val hasScreen = paywall?.screen != null
+            btnShowPaywallScreen.visibility = if (hasScreen) View.VISIBLE else View.GONE
+            btnPreloadPaywallScreen.visibility = if (hasScreen) View.VISIBLE else View.GONE
         }
     }
 
@@ -180,6 +185,31 @@ class PaywallsAdapter(private val paywallsViewModel: PaywallsViewModel, private 
             } catch (e: Exception) {
                 Log.e("PaywallsAdapter", "Exception", e)
                 Toast.makeText(ctx, "Exception: ${e.message}", Toast.LENGTH_SHORT).show()
+            }
+        }
+    }
+
+    private fun preloadPaywallScreen(paywall: com.apphud.sdk.domain.ApphudPaywall) {
+        context?.let { ctx ->
+            try {
+                Log.d("PaywallsAdapter", "Starting preload for paywall: ${paywall.identifier}")
+                Toast.makeText(ctx, "Preloading paywall: ${paywall.name}", Toast.LENGTH_SHORT).show()
+
+                Apphud.prewarmPaywallScreen(
+                    context = ctx.applicationContext,
+                    paywall = paywall
+                ) { success ->
+                    if (success) {
+                        Log.d("PaywallsAdapter", "Successfully preloaded paywall: ${paywall.identifier}")
+                        Toast.makeText(ctx, "Preloaded: ${paywall.name} ✓", Toast.LENGTH_SHORT).show()
+                    } else {
+                        Log.e("PaywallsAdapter", "Failed to preload paywall: ${paywall.identifier}")
+                        Toast.makeText(ctx, "Preload failed: ${paywall.name}", Toast.LENGTH_SHORT).show()
+                    }
+                }
+            } catch (e: Exception) {
+                Log.e("PaywallsAdapter", "Exception during preload", e)
+                Toast.makeText(ctx, "Preload exception: ${e.message}", Toast.LENGTH_SHORT).show()
             }
         }
     }
