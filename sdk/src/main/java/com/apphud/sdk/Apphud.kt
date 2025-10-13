@@ -547,16 +547,26 @@ object Apphud {
         replacementMode: Int? = null,
         consumableInAppProduct: Boolean = false,
         block: ((ApphudPurchaseResult) -> Unit)?,
-    ) = ApphudInternal.purchase(
-        activity = activity,
-        apphudProduct = apphudProduct,
-        productId = null,
-        offerIdToken = offerIdToken,
-        oldToken = oldToken,
-        replacementMode = replacementMode,
-        consumableInappProduct = consumableInAppProduct,
-        callback = block,
-    )
+    ) {
+        val wrappedCallback: ((ApphudPurchaseResult) -> Unit)? = block?.let { callback ->
+            { result ->
+                coroutineScope.launch(Dispatchers.Main) {
+                    callback(result)
+                }
+            }
+        }
+
+        ApphudInternal.purchase(
+            activity = activity,
+            apphudProduct = apphudProduct,
+            productId = null,
+            offerIdToken = offerIdToken,
+            oldToken = oldToken,
+            replacementMode = replacementMode,
+            consumableInappProduct = consumableInAppProduct,
+            callback = wrappedCallback,
+        )
+    }
 
     /**
      * Initiates the purchase process for a product by its Google Play product ID and automatically
@@ -579,17 +589,27 @@ object Apphud {
         replacementMode: Int? = null,
         consumableInAppProduct: Boolean = false,
         block: ((ApphudPurchaseResult) -> Unit)?,
-    ) = ApphudInternal.purchase(
-        activity = activity,
-        apphudProduct = null,
-        productId = productId,
-        offerIdToken = offerIdToken,
-        oldToken = oldToken,
-        replacementMode = replacementMode,
-        fromScreen = false,
-        consumableInappProduct = consumableInAppProduct,
-        callback = block,
-    )
+    ) {
+        val wrappedCallback: ((ApphudPurchaseResult) -> Unit)? = block?.let { callback ->
+            { result ->
+                coroutineScope.launch(Dispatchers.Main) {
+                    callback(result)
+                }
+            }
+        }
+
+        ApphudInternal.purchase(
+            activity = activity,
+            apphudProduct = null,
+            productId = productId,
+            offerIdToken = offerIdToken,
+            oldToken = oldToken,
+            replacementMode = replacementMode,
+            fromScreen = false,
+            consumableInappProduct = consumableInAppProduct,
+            callback = wrappedCallback,
+        )
+    }
 
     /**
      * Tracks a purchase made through Google Play. This method should be used only in Observer Mode,
