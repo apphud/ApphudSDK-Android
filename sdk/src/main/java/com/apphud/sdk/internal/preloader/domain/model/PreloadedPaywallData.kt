@@ -16,7 +16,7 @@ internal data class PreloadedPaywallData(
     /**
      * Checks if cache is still valid (default 10 minutes)
      */
-    fun isValid(maxAgeMillis: Long = 10 * 60 * 1000): Boolean {
+    fun isValid(maxAgeMillis: Long = DEFAULT_MAX_AGE_MILLIS): Boolean {
         return (System.currentTimeMillis() - preloadedAt) < maxAgeMillis
     }
 
@@ -36,5 +36,12 @@ internal data class PreloadedPaywallData(
         val resourceCount = preloadedResourceUrls.size
         return "PaywallCache[id=$paywallId, size=${sizeKB}KB, resources=$resourceCount, " +
             "age=${ageSeconds}s, valid=${isValid()}]"
+    }
+
+    companion object {
+        /**
+         * Default maximum age for cached paywall data (10 minutes)
+         */
+        internal const val DEFAULT_MAX_AGE_MILLIS = 10 * 60 * 1000L
     }
 }

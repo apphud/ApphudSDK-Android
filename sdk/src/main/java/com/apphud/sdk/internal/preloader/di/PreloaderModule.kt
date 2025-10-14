@@ -1,13 +1,12 @@
 package com.apphud.sdk.internal.preloader.di
 
 import android.content.Context
-import com.apphud.sdk.internal.preloader.data.repository.PaywallPreloadRepositoryImpl
+import com.apphud.sdk.internal.preloader.data.repository.PaywallPreloadRepository
 import com.apphud.sdk.internal.preloader.data.source.HtmlResourceParser
 import com.apphud.sdk.internal.preloader.data.source.PaywallCacheDataSource
 import com.apphud.sdk.internal.preloader.data.source.PaywallResourceLoader
 import com.apphud.sdk.internal.preloader.data.source.ResourcePreloader
 import com.apphud.sdk.internal.preloader.data.source.WebViewCookieJar
-import com.apphud.sdk.internal.preloader.domain.repository.PaywallPreloadRepository
 import com.apphud.sdk.internal.preloader.domain.usecase.GetPreloadedPaywallUseCase
 import com.apphud.sdk.internal.preloader.domain.usecase.PrewarmPaywallUseCase
 import com.apphud.sdk.internal.preloader.presentation.WebViewPreloadHelper
@@ -77,7 +76,7 @@ internal class PreloaderModule(
 
     // Repository
     val repository: PaywallPreloadRepository by lazy {
-        PaywallPreloadRepositoryImpl(
+        PaywallPreloadRepository(
             resourceLoader = resourceLoader,
             cacheDataSource = cacheDataSource,
             htmlResourceParser = htmlResourceParser,
@@ -97,25 +96,5 @@ internal class PreloaderModule(
     // Presentation
     val webViewPreloadHelper: WebViewPreloadHelper by lazy {
         WebViewPreloadHelper(httpClient)
-    }
-
-    /**
-     * Clears all caches (both memory and disk)
-     */
-    suspend fun clearAllCaches() {
-        // Clear memory cache
-        repository.clearAllCache()
-
-        // Clear OkHttp disk cache
-        httpClient.cache?.evictAll()
-    }
-
-    /**
-     * Gets total cache size (memory + disk)
-     */
-    suspend fun getTotalCacheSizeBytes(): Long {
-        val memoryCacheSize = repository.getCacheSizeBytes()
-        val diskCacheSize = httpClient.cache?.size() ?: 0L
-        return memoryCacheSize + diskCacheSize
     }
 }

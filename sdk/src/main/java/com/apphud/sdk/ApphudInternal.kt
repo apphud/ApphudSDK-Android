@@ -24,6 +24,7 @@ import com.apphud.sdk.internal.BillingWrapper
 import com.apphud.sdk.internal.ServiceLocator
 import com.apphud.sdk.internal.presentation.figma.FigmaWebViewActivity
 import com.apphud.sdk.internal.util.runCatchingCancellable
+import com.apphud.sdk.internal.util.wrapToMainThread
 import com.apphud.sdk.managers.RequestManager
 import com.apphud.sdk.managers.RequestManager.applicationContext
 import com.apphud.sdk.storage.SharedPreferencesStorage
@@ -1138,9 +1139,7 @@ internal object ApphudInternal {
             // Prepare render data (same as in showPaywallScreen)
             val renderResult = ServiceLocator.instance.renderPaywallPropertiesUseCase(paywall).getOrElse {
                 ApphudLog.logE("[ApphudInternal] Failed to render paywall properties: ${it.message}")
-                withContext(Dispatchers.Main) {
-                    callback?.invoke(false)
-                }
+                callback.wrapToMainThread(coroutineScope)?.invoke(false)
                 return
             }
 
@@ -1152,20 +1151,16 @@ internal object ApphudInternal {
                 renderItemsJson = renderItemsJson
             )
 
-            withContext(Dispatchers.Main) {
-                if (result.isSuccess) {
-                    ApphudLog.logI("[ApphudInternal] Successfully prewarmed paywall: ${paywall.identifier}")
-                    callback?.invoke(true)
-                } else {
-                    ApphudLog.logE("[ApphudInternal] Failed to prewarm paywall: ${result.exceptionOrNull()?.message}")
-                    callback?.invoke(false)
-                }
+            if (result.isSuccess) {
+                ApphudLog.logI("[ApphudInternal] Successfully prewarmed paywall: ${paywall.identifier}")
+                callback.wrapToMainThread(coroutineScope)?.invoke(true)
+            } else {
+                ApphudLog.logE("[ApphudInternal] Failed to prewarm paywall: ${result.exceptionOrNull()?.message}")
+                callback.wrapToMainThread(coroutineScope)?.invoke(false)
             }
         } catch (e: Exception) {
             ApphudLog.logE("[ApphudInternal] Exception during prewarm: ${e.message}")
-            withContext(Dispatchers.Main) {
-                callback?.invoke(false)
-            }
+            callback.wrapToMainThread(coroutineScope)?.invoke(false)
         }
     }
 

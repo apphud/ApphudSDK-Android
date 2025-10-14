@@ -2,14 +2,15 @@ package com.apphud.sdk.internal.preloader.domain.usecase
 
 import com.apphud.sdk.ApphudLog
 import com.apphud.sdk.domain.ApphudPaywall
-import com.apphud.sdk.internal.preloader.domain.repository.PaywallPreloadRepository
+import com.apphud.sdk.internal.preloader.data.repository.PaywallPreloadRepository
+import com.apphud.sdk.internal.util.runCatchingCancellable
 import java.util.Locale
 
 /**
  * Use case for prewarming (preloading) paywall screens
  */
 internal class PrewarmPaywallUseCase(
-    private val repository: PaywallPreloadRepository
+    private val repository: PaywallPreloadRepository,
 ) {
     /**
      * Prewarms a paywall screen by loading HTML and all resources
@@ -19,9 +20,9 @@ internal class PrewarmPaywallUseCase(
      */
     suspend operator fun invoke(
         paywall: ApphudPaywall,
-        renderItemsJson: String?
-    ): Result<Unit> {
-        return try {
+        renderItemsJson: String?,
+    ): Result<Unit> =
+        runCatchingCancellable {
             val url = getUrlForPaywall(paywall)
             if (url == null) {
                 ApphudLog.logE("[PrewarmPaywallUseCase] No URL found for paywall: ${paywall.identifier}")
@@ -37,14 +38,14 @@ internal class PrewarmPaywallUseCase(
             ).map { preloadedData ->
                 ApphudLog.log(
                     "[PrewarmPaywallUseCase] Successfully prewarmed paywall: ${paywall.identifier}, " +
-                    "HTML size: ${preloadedData.getHtmlSizeBytes() / 1024}KB"
+                        "HTML size: ${preloadedData.getHtmlSizeBytes() / 1024}KB"
                 )
             }
-        } catch (e: Exception) {
-            ApphudLog.logE("[PrewarmPaywallUseCase] Failed to prewarm paywall: ${e.message}")
-            Result.failure(e)
         }
-    }
+            .onFailure { e ->
+                ApphudLog.logE("[PrewarmPaywallUseCase] Failed to prewarm paywall: ${e.message}")
+            }
+            .map { }
 
     /**
      * Gets the appropriate URL for the paywall based on current locale

@@ -4,28 +4,28 @@ import com.apphud.sdk.ApphudLog
 import com.apphud.sdk.internal.preloader.data.source.PaywallCacheDataSource
 import com.apphud.sdk.internal.preloader.data.source.PaywallResourceLoader
 import com.apphud.sdk.internal.preloader.domain.model.PreloadedPaywallData
-import com.apphud.sdk.internal.preloader.domain.repository.PaywallPreloadRepository
+import com.apphud.sdk.internal.util.runCatchingCancellable
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.withContext
 
 /**
- * Implementation of PaywallPreloadRepository
+ * Repository for paywall preloading operations
  * Coordinates between resource loading, parsing, and caching
  */
-internal class PaywallPreloadRepositoryImpl(
+internal class PaywallPreloadRepository(
     private val resourceLoader: PaywallResourceLoader,
     private val cacheDataSource: PaywallCacheDataSource,
     private val htmlResourceParser: com.apphud.sdk.internal.preloader.data.source.HtmlResourceParser,
     private val resourcePreloader: com.apphud.sdk.internal.preloader.data.source.ResourcePreloader
-) : PaywallPreloadRepository {
+) {
 
-    override suspend fun prewarmPaywall(
+    suspend fun prewarmPaywall(
         paywallId: String,
         url: String,
         renderItemsJson: String?
     ): Result<PreloadedPaywallData> = withContext(Dispatchers.IO) {
-        try {
+        runCatchingCancellable {
             val startTime = System.currentTimeMillis()
             ApphudLog.log("[PreloadRepository] Starting prewarm for paywall: $paywallId, URL: $url")
 
@@ -77,9 +77,6 @@ internal class PaywallPreloadRepositoryImpl(
             // Save to cache
             cacheDataSource.save(preloadedData)
 
-            // Clean up old cache entries if needed
-            cleanupCacheIfNeeded()
-
             val totalTime = System.currentTimeMillis() - startTime
             val htmlSizeKB = preloadedData.getHtmlSizeBytes() / 1024
             val totalDataKB = (preloadStats.totalBytesLoaded + preloadedData.getHtmlSizeBytes()) / 1024
@@ -98,84 +95,29 @@ internal class PaywallPreloadRepositoryImpl(
                 "[PreloadRepository]   - Total: ${totalDataKB}KB in ${totalTime}ms"
             )
 
-            Result.success(preloadedData)
-        } catch (e: Exception) {
+            preloadedData
+        }.onFailure { e ->
             ApphudLog.logE("[PreloadRepository] Failed to prewarm paywall $paywallId: ${e.message}")
-            Result.failure(e)
         }
     }
 
-    override fun getPreloadedPaywallFlow(paywallId: String): Flow<PreloadedPaywallData?> {
+    fun getPreloadedPaywallFlow(paywallId: String): Flow<PreloadedPaywallData?> {
         return cacheDataSource.getFlow(paywallId)
     }
 
-    override suspend fun getPreloadedPaywall(paywallId: String): PreloadedPaywallData? {
-        return try {
+    suspend fun getPreloadedPaywall(paywallId: String): PreloadedPaywallData? {
+        return runCatchingCancellable {
             cacheDataSource.get(paywallId)
-        } catch (e: Exception) {
+        }.onFailure { e ->
             ApphudLog.logE("[PreloadRepository] Error getting cached paywall $paywallId: ${e.message}")
-            null
-        }
+        }.getOrNull()
     }
 
-    override suspend fun clearPaywallCache(paywallId: String) {
-        try {
-            cacheDataSource.remove(paywallId)
-            ApphudLog.log("[PreloadRepository] Cleared cache for paywall: $paywallId")
-        } catch (e: Exception) {
-            ApphudLog.logE("[PreloadRepository] Error clearing cache for $paywallId: ${e.message}")
-        }
-    }
-
-    override suspend fun clearAllCache() {
-        try {
-            val stats = cacheDataSource.getCacheStats()
-            cacheDataSource.clear()
-            ApphudLog.log("[PreloadRepository] Cleared all cache: ${stats.toLogString()}")
-        } catch (e: Exception) {
-            ApphudLog.logE("[PreloadRepository] Error clearing all cache: ${e.message}")
-        }
-    }
-
-    override suspend fun getCacheSizeBytes(): Long {
-        return try {
+    suspend fun getCacheSizeBytes(): Long {
+        return runCatchingCancellable {
             cacheDataSource.getTotalCacheSizeBytes()
-        } catch (e: Exception) {
+        }.onFailure { e ->
             ApphudLog.logE("[PreloadRepository] Error getting cache size: ${e.message}")
-            0L
-        }
-    }
-
-    /**
-     * Cleans up cache if it exceeds size limits
-     */
-    private suspend fun cleanupCacheIfNeeded() {
-        try {
-            val maxCacheSizeBytes = 100 * 1024 * 1024 // 100MB max cache
-            val maxCacheAge = 30 * 60 * 1000L // 30 minutes max age
-
-            val currentSize = cacheDataSource.getTotalCacheSizeBytes()
-
-            // Remove expired entries first
-            val removedExpired = cacheDataSource.removeExpired(maxCacheAge)
-            if (removedExpired > 0) {
-                ApphudLog.log("[PreloadRepository] Removed $removedExpired expired cache entries")
-            }
-
-            // Check if still exceeds size limit
-            if (currentSize > maxCacheSizeBytes) {
-                ApphudLog.log("[PreloadRepository] Cache size (${currentSize / 1024}KB) exceeds limit (${maxCacheSizeBytes / 1024}KB)")
-                // In a production app, we might want to implement LRU eviction here
-                // For now, we'll just log a warning
-            }
-
-            // Log cache statistics
-            val stats = cacheDataSource.getCacheStats()
-            if (stats.totalCount > 0) {
-                ApphudLog.log("[PreloadRepository] Cache stats: ${stats.toLogString()}")
-            }
-        } catch (e: Exception) {
-            ApphudLog.logE("[PreloadRepository] Error during cache cleanup: ${e.message}")
-        }
+        }.getOrDefault(0L)
     }
 }

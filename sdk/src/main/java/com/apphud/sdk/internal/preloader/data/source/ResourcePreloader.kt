@@ -1,6 +1,7 @@
 package com.apphud.sdk.internal.preloader.data.source
 
 import com.apphud.sdk.ApphudLog
+import com.apphud.sdk.internal.util.runCatchingCancellable
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
@@ -65,7 +66,7 @@ internal class ResourcePreloader(
             return@withContext PreloadStats(0, 0, 0, 0, 0, 0, 0)
         }
 
-        try {
+        runCatchingCancellable {
             // Process URLs in batches to limit concurrency
             val results = mutableListOf<PreloadResult>()
 
@@ -114,8 +115,9 @@ internal class ResourcePreloader(
             logResourceBreakdown(results.filter { it.success })
 
             stats
-        } catch (e: Exception) {
+        }.onFailure { e ->
             ApphudLog.logE("[ResourcePreloader] Error during preload: ${e.message}")
+        }.getOrElse {
             val duration = System.currentTimeMillis() - startTime
             PreloadStats(urls.size, 0, urls.size, 0, 0, duration, 0)
         }
@@ -129,7 +131,7 @@ internal class ResourcePreloader(
     private suspend fun preloadSingleResource(url: String): PreloadResult {
         val startTime = System.currentTimeMillis()
 
-        return try {
+        return runCatchingCancellable {
             val request = Request.Builder()
                 .url(url)
                 .addHeader("User-Agent", "ApphudSDK-Android")
@@ -178,13 +180,12 @@ internal class ResourcePreloader(
                     )
                 }
             }
-        } catch (e: Exception) {
-            val duration = System.currentTimeMillis() - startTime
-
+        }.onFailure { e ->
             ApphudLog.logE(
                 "[ResourcePreloader] Error loading ${url.substringAfterLast('/').take(50)}: ${e.message}"
             )
-
+        }.getOrElse { e ->
+            val duration = System.currentTimeMillis() - startTime
             PreloadResult(
                 url = url,
                 success = false,

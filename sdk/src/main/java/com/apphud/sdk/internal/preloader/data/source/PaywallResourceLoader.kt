@@ -1,6 +1,7 @@
 package com.apphud.sdk.internal.preloader.data.source
 
 import com.apphud.sdk.ApphudLog
+import com.apphud.sdk.internal.util.runCatchingCancellable
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import okhttp3.OkHttpClient
@@ -19,7 +20,7 @@ internal class PaywallResourceLoader(
      * @return HTML content as string
      */
     suspend fun loadPaywallHtml(url: String): Result<String> = withContext(Dispatchers.IO) {
-        try {
+        runCatchingCancellable {
             val startTime = System.currentTimeMillis()
 
             val request = Request.Builder()
@@ -35,21 +36,20 @@ internal class PaywallResourceLoader(
                 val content = response.body?.string()
                 if (content.isNullOrEmpty()) {
                     ApphudLog.logE("[ResourceLoader] Empty response from $url")
-                    Result.failure(Exception("Empty response from $url"))
+                    throw Exception("Empty response from $url")
                 } else {
                     val duration = System.currentTimeMillis() - startTime
                     val sizeKB = content.toByteArray().size / 1024
                     ApphudLog.log("[ResourceLoader] Successfully loaded HTML from $url (${sizeKB}KB in ${duration}ms)")
-                    Result.success(content)
+                    content
                 }
             } else {
                 val error = "HTTP ${response.code}: ${response.message} for $url"
                 ApphudLog.logE("[ResourceLoader] $error")
-                Result.failure(Exception(error))
+                throw Exception(error)
             }
-        } catch (e: Exception) {
+        }.onFailure { e ->
             ApphudLog.logE("[ResourceLoader] Failed to load HTML from $url: ${e.message}")
-            Result.failure(e)
         }
     }
 }

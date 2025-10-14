@@ -1,8 +1,8 @@
 package com.apphud.sdk.internal.preloader.domain.usecase
 
 import com.apphud.sdk.ApphudLog
+import com.apphud.sdk.internal.preloader.data.repository.PaywallPreloadRepository
 import com.apphud.sdk.internal.preloader.domain.model.PreloadedPaywallData
-import com.apphud.sdk.internal.preloader.domain.repository.PaywallPreloadRepository
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 
@@ -20,7 +20,7 @@ internal class GetPreloadedPaywallUseCase(
      */
     operator fun invoke(
         paywallId: String,
-        maxAgeMillis: Long = 10 * 60 * 1000
+        maxAgeMillis: Long = PreloadedPaywallData.DEFAULT_MAX_AGE_MILLIS
     ): Flow<PreloadedPaywallData?> {
         return repository.getPreloadedPaywallFlow(paywallId).map { preloadedData ->
             if (preloadedData != null) {
@@ -49,7 +49,7 @@ internal class GetPreloadedPaywallUseCase(
      */
     suspend fun get(
         paywallId: String,
-        maxAgeMillis: Long = 10 * 60 * 1000
+        maxAgeMillis: Long = PreloadedPaywallData.DEFAULT_MAX_AGE_MILLIS
     ): PreloadedPaywallData? {
         val preloadedData = repository.getPreloadedPaywall(paywallId)
 
