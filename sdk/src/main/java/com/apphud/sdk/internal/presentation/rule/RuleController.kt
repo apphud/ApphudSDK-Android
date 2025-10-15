@@ -55,6 +55,9 @@ internal class RuleController(
     private val state = MutableStateFlow<RuleState>(RuleState.Idle)
 
     fun start(deviceId: DeviceId) {
+        ApphudLog.log("RuleController.start() called but functionality is temporarily disabled")
+        return
+
         currentDeviceId = deviceId
         fetchRuleScreenJob?.cancel()
         state.value = RuleState.Idle
