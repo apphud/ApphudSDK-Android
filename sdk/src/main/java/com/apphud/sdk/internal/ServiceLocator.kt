@@ -175,7 +175,7 @@ internal class ServiceLocator(
         ): ServiceLocator =
             synchronized(ServiceLocatorInstanceFactory::class.java) {
                 if (_instance != null) {
-                    error("Instance already exist")
+                    return _instance!!
                 }
 
                 ServiceLocator(

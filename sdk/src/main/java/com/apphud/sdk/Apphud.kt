@@ -96,14 +96,8 @@ object Apphud {
         ruleCallback: ApphudRuleCallback = object : ApphudRuleCallback {},
         callback: ((ApphudUser) -> Unit)? = null,
     ) {
-        ServiceLocator.ServiceLocatorInstanceFactory().create(
-            applicationContext = context.applicationContext,
-            ruleCallback = ruleCallback,
-            apiKey = ApiKeyModel(apiKey)
-        )
-
         ApphudUtils.setPackageName(context.packageName)
-        ApphudInternal.initialize(context, apiKey, userId, deviceId, observerMode, callback)
+        ApphudInternal.initialize(context, apiKey, userId, deviceId, observerMode, callback, ruleCallback)
     }
 
     /**

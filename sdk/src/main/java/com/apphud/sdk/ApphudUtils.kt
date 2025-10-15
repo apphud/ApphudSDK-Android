@@ -28,6 +28,10 @@ object ApphudUtils {
         logging = true
     }
 
+    fun sdkVersion(): String {
+        return BuildConfig.VERSION_NAME
+    }
+
     fun enableAllLogs() {
         logging = true
         httpLogging = true

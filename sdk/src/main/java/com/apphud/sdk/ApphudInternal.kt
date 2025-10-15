@@ -23,6 +23,7 @@ import com.apphud.sdk.domain.PaywallEvent
 import com.apphud.sdk.domain.PurchaseRecordDetails
 import com.apphud.sdk.internal.BillingWrapper
 import com.apphud.sdk.internal.ServiceLocator
+import com.apphud.sdk.internal.domain.model.ApiKey as ApiKeyModel
 import com.apphud.sdk.internal.presentation.figma.FigmaWebViewActivity
 import com.apphud.sdk.internal.util.runCatchingCancellable
 import com.apphud.sdk.managers.RequestManager
@@ -190,6 +191,7 @@ internal object ApphudInternal {
         inputDeviceId: DeviceId?,
         observerMode: Boolean,
         callback: ((ApphudUser) -> Unit)?,
+        ruleCallback: ApphudRuleCallback
     ) {
         if (!allowIdentifyUser) {
             ApphudLog.logE(
@@ -207,6 +209,12 @@ internal object ApphudInternal {
 
         this.context = context.applicationContext
         this.apiKey = apiKey
+
+        ServiceLocator.ServiceLocatorInstanceFactory().create(
+            applicationContext = context.applicationContext,
+            ruleCallback = ruleCallback,
+            apiKey = ApiKeyModel(apiKey)
+        )
 
         mainScope.launch {
             ProcessLifecycleOwner.get().lifecycle.addObserver(lifecycleEventObserver)
