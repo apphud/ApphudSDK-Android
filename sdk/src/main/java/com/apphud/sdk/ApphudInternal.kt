@@ -11,7 +11,6 @@ import androidx.lifecycle.ProcessLifecycleOwner
 import com.android.billingclient.api.BillingClient
 import com.android.billingclient.api.ProductDetails
 import com.android.billingclient.api.Purchase
-import com.apphud.sdk.ApphudInternal.coroutineScope
 import com.apphud.sdk.body.UserPropertiesBody
 import com.apphud.sdk.domain.ApphudGroup
 import com.apphud.sdk.domain.ApphudPaywall
@@ -35,7 +34,6 @@ import com.google.android.gms.tasks.Task
 import kotlinx.coroutines.CoroutineExceptionHandler
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.Runnable
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.TimeoutCancellationException
 import kotlinx.coroutines.async
@@ -69,7 +67,11 @@ internal object ApphudInternal {
     internal val storage by lazy { SharedPreferencesStorage.getInstance(context) }
     internal var prevPurchases = mutableSetOf<PurchaseRecordDetails>()
     internal var productDetails = mutableListOf<ProductDetails>()
+
+    @Volatile
     internal var paywalls = listOf<ApphudPaywall>()
+
+    @Volatile
     internal var placements = listOf<ApphudPlacement>()
     internal var isRegisteringUser = false
 
@@ -114,6 +116,8 @@ internal object ApphudInternal {
 
     private const val MUST_REGISTER_ERROR = " :You must call `Apphud.start` method before calling any other methods."
     internal var productGroups: MutableList<ApphudGroup> = mutableListOf()
+
+    @Volatile
     private var allowIdentifyUser = true
     internal var didRegisterCustomerAtThisLaunch = false
     private var isNew = true
@@ -122,6 +126,8 @@ internal object ApphudInternal {
     internal var fallbackMode = false
     internal lateinit var userId: UserId
     internal lateinit var context: Context
+
+    @Volatile
     internal var currentUser: ApphudUser? = null
     internal var apphudListener: ApphudListener? = null
     internal var userLoadRetryCount: Int = 1
@@ -191,8 +197,8 @@ internal object ApphudInternal {
         inputDeviceId: DeviceId?,
         observerMode: Boolean,
         callback: ((ApphudUser) -> Unit)?,
-        ruleCallback: ApphudRuleCallback
-    ) {
+        ruleCallback: ApphudRuleCallback,
+    ) = synchronized(this) {
         if (!allowIdentifyUser) {
             ApphudLog.logE(
                 " " +
@@ -202,7 +208,7 @@ internal object ApphudInternal {
                     "\nOr if `Apphud.logout()` was called previously." +
                     "\n=============================================================",
             )
-            return
+            return@synchronized
         }
         allowIdentifyUser = false
         this.observerMode = observerMode
@@ -853,13 +859,6 @@ internal object ApphudInternal {
                 put(property.key, property)
             }
         }
-
-        synchronized(pendingUserProperties) {
-            pendingUserProperties.run {
-                remove(property.key)
-                put(property.key, property)
-            }
-        }
         setNeedsToUpdateUserProperties = true
     }
 
@@ -1140,7 +1139,7 @@ internal object ApphudInternal {
         paywallId: String?,
         placementId: String?,
         productId: String?,
-        screenId: String?
+        screenId: String?,
     ) {
         performWhenUserRegistered { error ->
             error?.let {
@@ -1383,12 +1382,18 @@ internal object ApphudInternal {
         }
     }
 
-    internal fun logout() {
+    internal fun logout() = synchronized(this) {
         clear()
     }
 
     private fun clear() {
-        ServiceLocator.instance.ruleController.stop()
+        try {
+            val controller = ServiceLocator.instance.ruleController
+            controller.stop()
+        } catch (e: IllegalStateException) {
+            ApphudLog.log("ServiceLocator not initialized, skip ruleController.stop()")
+        }
+        ServiceLocator.clearInstance()
         RequestManager.cleanRegistration()
         currentUser = null
         productsStatus = ApphudProductsStatus.none
