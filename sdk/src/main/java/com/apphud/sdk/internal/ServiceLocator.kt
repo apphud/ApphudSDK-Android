@@ -19,9 +19,9 @@ import com.apphud.sdk.internal.data.network.HttpRetryInterceptor
 import com.apphud.sdk.internal.data.remote.PurchaseBodyFactory
 import com.apphud.sdk.internal.data.remote.RegistrationBodyFactory
 import com.apphud.sdk.internal.data.remote.RemoteRepository
+import com.apphud.sdk.internal.data.remote.RenderRemoteRepository
 import com.apphud.sdk.internal.data.remote.ScreenRemoteRepository
 import com.apphud.sdk.internal.data.remote.UserRemoteRepository
-import com.apphud.sdk.internal.data.remote.RenderRemoteRepository
 import com.apphud.sdk.internal.data.serializer.RenderItemsSerializer
 import com.apphud.sdk.internal.domain.FetchMostActualRuleScreenUseCase
 import com.apphud.sdk.internal.domain.FetchRulesScreenUseCase
@@ -175,7 +175,7 @@ internal class ServiceLocator(
         ): ServiceLocator =
             synchronized(ServiceLocatorInstanceFactory::class.java) {
                 if (_instance != null) {
-                    return _instance!!
+                    error("Instance already exist")
                 }
 
                 ServiceLocator(
@@ -191,6 +191,10 @@ internal class ServiceLocator(
     companion object {
         @Volatile
         private var _instance: ServiceLocator? = null
+
+        internal fun clearInstance() {
+            _instance = null
+        }
 
         val instance: ServiceLocator
             get() =
