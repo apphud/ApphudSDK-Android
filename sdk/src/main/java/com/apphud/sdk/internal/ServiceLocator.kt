@@ -17,6 +17,7 @@ import com.apphud.sdk.internal.data.network.HeadersInterceptor
 import com.apphud.sdk.internal.data.network.HostSwitcherInterceptor
 import com.apphud.sdk.internal.data.network.HttpRetryInterceptor
 import com.apphud.sdk.internal.data.network.TimeoutInterceptor
+import com.apphud.sdk.internal.data.network.UrlProvider
 import com.apphud.sdk.internal.data.remote.PurchaseBodyFactory
 import com.apphud.sdk.internal.data.remote.RegistrationBodyFactory
 import com.apphud.sdk.internal.data.remote.RemoteRepository
@@ -55,6 +56,11 @@ internal class ServiceLocator(
     private val registrationProvider: RegistrationProvider =
         RegistrationProvider(applicationContext, SharedPreferencesStorage)
 
+    private val urlProvider = UrlProvider()
+
+    private val hostSwitcherInterceptor = HostSwitcherInterceptor(OkHttpClient(), urlProvider)
+    private val hostSwitcherInterceptorWithoutHeaders = HostSwitcherInterceptor(OkHttpClient(), urlProvider)
+
     private val okHttpClient: OkHttpClient =
         OkHttpClient.Builder()
             .addInterceptor(
@@ -69,7 +75,7 @@ internal class ServiceLocator(
             )
             .addInterceptor(HeadersInterceptor(apiKey))
             .addInterceptor(TimeoutInterceptor())
-            .addInterceptor(HostSwitcherInterceptor(OkHttpClient()))
+            .addInterceptor(hostSwitcherInterceptor)
             .addInterceptor(HttpRetryInterceptor())
             .build()
 
@@ -86,7 +92,7 @@ internal class ServiceLocator(
                 }
             )
             .addInterceptor(TimeoutInterceptor())
-            .addInterceptor(HostSwitcherInterceptor(OkHttpClient()))
+            .addInterceptor(hostSwitcherInterceptorWithoutHeaders)
             .addInterceptor(HttpRetryInterceptor())
             .build()
 
@@ -100,6 +106,7 @@ internal class ServiceLocator(
             productMapper = ProductMapper(),
             attributionMapper = AttributionMapper(),
             notificationMapper = NotificationMapper(),
+            urlProvider = urlProvider,
         )
 
     private val screenRemoteRepository: ScreenRemoteRepository =

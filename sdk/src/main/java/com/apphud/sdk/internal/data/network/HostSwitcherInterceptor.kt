@@ -1,7 +1,6 @@
 package com.apphud.sdk.internal.data.network
 
 import android.util.Log
-import com.apphud.sdk.internal.data.remote.Repo
 import okhttp3.Interceptor
 import okhttp3.OkHttpClient
 import okhttp3.Request
@@ -9,19 +8,20 @@ import okhttp3.Response
 import java.net.SocketTimeoutException
 import java.net.UnknownHostException
 
-internal class HostSwitcherInterceptor(private val dummyOkHttpClient: OkHttpClient) : Interceptor {
+internal class HostSwitcherInterceptor(
+    private val dummyOkHttpClient: OkHttpClient,
+    private val urlProvider: UrlProvider
+) : Interceptor {
 
     override fun intercept(chain: Interceptor.Chain): Response {
         val request = chain.request()
-        
-        try {
-            return chain.proceed(request)
-        } catch (e: Exception) {
-            // Check for network exceptions that should trigger fallback
-            if (e is UnknownHostException || e is SocketTimeoutException) {
-                return tryFallbackHost(chain, e)
-            }
-            throw e
+
+        return try {
+            chain.proceed(request)
+        } catch (e: UnknownHostException) {
+            tryFallbackHost(chain, e)
+        } catch (e: SocketTimeoutException) {
+            tryFallbackHost(chain, e)
         }
     }
 
@@ -48,11 +48,10 @@ internal class HostSwitcherInterceptor(private val dummyOkHttpClient: OkHttpClie
             .build()
         
         val response = chain.proceed(newRequest)
-        
-        // If fallback succeeds, update the base URL for future requests
+
         if (response.isSuccessful) {
             Log.d("ApphudLogs", "Switching to fallback host: $newHost")
-            Repo.BASE_URL = newHost
+            urlProvider.updateBaseUrl(newHost)
         } else {
             Log.d("ApphudLogs", "Do not switch to fallback host $newHost")
         }
@@ -68,6 +67,5 @@ internal class HostSwitcherInterceptor(private val dummyOkHttpClient: OkHttpClie
 
     private companion object {
         const val FALLBACK_HOST_URL = "https://apphud.blob.core.windows.net/apphud-gateway/fallback.txt"
-        val FALLBACK_HTTP_CODES = setOf(502, 503, 504)
     }
 }

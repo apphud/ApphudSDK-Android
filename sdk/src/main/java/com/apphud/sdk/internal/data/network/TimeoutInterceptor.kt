@@ -8,8 +8,7 @@ internal class TimeoutInterceptor : Interceptor {
 
     override fun intercept(chain: Interceptor.Chain): Response {
         val request = chain.request()
-        
-        // Always use first try timeout since retry logic happens later in the chain
+
         val chainWithConnectTimeout = chain.withConnectTimeout(FIRST_TRY_CONNECT_TIMEOUT, TimeUnit.SECONDS)
 
         return if (request.url.toString().contains("/customers")) {
