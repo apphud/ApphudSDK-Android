@@ -33,14 +33,15 @@ import okhttp3.OkHttpClient
 class Repo {
     companion object {
         var BASE_URL = "https://gateway.apphud.com"
-        val CUSTOMERS_URL = "$BASE_URL/v1/customers".toHttpUrl()
-        val SUBSCRIPTIONS_URL = "$BASE_URL/v1/subscriptions".toHttpUrl()
-        val PRODUCTS_URL = "$BASE_URL/v2/products".toHttpUrl()
-        val ATTRIBUTION_URL = "$BASE_URL/v1/attribution".toHttpUrl()
-        val PROMOTIONS_URL = "$BASE_URL/v1/promotions".toHttpUrl()
-        val EVENTS_URL = "$BASE_URL/v1/events".toHttpUrl()
-        val NOTIFICATIONS_READ_URL = "$BASE_URL/v2/notifications/read".toHttpUrl()
-        val NOTIFICATIONS_URL = "$BASE_URL/v2/notifications".toHttpUrl()
+        
+        val CUSTOMERS_URL get() = "$BASE_URL/v1/customers".toHttpUrl()
+        val SUBSCRIPTIONS_URL get() = "$BASE_URL/v1/subscriptions".toHttpUrl()
+        val PRODUCTS_URL get() = "$BASE_URL/v2/products".toHttpUrl()
+        val ATTRIBUTION_URL get() = "$BASE_URL/v1/attribution".toHttpUrl()
+        val PROMOTIONS_URL get() = "$BASE_URL/v1/promotions".toHttpUrl()
+        val EVENTS_URL get() = "$BASE_URL/v1/events".toHttpUrl()
+        val NOTIFICATIONS_READ_URL get() = "$BASE_URL/v2/notifications/read".toHttpUrl()
+        val NOTIFICATIONS_URL get() = "$BASE_URL/v2/notifications".toHttpUrl()
     }
 }
 

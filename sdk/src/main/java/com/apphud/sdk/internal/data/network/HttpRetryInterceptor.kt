@@ -24,15 +24,14 @@ internal class HttpRetryInterceptor : Interceptor {
 
         while (true) {
             try {
-                val connectTimeout = if (tryCount == 0) {
-                    FIRST_TRY_CONNECT_TIMEOUT
+                response = if (tryCount == 0) {
+                    // First try: use timeouts already set by TimeoutInterceptor
+                    chain.proceed(request)
                 } else {
-                    TRY_CONNECT_TIMEOUT
+                    // Retry attempts: override connect timeout for this retry
+                    chain.withConnectTimeout(TimeoutInterceptor.TRY_CONNECT_TIMEOUT, TimeUnit.SECONDS)
+                        .proceed(request)
                 }
-
-                response = chain
-                    .withConnectTimeout(connectTimeout, TimeUnit.SECONDS)
-                    .proceed(request)
 
                 if (response.code in NO_RETRY_RANGE || response.code == TOO_MANY_REQUESTS) {
                     return response
@@ -43,6 +42,11 @@ internal class HttpRetryInterceptor : Interceptor {
                     Thread.sleep(RETRY_DELAY)
                 }
             } catch (e: Exception) {
+                // Don't retry on connection/timeout exceptions - let HostSwitcherInterceptor handle them
+                if (e is java.net.SocketTimeoutException || e is java.net.UnknownHostException) {
+                    throw e
+                }
+                
                 tryCount++
                 if (tryCount == MAX_COUNT) throw e
                 Thread.sleep(RETRY_DELAY)
@@ -53,8 +57,6 @@ internal class HttpRetryInterceptor : Interceptor {
     private companion object {
         const val RETRY_DELAY = 2_000L
         const val MAX_COUNT = 3
-        const val FIRST_TRY_CONNECT_TIMEOUT = 2
-        const val TRY_CONNECT_TIMEOUT = 5
         val FALLBACK_ERRORS = setOf(
             APPHUD_ERROR_TIMEOUT,
             HTTP_NOT_FOUND,

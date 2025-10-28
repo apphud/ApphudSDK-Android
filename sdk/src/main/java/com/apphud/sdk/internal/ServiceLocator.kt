@@ -16,6 +16,7 @@ import com.apphud.sdk.internal.data.mapper.SubscriptionMapper
 import com.apphud.sdk.internal.data.network.HeadersInterceptor
 import com.apphud.sdk.internal.data.network.HostSwitcherInterceptor
 import com.apphud.sdk.internal.data.network.HttpRetryInterceptor
+import com.apphud.sdk.internal.data.network.TimeoutInterceptor
 import com.apphud.sdk.internal.data.remote.PurchaseBodyFactory
 import com.apphud.sdk.internal.data.remote.RegistrationBodyFactory
 import com.apphud.sdk.internal.data.remote.RemoteRepository
@@ -67,6 +68,7 @@ internal class ServiceLocator(
                 }
             )
             .addInterceptor(HeadersInterceptor(apiKey))
+            .addInterceptor(TimeoutInterceptor())
             .addInterceptor(HostSwitcherInterceptor(OkHttpClient()))
             .addInterceptor(HttpRetryInterceptor())
             .build()
@@ -83,6 +85,7 @@ internal class ServiceLocator(
                         }
                 }
             )
+            .addInterceptor(TimeoutInterceptor())
             .addInterceptor(HostSwitcherInterceptor(OkHttpClient()))
             .addInterceptor(HttpRetryInterceptor())
             .build()
