@@ -1,5 +1,6 @@
 package com.apphud.sdk.internal.data.remote
 
+import android.util.Log
 import com.apphud.sdk.APPHUD_ERROR_NO_INTERNET
 import com.apphud.sdk.ApphudError
 import com.apphud.sdk.UserId
@@ -94,13 +95,13 @@ internal class RemoteRepository(
             executeForResponse<CustomerDto>(okHttpClient, gson, request)
         }
             .recoverCatching { e ->
-                val message = e.message ?: "Purchase failed"
+                val message = e.message ?: "Restore purchase failed"
                 throw ApphudError(message, null, APPHUD_ERROR_NO_INTERNET, e)
             }
             .mapCatching { response ->
                 response.data.results?.let { customerDto ->
                     customerMapper.map(customerDto)
-                } ?: throw ApphudError("Purchase failed")
+                } ?: throw ApphudError("Restore purchase failed")
             }
 
     suspend fun getProducts(getProductsParams: GetProductsParams): Result<List<ApphudGroup>> =
@@ -114,13 +115,13 @@ internal class RemoteRepository(
             executeForResponse<List<ApphudGroupDto>>(okHttpClient, gson, request)
         }
             .recoverCatching { e ->
-                val message = e.message ?: "Purchase failed"
+                val message = e.message ?: "Parse products failed"
                 throw ApphudError(message, null, APPHUD_ERROR_NO_INTERNET, e)
             }
             .mapCatching { response ->
                 response.data.results?.let { customerDto ->
                     productMapper.map(customerDto)
-                } ?: throw ApphudError("Purchase failed")
+                } ?: throw ApphudError("Parse products failed")
             }
 
     suspend fun sendAttribution(

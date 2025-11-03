@@ -4,9 +4,9 @@ import okhttp3.HttpUrl
 import okhttp3.HttpUrl.Companion.toHttpUrl
 import java.util.concurrent.atomic.AtomicReference
 
-internal class UrlProvider {
+public class UrlProvider {
 
-    private val baseUrl = AtomicReference("https://gateway.apphud.com")
+    val baseUrl = AtomicReference("https://gateway.apphud.com")
 
     val customersUrl: HttpUrl
         get() = "${baseUrl.get()}/v1/customers".toHttpUrl()

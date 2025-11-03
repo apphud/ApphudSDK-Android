@@ -21,7 +21,6 @@ internal class PaywallsMapper(
             json = runCatching { gson.fromJson<Map<String, Any>>(paywallDto.json, Map::class.java) }.getOrNull(),
             products =
                 paywallDto.items.map { item ->
-                    Log.d("sssssss", "$item  !!  ${item.itemId}")
                     ApphudProduct(
                         id = item.id, // product bundle id
                         productId = item.productId,
