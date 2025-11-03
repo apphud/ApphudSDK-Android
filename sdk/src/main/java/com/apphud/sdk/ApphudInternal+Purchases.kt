@@ -288,18 +288,14 @@ private fun ApphudInternal.purchaseInternal(
 
 internal fun ApphudInternal.lookupFreshPurchase(extraMessage: String = "resend_fresh_purchase") {
     coroutineScope.launch(errorHandler) {
-        val purchase = freshPurchase.let { mFreshPurchase ->
-            if (mFreshPurchase == null) {
-                val purchases = ApphudInternal
-                    .fetchNativePurchases(forceRefresh = true, needSync = false)
-                    .first
-                    .ifEmpty { return@launch }
+        val purchase = freshPurchase ?: run {
+            val purchases = ApphudInternal
+                .fetchNativePurchases(forceRefresh = true, needSync = false)
+                .first
+                .ifEmpty { return@launch }
 
-                ApphudLog.logE("recover_native_purchases")
-                purchases.first()
-            } else {
-                mFreshPurchase
-            }
+            ApphudLog.logE("recover_native_purchases")
+            purchases.first()
         }
         if ((purchaseCallbacks.isNotEmpty() && purchasingProduct != null) || storage.isNeedSync) {
 

@@ -89,7 +89,7 @@ internal class RenderPaywallPropertiesUseCase(
             } ?: RenderItemProductInfo.empty()
 
             val renderItem = RenderItem(
-                itemId = product.itemId,
+                itemId = product.itemId ?: "",
                 productDetails = productDetailsData
             )
 

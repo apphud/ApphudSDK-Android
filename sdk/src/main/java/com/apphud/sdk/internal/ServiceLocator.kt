@@ -16,12 +16,14 @@ import com.apphud.sdk.internal.data.mapper.SubscriptionMapper
 import com.apphud.sdk.internal.data.network.HeadersInterceptor
 import com.apphud.sdk.internal.data.network.HostSwitcherInterceptor
 import com.apphud.sdk.internal.data.network.HttpRetryInterceptor
+import com.apphud.sdk.internal.data.network.TimeoutInterceptor
+import com.apphud.sdk.internal.data.network.UrlProvider
 import com.apphud.sdk.internal.data.remote.PurchaseBodyFactory
 import com.apphud.sdk.internal.data.remote.RegistrationBodyFactory
 import com.apphud.sdk.internal.data.remote.RemoteRepository
+import com.apphud.sdk.internal.data.remote.RenderRemoteRepository
 import com.apphud.sdk.internal.data.remote.ScreenRemoteRepository
 import com.apphud.sdk.internal.data.remote.UserRemoteRepository
-import com.apphud.sdk.internal.data.remote.RenderRemoteRepository
 import com.apphud.sdk.internal.data.serializer.RenderItemsSerializer
 import com.apphud.sdk.internal.domain.FetchMostActualRuleScreenUseCase
 import com.apphud.sdk.internal.domain.FetchRulesScreenUseCase
@@ -54,6 +56,11 @@ internal class ServiceLocator(
     private val registrationProvider: RegistrationProvider =
         RegistrationProvider(applicationContext, SharedPreferencesStorage)
 
+    private val urlProvider = UrlProvider()
+
+    private val hostSwitcherInterceptor = HostSwitcherInterceptor(OkHttpClient(), urlProvider)
+    private val hostSwitcherInterceptorWithoutHeaders = HostSwitcherInterceptor(OkHttpClient(), urlProvider)
+
     private val okHttpClient: OkHttpClient =
         OkHttpClient.Builder()
             .addInterceptor(
@@ -67,7 +74,8 @@ internal class ServiceLocator(
                 }
             )
             .addInterceptor(HeadersInterceptor(apiKey))
-            .addInterceptor(HostSwitcherInterceptor(OkHttpClient()))
+            .addInterceptor(TimeoutInterceptor())
+            .addInterceptor(hostSwitcherInterceptor)
             .addInterceptor(HttpRetryInterceptor())
             .build()
 
@@ -83,7 +91,8 @@ internal class ServiceLocator(
                         }
                 }
             )
-            .addInterceptor(HostSwitcherInterceptor(OkHttpClient()))
+            .addInterceptor(TimeoutInterceptor())
+            .addInterceptor(hostSwitcherInterceptorWithoutHeaders)
             .addInterceptor(HttpRetryInterceptor())
             .build()
 
@@ -97,6 +106,7 @@ internal class ServiceLocator(
             productMapper = ProductMapper(),
             attributionMapper = AttributionMapper(),
             notificationMapper = NotificationMapper(),
+            urlProvider = urlProvider,
         )
 
     private val screenRemoteRepository: ScreenRemoteRepository =
@@ -175,7 +185,7 @@ internal class ServiceLocator(
         ): ServiceLocator =
             synchronized(ServiceLocatorInstanceFactory::class.java) {
                 if (_instance != null) {
-                    return _instance!!
+                    error("Instance already exist")
                 }
 
                 ServiceLocator(
@@ -191,6 +201,10 @@ internal class ServiceLocator(
     companion object {
         @Volatile
         private var _instance: ServiceLocator? = null
+
+        internal fun clearInstance() {
+            _instance = null
+        }
 
         val instance: ServiceLocator
             get() =

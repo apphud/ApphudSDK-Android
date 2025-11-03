@@ -1,26 +1,62 @@
 package com.apphud.sdk.internal.data.network
 
+import android.util.Log
 import okhttp3.Interceptor
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import okhttp3.Response
+import java.net.SocketTimeoutException
 import java.net.UnknownHostException
 
-internal class HostSwitcherInterceptor(private val dummyOkHttpClient: OkHttpClient) : Interceptor {
+internal class HostSwitcherInterceptor(
+    private val dummyOkHttpClient: OkHttpClient,
+    private val urlProvider: UrlProvider
+) : Interceptor {
 
     override fun intercept(chain: Interceptor.Chain): Response {
-        try {
-            return chain.proceed(chain.request())
+        val request = chain.request()
+
+        return try {
+            chain.proceed(request)
         } catch (e: UnknownHostException) {
-            val newHost = getFallbackHost()
-
-            if (chain.request().url.toString() == newHost) throw e
-
-            val newRequest = chain.request().newBuilder()
-                .url(newHost)
-                .build()
-            return chain.proceed(newRequest)
+            tryFallbackHost(chain, e)
+        } catch (e: SocketTimeoutException) {
+            tryFallbackHost(chain, e)
         }
+    }
+
+    private fun tryFallbackHost(chain: Interceptor.Chain, originalException: Exception?): Response {
+        val newHost = getFallbackHost().trim()
+        val newHostWithoutScheme = newHost.removePrefix("https://")
+        val chainHost = chain.request().url.host
+
+        if (chainHost == newHostWithoutScheme) {
+            // Already using fallback host, let the next interceptor handle it
+            originalException?.let { throw it }
+            error("Fallback host also failed")
+        }
+
+        Log.e("ApphudLogs", "Exception ${originalException}, url: ${chain.request().url}")
+
+        val originalUrl = chain.request().url
+        val newUrl = originalUrl.newBuilder()
+            .host(newHostWithoutScheme)
+            .build()
+        
+        val newRequest = chain.request().newBuilder()
+            .url(newUrl)
+            .build()
+        
+        val response = chain.proceed(newRequest)
+
+        if (response.isSuccessful) {
+            Log.d("ApphudLogs", "Switching to fallback host: $newHost")
+            urlProvider.updateBaseUrl(newHost)
+        } else {
+            Log.d("ApphudLogs", "Do not switch to fallback host $newHost")
+        }
+
+        return response
     }
 
     private fun getFallbackHost(): String {

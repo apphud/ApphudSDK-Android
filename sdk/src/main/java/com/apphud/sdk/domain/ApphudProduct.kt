@@ -71,7 +71,7 @@ data class ApphudProduct(
      */
     internal var paywallId: String?,
 
-    internal val itemId: String
+    internal val itemId: String?
 ) {
 
     fun type(): ApphudProductType? {
