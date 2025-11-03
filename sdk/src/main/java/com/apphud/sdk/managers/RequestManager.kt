@@ -32,9 +32,7 @@ import com.apphud.sdk.parser.Parser
 import com.apphud.sdk.processFallbackData
 import com.apphud.sdk.storage.SharedPreferencesStorage
 import com.google.gson.GsonBuilder
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.suspendCancellableCoroutine
-import kotlinx.coroutines.withContext
 import java.net.SocketTimeoutException
 import kotlin.coroutines.resume
 
@@ -90,9 +88,7 @@ internal object RequestManager {
         return if (currentUserLocal == null || forceRegistration) {
             val repository = ServiceLocator.instance.remoteRepository
 
-            val getCustomersResult = withContext(Dispatchers.IO) {
-                repository.getCustomers(needPaywalls, isNew, userId, email)
-            }
+            val getCustomersResult = repository.getCustomers(needPaywalls, isNew, userId, email)
 
             getCustomersResult
                 .getOrElse { t ->
@@ -270,7 +266,7 @@ internal object RequestManager {
         paywallId: String?,
         placementId: String?,
         productId: String?,
-        screenId: String?
+        screenId: String?,
     ) {
         trackPaywallEvent(
             makePaywallEventBody(

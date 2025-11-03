@@ -32,7 +32,8 @@ afterEvaluate {
                 // we'll set up later
                 groupId PUBLISH_GROUP_ID
                 artifactId PUBLISH_ARTIFACT_ID
-                version PUBLISH_VERSION
+                // Use local version for mavenLocal, otherwise use regular version
+                version gradle.startParameter.taskNames.any { it.contains('ToMavenLocal') } ? PUBLISH_VERSION_LOCAL : PUBLISH_VERSION
 
                 // Two artifacts, the `aar` (or `jar`) and the sources
                 if (project.plugins.findPlugin("com.android.library")) {
