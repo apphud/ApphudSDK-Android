@@ -20,3 +20,4 @@
 /qa/*
 .vscode/*
 /keystore.properties
+.env

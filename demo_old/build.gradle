@@ -14,6 +14,18 @@ android {
         versionName "1.0.0"
 
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
+
+        // Load API key from .env file
+        def envFile = rootProject.file('.env')
+        def apphudApiKey = "YOUR_API_KEY"
+        if (envFile.exists()) {
+            envFile.readLines().each { line ->
+                if (line.startsWith('APPHUD_API_KEY=')) {
+                    apphudApiKey = line.substring('APPHUD_API_KEY='.length())
+                }
+            }
+        }
+        buildConfigField("String", "APPHUD_API_KEY", "\"${apphudApiKey}\"")
     }
 
     buildTypes {
