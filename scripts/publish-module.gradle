@@ -81,8 +81,16 @@ ext["signing.keyId"] = rootProject.ext["signing.keyId"]
 ext["signing.password"] = rootProject.ext["signing.password"]
 ext["signing.secretKeyRingFile"] = rootProject.ext["signing.secretKeyRingFile"]
 
+// Skip signing for mavenLocal publications
+def isPublishToMavenLocal = gradle.startParameter.taskNames.any { it.contains('ToMavenLocal') }
+
 signing {
     sign publishing.publications
+}
+
+// Disable signing tasks for mavenLocal
+tasks.withType(Sign).configureEach {
+    enabled = !isPublishToMavenLocal
 }
 
 // Task to generate Central Publisher Portal archive

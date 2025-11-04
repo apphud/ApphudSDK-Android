@@ -22,10 +22,11 @@ ext {
 
 // Conditional publishing: JitPack by default, Maven Central with -PmavenCentral
 def isMavenCentralBuild = project.hasProperty('mavenCentral')
-def isJitPackBuild = !isMavenCentralBuild
+def isPublishToMavenLocal = gradle.startParameter.taskNames.any { it.contains('ToMavenLocal') }
+def isJitPackBuild = !isMavenCentralBuild && !isPublishToMavenLocal
 
-// Apply full publishing script only for Maven Central
-if (isMavenCentralBuild) {
+// Apply full publishing script for Maven Central and mavenLocal
+if (isMavenCentralBuild || isPublishToMavenLocal) {
     apply from: "${rootProject.projectDir}/scripts/publish-module.gradle"
 }
 
