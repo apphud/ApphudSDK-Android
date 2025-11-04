@@ -6,6 +6,7 @@ apply plugin: 'maven-publish'
 ext {
     PUBLISH_GROUP_ID = 'com.apphud'
     PUBLISH_VERSION = project.properties.sdkVersion
+    PUBLISH_VERSION_LOCAL = '0.0.0-local'
     PUBLISH_ARTIFACT_ID = 'ApphudSDK-Android'
     PUBLISH_DESCRIPTION = 'Apphud Android SDK is a lightweight open-source library to manage auto-renewable subscriptions and other in-app purchases in your Android app. No backend required.'
     PUBLISH_URL = 'https://github.com/apphud/ApphudSDK-Android'
@@ -33,9 +34,18 @@ android {
         minSdkVersion 26
         targetSdk 33
         compileSdk 33
-        versionName project.properties.sdkVersion
+        versionName findProperty('sdkVersion') ?: '0.0.0'
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         consumerProguardFiles "consumer-rules.pro"
+    }
+
+    testOptions {
+        unitTests {
+            all {
+                it.useJUnit()
+            }
+            returnDefaultValues = true
+        }
     }
 
     buildFeatures {
@@ -44,21 +54,21 @@ android {
 
     buildTypes {
         debug {
-            buildConfigField("String","VERSION_NAME","\"${project.properties.sdkVersion}\"")
+            buildConfigField("String","VERSION_NAME","\"${findProperty('sdkVersion') ?: '0.0.0'}\"")
         }
         release {
-            buildConfigField("String","VERSION_NAME","\"${project.properties.sdkVersion}\"")
+            buildConfigField("String","VERSION_NAME","\"${findProperty('sdkVersion') ?: '0.0.0'}\"")
             minifyEnabled false
             proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
         }
     }
 
     compileOptions {
-        sourceCompatibility JavaVersion.VERSION_1_8
-        targetCompatibility JavaVersion.VERSION_1_8
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
     }
     kotlinOptions {
-        jvmTarget = '1.8'
+        jvmTarget = '17'
     }
     namespace 'com.apphud.sdk'
 
@@ -73,6 +83,11 @@ if (isJitPackBuild) {
         publishing {
             publications {
                 release(MavenPublication) {
+                    groupId PUBLISH_GROUP_ID
+                    artifactId PUBLISH_ARTIFACT_ID
+                    // Use local version for mavenLocal, otherwise use regular version
+                    version gradle.startParameter.taskNames.any { it.contains('ToMavenLocal') } ? PUBLISH_VERSION_LOCAL : PUBLISH_VERSION
+
                     from components.release
                 }
             }
@@ -96,6 +111,13 @@ dependencies {
     implementation(libs.appcompat)
 
     testImplementation libs.junit
+    testImplementation libs.mockk
+    testImplementation libs.kotlinx.coroutines.test
     androidTestImplementation libs.ext.junit
     androidTestImplementation libs.espresso.core
+}
+
+// Configure JVM 17 toolchain for unit tests to support MockK
+kotlin {
+    jvmToolchain(17)
 }
