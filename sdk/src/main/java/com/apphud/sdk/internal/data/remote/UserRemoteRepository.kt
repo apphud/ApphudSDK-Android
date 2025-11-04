@@ -27,7 +27,7 @@ internal class UserRemoteRepository(
         }
             .recoverCatching { e ->
                 val message = e.message ?: "Failed to send properties"
-                throw ApphudError(message, null, APPHUD_ERROR_NO_INTERNET, e)
+                throw ApphudError(message, originalCause = e)
             }
             .mapCatching { response: ResponseDto<AttributionDto> ->
                 response.data.results?.let {

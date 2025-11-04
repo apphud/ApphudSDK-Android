@@ -370,7 +370,7 @@ internal object ApphudInternal {
         }
 
         if (latestCustomerLoadError == null && RequestManager.previousException != null) {
-            latestCustomerLoadError = ApphudError.from(RequestManager.previousException!!)
+            latestCustomerLoadError = ApphudError.from(originalCause = RequestManager.previousException!!)
             RequestManager.previousException = null
         }
 
@@ -580,11 +580,11 @@ internal object ApphudInternal {
     }
 
     private fun handleCustomerError(customerError: ApphudError) {
-        if ((currentUser == null || productDetails.isEmpty() || (paywalls.isEmpty() && !observerMode)) && isActive && !refreshUserPending && userLoadRetryCount < APPHUD_INFINITE_RETRIES) {
+        if (customerError.isRetryable() && (currentUser == null || productDetails.isEmpty() || (paywalls.isEmpty() && !observerMode)) && isActive && !refreshUserPending && userLoadRetryCount < APPHUD_INFINITE_RETRIES) {
             refreshUserPending = true
             coroutineScope.launch {
                 val delay = 500L * userLoadRetryCount
-                ApphudLog.logE("Customer Registration issue, will refresh in ${delay}ms")
+                ApphudLog.logE("Customer Registration issue ${customerError.errorCode}, will refresh in ${delay}ms")
                 delay(delay)
                 userLoadRetryCount += 1
                 refreshPaywallsIfNeeded()
@@ -971,7 +971,7 @@ internal object ApphudInternal {
                 email = email
             )
         }.getOrElse { error ->
-            val apphudError = if (error is ApphudError) error else ApphudError.from(error)
+            val apphudError = if (error is ApphudError) error else ApphudError.from(originalCause = error)
             ApphudLog.logE("updateUserId error: ${apphudError.message}")
             null
         }

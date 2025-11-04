@@ -6,6 +6,7 @@ import com.android.billingclient.api.*
 import com.apphud.sdk.ApphudError
 import com.apphud.sdk.ApphudInternal
 import com.apphud.sdk.ApphudLog
+import com.apphud.sdk.ApphudUtils
 import com.apphud.sdk.ProductId
 import com.apphud.sdk.handleObservedPurchase
 import com.apphud.sdk.internal.callback_status.PurchaseCallbackStatus
@@ -44,14 +45,23 @@ internal class BillingWrapper(context: Context) : Closeable {
             if (billing.isReady) {
                 result = true
             } else {
-                var retries = 0
                 try {
-                    val MAX_RETRIES = 5
+                    // Skip retries on emulators to avoid excessive warnings
+                    val MAX_RETRIES = if (ApphudUtils.isEmulator()) 1 else 5
                     var connected = false
+                    var retries = 0
+                    
                     while (!connected && retries < MAX_RETRIES) {
-                        Thread.sleep(300)
+                        if (retries > 0) {
+                            Thread.sleep(300)
+                        }
                         retries += 1
                         connected = billing.connect()
+                        
+                        if (!connected && retries >= MAX_RETRIES) {
+                            ApphudLog.log("Connect to Billing failed after $MAX_RETRIES attempts")
+                            break
+                        }
                     }
                     result = connected
                 } catch (ex: java.lang.Exception) {

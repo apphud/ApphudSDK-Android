@@ -26,7 +26,7 @@ internal class RenderRemoteRepository(
         }
             .recoverCatching { e ->
                 val message = e.message ?: "Failed to render paywall properties"
-                throw ApphudError(message, null, APPHUD_ERROR_NO_INTERNET, e)
+                throw ApphudError(message, originalCause = e)
             }
             .mapCatching { responseDto ->
                 val results = responseDto.data.results ?: throw ApphudError("Empty render response")

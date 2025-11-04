@@ -101,7 +101,7 @@ internal object RequestManager {
                     throw if (t is ApphudError) {
                         t
                     } else {
-                        ApphudError.from(t)
+                        ApphudError.from(originalCause = t)
                     }
                 }
         } else {
@@ -331,7 +331,7 @@ internal object RequestManager {
             repository.trackEvent(body).getOrThrow()
             ApphudLog.logI("Paywall Event log was sent successfully")
         }.onFailure { throwable ->
-            val error = if (throwable is ApphudError) throwable else ApphudError.from(throwable)
+            val error = if (throwable is ApphudError) throwable else ApphudError.from(originalCause = throwable)
             ApphudLog.logE("Failed to send paywall event: ${error.message}")
         }
     }

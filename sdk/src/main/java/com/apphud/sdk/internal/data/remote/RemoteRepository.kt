@@ -57,7 +57,7 @@ internal class RemoteRepository(
         }
             .recoverCatchingCancellable { e ->
                 val message = e.message ?: "Registration failed"
-                throw ApphudError(message, null, APPHUD_ERROR_NO_INTERNET, e)
+                throw ApphudError.from(message, originalCause = e)
             }
             .mapCatchingCancellable { response ->
                 response.data.results?.let { customerDto ->
@@ -73,7 +73,7 @@ internal class RemoteRepository(
         }
             .recoverCatching { e ->
                 val message = e.message ?: "Purchase failed"
-                throw ApphudError(message, null, APPHUD_ERROR_NO_INTERNET, e)
+                throw ApphudError(message, originalCause = e)
             }
             .mapCatching { response ->
                 response.data.results?.let { customerDto ->
@@ -96,7 +96,7 @@ internal class RemoteRepository(
         }
             .recoverCatching { e ->
                 val message = e.message ?: "Restore purchase failed"
-                throw ApphudError(message, null, APPHUD_ERROR_NO_INTERNET, e)
+                throw ApphudError(message, originalCause = e)
             }
             .mapCatching { response ->
                 response.data.results?.let { customerDto ->
@@ -116,7 +116,7 @@ internal class RemoteRepository(
         }
             .recoverCatching { e ->
                 val message = e.message ?: "Parse products failed"
-                throw ApphudError(message, null, APPHUD_ERROR_NO_INTERNET, e)
+                throw ApphudError(message, originalCause = e)
             }
             .mapCatching { response ->
                 response.data.results?.let { customerDto ->
@@ -133,7 +133,7 @@ internal class RemoteRepository(
         }
             .recoverCatching { e ->
                 val message = e.message ?: "Failed to send attribution"
-                throw ApphudError(message, null, APPHUD_ERROR_NO_INTERNET, e)
+                throw ApphudError(message, originalCause = e)
             }
             .mapCatching { response ->
                 response.data.results?.let { attributionDto ->
@@ -150,7 +150,7 @@ internal class RemoteRepository(
         }
             .recoverCatching { e ->
                 val message = e.message ?: "Promotional grant failed"
-                throw ApphudError(message, null, APPHUD_ERROR_NO_INTERNET, e)
+                throw ApphudError(message, originalCause = e)
             }
             .mapCatching { response ->
                 response.data.results?.let { customerDto ->
@@ -165,7 +165,7 @@ internal class RemoteRepository(
         }
             .recoverCatching { e ->
                 val message = e.message ?: "Failed to track paywall event"
-                throw ApphudError(message, null, APPHUD_ERROR_NO_INTERNET, e)
+                throw ApphudError(message, originalCause = e)
             }
             .map { }
 
@@ -179,7 +179,7 @@ internal class RemoteRepository(
         }
             .recoverCatching { e ->
                 val message = e.message ?: "Failed to get notifications"
-                throw ApphudError(message, null, APPHUD_ERROR_NO_INTERNET, e)
+                throw ApphudError(message, originalCause = e)
             }
             .mapCatching { response ->
                 response.data.results?.let { notificationsDto ->
@@ -198,7 +198,7 @@ internal class RemoteRepository(
         }
             .recoverCatching { e ->
                 val message = e.message ?: "Failed to mark notifications as read"
-                throw ApphudError(message, null, APPHUD_ERROR_NO_INTERNET, e)
+                throw ApphudError(message, originalCause = e)
             }
             .map { }
 }

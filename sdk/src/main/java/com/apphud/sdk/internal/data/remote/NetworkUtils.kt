@@ -13,6 +13,12 @@ import okhttp3.OkHttpClient
 import okhttp3.Request
 import okhttp3.RequestBody.Companion.toRequestBody
 
+internal class HttpException(
+    val httpCode: Int,
+    val responseBody: String?,
+    message: String
+) : Exception(message)
+
 internal fun buildPostRequest(
     url: HttpUrl,
     params: Any,
@@ -54,7 +60,7 @@ internal suspend inline fun <reified T> executeForResponse(
                     "finish ${request.method} request ${request.url} " +
                             "failed with code: ${response.code} response: $responseBody"
                 ApphudLog.logE(message)
-                error(message)
+                throw HttpException(response.code, responseBody, message)
             }
 
             val json = responseBody ?: error(

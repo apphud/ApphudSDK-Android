@@ -1,11 +1,14 @@
 package com.apphud.sdk
 
 import com.android.billingclient.api.BillingClient
+import com.apphud.sdk.internal.data.remote.HttpException
 import com.apphud.sdk.managers.RequestManager
 import java.io.InterruptedIOException
 import java.net.ConnectException
 import java.net.SocketTimeoutException
 import java.net.UnknownHostException
+import java.net.HttpURLConnection.HTTP_FORBIDDEN
+import java.net.HttpURLConnection.HTTP_UNAUTHORIZED
 
 data class ApphudError(
     override val message: String,
@@ -21,28 +24,38 @@ data class ApphudError(
     internal val originalCause: Throwable? = null,
 ) : Error(message) {
 
+    fun isRetryable(): Boolean {
+        if (errorCode == HTTP_UNAUTHORIZED || errorCode == HTTP_FORBIDDEN) {
+            return false
+        } else {
+            return true
+        }
+    }
+
     fun description(): String {
         return message + (if (errorCode != null) " [${errorCode!!}]" else "") + (if (secondErrorMessage != null) " [$secondErrorMessage!!]" else "")
     }
 
     companion object {
-        fun from(t: Throwable): ApphudError {
-            ApphudLog.log("Apphud Error from Exception: $t")
-            var message = t.message
+        fun from(message: String? = null, originalCause: Throwable? = null): ApphudError {
+            ApphudLog.log("Apphud Error from Exception: $originalCause")
+            var msg = message ?: originalCause?.message
             var errorCode: Int? = null
-            if (t.message == APPHUD_NO_TIME_TO_RETRY || (t is InterruptedIOException)) {
+            if (originalCause is HttpException) {
+                errorCode = originalCause.httpCode ?: 0
+            } else if (msg === APPHUD_NO_TIME_TO_RETRY || originalCause?.message == APPHUD_NO_TIME_TO_RETRY || (originalCause is InterruptedIOException)) {
                 if (RequestManager.previousException != null) {
                     errorCode = errorCodeFrom(RequestManager.previousException!!)
-                    message = RequestManager.previousException!!.message
+                    msg = RequestManager.previousException!!.message
                 } else {
-                    message = APPHUD_NO_TIME_TO_RETRY
+                    msg = APPHUD_NO_TIME_TO_RETRY
                     errorCode = APPHUD_ERROR_MAX_TIMEOUT_REACHED
                 }
-            } else {
-                errorCode = errorCodeFrom(t)
+            } else if (originalCause != null) {
+                errorCode = errorCodeFrom(originalCause)
             }
 
-            return ApphudError(message ?: "Undefined Error", null, errorCode)
+            return ApphudError(msg ?: "Undefined Error", null, errorCode, originalCause)
         }
 
         private fun errorCodeFrom(t: Throwable): Int? =
@@ -109,7 +122,7 @@ fun Throwable.toApphudError(): ApphudError =
     if (this is ApphudError) {
         this
     } else {
-        ApphudError.from(this)
+        ApphudError.from(originalCause = this)
     }
 
 const val APPHUD_ERROR_MAX_TIMEOUT_REACHED = -996

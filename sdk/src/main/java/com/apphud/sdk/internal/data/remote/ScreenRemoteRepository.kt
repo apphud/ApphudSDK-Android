@@ -49,7 +49,7 @@ internal class ScreenRemoteRepository(
         }
             .recoverCatching { e ->
                 val message = e.message ?: "Failed to load screen HTML"
-                throw ApphudError(message, null, APPHUD_ERROR_NO_INTERNET, e)
+                throw ApphudError(message, originalCause = e)
             }
 
     private companion object {

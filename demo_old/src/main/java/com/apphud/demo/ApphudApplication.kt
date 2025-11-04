@@ -9,7 +9,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 
 internal class ApphudApplication : Application() {
-    var API_KEY = "app_4sY9cLggXpMDDQMmvc5wXUPGReMp8G"
+    var API_KEY = "YOUR_API_KEY"
 
     companion object {
         private lateinit var instance: ApphudApplication
