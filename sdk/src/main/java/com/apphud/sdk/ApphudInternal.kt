@@ -1402,7 +1402,11 @@ internal object ApphudInternal {
         offeringsPreparedCallbacks.clear()
         purchaseCallbacks.clear()
         freshPurchase = null
-        storage.clean()
+        if (isInitialized()) {
+            storage.clean()
+        } else {
+            ApphudLog.log("SDK not initialized, skip storage.clean()")
+        }
         prevPurchases.clear()
         productDetails.clear()
         pendingUserProperties.clear()
