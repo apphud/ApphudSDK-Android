@@ -1302,7 +1302,7 @@ internal object ApphudInternal {
             this.productGroups = groups.toMutableList()
         }
 
-        coroutineScope.launch {
+        coroutineScope.launch(errorHandler) {
             fetchProducts()
             respondWithProducts()
         }
