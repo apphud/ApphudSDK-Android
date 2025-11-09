@@ -1,5 +1,7 @@
 package com.apphud.sdk.internal.data.local
 
+import android.os.Handler
+import android.os.Looper
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.ProcessLifecycleOwner
@@ -30,7 +32,9 @@ internal class LifecycleRepository {
         }
 
         awaitClose {
-            ProcessLifecycleOwner.get().lifecycle.removeObserver(lifecycleEventObserver)
+            Handler(Looper.getMainLooper()).post {
+                ProcessLifecycleOwner.get().lifecycle.removeObserver(lifecycleEventObserver)
+            }
         }
     }
 }
