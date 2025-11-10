@@ -1302,7 +1302,7 @@ internal object ApphudInternal {
             this.productGroups = groups.toMutableList()
         }
 
-        coroutineScope.launch {
+        coroutineScope.launch(errorHandler) {
             fetchProducts()
             respondWithProducts()
         }
@@ -1402,7 +1402,11 @@ internal object ApphudInternal {
         offeringsPreparedCallbacks.clear()
         purchaseCallbacks.clear()
         freshPurchase = null
-        storage.clean()
+        if (isInitialized()) {
+            storage.clean()
+        } else {
+            ApphudLog.log("SDK not initialized, skip storage.clean()")
+        }
         prevPurchases.clear()
         productDetails.clear()
         pendingUserProperties.clear()
