@@ -108,7 +108,7 @@ internal fun ApphudInternal.disableFallback() {
     ApphudLog.log("Fallback: DISABLED")
     coroutineScope.launch(errorHandler) {
         // if fallback raised on start, there no product groups, so reload products and details
-        if (productGroups.isEmpty()) {
+        if (productGroups.get().isEmpty()) {
             ApphudLog.log("Fallback: reload products")
             loadProducts()
         }

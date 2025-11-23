@@ -9,12 +9,13 @@ import com.apphud.sdk.domain.ApphudPlacement
 import kotlinx.coroutines.async
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.launch
+import java.util.concurrent.CopyOnWriteArrayList
 
 internal var productsStatus = ApphudProductsStatus.none
 internal var respondedWithProducts = false
 private var loadingStoreProducts = false
 internal var productsResponseCode = BillingClient.BillingResponseCode.OK
-private var loadedDetails = mutableListOf<ProductDetails>()
+private var loadedDetails = CopyOnWriteArrayList<ProductDetails>()
 
 // to avoid Google servers spamming if there is no productDetails added at all
 internal var currentPoductsLoadingCounts: Int = 0
@@ -78,7 +79,7 @@ internal fun ApphudInternal.loadProducts() {
 internal fun respondWithProducts() {
     respondedWithProducts = true
     ApphudInternal.mainScope.launch {
-        ApphudInternal.notifyLoadingCompleted(null, loadedDetails, false, false)
+        ApphudInternal.notifyLoadingCompleted(null, loadedDetails.toList(), false, false)
     }
 }
 
@@ -159,7 +160,7 @@ internal suspend fun ApphudInternal.fetchDetails(
         loadedDetails.clear()
     }
     // Assuming ProductDetails has a property 'id' that corresponds to the product ID
-    val existingIds = synchronized(productDetails) { productDetails.map { it.productId } }
+    val existingIds = productDetails.map { it.productId }
 
     val idsToFetch = ids.filterNot { existingIds.contains(it) }
 
@@ -193,12 +194,11 @@ internal suspend fun ApphudInternal.fetchDetails(
         val inAppResult = async { billing.detailsEx(BillingClient.ProductType.INAPP, idsToFetch) }.await()
 
         subsResult.first?.let { subsDetails ->
-            synchronized(loadedDetails) {
-                // Add new subscription details if they're not already present
-                subsDetails.forEach { detail ->
-                    if (!loadedDetails.map { it.productId }.contains(detail.productId)) {
-                        loadedDetails.add(detail)
-                    }
+            // Add new subscription details if they're not already present
+            // CopyOnWriteArrayList is thread-safe, no synchronization needed
+            subsDetails.forEach { detail ->
+                if (!loadedDetails.any { it.productId == detail.productId }) {
+                    loadedDetails.add(detail)
                 }
             }
         } ?: run {
@@ -208,12 +208,11 @@ internal suspend fun ApphudInternal.fetchDetails(
         }
 
         inAppResult.first?.let { inAppDetails ->
-            synchronized(loadedDetails) {
-                // Add new in-app product details if they're not already present
-                inAppDetails.forEach { detail ->
-                    if (!loadedDetails.map { it.productId }.contains(detail.productId)) {
-                        loadedDetails.add(detail)
-                    }
+            // Add new in-app product details if they're not already present
+            // CopyOnWriteArrayList is thread-safe, no synchronization needed
+            inAppDetails.forEach { detail ->
+                if (!loadedDetails.any { it.productId == detail.productId }) {
+                    loadedDetails.add(detail)
                 }
             }
         } ?: run {
