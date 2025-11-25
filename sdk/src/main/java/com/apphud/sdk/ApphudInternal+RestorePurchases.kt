@@ -105,7 +105,7 @@ internal suspend fun ApphudInternal.syncPurchases(
             refreshEntitlements(true)
             val user = currentUser
             return if (user != null) {
-                ApphudPurchasesRestoreResult.Success(user.subscriptions, user.purchases)
+                ApphudPurchasesRestoreResult.Success(user.subscriptions.toList(), user.purchases.toList())
             } else {
                 ApphudPurchasesRestoreResult.Error(ApphudError("User not found."))
             }
@@ -152,7 +152,7 @@ internal suspend fun ApphudInternal.syncPurchases(
                 }
                 val user = currentUser
                 return if (user != null) {
-                    ApphudPurchasesRestoreResult.Success(user.subscriptions, user.purchases)
+                    ApphudPurchasesRestoreResult.Success(user.subscriptions.toList(), user.purchases.toList())
                 } else {
                     ApphudPurchasesRestoreResult.Error(ApphudError("User not found."))
                 }
@@ -220,7 +220,7 @@ internal suspend fun ApphudInternal.sendPurchasesToApphud(
                 notifyLoadingCompleted(customer)
             }
 
-            ApphudPurchasesRestoreResult.Success(customer.subscriptions, customer.purchases)
+            ApphudPurchasesRestoreResult.Success(customer.subscriptions.toList(), customer.purchases.toList())
         },
         onFailure = { error ->
             ApphudPurchasesRestoreResult.Error(error.toApphudError())

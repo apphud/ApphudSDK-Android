@@ -47,6 +47,10 @@ import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeout
 import java.util.UUID
 import java.util.concurrent.CancellationException
+import java.util.concurrent.ConcurrentHashMap
+import java.util.concurrent.CopyOnWriteArrayList
+import java.util.concurrent.CopyOnWriteArraySet
+import java.util.concurrent.atomic.AtomicReference
 import kotlin.coroutines.resume
 import kotlin.coroutines.resumeWithException
 import kotlin.math.max
@@ -65,8 +69,8 @@ internal object ApphudInternal {
     internal var ignoreCache: Boolean = false
     internal lateinit var billing: BillingWrapper
     internal val storage by lazy { SharedPreferencesStorage.getInstance(context) }
-    internal var prevPurchases = mutableSetOf<PurchaseRecordDetails>()
-    internal var productDetails = mutableListOf<ProductDetails>()
+    internal val prevPurchases = CopyOnWriteArraySet<PurchaseRecordDetails>()
+    internal val productDetails = CopyOnWriteArrayList<ProductDetails>()
 
     @Volatile
     internal var paywalls = listOf<ApphudPaywall>()
@@ -84,10 +88,10 @@ internal object ApphudInternal {
     internal var firstCustomerLoadedTime: Long? = null
     internal var productsLoadedTime: Long? = null
     internal var trackedAnalytics = false
-    internal var observedOrders = mutableListOf<String>()
+    internal val observedOrders = ConcurrentHashMap.newKeySet<String>()
     internal var latestCustomerLoadError: ApphudError? = null
     private val handler: Handler = Handler(Looper.getMainLooper())
-    private val pendingUserProperties = mutableMapOf<String, ApphudUserProperty>()
+    private val pendingUserProperties = ConcurrentHashMap<String, ApphudUserProperty>()
 
     @Volatile
     private var updateUserPropertiesJob: kotlinx.coroutines.Job? = null
@@ -115,7 +119,7 @@ internal object ApphudInternal {
     internal var isUpdatingProperties = false
 
     private const val MUST_REGISTER_ERROR = " :You must call `Apphud.start` method before calling any other methods."
-    internal var productGroups: MutableList<ApphudGroup> = mutableListOf()
+    internal val productGroups = AtomicReference<List<ApphudGroup>>(emptyList())
 
     @Volatile
     private var allowIdentifyUser = true
@@ -135,7 +139,7 @@ internal object ApphudInternal {
     internal var purchasingProduct: ApphudProduct? = null
     internal var preferredTimeout: Double = 999_999.0
     private var customProductsFetchedBlock: ((List<ProductDetails>) -> Unit)? = null
-    private var offeringsPreparedCallbacks = mutableListOf<((ApphudError?) -> Unit)?>()
+    private val offeringsPreparedCallbacks = CopyOnWriteArrayList<((ApphudError?) -> Unit)?>()
 
     internal var purchaseCallbacks = mutableListOf<((ApphudPurchaseResult) -> Unit)>()
     internal var freshPurchase: Purchase? = null
@@ -275,7 +279,7 @@ internal object ApphudInternal {
         this.userId = newUserId
         this.deviceId = newDeviceId
         this.currentUser = cachedUser
-        this.productGroups = cachedGroups
+        this.productGroups.set(cachedGroups.toList())
         cachedPaywalls?.let { this.paywalls = it }
         cachedPlacements?.let { this.placements = it }
 
@@ -388,15 +392,14 @@ internal object ApphudInternal {
                 }
             }
 
-            productGroups = readGroupsFromCache()
-            updateGroupsWithProductDetails(productGroups)
+            val cachedProductGroups = readGroupsFromCache()
+            productGroups.set(cachedProductGroups.toList())
+            updateGroupsWithProductDetails(productGroups.get())
 
-            synchronized(productDetails) {
-                // notify that productDetails are loaded
-                if (productDetails.isNotEmpty()) {
-                    apphudListener?.apphudFetchProductDetails(productDetails)
-                    customProductsFetchedBlock?.invoke(productDetails)
-                }
+            // notify that productDetails are loaded
+            if (productDetails.isNotEmpty()) {
+                apphudListener?.apphudFetchProductDetails(productDetails.toList())
+                customProductsFetchedBlock?.invoke(productDetails.toList())
             }
         }
 
@@ -451,8 +454,8 @@ internal object ApphudInternal {
                 delay(500)
                 mainScope.launch {
                     currentUser?.let { user ->
-                        apphudListener?.apphudNonRenewingPurchasesUpdated(user.purchases)
-                        apphudListener?.apphudSubscriptionsUpdated(user.subscriptions)
+                        apphudListener?.apphudNonRenewingPurchasesUpdated(user.purchases.toList())
+                        apphudListener?.apphudSubscriptionsUpdated(user.subscriptions.toList())
                     }
                 }
             }
@@ -509,8 +512,8 @@ internal object ApphudInternal {
 
     private fun handleSuccessfulLoad() {
         if (!notifiedAboutPaywallsDidFullyLoaded) {
-            apphudListener?.paywallsDidFullyLoad(paywalls)
-            apphudListener?.placementsDidFullyLoad(placements)
+            apphudListener?.paywallsDidFullyLoad(paywalls.toList())
+            apphudListener?.placementsDidFullyLoad(placements.toList())
 
             notifiedAboutPaywallsDidFullyLoaded = true
             ApphudLog.logI("Paywalls and Placements ready")
@@ -751,7 +754,7 @@ internal object ApphudInternal {
 
     internal fun productsFetchCallback(callback: (List<ProductDetails>) -> Unit) {
         if (productDetails.isNotEmpty()) {
-            callback.invoke(productDetails)
+            callback.invoke(productDetails.toList())
         } else {
             customProductsFetchedBlock = callback
         }
@@ -853,12 +856,7 @@ internal object ApphudInternal {
             return
         }
 
-        synchronized(pendingUserProperties) {
-            pendingUserProperties.run {
-                remove(property.key)
-                put(property.key, property)
-            }
-        }
+        pendingUserProperties[property.key] = property
         setNeedsToUpdateUserProperties = true
     }
 
@@ -884,12 +882,10 @@ internal object ApphudInternal {
             val properties = mutableListOf<Map<String, Any?>>()
             val sentPropertiesForSave = mutableListOf<ApphudUserProperty>()
 
-            synchronized(pendingUserProperties) {
-                pendingUserProperties.forEach {
-                    properties.add(it.value.toJSON()!!)
-                    if (!it.value.increment && it.value.value != null) {
-                        sentPropertiesForSave.add(it.value)
-                    }
+            pendingUserProperties.forEach {
+                properties.add(it.value.toJSON()!!)
+                if (!it.value.increment && it.value.value != null) {
+                    sentPropertiesForSave.add(it.value)
                 }
             }
 
@@ -906,9 +902,7 @@ internal object ApphudInternal {
                                 }
                                 storage.properties = propertiesInStorage
 
-                                synchronized(pendingUserProperties) {
-                                    pendingUserProperties.clear()
-                                }
+                                pendingUserProperties.clear()
 
                                 ApphudLog.logI("User Properties successfully updated.")
                                 true
@@ -1260,11 +1254,8 @@ internal object ApphudInternal {
     fun fetchAndroidIdSync(): String? =
         Settings.Secure.getString(context.contentResolver, Settings.Secure.ANDROID_ID)
 
-    fun getProductDetails(): List<ProductDetails> {
-        synchronized(productDetails) {
-            return productDetails.toCollection(mutableListOf())
-        }
-    }
+    fun getProductDetails(): List<ProductDetails> =
+        productDetails.toList()
 
     fun getPaywalls(): List<ApphudPaywall> {
         synchronized(paywalls) {
@@ -1279,17 +1270,14 @@ internal object ApphudInternal {
     }
 
     fun getPermissionGroups(): List<ApphudGroup> {
-        synchronized(productGroups) {
-            return this.productGroups.toList()
-        }
+        return this.productGroups.get()
     }
 
     suspend fun loadPermissionGroups(): List<ApphudGroup> {
 
-        synchronized(this.productGroups) {
-            if (this.productGroups.isNotEmpty() && !storage.needUpdateProductGroups()) {
-                return this.productGroups.toList()
-            }
+        val currentGroups = this.productGroups.get()
+        if (currentGroups.isNotEmpty() && !storage.needUpdateProductGroups()) {
+            return currentGroups
         }
 
         val groups = runCatchingCancellable { RequestManager.allProducts() }.getOrElse { emptyList() }
@@ -1298,9 +1286,7 @@ internal object ApphudInternal {
             cacheGroups(groups)
         }
 
-        synchronized(this.productGroups) {
-            this.productGroups = groups.toMutableList()
-        }
+        this.productGroups.set(groups.toList())
 
         coroutineScope.launch(errorHandler) {
             fetchProducts()
@@ -1409,6 +1395,7 @@ internal object ApphudInternal {
         }
         prevPurchases.clear()
         productDetails.clear()
+        productGroups.set(emptyList())
         pendingUserProperties.clear()
         allowIdentifyUser = true
         didRegisterCustomerAtThisLaunch = false
@@ -1481,11 +1468,7 @@ internal object ApphudInternal {
 
     // Find ProductDetails  ======================================
     internal fun getProductDetailsByProductId(productIdentifier: String): ProductDetails? {
-        var productDetail: ProductDetails? = null
-        synchronized(productDetails) {
-            productDetail = productDetails.firstOrNull { it.productId == productIdentifier }
-        }
-        return productDetail
+        return productDetails.firstOrNull { it.productId == productIdentifier }
     }
 //endregion
 }

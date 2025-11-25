@@ -36,7 +36,7 @@ internal fun ApphudInternal.purchase(
     var productToPurchase =
         apphudProduct
             ?: productId?.let { pId ->
-                val products = productGroups.map { it.products ?: listOf() }.flatten().distinctBy { it.id }
+                val products = productGroups.get().map { it.products ?: listOf() }.flatten().distinctBy { it.id }
                 products.firstOrNull { it.productId == pId }
             }
 
@@ -463,14 +463,13 @@ private suspend fun ApphudInternal.sendCheckToApphud(
             }
         }
         else -> {
-            synchronized(observedOrders) {
-                purchase.orderId?.let {
-                    if (observedOrders.contains(it) && callback == null) {
-                        ApphudLog.logI("Already observed order ${it}, skipping...")
-                        return
-                    } else {
-                        observedOrders.add(it)
-                    }
+            purchase.orderId?.let {
+                // add() returns true if element was added (not already present)
+                // returns false if element was already in the set
+                val wasAdded = observedOrders.add(it)
+                if (!wasAdded && callback == null) {
+                    ApphudLog.logI("Already observed order ${it}, skipping...")
+                    return
                 }
             }
             runCatchingCancellable {
