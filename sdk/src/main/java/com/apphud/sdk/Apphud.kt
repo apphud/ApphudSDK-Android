@@ -666,7 +666,12 @@ object Apphud {
      * You can call this method, when the app reactivates from the background, if needed.
      */
     fun refreshUserData(callback: ((ApphudUser?) -> Unit)? = null) {
-        ApphudInternal.refreshEntitlements(true, callback = callback)
+        coroutineScope.launch(errorHandler) {
+            val result = ApphudInternal.refreshEntitlements(forceRefresh = true)
+            withContext(Dispatchers.Main) {
+                callback?.invoke(result)
+            }
+        }
     }
 
     /**
@@ -844,7 +849,15 @@ object Apphud {
         permissionGroup: ApphudGroup? = null,
         callback: ((Boolean) -> Unit)? = null,
     ) {
-        ApphudInternal.grantPromotional(daysCount, productId, permissionGroup, callback)
+        coroutineScope.launch(errorHandler) {
+            val result = runCatching {
+                ApphudInternal.grantPromotionalSuspend(daysCount, productId, permissionGroup)
+            }.getOrElse { false }
+
+            withContext(Dispatchers.Main) {
+                callback?.invoke(result)
+            }
+        }
     }
 
     /**
