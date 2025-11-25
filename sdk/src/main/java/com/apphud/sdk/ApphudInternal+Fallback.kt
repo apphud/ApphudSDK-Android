@@ -4,6 +4,7 @@ import android.content.Context
 import com.android.billingclient.api.BillingClient.BillingResponseCode
 import com.apphud.sdk.domain.ApphudUser
 import com.apphud.sdk.domain.FallbackJsonObject
+import com.apphud.sdk.internal.ServiceLocator
 import com.apphud.sdk.mappers.PaywallsMapperLegacy
 import com.apphud.sdk.parser.GsonParser
 import com.apphud.sdk.parser.Parser
@@ -22,11 +23,16 @@ internal var processedFallbackData = false
 internal fun ApphudInternal.processFallbackData(callback: PaywallCallback) {
     try {
         if (currentUser == null) {
-            currentUser =
-                ApphudUser(
-                    userId, "", "", listOf(), listOf(), listOf(),
-                    listOf(), true,
+            val temporaryUser = ApphudUser(
+                userId, "", "", listOf(), listOf(), listOf(),
+                listOf(), true,
+            )
+            coroutineScope.launch {
+                ServiceLocator.instance.userRepository.setCurrentUser(
+                    temporaryUser,
+                    saveToCache = false
                 )
+            }
             ApphudLog.log("Fallback: user created: $userId")
         }
 
