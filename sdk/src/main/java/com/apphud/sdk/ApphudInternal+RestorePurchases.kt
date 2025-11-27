@@ -11,7 +11,6 @@ import com.apphud.sdk.internal.callback_status.PurchaseRestoredCallbackStatus
 import com.apphud.sdk.internal.util.runCatchingCancellable
 import com.apphud.sdk.managers.RequestManager
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
@@ -70,7 +69,7 @@ internal suspend fun ApphudInternal.syncPurchases(
 ): ApphudPurchasesRestoreResult {
     runCatchingCancellable { awaitUserRegistration() }
         .onFailure { error ->
-            ApphudLog.log("SyncPurchases: performWhenUserRegistered fail")
+            ApphudLog.log("SyncPurchases: awaitUserRegistration fail")
             return ApphudPurchasesRestoreResult.Error(error.toApphudError())
         }
 
@@ -147,9 +146,7 @@ internal suspend fun ApphudInternal.syncPurchases(
             if (prevPurchases.containsAll(restoredPurchases)) {
                 ApphudLog.log("SyncPurchases: Don't send equal purchases from prev state")
                 storage.isNeedSync = false
-                mainScope.launch {
-                    refreshEntitlements(true)
-                }
+                refreshEntitlements(true)
                 val user = currentUser
                 return if (user != null) {
                     ApphudPurchasesRestoreResult.Success(user.subscriptions.toList(), user.purchases.toList())
@@ -234,8 +231,8 @@ private fun processHistoryCallbackStatus(result: PurchaseHistoryCallbackStatus):
             val type = if (result.type() == BillingClient.ProductType.SUBS) "subscriptions" else "in-app products"
             ApphudLog.log(
                 "Failed to load history for $type with error: (" +
-                        "${result.result?.responseCode})" +
-                        "${result.result?.debugMessage})",
+                    "${result.result?.responseCode})" +
+                    "${result.result?.debugMessage})",
             )
         }
         is PurchaseHistoryCallbackStatus.Success -> {

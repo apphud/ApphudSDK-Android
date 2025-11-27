@@ -22,7 +22,7 @@ data class ApphudError(
     var errorCode: Int? = null,
 
     internal val originalCause: Throwable? = null,
-) : Error(message) {
+) : Error(message, originalCause) {
 
     fun isRetryable(): Boolean {
         if (errorCode == HTTP_UNAUTHORIZED || errorCode == HTTP_FORBIDDEN) {
