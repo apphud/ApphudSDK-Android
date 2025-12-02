@@ -36,7 +36,7 @@ internal fun ApphudInternal.processFallbackData(callback: PaywallCallback) {
 
         processedFallbackData = true
 
-        var ids = getPaywalls().map { it.products?.map { it.productId } ?: listOf() }.flatten()
+        var ids = (currentUser?.paywalls.orEmpty()).map { it.products?.map { it.productId } ?: listOf() }.flatten()
         if (ids.isEmpty()) {
             val jsonFileString = getJsonDataFromAsset(context, "apphud_paywalls_fallback.json")
             val gson = Gson()
@@ -86,7 +86,7 @@ internal fun ApphudInternal.processFallbackData(callback: PaywallCallback) {
                     fromFallback = true,
                     fromCache = true
                 )
-                callback(getPaywalls(), error)
+                callback(currentUser?.paywalls.orEmpty(), error)
             }
         }
     } catch (ex: Exception) {

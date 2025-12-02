@@ -268,11 +268,14 @@ private fun ApphudInternal.findJustPurchasedProduct(
     tempPurchaseRecordDetails: List<PurchaseRecordDetails>?,
 ): ApphudProduct? {
     try {
+        val userPaywalls = currentUser?.paywalls.orEmpty()
+        val userPlacements = currentUser?.placements.orEmpty()
+
         val targetPaywall =
             if (placementIdentifier != null) {
-                placements.firstOrNull { it.identifier == placementIdentifier }?.paywall
+                userPlacements.firstOrNull { it.identifier == placementIdentifier }?.paywall
             } else {
-                paywalls.firstOrNull { it.identifier == paywallIdentifier }
+                userPaywalls.firstOrNull { it.identifier == paywallIdentifier }
             }
 
         productDetails?.let { details ->
