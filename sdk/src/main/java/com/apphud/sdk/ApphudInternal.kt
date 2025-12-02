@@ -70,11 +70,11 @@ internal object ApphudInternal {
     internal val prevPurchases = CopyOnWriteArraySet<PurchaseRecordDetails>()
     internal val productDetails = CopyOnWriteArrayList<ProductDetails>()
 
-    @Volatile
-    internal var paywalls = listOf<ApphudPaywall>()
+    internal val paywalls: List<ApphudPaywall>
+        get() = currentUser?.paywalls ?: emptyList()
 
-    @Volatile
-    internal var placements = listOf<ApphudPlacement>()
+    internal val placements: List<ApphudPlacement>
+        get() = currentUser?.placements ?: emptyList()
     internal var isRegisteringUser = false
 
     @Volatile
@@ -251,8 +251,8 @@ internal object ApphudInternal {
         }
 
         val cachedUser = if (isValid) storage.apphudUser else null
-        val cachedPaywalls = if (ignoreCache || !isValid || observerMode) null else readPaywallsFromCache()
-        val cachedPlacements = if (ignoreCache || !isValid || observerMode) null else readPlacementsFromCache()
+        val cachedPaywalls = if (ignoreCache || !isValid || observerMode) null else cachedUser?.paywalls
+        val cachedPlacements = if (ignoreCache || !isValid || observerMode) null else cachedUser?.placements
         val cachedGroups = if (isValid) readGroupsFromCache() else mutableListOf()
         val cachedDeviceId = storage.deviceId
         val cachedUserId = storage.userId
@@ -293,14 +293,10 @@ internal object ApphudInternal {
 
         // Initialize user via Repository (skip cache save since already cached)
         cachedUser?.let { user ->
-            mainScope.launch {
-                ServiceLocator.instance.userRepository.setCurrentUser(user, saveToCache = false)
-            }
+            ServiceLocator.instance.userRepository.setCurrentUser(user, saveToCache = false)
         }
 
         this.productGroups.set(cachedGroups.toList())
-        cachedPaywalls?.let { this.paywalls = it }
-        cachedPlacements?.let { this.placements = it }
 
         this.userRegisteredBlock = callback
         billing = BillingWrapper(this.context)
@@ -426,9 +422,7 @@ internal object ApphudInternal {
         }
 
         customerLoaded?.let {
-            coroutineScope.launch {
-                updateUserState(it, fromCache, fromFallback)
-            }
+            updateUserState(it, fromCache, fromFallback)
 
             if (!fromCache && !fromFallback && it.paywalls.isEmpty()) {
                 /* Attention:
@@ -436,10 +430,6 @@ internal object ApphudInternal {
                  * If cache time is over, paywall from cache will be NULL
                  */
                 paywallsPrepared = false
-            }
-
-            coroutineScope.launch {
-                updatePaywallsState(it, fromCache, fromFallback)
             }
 
             // TODO: should be called only if something changed
@@ -638,9 +628,6 @@ internal object ApphudInternal {
             }
 
             updateUserState(newUser, fromCache = false, fromFallback = false)
-            if (newUser.paywalls.isNotEmpty()) {
-                updatePaywallsState(newUser, fromCache = false, fromFallback = false)
-            }
 
             if (storage.isNeedSync) {
                 coroutineScope.launch(errorHandler) {
@@ -1212,17 +1199,9 @@ internal object ApphudInternal {
     fun getProductDetails(): List<ProductDetails> =
         productDetails.toList()
 
-    fun getPaywalls(): List<ApphudPaywall> {
-        synchronized(paywalls) {
-            return paywalls.toCollection(mutableListOf())
-        }
-    }
+    fun getPaywalls(): List<ApphudPaywall> = paywalls.toList()
 
-    fun getPlacements(): List<ApphudPlacement> {
-        synchronized(placements) {
-            return placements.toCollection(mutableListOf())
-        }
-    }
+    fun getPlacements(): List<ApphudPlacement> = placements.toList()
 
     fun getPermissionGroups(): List<ApphudGroup> {
         return this.productGroups.get()
@@ -1337,9 +1316,7 @@ internal object ApphudInternal {
 
         // Clear user through Repository
         runCatching {
-            coroutineScope.launch {
-                ServiceLocator.instance.userRepository.clearUser()
-            }
+            ServiceLocator.instance.userRepository.clearUser()
         }.onFailure { e ->
             ApphudLog.log("ServiceLocator not initialized, skip userRepository.clearUser(): ${e.message}")
         }
@@ -1386,46 +1363,25 @@ internal object ApphudInternal {
         }
     }
 
-    // Paywalls cache ======================================
-    internal fun cachePaywalls(paywalls: List<ApphudPaywall>) {
-        storage.paywalls = paywalls
-    }
-
-    private fun readPaywallsFromCache(): List<ApphudPaywall>? {
-        return storage.paywalls
-    }
-
-    private fun cachePlacements(placements: List<ApphudPlacement>) {
-        storage.placements = placements
-    }
-
-    private fun readPlacementsFromCache(): List<ApphudPlacement>? {
-        return storage.placements
-    }
-
     private fun updatePaywallsAndPlacements() {
-        synchronized(paywalls) {
-            paywalls.forEach { paywall ->
-                paywall.products?.forEach { product ->
-                    product.paywallId = paywall.id
-                    product.paywallIdentifier = paywall.identifier
-                    product.productDetails = getProductDetailsByProductId(product.productId)
-                }
+        paywalls.forEach { paywall ->
+            paywall.products?.forEach { product ->
+                product.paywallId = paywall.id
+                product.paywallIdentifier = paywall.identifier
+                product.productDetails = getProductDetailsByProductId(product.productId)
             }
         }
 
-        synchronized(placements) {
-            placements.forEach { placement ->
-                val paywall = placement.paywall
-                paywall?.placementId = placement.id
-                paywall?.placementIdentifier = placement.identifier
-                paywall?.products?.forEach { product ->
-                    product.paywallId = placement.paywall.id
-                    product.paywallIdentifier = placement.paywall.identifier
-                    product.placementId = placement.id
-                    product.placementIdentifier = placement.identifier
-                    product.productDetails = getProductDetailsByProductId(product.productId)
-                }
+        placements.forEach { placement ->
+            val paywall = placement.paywall ?: return@forEach
+            paywall.placementId = placement.id
+            paywall.placementIdentifier = placement.identifier
+            paywall.products?.forEach { product ->
+                product.paywallId = paywall.id
+                product.paywallIdentifier = paywall.identifier
+                product.placementId = placement.id
+                product.placementIdentifier = placement.identifier
+                product.productDetails = getProductDetailsByProductId(product.productId)
             }
         }
     }
@@ -1441,7 +1397,7 @@ internal object ApphudInternal {
      * Update user state through Repository
      * Separation of concerns: state mutation is separated from notifications
      */
-    private suspend fun updateUserState(user: ApphudUser, fromCache: Boolean = false, fromFallback: Boolean = false) {
+    private fun updateUserState(user: ApphudUser, fromCache: Boolean = false, fromFallback: Boolean = false) {
         // Save user through repository
         if (!fromCache && !fromFallback) {
             val userIdChanged = ServiceLocator.instance.userRepository.setCurrentUser(user, saveToCache = true)
@@ -1476,36 +1432,6 @@ internal object ApphudInternal {
         val cachedProductGroups = readGroupsFromCache()
         productGroups.set(cachedProductGroups.toList())
         updateGroupsWithProductDetails(productGroups.get())
-    }
-
-    /**
-     * Update paywalls and placements state
-     */
-    private suspend fun updatePaywallsState(
-        user: ApphudUser,
-        fromCache: Boolean = false,
-        fromFallback: Boolean = false,
-    ) {
-        if (fromCache || fromFallback || fallbackMode) {
-            // Load from cache
-            readPaywallsFromCache()?.let { cached -> paywalls = cached }
-            readPlacementsFromCache()?.let { cached -> placements = cached }
-
-            if (paywalls.isEmpty() && user.paywalls.isNotEmpty()) {
-                paywalls = user.paywalls
-                placements = user.placements
-            }
-        } else {
-            // Update from server
-            if (user.paywalls.isNotEmpty()) {
-                coroutineScope.launch {
-                    cachePaywalls(user.paywalls)
-                    cachePlacements(user.placements)
-                }
-                paywalls = user.paywalls
-                placements = user.placements
-            }
-        }
     }
     //endregion
 }
