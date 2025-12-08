@@ -4,6 +4,7 @@ import android.content.Context
 import android.net.ConnectivityManager
 import android.net.NetworkCapabilities
 import android.os.Build
+import com.apphud.sdk.internal.ServiceLocator
 
 
 /**
@@ -20,6 +21,8 @@ object ApphudUtils {
         private set
 
     var optOutOfTracking: Boolean = false
+
+    internal var overriddenBaseUrl: String? = null
 
     /**
      * Enable console logging.
@@ -39,6 +42,14 @@ object ApphudUtils {
 
     internal fun setPackageName(packageName: String) {
         this.packageName = packageName
+    }
+
+    /**
+     * Must be called before `Apphud.start()`.
+     * Changing the value after the SDK initialization has no effect.
+     */
+    fun overrideBaseUrl(baseUrl: String) {
+        overriddenBaseUrl = baseUrl
     }
 
     fun hasInternetConnection(context: Context): Boolean {
