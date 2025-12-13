@@ -1,44 +1,40 @@
 package com.apphud.sdk.internal.data
 
 import com.apphud.sdk.domain.ApphudUser
-import kotlinx.coroutines.sync.Mutex
-import kotlinx.coroutines.sync.withLock
 
 /**
  * Repository for managing current user state
- * Provides thread-safe access to currentUser via Mutex
+ * Thread-safe via @Volatile for reads and synchronized for writes
  */
 internal class UserRepository(
     private val dataSource: UserDataSource
 ) {
-    private val mutex = Mutex()
-
     @Volatile
     private var currentUser: ApphudUser? = null
 
     /**
-     * Thread-safe read without lock thanks to @Volatile
+     * Thread-safe read thanks to @Volatile
      */
     fun getCurrentUser(): ApphudUser? {
         return currentUser
     }
 
     /**
-     * Thread-safe write using Mutex
+     * Thread-safe write using synchronized
      *
      * @param saveToCache whether to save to cache (default true)
      * @return true if userId changed
      */
-    suspend fun setCurrentUser(user: ApphudUser, saveToCache: Boolean = true): Boolean {
-        return mutex.withLock {
-            currentUser = user
+    @Synchronized
+    fun setCurrentUser(user: ApphudUser, saveToCache: Boolean = true): Boolean {
+        val userIdChanged = currentUser?.userId != user.userId
+        currentUser = user
 
-            if (saveToCache) {
-                dataSource.saveUser(user)
-            } else {
-                false
-            }
+        if (saveToCache) {
+            dataSource.saveUser(user)
         }
+
+        return userIdChanged
     }
 
     /**
@@ -46,28 +42,26 @@ internal class UserRepository(
      *
      * @return true if user was updated
      */
-    suspend fun updateUser(user: ApphudUser): Boolean {
-        return mutex.withLock {
-            val current = currentUser
-            val shouldUpdate = current == null || current.userId != user.userId
+    @Synchronized
+    fun updateUser(user: ApphudUser): Boolean {
+        val current = currentUser
+        val shouldUpdate = current == null || current.userId != user.userId
 
-            if (shouldUpdate) {
-                currentUser = user
-                dataSource.saveUser(user)
-            } else {
-                false
-            }
+        if (shouldUpdate) {
+            currentUser = user
+            dataSource.saveUser(user)
         }
+
+        return shouldUpdate
     }
 
     /**
      * Used during logout
      */
-    suspend fun clearUser() {
-        mutex.withLock {
-            currentUser = null
-            dataSource.clearUser()
-        }
+    @Synchronized
+    fun clearUser() {
+        currentUser = null
+        dataSource.clearUser()
     }
 
     fun loadFromCache(): ApphudUser? {

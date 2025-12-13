@@ -3,7 +3,6 @@ package com.apphud.sdk.storage
 import android.content.Context
 import android.content.SharedPreferences
 import androidx.core.content.edit
-import com.apphud.sdk.ApphudInternal
 import com.apphud.sdk.ApphudLog
 import com.apphud.sdk.ApphudUserProperty
 import com.apphud.sdk.domain.AdjustInfo
@@ -56,7 +55,7 @@ internal object SharedPreferencesStorage : Storage {
     private const val SKU_KEY = "skuKey"
     private const val SKU_TIMESTAMP_KEY = "skuTimestampKey"
     private const val LAST_REGISTRATION_KEY = "lastRegistrationKey"
-    private const val CURRENT_CACHE_VERSION = "2"
+    private const val CURRENT_CACHE_VERSION = "3"
 
     private val productDetailsExclusionStrategy = object : ExclusionStrategy {
         override fun shouldSkipField(f: FieldAttributes): Boolean {
@@ -194,48 +193,6 @@ internal object SharedPreferencesStorage : Storage {
             }
         }
 
-    override var paywalls: List<ApphudPaywall>?
-        get() {
-            val timestamp = preferences.getLong(PAYWALLS_TIMESTAMP_KEY, -1L) + (cacheTimeout * 1000)
-            val currentTime = System.currentTimeMillis()
-            return if ((currentTime < timestamp) || ApphudInternal.fallbackMode) {
-                val source = preferences.getString(PAYWALLS_KEY, null)
-                val type = object : TypeToken<List<ApphudPaywall>>() {}.type
-                parser.fromJson<List<ApphudPaywall>>(source, type)
-            } else {
-                ApphudLog.log("Paywalls Cache Expired")
-                return null
-            }
-        }
-        set(value) {
-            val source = parser.toJson(value)
-            preferences.edit {
-                putLong(PAYWALLS_TIMESTAMP_KEY, System.currentTimeMillis())
-                putString(PAYWALLS_KEY, source)
-            }
-        }
-
-    override var placements: List<ApphudPlacement>?
-        get() {
-            val timestamp = preferences.getLong(PLACEMENTS_TIMESTAMP_KEY, -1L) + (cacheTimeout * 1000)
-            val currentTime = System.currentTimeMillis()
-            return if ((currentTime < timestamp) || ApphudInternal.fallbackMode) {
-                val source = preferences.getString(PLACEMENTS_KEY, null)
-                val type = object : TypeToken<List<ApphudPlacement>>() {}.type
-                parser.fromJson<List<ApphudPlacement>>(source, type)
-            } else {
-                ApphudLog.log("Placements Cache Expired")
-                null
-            }
-        }
-        set(value) {
-            val source = parser.toJson(value)
-            preferences.edit {
-                putLong(PLACEMENTS_TIMESTAMP_KEY, System.currentTimeMillis())
-                putString(PLACEMENTS_KEY, source)
-            }
-        }
-
     override var productDetails: List<String>?
         get() {
             val timestamp = preferences.getLong(SKU_TIMESTAMP_KEY, -1L) + (cacheTimeout * 1000)
@@ -288,8 +245,7 @@ internal object SharedPreferencesStorage : Storage {
         firebase = null
         appsflyer = null
         productGroups = null
-        paywalls = null
-        placements = null
+        clearLegacyPaywallsCache()
         productDetails = null
         properties = null
         adjust = null
@@ -297,17 +253,71 @@ internal object SharedPreferencesStorage : Storage {
 
     fun validateCaches(): Boolean {
         val version = cacheVersion
+
+        if (version == "2") {
+            migratePaywallsToUser()
+            cacheVersion = CURRENT_CACHE_VERSION
+            return true
+        }
+
         if (version.isNullOrEmpty() || version != CURRENT_CACHE_VERSION) {
             ApphudLog.log("Invalid Cache Version. Clearing cached models.")
-            // drop models caches
             apphudUser = null
             productGroups = null
-            paywalls = null
-            placements = null
+            clearLegacyPaywallsCache()
             cacheVersion = CURRENT_CACHE_VERSION
             return false
         }
         return true
+    }
+
+    private fun migratePaywallsToUser() {
+        val currentUser = apphudUser ?: run {
+            clearLegacyPaywallsCache()
+            return
+        }
+
+        val legacyPaywalls = readLegacyPaywalls()
+        val legacyPlacements = readLegacyPlacements()
+
+        if (legacyPaywalls.isNullOrEmpty() && legacyPlacements.isNullOrEmpty()) {
+            clearLegacyPaywallsCache()
+            return
+        }
+
+        val needMigration = currentUser.paywalls.isEmpty() && !legacyPaywalls.isNullOrEmpty()
+
+        if (needMigration) {
+            val migratedUser = currentUser.copy(
+                paywalls = legacyPaywalls,
+                placements = legacyPlacements ?: listOf()
+            )
+            apphudUser = migratedUser
+            ApphudLog.log("Migrated paywalls/placements to ApphudUser")
+        }
+
+        clearLegacyPaywallsCache()
+    }
+
+    private fun readLegacyPaywalls(): List<ApphudPaywall>? {
+        val source = preferences.getString(PAYWALLS_KEY, null) ?: return null
+        val type = object : TypeToken<List<ApphudPaywall>>() {}.type
+        return parser.fromJson<List<ApphudPaywall>>(source, type)
+    }
+
+    private fun readLegacyPlacements(): List<ApphudPlacement>? {
+        val source = preferences.getString(PLACEMENTS_KEY, null) ?: return null
+        val type = object : TypeToken<List<ApphudPlacement>>() {}.type
+        return parser.fromJson<List<ApphudPlacement>>(source, type)
+    }
+
+    private fun clearLegacyPaywallsCache() {
+        preferences.edit {
+            remove(PAYWALLS_KEY)
+            remove(PAYWALLS_TIMESTAMP_KEY)
+            remove(PLACEMENTS_KEY)
+            remove(PLACEMENTS_TIMESTAMP_KEY)
+        }
     }
 
     override var cacheVersion: String?

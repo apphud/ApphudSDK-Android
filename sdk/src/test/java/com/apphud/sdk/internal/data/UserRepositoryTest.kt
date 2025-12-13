@@ -1,7 +1,6 @@
 package com.apphud.sdk.internal.data
 
 import com.apphud.sdk.domain.ApphudUser
-import io.mockk.coVerify
 import io.mockk.every
 import io.mockk.mockk
 import io.mockk.verify
@@ -70,14 +69,16 @@ class UserRepositoryTest {
     fun `setCurrentUser should not save to cache when saveToCache is false`() = runTest {
         val result = repository.setCurrentUser(mockUser, saveToCache = false)
 
-        assertFalse("Should return false when not saving to cache", result)
+        assertTrue("Should return true when userId changed (from null)", result)
         verify(exactly = 0) { dataSource.saveUser(any()) }
     }
 
     @Test
     fun `setCurrentUser should return false when userId did not change`() = runTest {
-        every { dataSource.saveUser(mockUser) } returns false
+        // First call to set the user
+        repository.setCurrentUser(mockUser, saveToCache = false)
 
+        // Second call with the same user
         val result = repository.setCurrentUser(mockUser, saveToCache = true)
 
         assertFalse("Should return false when userId unchanged", result)

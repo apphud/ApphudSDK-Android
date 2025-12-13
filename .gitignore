@@ -21,3 +21,5 @@
 .vscode/*
 /keystore.properties
 .env
+.workflow/*
+!.workflow/.gitkeep

@@ -27,28 +27,35 @@ internal fun ApphudInternal.processFallbackData(callback: PaywallCallback) {
                 userId, "", "", listOf(), listOf(), listOf(),
                 listOf(), true,
             )
-            coroutineScope.launch {
-                ServiceLocator.instance.userRepository.setCurrentUser(
-                    temporaryUser,
-                    saveToCache = false
-                )
-            }
+            ServiceLocator.instance.userRepository.setCurrentUser(
+                temporaryUser,
+                saveToCache = false
+            )
             ApphudLog.log("Fallback: user created: $userId")
         }
 
         processedFallbackData = true
 
-        // read paywalls from cache
-        var ids = getPaywalls().map { it.products?.map { it.productId } ?: listOf() }.flatten()
+        var ids = (currentUser?.paywalls.orEmpty()).map { it.products?.map { it.productId } ?: listOf() }.flatten()
         if (ids.isEmpty()) {
-            // read from json file
             val jsonFileString = getJsonDataFromAsset(context, "apphud_paywalls_fallback.json")
             val gson = Gson()
             val contentType = object : TypeToken<FallbackJsonObject>() {}.type
             val fallbackJson: FallbackJsonObject = gson.fromJson(jsonFileString, contentType)
             val paywallToParse = paywallsMapperLegacy.map(fallbackJson.data.results)
             ids = paywallToParse.map { it.products?.map { it.productId } ?: listOf() }.flatten()
-            cachePaywalls(paywallToParse)
+
+            val fallbackUser = ApphudUser(
+                userId = userId,
+                currencyCode = "",
+                countryCode = "",
+                subscriptions = listOf(),
+                purchases = listOf(),
+                paywalls = paywallToParse,
+                placements = listOf(),
+                isTemporary = true
+            )
+            ServiceLocator.instance.userRepository.setCurrentUser(fallbackUser, saveToCache = false)
         }
 
         if (ids.isEmpty()) {
@@ -79,7 +86,7 @@ internal fun ApphudInternal.processFallbackData(callback: PaywallCallback) {
                     fromFallback = true,
                     fromCache = true
                 )
-                callback(getPaywalls(), error)
+                callback(currentUser?.paywalls.orEmpty(), error)
             }
         }
     } catch (ex: Exception) {
