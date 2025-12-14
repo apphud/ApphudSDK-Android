@@ -80,7 +80,7 @@ internal class RegistrationUseCase(
             throw error.toApphudError()
         }
 
-        userRepository.setCurrentUser(newUser, saveToCache = true)
+        userRepository.setCurrentUser(newUser)
         userDataSource.updateLastRegistrationTime(System.currentTimeMillis())
 
         ApphudLog.log("$registrationType successful: userId=${newUser.userId}")

@@ -221,7 +221,7 @@ internal object SharedPreferencesStorage : Storage {
             }
         }
 
-    fun updateCustomer(apphudUser: ApphudUser): Boolean {
+    fun updateUser(apphudUser: ApphudUser): Boolean {
         var userIdChanged = false
         this.apphudUser?.let {
             if (it.userId != apphudUser.userId) {

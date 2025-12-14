@@ -46,7 +46,7 @@ class RegistrationUseCaseTest {
     fun `invoke should perform registration when no cached user exists`() = runTest {
         every { userRepository.getCurrentUser() } returns null
         coEvery { requestManager.registration(any(), any(), any(), any(), any()) } returns mockUser
-        coEvery { userRepository.setCurrentUser(any(), any()) } returns true
+        coEvery { userRepository.setCurrentUser(any()) } returns true
 
         val result = registrationUseCase(
             needPlacementsPaywalls = true,
@@ -55,7 +55,7 @@ class RegistrationUseCaseTest {
 
         assertEquals("Should return registered user", mockUser, result)
         coVerify { requestManager.registration(true, false, false, null, null) }
-        coVerify { userRepository.setCurrentUser(mockUser, saveToCache = true) }
+        coVerify { userRepository.setCurrentUser(mockUser) }
         verify { userDataSource.updateLastRegistrationTime(any()) }
     }
 
@@ -81,7 +81,7 @@ class RegistrationUseCaseTest {
         }
         every { userRepository.getCurrentUser() } returns temporaryUser
         coEvery { requestManager.registration(any(), any(), any(), any(), any()) } returns mockUser
-        coEvery { userRepository.setCurrentUser(any(), any()) } returns true
+        coEvery { userRepository.setCurrentUser(any()) } returns true
 
         val result = registrationUseCase(
             needPlacementsPaywalls = true,
@@ -97,7 +97,7 @@ class RegistrationUseCaseTest {
     fun `invoke should force registration even when cached user exists`() = runTest {
         every { userRepository.getCurrentUser() } returns mockUser
         coEvery { requestManager.registration(any(), any(), any(), any(), any()) } returns mockUser2
-        coEvery { userRepository.setCurrentUser(any(), any()) } returns true
+        coEvery { userRepository.setCurrentUser(any()) } returns true
 
         val result = registrationUseCase(
             needPlacementsPaywalls = true,
@@ -107,14 +107,14 @@ class RegistrationUseCaseTest {
 
         assertEquals("Should perform registration and return new user", mockUser2, result)
         coVerify { requestManager.registration(true, false, true, null, null) }
-        coVerify { userRepository.setCurrentUser(mockUser2, saveToCache = true) }
+        coVerify { userRepository.setCurrentUser(mockUser2) }
     }
 
     @Test
     fun `invoke should pass userId and email to registration`() = runTest {
         every { userRepository.getCurrentUser() } returns null
         coEvery { requestManager.registration(any(), any(), any(), any(), any()) } returns mockUser
-        coEvery { userRepository.setCurrentUser(any(), any()) } returns true
+        coEvery { userRepository.setCurrentUser(any()) } returns true
 
         val userId = "custom-user-id"
         val email = "test@example.com"
@@ -145,14 +145,14 @@ class RegistrationUseCaseTest {
         assertTrue("Should fail with exception", result.isFailure)
         assertTrue("Should throw ApphudError", result.exceptionOrNull() is ApphudError)
         coVerify { requestManager.registration(any(), any(), any(), any(), any()) }
-        coVerify(exactly = 0) { userRepository.setCurrentUser(any(), any()) }
+        coVerify(exactly = 0) { userRepository.setCurrentUser(any()) }
     }
 
     @Test
     fun `invoke should update lastRegistrationTime after successful registration`() = runTest {
         every { userRepository.getCurrentUser() } returns null
         coEvery { requestManager.registration(any(), any(), any(), any(), any()) } returns mockUser
-        coEvery { userRepository.setCurrentUser(any(), any()) } returns true
+        coEvery { userRepository.setCurrentUser(any()) } returns true
 
         val beforeTime = System.currentTimeMillis()
         registrationUseCase(
@@ -174,7 +174,7 @@ class RegistrationUseCaseTest {
     fun `invoke should be thread-safe with concurrent calls`() = runTest {
         every { userRepository.getCurrentUser() } returns null
         coEvery { requestManager.registration(any(), any(), any(), any(), any()) } returns mockUser
-        coEvery { userRepository.setCurrentUser(any(), any()) } returns true
+        coEvery { userRepository.setCurrentUser(any()) } returns true
 
         val iterations = 50
 
@@ -210,7 +210,7 @@ class RegistrationUseCaseTest {
         }
         every { userRepository.getCurrentUser() } returns cachedUser
         coEvery { requestManager.registration(any(), any(), any(), any(), any()) } returns mockUser2
-        coEvery { userRepository.setCurrentUser(any(), any()) } returns true
+        coEvery { userRepository.setCurrentUser(any()) } returns true
 
         val result = registrationUseCase(
             needPlacementsPaywalls = false,
@@ -226,7 +226,7 @@ class RegistrationUseCaseTest {
     fun `invoke should handle isNew flag correctly`() = runTest {
         every { userRepository.getCurrentUser() } returns null
         coEvery { requestManager.registration(any(), any(), any(), any(), any()) } returns mockUser
-        coEvery { userRepository.setCurrentUser(any(), any()) } returns true
+        coEvery { userRepository.setCurrentUser(any()) } returns true
 
         registrationUseCase(
             needPlacementsPaywalls = false,
@@ -240,7 +240,7 @@ class RegistrationUseCaseTest {
     fun `invoke should handle needPlacementsPaywalls flag correctly`() = runTest {
         every { userRepository.getCurrentUser() } returns null
         coEvery { requestManager.registration(any(), any(), any(), any(), any()) } returns mockUser
-        coEvery { userRepository.setCurrentUser(any(), any()) } returns true
+        coEvery { userRepository.setCurrentUser(any()) } returns true
 
         registrationUseCase(
             needPlacementsPaywalls = true,
@@ -254,14 +254,14 @@ class RegistrationUseCaseTest {
     fun `invoke should save user to cache after successful registration`() = runTest {
         every { userRepository.getCurrentUser() } returns null
         coEvery { requestManager.registration(any(), any(), any(), any(), any()) } returns mockUser
-        coEvery { userRepository.setCurrentUser(any(), any()) } returns true
+        coEvery { userRepository.setCurrentUser(any()) } returns true
 
         registrationUseCase(
             needPlacementsPaywalls = true,
             isNew = false
         )
 
-        coVerify { userRepository.setCurrentUser(mockUser, saveToCache = true) }
+        coVerify { userRepository.setCurrentUser(mockUser) }
     }
 
     @Test
@@ -272,7 +272,7 @@ class RegistrationUseCaseTest {
             callCount++
             if (callCount == 1) mockUser else mockUser2
         }
-        coEvery { userRepository.setCurrentUser(any(), any()) } returns true
+        coEvery { userRepository.setCurrentUser(any()) } returns true
 
         val iterations = 10
 
