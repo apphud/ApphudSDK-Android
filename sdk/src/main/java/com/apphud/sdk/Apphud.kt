@@ -183,7 +183,7 @@ object Apphud {
                 /* Error is not returned is suspending function.
                     If you want to handle error, use `fetchPlacements` method.
                 */
-                continuation.resume(ApphudInternal.currentUser?.placements.orEmpty())
+                continuation.resume(ServiceLocator.instance.userRepository.getCurrentUser()?.placements.orEmpty())
             }
         }
 
@@ -240,7 +240,7 @@ object Apphud {
     ) {
         ApphudInternal.performWhenOfferingsPrepared(preferredTimeout = preferredTimeout) {
             callback(
-                ApphudInternal.currentUser?.placements.orEmpty(),
+                ServiceLocator.instance.userRepository.getCurrentUser()?.placements.orEmpty(),
                 it
             )
         }
@@ -257,7 +257,7 @@ object Apphud {
      * To get placements with awaiting for inner Google Play products, use
      * `placements()` or `placementsDidLoadCallback(...)` functions.
      */
-    fun rawPlacements(): List<ApphudPlacement> = ApphudInternal.currentUser?.placements.orEmpty()
+    fun rawPlacements(): List<ApphudPlacement> = ServiceLocator.instance.userRepository.getCurrentUser()?.placements.orEmpty()
 
     /** Returns:
      * List<ApphudPaywall>: A list of paywalls, potentially altered based
@@ -270,7 +270,7 @@ object Apphud {
      * To get paywalls with awaiting for inner Google Play products, use
      * Apphud.paywalls() or Apphud.paywallsDidLoadCallback(...) functions.
      */
-    fun rawPaywalls(): List<ApphudPaywall> = ApphudInternal.currentUser?.paywalls.orEmpty()
+    fun rawPaywalls(): List<ApphudPaywall> = ServiceLocator.instance.userRepository.getCurrentUser()?.paywalls.orEmpty()
 
     /**
      * Disables automatic paywall and placement requests during the SDK's initial setup.
@@ -330,7 +330,7 @@ object Apphud {
     ) {
         ApphudInternal.performWhenOfferingsPrepared(preferredTimeout = preferredTimeout) {
             callback(
-                ApphudInternal.currentUser?.paywalls.orEmpty(),
+                ServiceLocator.instance.userRepository.getCurrentUser()?.paywalls.orEmpty(),
                 it
             )
         }
@@ -497,7 +497,7 @@ object Apphud {
      *
      * @return A list of `ApphudSubscription` objects.
      */
-    fun subscriptions(): List<ApphudSubscription> = ApphudInternal.currentUser?.subscriptions ?: listOf()
+    fun subscriptions(): List<ApphudSubscription> = ServiceLocator.instance.userRepository.getCurrentUser()?.subscriptions ?: listOf()
 
     /**
      * Retrieves all non-renewing product purchases that the user has ever made.
@@ -505,7 +505,7 @@ object Apphud {
      *
      * @return A list of `ApphudNonRenewingPurchase` objects.
      */
-    fun nonRenewingPurchases(): List<ApphudNonRenewingPurchase> = ApphudInternal.currentUser?.purchases ?: listOf()
+    fun nonRenewingPurchases(): List<ApphudNonRenewingPurchase> = ServiceLocator.instance.userRepository.getCurrentUser()?.purchases ?: listOf()
 
     /**
      * Checks if the current user has purchased a specific in-app product.
@@ -692,8 +692,8 @@ object Apphud {
      * Apphud will automatically track and validate them in the background,
      * so developer doesn't need to call `Apphud.restorePurchases` afterwards.
      */
-    suspend fun nativePurchases(forceRefresh: Boolean = false): Pair<List<Purchase>, Int> =
-        ApphudInternal.fetchNativePurchases(forceRefresh = forceRefresh)
+    suspend fun nativePurchases(): Pair<List<Purchase>, Int> =
+        ServiceLocator.instance.fetchNativePurchasesUseCase()
 
     //endregion
     //region === Attribution ===

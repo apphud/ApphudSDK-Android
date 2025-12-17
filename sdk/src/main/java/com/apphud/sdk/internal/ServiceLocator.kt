@@ -28,6 +28,7 @@ import com.apphud.sdk.internal.data.serializer.RenderItemsSerializer
 import com.apphud.sdk.internal.data.UserDataSource
 import com.apphud.sdk.internal.data.UserRepository
 import com.apphud.sdk.internal.domain.FetchMostActualRuleScreenUseCase
+import com.apphud.sdk.internal.domain.FetchNativePurchasesUseCase
 import com.apphud.sdk.internal.domain.FetchRulesScreenUseCase
 import com.apphud.sdk.internal.domain.RegistrationUseCase
 import com.apphud.sdk.internal.domain.RenderPaywallPropertiesUseCase
@@ -191,6 +192,16 @@ internal class ServiceLocator(
             userDataSource = userDataSource,
             requestManager = RequestManager
         )
+
+    // Billing dependencies
+    val billingWrapper: BillingWrapper by lazy { BillingWrapper(applicationContext) }
+
+    val fetchNativePurchasesUseCase: FetchNativePurchasesUseCase by lazy {
+        FetchNativePurchasesUseCase(
+            billingWrapper = billingWrapper,
+            userRepository = userRepository,
+        )
+    }
 
     internal class ServiceLocatorInstanceFactory {
 

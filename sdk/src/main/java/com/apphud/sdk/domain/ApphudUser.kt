@@ -50,7 +50,7 @@ data class ApphudUser(
      * To get placements with awaiting for inner Google Play products, use
      * Apphud.placements() or Apphud.placementsDidLoadCallback(...) functions.
      */
-    fun rawPlacements(): List<ApphudPlacement> = ApphudInternal.currentUser?.placements.orEmpty()
+    fun rawPlacements(): List<ApphudPlacement> = ApphudInternal.userRepository.getCurrentUser()?.placements.orEmpty()
 
     /** Returns:
      * List<ApphudPaywall>: A list of paywalls, potentially altered based
@@ -63,7 +63,7 @@ data class ApphudUser(
      * To get paywalls with awaiting for inner Google Play products, use
      * Apphud.paywalls() or Apphud.paywallsDidLoadCallback(...) functions.
      */
-    fun rawPaywalls(): List<ApphudPaywall> = ApphudInternal.currentUser?.paywalls.orEmpty()
+    fun rawPaywalls(): List<ApphudPaywall> = ApphudInternal.userRepository.getCurrentUser()?.paywalls.orEmpty()
 
     /**
      * Returns true if user has any subscriptions or non-renewing purchases.

@@ -42,7 +42,7 @@ internal object RequestManager {
 
     val BILLING_VERSION: Int = 5
     val currentUser: ApphudUser?
-        get() = ApphudInternal.currentUser
+        get() = ApphudInternal.userRepository.getCurrentUser()
 
     val gson = GsonBuilder().serializeNulls().create()
     val parser: Parser = GsonParser(gson)

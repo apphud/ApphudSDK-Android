@@ -158,12 +158,12 @@ internal suspend fun ApphudInternal.tryWebAttribution(
     val email = (data["email"] as? String) ?: (data["apphud_user_email"] as? String)
 
     if (userId.isNullOrEmpty() && email.isNullOrEmpty()) {
-        return false to currentUser
+        return false to userRepository.getCurrentUser()
     }
 
     runCatchingCancellable { awaitUserRegistration() }
 
-    val user = currentUser ?: return false to null
+    val user = userRepository.getCurrentUser() ?: return false to null
     fromWeb2Web = true
 
     return when {

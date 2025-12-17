@@ -4,7 +4,6 @@ import android.content.Context
 import com.android.billingclient.api.BillingClient.BillingResponseCode
 import com.apphud.sdk.domain.ApphudUser
 import com.apphud.sdk.domain.FallbackJsonObject
-import com.apphud.sdk.internal.ServiceLocator
 import com.apphud.sdk.mappers.PaywallsMapperLegacy
 import com.apphud.sdk.parser.GsonParser
 import com.apphud.sdk.parser.Parser
@@ -22,21 +21,18 @@ internal var processedFallbackData = false
 
 internal fun ApphudInternal.processFallbackData(callback: PaywallCallback) {
     try {
-        if (currentUser == null) {
+        if (userRepository.getCurrentUser() == null) {
             val temporaryUser = ApphudUser(
                 userId, "", "", listOf(), listOf(), listOf(),
                 listOf(), true,
             )
-            ServiceLocator.instance.userRepository.setCurrentUser(
-                temporaryUser,
-                saveToCache = false
-            )
+            userRepository.setCurrentUser(temporaryUser)
             ApphudLog.log("Fallback: user created: $userId")
         }
 
         processedFallbackData = true
 
-        var ids = (currentUser?.paywalls.orEmpty()).map { it.products?.map { it.productId } ?: listOf() }.flatten()
+        var ids = (userRepository.getCurrentUser()?.paywalls.orEmpty()).map { it.products?.map { it.productId } ?: listOf() }.flatten()
         if (ids.isEmpty()) {
             val jsonFileString = getJsonDataFromAsset(context, "apphud_paywalls_fallback.json")
             val gson = Gson()
@@ -55,7 +51,7 @@ internal fun ApphudInternal.processFallbackData(callback: PaywallCallback) {
                 placements = listOf(),
                 isTemporary = true
             )
-            ServiceLocator.instance.userRepository.setCurrentUser(fallbackUser, saveToCache = false)
+            userRepository.setCurrentUser(fallbackUser)
         }
 
         if (ids.isEmpty()) {
@@ -79,14 +75,15 @@ internal fun ApphudInternal.processFallbackData(callback: PaywallCallback) {
                 errorCode = response.first
             ) else ApphudError("Google Billing error", errorCode = response.first))
             val details = response.second ?: productDetails
+            val user = userRepository.getCurrentUser()
             mainScope.launch {
                 notifyLoadingCompleted(
-                    customerLoaded = currentUser,
+                    customerLoaded = user,
                     productDetailsLoaded = details,
                     fromFallback = true,
                     fromCache = true
                 )
-                callback(currentUser?.paywalls.orEmpty(), error)
+                callback(user?.paywalls.orEmpty(), error)
             }
         }
     } catch (ex: Exception) {
@@ -113,7 +110,7 @@ private fun getJsonDataFromAsset(
 }
 
 internal fun ApphudInternal.disableFallback() {
-    if (currentUser?.isTemporary == true) {
+    if (userRepository.getCurrentUser()?.isTemporary == true) {
         return
     }
     fallbackMode = false

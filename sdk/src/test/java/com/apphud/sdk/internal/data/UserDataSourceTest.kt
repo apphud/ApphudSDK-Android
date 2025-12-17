@@ -44,22 +44,22 @@ class UserDataSourceTest {
 
     @Test
     fun `saveUser should call storage updateCustomer and return result`() {
-        every { storage.updateCustomer(mockUser) } returns true
+        every { storage.updateUser(mockUser) } returns true
 
         val result = dataSource.saveUser(mockUser)
 
         assertTrue("Should return true when userId changed", result)
-        verify { storage.updateCustomer(mockUser) }
+        verify { storage.updateUser(mockUser) }
     }
 
     @Test
     fun `saveUser should return false when userId did not change`() {
-        every { storage.updateCustomer(mockUser) } returns false
+        every { storage.updateUser(mockUser) } returns false
 
         val result = dataSource.saveUser(mockUser)
 
         assertFalse("Should return false when userId unchanged", result)
-        verify { storage.updateCustomer(mockUser) }
+        verify { storage.updateUser(mockUser) }
     }
 
     @Test

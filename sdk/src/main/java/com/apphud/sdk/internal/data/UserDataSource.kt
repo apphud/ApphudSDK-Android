@@ -18,7 +18,7 @@ internal class UserDataSource(
      * @return true if userId changed
      */
     fun saveUser(user: ApphudUser): Boolean {
-        return storage.updateCustomer(user)
+        return storage.updateUser(user)
     }
 
     fun clearUser() {

@@ -114,21 +114,22 @@ private fun isRetriableErrorCode(code: Int): Boolean {
 }
 
 internal suspend fun ApphudInternal.fetchProducts(): Int {
-
-    val userPaywalls = currentUser?.paywalls.orEmpty()
-    val userPlacements = currentUser?.placements.orEmpty()
+    val user = userRepository.getCurrentUser()
+    val userPaywalls = user?.paywalls.orEmpty()
+    val userPlacements = user?.placements.orEmpty()
     if (userPlacements.isEmpty() && userPaywalls.isEmpty()) {
-        if (currentUser == null) {
+        if (user == null) {
             ApphudLog.log("Awaiting for user registration before proceeding to products load")
             awaitUserRegistration()
             ApphudLog.log("User registered, continue to fetch ProductDetails")
         }
     }
 
+    val refreshedUser = userRepository.getCurrentUser()
     val ids = allAvailableProductIds(
         getPermissionGroups(),
-        currentUser?.paywalls.orEmpty(),
-        currentUser?.placements.orEmpty()
+        refreshedUser?.paywalls.orEmpty(),
+        refreshedUser?.placements.orEmpty()
     )
 
     return fetchDetails(ids, loadingAll = true).first

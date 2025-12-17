@@ -18,7 +18,7 @@ internal class PaywallRepository {
         runCatching {
             ApphudLog.log("[PaywallRepository] Searching for paywall with ID: $paywallId")
 
-            val paywall = ApphudInternal.currentUser?.paywalls?.firstOrNull { it.id == paywallId }
+            val paywall = ApphudInternal.userRepository.getCurrentUser()?.paywalls?.firstOrNull { it.id == paywallId }
 
             if (paywall != null) {
                 ApphudLog.log("[PaywallRepository] Found paywall: ${paywall.name} (${paywall.identifier})")
