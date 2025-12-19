@@ -19,7 +19,7 @@ internal class UrlProvider {
         get() = "${baseUrl.get()}/v2/products".toHttpUrl()
 
     val attributionUrl: HttpUrl
-        get() = "${baseUrl.get()}/v1/attribution".toHttpUrl()
+        get() = "${baseUrl.get()}/v2/customers/attribution".toHttpUrl()
 
     val promotionsUrl: HttpUrl
         get() = "${baseUrl.get()}/v1/promotions".toHttpUrl()
