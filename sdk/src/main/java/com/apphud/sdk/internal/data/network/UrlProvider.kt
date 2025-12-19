@@ -7,7 +7,7 @@ import java.util.concurrent.atomic.AtomicReference
 
 internal class UrlProvider {
 
-    private val baseUrl = AtomicReference(ApphudUtils.overriddenBaseUrl ?: "https://gateway.apphud.com")
+    private val baseUrl = AtomicReference("https://gateway.apphud.com")
 
     val customersUrl: HttpUrl
         get() = "${baseUrl.get()}/v1/customers".toHttpUrl()
