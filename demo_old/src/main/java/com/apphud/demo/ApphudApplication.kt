@@ -4,7 +4,10 @@ import android.app.Application
 import android.content.Context
 import android.util.Log
 import com.apphud.sdk.Apphud
+import com.apphud.sdk.ApphudAttributionData
+import com.apphud.sdk.ApphudAttributionProvider
 import com.apphud.sdk.ApphudUtils
+import com.apphud.sdk.domain.Attribution
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 

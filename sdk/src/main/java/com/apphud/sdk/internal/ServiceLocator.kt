@@ -56,7 +56,7 @@ internal class ServiceLocator(
     private val registrationProvider: RegistrationProvider =
         RegistrationProvider(applicationContext, SharedPreferencesStorage)
 
-    private val urlProvider = UrlProvider()
+    internal val urlProvider = UrlProvider()
 
     private val hostSwitcherInterceptor = HostSwitcherInterceptor(OkHttpClient(), urlProvider)
     private val hostSwitcherInterceptorWithoutHeaders = HostSwitcherInterceptor(OkHttpClient(), urlProvider)
