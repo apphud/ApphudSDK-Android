@@ -429,4 +429,141 @@ class RegistrationUseCaseTest {
         assertEquals(1, result.paywalls.size)
         assertEquals("new-paywall", result.paywalls.first().id)
     }
+
+    @Test
+    fun `when backend returns empty paywalls but non-empty placements, only paywalls are preserved`() = runTest {
+        val cachedPaywall = ApphudPaywall(
+            id = "cached-paywall",
+            name = "Cached Paywall",
+            identifier = "cached_paywall",
+            default = false,
+            json = null,
+            products = null,
+            screen = null,
+            experimentName = null,
+            variationName = null,
+            parentPaywallIdentifier = null,
+            placementIdentifier = null,
+            placementId = null
+        )
+        val cachedPlacement = ApphudPlacement(
+            identifier = "cached_placement",
+            paywall = cachedPaywall,
+            id = "cached-placement"
+        )
+        val cachedUser = ApphudUser(
+            userId = "user-1",
+            currencyCode = "USD",
+            countryCode = "US",
+            subscriptions = emptyList(),
+            purchases = emptyList(),
+            paywalls = listOf(cachedPaywall),
+            placements = listOf(cachedPlacement),
+            isTemporary = false
+        )
+
+        val newPlacement = ApphudPlacement(
+            identifier = "new_placement",
+            paywall = null,
+            id = "new-placement"
+        )
+        val newUserFromBackend = ApphudUser(
+            userId = "user-1",
+            currencyCode = "USD",
+            countryCode = "US",
+            subscriptions = emptyList(),
+            purchases = emptyList(),
+            paywalls = emptyList(),
+            placements = listOf(newPlacement),
+            isTemporary = false
+        )
+
+        every { userRepository.getCurrentUser() } returns cachedUser
+        coEvery { requestManager.registration(any(), any(), any(), any(), any()) } returns newUserFromBackend
+        coEvery { userRepository.setCurrentUser(any()) } returns true
+
+        val result = registrationUseCase(
+            needPlacementsPaywalls = true,
+            isNew = false,
+            forceRegistration = true
+        )
+
+        assertEquals("Cached paywalls should be preserved", 1, result.paywalls.size)
+        assertEquals("cached-paywall", result.paywalls.first().id)
+        assertEquals("New placements should be used", 1, result.placements.size)
+        assertEquals("new-placement", result.placements.first().id)
+    }
+
+    @Test
+    fun `when backend returns non-empty paywalls but empty placements, only placements are preserved`() = runTest {
+        val cachedPaywall = ApphudPaywall(
+            id = "cached-paywall",
+            name = "Cached Paywall",
+            identifier = "cached_paywall",
+            default = false,
+            json = null,
+            products = null,
+            screen = null,
+            experimentName = null,
+            variationName = null,
+            parentPaywallIdentifier = null,
+            placementIdentifier = null,
+            placementId = null
+        )
+        val cachedPlacement = ApphudPlacement(
+            identifier = "cached_placement",
+            paywall = cachedPaywall,
+            id = "cached-placement"
+        )
+        val cachedUser = ApphudUser(
+            userId = "user-1",
+            currencyCode = "USD",
+            countryCode = "US",
+            subscriptions = emptyList(),
+            purchases = emptyList(),
+            paywalls = listOf(cachedPaywall),
+            placements = listOf(cachedPlacement),
+            isTemporary = false
+        )
+
+        val newPaywall = ApphudPaywall(
+            id = "new-paywall",
+            name = "New Paywall",
+            identifier = "new_paywall",
+            default = true,
+            json = null,
+            products = null,
+            screen = null,
+            experimentName = null,
+            variationName = null,
+            parentPaywallIdentifier = null,
+            placementIdentifier = null,
+            placementId = null
+        )
+        val newUserFromBackend = ApphudUser(
+            userId = "user-1",
+            currencyCode = "USD",
+            countryCode = "US",
+            subscriptions = emptyList(),
+            purchases = emptyList(),
+            paywalls = listOf(newPaywall),
+            placements = emptyList(),
+            isTemporary = false
+        )
+
+        every { userRepository.getCurrentUser() } returns cachedUser
+        coEvery { requestManager.registration(any(), any(), any(), any(), any()) } returns newUserFromBackend
+        coEvery { userRepository.setCurrentUser(any()) } returns true
+
+        val result = registrationUseCase(
+            needPlacementsPaywalls = true,
+            isNew = false,
+            forceRegistration = true
+        )
+
+        assertEquals("New paywalls should be used", 1, result.paywalls.size)
+        assertEquals("new-paywall", result.paywalls.first().id)
+        assertEquals("Cached placements should be preserved", 1, result.placements.size)
+        assertEquals("cached-placement", result.placements.first().id)
+    }
 }
