@@ -56,7 +56,7 @@ object ApphudUtils {
     internal fun setPackageName(packageName: String) {
         this.packageName = packageName
     }
-
+    
     fun hasInternetConnection(context: Context): Boolean {
         val connectivityManager =
             context.getSystemService(Context.CONNECTIVITY_SERVICE) as? ConnectivityManager

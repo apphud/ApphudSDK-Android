@@ -1,5 +1,6 @@
 package com.apphud.sdk.internal.data.network
 
+import com.apphud.sdk.ApphudUtils
 import okhttp3.HttpUrl
 import okhttp3.HttpUrl.Companion.toHttpUrl
 import java.util.concurrent.atomic.AtomicReference

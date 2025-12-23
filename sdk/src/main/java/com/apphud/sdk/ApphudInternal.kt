@@ -264,7 +264,6 @@ internal object ApphudInternal {
 
         this.userId = newUserId
         this.deviceId = newDeviceId
-
         this.productGroups.set(cachedGroups.toList())
 
         this.userRegisteredBlock = callback
@@ -382,7 +381,6 @@ internal object ApphudInternal {
 
         productDetailsLoaded?.let {
             updateProductState(it)
-
             // notify that productDetails are loaded
             if (productDetails.isNotEmpty()) {
                 apphudListener?.apphudFetchProductDetails(productDetails.toList())

@@ -32,8 +32,12 @@ afterEvaluate {
                 // we'll set up later
                 groupId PUBLISH_GROUP_ID
                 artifactId PUBLISH_ARTIFACT_ID
-                // Use local version for mavenLocal, otherwise use regular version
-                version gradle.startParameter.taskNames.any { it.contains('ToMavenLocal') } ? PUBLISH_VERSION_LOCAL : PUBLISH_VERSION
+                // Use actual version for Maven Central builds, even with mavenLocal
+                // Use local version (0.0.0-local) only for regular local testing
+                def isMavenCentralBuild = project.hasProperty('mavenCentral')
+                def isPublishToMavenLocal = gradle.startParameter.taskNames.any { it.contains('ToMavenLocal') }
+                def publishVersion = (isMavenCentralBuild && isPublishToMavenLocal) ? PUBLISH_VERSION : (isPublishToMavenLocal ? PUBLISH_VERSION_LOCAL : PUBLISH_VERSION)
+                version publishVersion
 
                 // Two artifacts, the `aar` (or `jar`) and the sources
                 if (project.plugins.findPlugin("com.android.library")) {
