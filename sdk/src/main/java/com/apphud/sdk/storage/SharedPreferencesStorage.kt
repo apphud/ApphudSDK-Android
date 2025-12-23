@@ -3,6 +3,7 @@ package com.apphud.sdk.storage
 import android.content.Context
 import android.content.SharedPreferences
 import androidx.core.content.edit
+import com.android.billingclient.api.ProductDetails
 import com.apphud.sdk.ApphudLog
 import com.apphud.sdk.ApphudUserProperty
 import com.apphud.sdk.domain.AdjustInfo
@@ -19,43 +20,15 @@ import com.google.gson.ExclusionStrategy
 import com.google.gson.FieldAttributes
 import com.google.gson.GsonBuilder
 import com.google.gson.reflect.TypeToken
-import com.android.billingclient.api.ProductDetails
 
-internal object SharedPreferencesStorage : Storage {
-    private var cacheTimeout: Long = 90000L
+internal class SharedPreferencesStorage(
+    applicationContext: Context,
+) : Storage {
 
-    fun getInstance(applicationContext: Context): SharedPreferencesStorage {
-        this.applicationContext = applicationContext
-        preferences = SharedPreferencesStorage.applicationContext.getSharedPreferences(NAME, Context.MODE_PRIVATE)
-        this.cacheTimeout = if (SharedPreferencesStorage.applicationContext.isDebuggable()) 6L else 90000L // 25 hours
-        return this
-    }
+    private val cacheTimeout: Long = if (applicationContext.isDebuggable()) 6L else 90000L // 25 hours
 
-    private lateinit var applicationContext: Context
-
-    private lateinit var preferences: SharedPreferences
-    private const val NAME = "apphud_storage"
-
-    private const val USER_ID_KEY = "userIdKey"
-    private const val APPHUD_USER_KEY = "APPHUD_USER_KEY"
-    private const val DEVICE_ID_KEY = "deviceIdKey"
-    private const val DEVICE_IDENTIFIERS_KEY = "DEVICE_IDENTIFIERS_KEY"
-    private const val NEED_RESTART_KEY = "needRestartKey"
-    private const val PROPERTIES_KEY = "propertiesKey"
-    private const val FACEBOOK_KEY = "facebookKey"
-    private const val FIREBASE_KEY = "firebaseKey"
-    private const val APPSFLYER_KEY = "appsflyerKey"
-    private const val ADJUST_KEY = "adjustKey"
-    private const val PAYWALLS_KEY = "PAYWALLS_KEY"
-    private const val PAYWALLS_TIMESTAMP_KEY = "PAYWALLS_TIMESTAMP_KEY"
-    private const val PLACEMENTS_KEY = "PLACEMENTS_KEY"
-    private const val PLACEMENTS_TIMESTAMP_KEY = "PLACEMENTS_TIMESTAMP_KEY"
-    private const val GROUP_KEY = "apphudGroupKey"
-    private const val GROUP_TIMESTAMP_KEY = "apphudGroupTimestampKey"
-    private const val SKU_KEY = "skuKey"
-    private const val SKU_TIMESTAMP_KEY = "skuTimestampKey"
-    private const val LAST_REGISTRATION_KEY = "lastRegistrationKey"
-    private const val CURRENT_CACHE_VERSION = "3"
+    private val preferences: SharedPreferences =
+        applicationContext.getSharedPreferences(NAME, Context.MODE_PRIVATE)
 
     private val productDetailsExclusionStrategy = object : ExclusionStrategy {
         override fun shouldSkipField(f: FieldAttributes): Boolean {
@@ -400,5 +373,30 @@ internal object SharedPreferencesStorage : Storage {
         currentProperties[property.key] = property
         properties = currentProperties
         return true
+    }
+
+    companion object {
+        private const val NAME = "apphud_storage"
+
+        private const val USER_ID_KEY = "userIdKey"
+        private const val APPHUD_USER_KEY = "APPHUD_USER_KEY"
+        private const val DEVICE_ID_KEY = "deviceIdKey"
+        private const val DEVICE_IDENTIFIERS_KEY = "DEVICE_IDENTIFIERS_KEY"
+        private const val NEED_RESTART_KEY = "needRestartKey"
+        private const val PROPERTIES_KEY = "propertiesKey"
+        private const val FACEBOOK_KEY = "facebookKey"
+        private const val FIREBASE_KEY = "firebaseKey"
+        private const val APPSFLYER_KEY = "appsflyerKey"
+        private const val ADJUST_KEY = "adjustKey"
+        private const val PAYWALLS_KEY = "PAYWALLS_KEY"
+        private const val PAYWALLS_TIMESTAMP_KEY = "PAYWALLS_TIMESTAMP_KEY"
+        private const val PLACEMENTS_KEY = "PLACEMENTS_KEY"
+        private const val PLACEMENTS_TIMESTAMP_KEY = "PLACEMENTS_TIMESTAMP_KEY"
+        private const val GROUP_KEY = "apphudGroupKey"
+        private const val GROUP_TIMESTAMP_KEY = "apphudGroupTimestampKey"
+        private const val SKU_KEY = "skuKey"
+        private const val SKU_TIMESTAMP_KEY = "skuTimestampKey"
+        private const val LAST_REGISTRATION_KEY = "lastRegistrationKey"
+        private const val CURRENT_CACHE_VERSION = "3"
     }
 }

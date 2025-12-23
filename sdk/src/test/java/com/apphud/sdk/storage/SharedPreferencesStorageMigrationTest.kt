@@ -95,8 +95,8 @@ class SharedPreferencesStorageMigrationTest {
         setupV2Cache(userWithEmptyPaywalls, legacyPaywalls, legacyPlacements)
 
         // Act: Initialize storage (triggers migration)
-        SharedPreferencesStorage.getInstance(context)
-        val isValid = SharedPreferencesStorage.validateCaches()
+        val storage = SharedPreferencesStorage(context)
+        val isValid = storage.validateCaches()
 
         // Assert
         assertTrue("Cache should be valid after migration", isValid)
@@ -140,8 +140,8 @@ class SharedPreferencesStorageMigrationTest {
         setupV2Cache(userWithPaywalls, legacyPaywalls, emptyList())
 
         // Act
-        SharedPreferencesStorage.getInstance(context)
-        val isValid = SharedPreferencesStorage.validateCaches()
+        val storage = SharedPreferencesStorage(context)
+        val isValid = storage.validateCaches()
 
         // Assert
         assertTrue("Cache should be valid after migration", isValid)
@@ -175,8 +175,8 @@ class SharedPreferencesStorageMigrationTest {
         setupV2CacheWithoutLegacyPaywalls(user)
 
         // Act
-        SharedPreferencesStorage.getInstance(context)
-        val isValid = SharedPreferencesStorage.validateCaches()
+        val storage = SharedPreferencesStorage(context)
+        val isValid = storage.validateCaches()
 
         // Assert
         assertTrue("Cache should be valid after migration", isValid)
@@ -201,8 +201,8 @@ class SharedPreferencesStorageMigrationTest {
         prefsMap[PAYWALLS_TIMESTAMP_KEY] = System.currentTimeMillis()
 
         // Act
-        SharedPreferencesStorage.getInstance(context)
-        val isValid = SharedPreferencesStorage.validateCaches()
+        val storage = SharedPreferencesStorage(context)
+        val isValid = storage.validateCaches()
 
         // Assert
         assertTrue("Cache should be valid after migration (no user to migrate)", isValid)
@@ -223,8 +223,8 @@ class SharedPreferencesStorageMigrationTest {
         prefsMap[PAYWALLS_KEY] = "some-data"
 
         // Act
-        SharedPreferencesStorage.getInstance(context)
-        val isValid = SharedPreferencesStorage.validateCaches()
+        val storage = SharedPreferencesStorage(context)
+        val isValid = storage.validateCaches()
 
         // Assert
         assertTrue("validateCaches should return false for invalid version", !isValid)
@@ -245,8 +245,8 @@ class SharedPreferencesStorageMigrationTest {
         prefsMap[APPHUD_USER_KEY] = parser.toJson(user)
 
         // Act
-        SharedPreferencesStorage.getInstance(context)
-        val isValid = SharedPreferencesStorage.validateCaches()
+        val storage = SharedPreferencesStorage(context)
+        val isValid = storage.validateCaches()
 
         // Assert
         assertTrue("Cache should be valid for current version", isValid)
@@ -268,8 +268,8 @@ class SharedPreferencesStorageMigrationTest {
         // No CACHE_VERSION_KEY set
 
         // Act
-        SharedPreferencesStorage.getInstance(context)
-        val isValid = SharedPreferencesStorage.validateCaches()
+        val storage = SharedPreferencesStorage(context)
+        val isValid = storage.validateCaches()
 
         // Assert
         assertTrue("validateCaches should return false for null version", !isValid)

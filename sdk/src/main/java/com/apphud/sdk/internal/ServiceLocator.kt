@@ -52,6 +52,8 @@ internal class ServiceLocator(
 
     val gson: Gson = Gson()
 
+    val storage: SharedPreferencesStorage = SharedPreferencesStorage(applicationContext)
+
     private val paywallsMapper = PaywallsMapper(gson)
     private val placementsMapper = PlacementsMapper(paywallsMapper)
     private val subscriptionMapper = SubscriptionMapper()
@@ -59,7 +61,7 @@ internal class ServiceLocator(
         CustomerMapper(subscriptionMapper, paywallsMapper, placementsMapper)
 
     private val registrationProvider: RegistrationProvider =
-        RegistrationProvider(applicationContext, SharedPreferencesStorage)
+        RegistrationProvider(applicationContext, storage)
 
     internal val urlProvider = UrlProvider()
 
@@ -182,7 +184,7 @@ internal class ServiceLocator(
     val paywallEventManager: PaywallEventManager = PaywallEventManager()
 
     // User management dependencies
-    val userDataSource: UserDataSource = UserDataSource(SharedPreferencesStorage)
+    val userDataSource: UserDataSource = UserDataSource(storage)
 
     val userRepository: UserRepository = UserRepository(userDataSource)
 

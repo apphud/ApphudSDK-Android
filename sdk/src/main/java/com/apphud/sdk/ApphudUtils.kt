@@ -56,22 +56,7 @@ object ApphudUtils {
     internal fun setPackageName(packageName: String) {
         this.packageName = packageName
     }
-
-    /**
-     * Override base URL for API requests.
-     * Must be called after Apphud.start().
-     *
-     * @param baseUrl The base URL to use (e.g., "https://custom.gateway.com")
-     * @param onError Callback invoked if ServiceLocator is not initialized
-     */
-    fun overrideBaseUrl(baseUrl: String, onError: ((Exception) -> Unit)? = null) {
-        try {
-            ServiceLocator.instance.urlProvider.updateBaseUrl(baseUrl)
-        } catch (e: IllegalStateException) {
-            onError?.invoke(e)
-        }
-    }
-
+    
     fun hasInternetConnection(context: Context): Boolean {
         val connectivityManager =
             context.getSystemService(Context.CONNECTIVITY_SERVICE) as? ConnectivityManager
