@@ -8,6 +8,7 @@ import com.apphud.sdk.domain.ApphudNonRenewingPurchase
 import com.apphud.sdk.domain.ApphudProduct
 import com.apphud.sdk.domain.ApphudSubscription
 import com.apphud.sdk.domain.ApphudUser
+import com.apphud.sdk.internal.ServiceLocator
 import com.apphud.sdk.internal.callback_status.PurchaseCallbackStatus
 import com.apphud.sdk.internal.callback_status.PurchaseUpdatedCallbackStatus
 import com.apphud.sdk.internal.domain.model.PurchaseContext
@@ -153,7 +154,7 @@ private fun ApphudInternal.purchaseInternal(
             ApphudLog.logE("OfferToken not set. You are required to pass offer token in Apphud.purchase method when purchasing subscription. Passing first offerToken as a fallback.")
         }
 
-        val currentPaywallScreenId = if (fromScreen) { getPaywalls().firstOrNull { it.id == apphudProduct.paywallId }?.screen?.id } else null
+        val currentPaywallScreenId = if (fromScreen) { userRepository.getCurrentUser()?.paywalls?.firstOrNull { it.id == apphudProduct.paywallId }?.screen?.id } else null
 
         paywallCheckoutInitiated(apphudProduct.paywallId, apphudProduct.placementId, apphudProduct.productId, currentPaywallScreenId)
         purchasingProduct = apphudProduct
@@ -289,8 +290,8 @@ private fun ApphudInternal.purchaseInternal(
 internal fun ApphudInternal.lookupFreshPurchase(extraMessage: String = "resend_fresh_purchase") {
     coroutineScope.launch(errorHandler) {
         val purchase = freshPurchase ?: run {
-            val purchases = ApphudInternal
-                .fetchNativePurchases(forceRefresh = true, needSync = false)
+            val purchases = ServiceLocator.instance
+                .fetchNativePurchasesUseCase(needSync = false)
                 .first
                 .ifEmpty { return@launch }
 
@@ -411,7 +412,7 @@ private fun ApphudInternal.processPurchaseError(status: PurchaseUpdatedCallbackS
         storage.isNeedSync = true
         coroutineScope.launch(errorHandler) {
             ApphudLog.log("ProcessPurchaseError: syncPurchases()")
-            fetchNativePurchases(forceRefresh = true)
+            ServiceLocator.instance.fetchNativePurchasesUseCase()
         }
     }
 }
@@ -433,9 +434,9 @@ private suspend fun ApphudInternal.sendCheckToApphud(
     fromScreen: Boolean,
     callback: ((ApphudPurchaseResult) -> Unit)?,
 ) {
-    val currentPaywallScreenId = if (fromScreen) { getPaywalls().firstOrNull { it.id == paywallId }?.screen?.id } else null
+    val currentPaywallScreenId = if (fromScreen) { userRepository.getCurrentUser()?.paywalls?.firstOrNull { it.id == paywallId }?.screen?.id } else null
 
-    val localCurrentUser = currentUser
+    val localCurrentUser = userRepository.getCurrentUser()
     when {
         localCurrentUser == null -> storage.isNeedSync = true
         fallbackMode -> {
@@ -539,22 +540,23 @@ internal fun ApphudInternal.addTempPurchase(
 ) {
     var newSubscription: ApphudSubscription? = null
     var newPurchase: ApphudNonRenewingPurchase? = null
+    val user = userRepository.getCurrentUser()
     when (type) {
         BillingClient.ProductType.SUBS -> {
             newSubscription = ApphudSubscription.createTemporary(productId)
-            val mutableSubs = currentUser?.subscriptions?.toMutableList() ?: mutableListOf()
+            val mutableSubs = user?.subscriptions?.toMutableList() ?: mutableListOf()
             newSubscription.let {
                 mutableSubs.add(it)
-                currentUser?.subscriptions = mutableSubs
+                user?.subscriptions = mutableSubs
                 ApphudLog.log("Fallback: created temp SUBS purchase: $productId")
             }
         }
         BillingClient.ProductType.INAPP -> {
             newPurchase = ApphudNonRenewingPurchase.createTemporary(productId)
-            val mutablePurchs = currentUser?.purchases?.toMutableList() ?: mutableListOf()
+            val mutablePurchs = user?.purchases?.toMutableList() ?: mutableListOf()
             newPurchase.let {
                 mutablePurchs.add(it)
-                currentUser?.purchases = mutablePurchs
+                user?.purchases = mutablePurchs
                 ApphudLog.log("Fallback: created temp INAPP purchase: $productId")
             }
         }
@@ -619,7 +621,7 @@ internal suspend fun ApphudInternal.trackPurchase(
             return
         }
 
-    val (purchases, billingResponseCode) = fetchNativePurchases(forceRefresh = true, needSync = false)
+    val (purchases, billingResponseCode) = ServiceLocator.instance.fetchNativePurchasesUseCase(needSync = false)
 
     if (billingResponseCode == BillingClient.BillingResponseCode.OK) {
         val purchase = purchases.firstOrNull { it.products.contains(productId) }

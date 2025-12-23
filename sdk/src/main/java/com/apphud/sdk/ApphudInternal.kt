@@ -42,7 +42,6 @@ import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.suspendCancellableCoroutine
-import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeout
 import java.util.UUID
@@ -52,7 +51,6 @@ import java.util.concurrent.CopyOnWriteArrayList
 import java.util.concurrent.CopyOnWriteArraySet
 import java.util.concurrent.atomic.AtomicReference
 import kotlin.coroutines.resume
-import kotlin.coroutines.resumeWithException
 import kotlin.math.max
 
 @SuppressLint("StaticFieldLeak")
@@ -67,16 +65,14 @@ internal object ApphudInternal {
 
     internal val FALLBACK_ERRORS = listOf(APPHUD_ERROR_TIMEOUT, 404, 500, 502, 503)
     internal var ignoreCache: Boolean = false
-    internal lateinit var billing: BillingWrapper
+    internal val billing: BillingWrapper
+        get() = ServiceLocator.instance.billingWrapper
+    internal val userRepository
+        get() = ServiceLocator.instance.userRepository
     internal val storage by lazy { SharedPreferencesStorage.getInstance(context) }
     internal val prevPurchases = CopyOnWriteArraySet<PurchaseRecordDetails>()
     internal val productDetails = CopyOnWriteArrayList<ProductDetails>()
 
-    @Volatile
-    internal var paywalls = listOf<ApphudPaywall>()
-
-    @Volatile
-    internal var placements = listOf<ApphudPlacement>()
     internal var isRegisteringUser = false
 
     @Volatile
@@ -103,7 +99,7 @@ internal object ApphudInternal {
                 updateUserPropertiesJob?.cancel()
                 updateUserPropertiesJob = coroutineScope.launch(errorHandler) {
                     delay(1000L)
-                    if (currentUser != null) {
+                    if (userRepository.getCurrentUser() != null) {
                         updateUserProperties()
                     } else {
                         setNeedsToUpdateUserProperties = true
@@ -131,8 +127,6 @@ internal object ApphudInternal {
     internal lateinit var userId: UserId
     internal lateinit var context: Context
 
-    @Volatile
-    internal var currentUser: ApphudUser? = null
     internal var apphudListener: ApphudListener? = null
     internal var userLoadRetryCount: Int = 1
     internal var notifiedAboutPaywallsDidFullyLoaded = false
@@ -238,9 +232,7 @@ internal object ApphudInternal {
             ApphudLog.logI("Ignoring local paywalls cache")
         }
 
-        val cachedUser = if (isValid) storage.apphudUser else null
-        val cachedPaywalls = if (ignoreCache || !isValid || observerMode) null else readPaywallsFromCache()
-        val cachedPlacements = if (ignoreCache || !isValid || observerMode) null else readPlacementsFromCache()
+        val cachedPaywalls = if (ignoreCache || !isValid || observerMode) null else userRepository.getCurrentUser()?.paywalls
         val cachedGroups = if (isValid) readGroupsFromCache() else mutableListOf()
         val cachedDeviceId = storage.deviceId
         val cachedUserId = storage.userId
@@ -269,50 +261,48 @@ internal object ApphudInternal {
             storage.deviceId = newDeviceId
         }
 
-        /**
-         * We cannot get paywalls and placements from paying current user,
-         * because paying currentUser doesn't have cache timeout because it has
-         * purchases history
-         *
-         * But paywalls and placements must have cache timeout
-         */
         this.userId = newUserId
         this.deviceId = newDeviceId
-        this.currentUser = cachedUser
         this.productGroups.set(cachedGroups.toList())
-        cachedPaywalls?.let { this.paywalls = it }
-        cachedPlacements?.let { this.placements = it }
 
         this.userRegisteredBlock = callback
-        billing = BillingWrapper(this.context)
         RequestManager.setParams(this.context, this.apiKey)
 
         forceNotifyAllLoaded()
 
-        val needRegistration = needRegistration(credentialsChanged, cachedPaywalls, cachedUser)
+        val needRegistration = needRegistration(credentialsChanged, cachedPaywalls)
 
         ApphudLog.log("Need to register user: $needRegistration")
 
         val ruleController = ServiceLocator.instance.ruleController
         if (needRegistration) {
-            isRegisteringUser = true
-            registration(true) { u, e ->
-                if (shouldLoadProducts()) {
-                    loadProducts()
-                }
-                coroutineScope.launch {
-                    fetchNativePurchases()
+            coroutineScope.launch {
+                runCatchingCancellable {
+                    registration()
+                }.onSuccess {
+                    if (shouldLoadProducts()) {
+                        loadProducts()
+                    }
+                    ServiceLocator.instance.fetchNativePurchasesUseCase()
+                    ruleController.start(deviceId)
+                }.onFailure { error ->
+                    ApphudLog.logE("Registration failed in initialize: ${error.message}")
+                    // Even if registration failed, attempt to load products and start ruleController
+                    if (shouldLoadProducts()) {
+                        loadProducts()
+                    }
+                    ServiceLocator.instance.fetchNativePurchasesUseCase()
                     ruleController.start(deviceId)
                 }
             }
         } else {
             mainScope.launch {
-                notifyLoadingCompleted(cachedUser, null, true)
+                notifyLoadingCompleted(userRepository.getCurrentUser(), null, true)
                 if (shouldLoadProducts()) {
                     loadProducts()
                 }
                 coroutineScope.launch {
-                    fetchNativePurchases()
+                    ServiceLocator.instance.fetchNativePurchasesUseCase()
                     ruleController.start(deviceId)
                 }
             }
@@ -325,37 +315,40 @@ internal object ApphudInternal {
     private fun needRegistration(
         credentialsChanged: Boolean,
         cachedPaywalls: List<ApphudPaywall>?,
-        cachedUser: ApphudUser?,
     ): Boolean {
+        val cachedUser = userRepository.getCurrentUser()
         return credentialsChanged ||
             cachedPaywalls == null ||
             cachedUser == null ||
+            cachedUser.isTemporary == true ||
             cachedUser.hasPurchases() ||
             storage.cacheExpired()
     }
 
-    internal fun refreshEntitlements(
+    internal suspend fun refreshEntitlements(
         forceRefresh: Boolean = false,
         wasDeferred: Boolean = false,
-        callback: ((ApphudUser?) -> Unit)? = null,
-    ) {
+    ): ApphudUser? {
         if (forceRefresh) {
             didRegisterCustomerAtThisLaunch = false
         }
-        if (didRegisterCustomerAtThisLaunch || forceRefresh) {
-            // do not call any offerings callbacks, because placements were deferred
-            if (wasDeferred) {
-                isRegisteringUser = true
-            }
-            ApphudLog.log("RefreshEntitlements: didRegister:$didRegisterCustomerAtThisLaunch force:$forceRefresh wasDeferred: $wasDeferred isDeferred: $deferPlacements")
-            registration(true) { cust, _ ->
-                if (wasDeferred) {
-                    productsStatus = ApphudProductsStatus.none
-                }
-                loadProducts()
-                callback?.invoke(cust)
-            }
+        if (!didRegisterCustomerAtThisLaunch && !forceRefresh) {
+            return null
         }
+
+        if (wasDeferred) {
+            isRegisteringUser = true
+        }
+        ApphudLog.log("RefreshEntitlements: didRegister:$didRegisterCustomerAtThisLaunch force:$forceRefresh wasDeferred: $wasDeferred isDeferred: $deferPlacements")
+
+        return runCatchingCancellable {
+            forceRegistration()
+        }.onSuccess {
+            if (wasDeferred) {
+                productsStatus = ApphudProductsStatus.none
+            }
+            loadProducts()
+        }.getOrNull()
     }
 
     @Synchronized
@@ -386,16 +379,7 @@ internal object ApphudInternal {
         }
 
         productDetailsLoaded?.let {
-            it.forEach { detail ->
-                if (!productDetails.map { it.productId }.contains(detail.productId)) {
-                    productDetails.add(detail)
-                }
-            }
-
-            val cachedProductGroups = readGroupsFromCache()
-            productGroups.set(cachedProductGroups.toList())
-            updateGroupsWithProductDetails(productGroups.get())
-
+            updateProductState(it)
             // notify that productDetails are loaded
             if (productDetails.isNotEmpty()) {
                 apphudListener?.apphudFetchProductDetails(productDetails.toList())
@@ -404,56 +388,21 @@ internal object ApphudInternal {
         }
 
         customerLoaded?.let {
-            var updateOfferingsFromCustomer = false
+            updateUserState(it, fromFallback)
 
-            if (fromCache || fromFallback) {
-            } else {
-                if (it.paywalls.isNotEmpty()) {
-                    updateOfferingsFromCustomer = true
-                    coroutineScope.launch {
-                        cachePaywalls(it.paywalls)
-                        cachePlacements(it.placements)
-                    }
-                } else {
-                    /* Attention:
-                     * If customer loaded without paywalls, do not reload paywalls from cache!
-                     * If cache time is over, paywall from cache will be NULL
-                     */
-                    paywallsPrepared = false
-                }
-                coroutineScope.launch {
-                    val changed = storage.updateCustomer(it)
-                    if (changed) {
-                        mainScope.launch {
-                            apphudListener?.apphudDidChangeUserID(it.userId)
-                        }
-                    }
-                }
+            if (!fromCache && !fromFallback && it.paywalls.isEmpty()) {
+                /* Attention:
+                 * If customer loaded without paywalls, do not reload paywalls from cache!
+                 * If cache time is over, paywall from cache will be NULL
+                 */
+                paywallsPrepared = false
             }
-
-            if (updateOfferingsFromCustomer) {
-                paywalls = it.paywalls
-                placements = it.placements
-            } else if ((!ignoreCache && paywallsPrepared) || fromFallback || fallbackMode) {
-                readPaywallsFromCache()?.let { cached -> paywalls = cached }
-                readPlacementsFromCache()?.let { cached -> placements = cached }
-
-                if (paywalls.isEmpty() && it.paywalls.isNotEmpty()) {
-                    paywalls = it.paywalls
-                    placements = it.placements
-                }
-            }
-
-            currentUser = it
-            userId = it.userId
-            hasRespondedToPaywallsRequest =
-                hasRespondedToPaywallsRequest || paywalls.isNotEmpty() || placements.isNotEmpty() || observerMode
 
             // TODO: should be called only if something changed
             coroutineScope.launch {
                 delay(500)
                 mainScope.launch {
-                    currentUser?.let { user ->
+                    userRepository.getCurrentUser()?.let { user ->
                         apphudListener?.apphudNonRenewingPurchasesUpdated(user.purchases.toList())
                         apphudListener?.apphudSubscriptionsUpdated(user.subscriptions.toList())
                     }
@@ -469,9 +418,7 @@ internal object ApphudInternal {
                 }
             }
 
-            if (it.isTemporary != true && fallbackMode && !fromCache) {
-                disableFallback()
-            }
+            // disableFallback() is now called in updateUserState
         }
 
         updatePaywallsAndPlacements()
@@ -488,11 +435,13 @@ internal object ApphudInternal {
         }
     }
 
-    private fun isDataReady(): Boolean =
-        currentUser != null &&
-            paywalls.isNotEmpty() &&
+    private fun isDataReady(): Boolean {
+        val user = userRepository.getCurrentUser()
+        return user != null &&
+            user.paywalls.isNotEmpty() &&
             productDetails.isNotEmpty() &&
             !isRegisteringUser
+    }
 
     private fun isErrorOccurred(customerError: ApphudError?): Boolean =
         !isRegisteringUser &&
@@ -503,7 +452,7 @@ internal object ApphudInternal {
         hasRespondedToPaywallsRequest || customerError != null
 
     private fun hasDataLoadFailed(customerError: ApphudError?) =
-        (customerError != null && paywalls.isEmpty()) || isProductsLoadFailed()
+        (customerError != null && (userRepository.getCurrentUser()?.paywalls?.isEmpty() != false)) || isProductsLoadFailed()
 
     private fun isProductsLoadFailed() =
         productsStatus != ApphudProductsStatus.loading &&
@@ -511,9 +460,10 @@ internal object ApphudInternal {
             productDetails.isEmpty()
 
     private fun handleSuccessfulLoad() {
+        val user = userRepository.getCurrentUser()
         if (!notifiedAboutPaywallsDidFullyLoaded) {
-            apphudListener?.paywallsDidFullyLoad(paywalls.toList())
-            apphudListener?.placementsDidFullyLoad(placements.toList())
+            apphudListener?.paywallsDidFullyLoad(user?.paywalls?.toList().orEmpty())
+            apphudListener?.placementsDidFullyLoad(user?.placements?.toList().orEmpty())
 
             notifiedAboutPaywallsDidFullyLoaded = true
             ApphudLog.logI("Paywalls and Placements ready")
@@ -555,7 +505,8 @@ internal object ApphudInternal {
     }
 
     private fun logNotReadyState() {
-        ApphudLog.log("Not yet ready for callbacks invoke: isRegisteringUser: $isRegisteringUser, currentUserExist: ${currentUser != null}, latestCustomerError: $latestCustomerLoadError, paywallsEmpty: ${paywalls.isEmpty()}, productsResponseCode = $productsResponseCode, productsStatus: $productsStatus, productDetailsEmpty: ${productDetails.isEmpty()}, deferred: $deferPlacements, hasRespondedToPaywallsRequest=$hasRespondedToPaywallsRequest")
+        val user = userRepository.getCurrentUser()
+        ApphudLog.log("Not yet ready for callbacks invoke: isRegisteringUser: $isRegisteringUser, currentUserExist: ${user != null}, latestCustomerError: $latestCustomerLoadError, paywallsEmpty: ${user?.paywalls?.isEmpty() != false}, productsResponseCode = $productsResponseCode, productsStatus: $productsStatus, productDetailsEmpty: ${productDetails.isEmpty()}, deferred: $deferPlacements, hasRespondedToPaywallsRequest=$hasRespondedToPaywallsRequest")
     }
 
     private fun trackAnalytics(success: Boolean) {
@@ -583,7 +534,8 @@ internal object ApphudInternal {
     }
 
     private fun handleCustomerError(customerError: ApphudError) {
-        if (customerError.isRetryable() && (currentUser == null || productDetails.isEmpty() || (paywalls.isEmpty() && !observerMode)) && isActive && !refreshUserPending && userLoadRetryCount < APPHUD_INFINITE_RETRIES) {
+        val user = userRepository.getCurrentUser()
+        if (customerError.isRetryable() && (user == null || productDetails.isEmpty() || ((user.paywalls.isEmpty()) && !observerMode)) && isActive && !refreshUserPending && userLoadRetryCount < APPHUD_INFINITE_RETRIES) {
             refreshUserPending = true
             coroutineScope.launch {
                 val delay = 500L * userLoadRetryCount
@@ -596,118 +548,106 @@ internal object ApphudInternal {
         }
     }
 
-    private val mutex = Mutex()
-
-    private fun registration(
-        forceRegistration: Boolean = false,
-        completionHandler: ((ApphudUser?, ApphudError?) -> Unit)?,
-    ) {
-        coroutineScope.launch(errorHandler) {
-            val shouldUnlockMutex =
-                (currentUser == null || currentUser?.isTemporary == true || forceRegistration) && offeringsPreparedCallbacks.isNotEmpty() && !isRegisteringUser && mutex.isLocked
-            if (shouldUnlockMutex) {
-                try {
-                    ApphudLog.log("Unlocking the mutex")
-                    mutex.unlock()
-                } catch (e: Exception) {
-                    ApphudLog.log("Failed to unlock the mutex, force registration")
-                    runCatchingCancellable { startRegistrationCall(forceRegistration) }
-                        .onSuccess { completionHandler?.invoke(it, null) }
-                        .onFailure { completionHandler?.invoke(null, it.toApphudError()) }
-                }
-            }
-            mutex.lock()
-            try {
-                if (currentUser == null || forceRegistration) {
-                    runCatchingCancellable { startRegistrationCall(forceRegistration) }
-                        .onSuccess { completionHandler?.invoke(it, null) }
-                        .onFailure { completionHandler?.invoke(null, it.toApphudError()) }
-                } else {
-                    mainScope.launch {
-                        isRegisteringUser = false
-                        completionHandler?.invoke(currentUser, null)
-                    }
-                }
-            } finally {
-                if (mutex.isLocked) {
-                    mutex.unlock()
-                }
-            }
-        }
+    /**
+     * Normal user registration
+     * Uses cache if user already loaded
+     *
+     * @throws ApphudError if registration fails
+     */
+    private suspend fun registration(): ApphudUser {
+        return performRegistration(forceRegistration = false)
     }
 
-    private suspend fun startRegistrationCall(
-        forceRegistration: Boolean = false,
+    /**
+     * Force user registration
+     * Always performs server request, ignoring cache
+     *
+     * @param userId optional userId for user switching
+     * @param email optional email for update
+     * @throws ApphudError if registration fails
+     */
+    private suspend fun forceRegistration(
+        userId: String? = null,
+        email: String? = null,
     ): ApphudUser {
+        return performRegistration(forceRegistration = true, userId = userId, email = email)
+    }
+
+    /**
+     * Internal method for performing registration via UseCase
+     */
+    private suspend fun performRegistration(
+        forceRegistration: Boolean,
+        userId: String? = null,
+        email: String? = null,
+    ): ApphudUser {
+        isRegisteringUser = true
 
         val needPlacementsPaywalls = !didRegisterCustomerAtThisLaunch && !deferPlacements && !observerMode
 
-        ApphudLog.log(
-            "Registration conditions: user_is_null=${currentUser == null}, forceRegistration=$forceRegistration, isTemporary=${currentUser?.isTemporary}, requesting Placements = $needPlacementsPaywalls",
-        )
+        return runCatchingCancellable {
+            val newUser = ServiceLocator.instance.registrationUseCase(
+                needPlacementsPaywalls = needPlacementsPaywalls,
+                isNew = isNew,
+                forceRegistration = forceRegistration,
+                userId = userId,
+                email = email
+            )
 
-        val newUser = runCatchingCancellable {
-            RequestManager.registration(needPlacementsPaywalls, isNew, forceRegistration)
-        }
-            .getOrElse { error ->
-                ApphudLog.logE("Registration failed ${error.message}")
-                withContext(Dispatchers.Main) {
-                    isRegisteringUser = false
-                    notifyLoadingCompleted(
-                        customerLoaded = currentUser,
-                        productDetailsLoaded = null,
-                        fromCache = true,
-                        fromFallback = currentUser?.isTemporary ?: false,
-                        customerError = error.toApphudError()
-                    )
-                    throw error
+            if (firstCustomerLoadedTime == null) {
+                firstCustomerLoadedTime = System.currentTimeMillis()
+            }
+
+            updateUserState(newUser)
+
+            if (storage.isNeedSync) {
+                coroutineScope.launch(errorHandler) {
+                    ApphudLog.log("Registration: isNeedSync true, start syncing")
+                    ServiceLocator.instance.fetchNativePurchasesUseCase()
                 }
             }
 
-        if (firstCustomerLoadedTime == null) {
-            firstCustomerLoadedTime = System.currentTimeMillis()
-        }
+            isRegisteringUser = false
+            hasRespondedToPaywallsRequest = needPlacementsPaywalls
+            notifyLoadingCompleted(newUser)
 
-        currentUser = newUser
-        if (newUser.paywalls.isNotEmpty()) {
-            synchronized(paywalls) {
-                paywalls = newUser.paywalls
+            coroutineScope.launch {
+                if (pendingUserProperties.isNotEmpty() && setNeedsToUpdateUserProperties) {
+                    updateUserProperties()
+                }
             }
-            synchronized(placements) {
-                placements = newUser.placements
-            }
-        }
 
-        coroutineScope.launch {
-            storage.lastRegistration = System.currentTimeMillis()
-        }
+            newUser
+        }.getOrElse { error ->
+            ApphudLog.logE("Registration failed: ${error.message}")
+            isRegisteringUser = false
 
-        if (storage.isNeedSync) {
-            coroutineScope.launch(errorHandler) {
-                ApphudLog.log("Registration: isNeedSync true, start syncing")
-                fetchNativePurchases(forceRefresh = true)
+            val cachedUser = userRepository.getCurrentUser()
+            withContext(Dispatchers.Main) {
+                notifyLoadingCompleted(
+                    customerLoaded = cachedUser,
+                    productDetailsLoaded = null,
+                    fromCache = true,
+                    fromFallback = cachedUser?.isTemporary ?: false,
+                    customerError = error.toApphudError()
+                )
             }
-        }
 
-        // finish registering only here to avoid bug
-        isRegisteringUser = false
-        hasRespondedToPaywallsRequest = needPlacementsPaywalls
-        notifyLoadingCompleted(newUser)
-        coroutineScope.launch {
-            if (pendingUserProperties.isNotEmpty() && setNeedsToUpdateUserProperties) {
-                updateUserProperties()
-            }
+            throw error.toApphudError()
         }
-        return newUser
     }
 
     private suspend fun repeatRegistrationSilent() {
         val needPlacementsPaywalls = !didRegisterCustomerAtThisLaunch && !deferPlacements && !observerMode
-        runCatchingCancellable { RequestManager.registration(needPlacementsPaywalls, isNew, true) }
-            .onSuccess {
-                storage.lastRegistration = System.currentTimeMillis()
-                mainScope.launch { notifyLoadingCompleted(it) }
-            }
+        runCatchingCancellable {
+            ServiceLocator.instance.registrationUseCase(
+                needPlacementsPaywalls = needPlacementsPaywalls,
+                isNew = isNew,
+                forceRegistration = true
+            )
+        }.onSuccess {
+            mainScope.launch { notifyLoadingCompleted(it) }
+        }
     }
 
     internal fun forceNotifyAllLoaded() {
@@ -720,7 +660,7 @@ internal object ApphudInternal {
                 if (!notifiedAboutPaywallsDidFullyLoaded || offeringsPreparedCallbacks.isNotEmpty()) {
                     ApphudLog.logE("Force Notify About Current State")
                     notifyLoadingCompleted(
-                        currentUser,
+                        userRepository.getCurrentUser(),
                         productDetails,
                         false,
                         false,
@@ -792,13 +732,14 @@ internal object ApphudInternal {
         }
     }
 
-    internal fun refreshPaywallsIfNeeded(): Boolean {
+    internal suspend fun refreshPaywallsIfNeeded(): Boolean {
         var isLoading = false
+        val user = userRepository.getCurrentUser()
 
         if (isRegisteringUser) {
             // already loading
             isLoading = true
-        } else if (currentUser == null || fallbackMode || currentUser?.isTemporary == true || (paywalls.isEmpty() && !observerMode) || latestCustomerLoadError != null) {
+        } else if (user == null || fallbackMode || user.isTemporary == true || ((user.paywalls.isEmpty()) && !observerMode) || latestCustomerLoadError != null) {
             ApphudLog.logI("Refreshing User")
             didRegisterCustomerAtThisLaunch = false
             refreshEntitlements(true)
@@ -934,14 +875,14 @@ internal object ApphudInternal {
     ): ApphudUser? {
         if (userId.isBlank()) {
             ApphudLog.log("Invalid UserId=$userId")
-            return currentUser
+            return userRepository.getCurrentUser()
         }
         ApphudLog.log("Start updateUserId userId=$userId")
 
         runCatchingCancellable { awaitUserRegistration() }
             .onFailure { error ->
                 ApphudLog.logE(error.message.orEmpty())
-                return currentUser
+                return userRepository.getCurrentUser()
             }
 
         val originalUserId = this.userId
@@ -957,8 +898,8 @@ internal object ApphudInternal {
         }
         val needPlacementsPaywalls = !didRegisterCustomerAtThisLaunch && !deferPlacements && !observerMode
         val customer: ApphudUser? = runCatchingCancellable {
-            RequestManager.registration(
-                needPaywalls = needPlacementsPaywalls,
+            ServiceLocator.instance.registrationUseCase(
+                needPlacementsPaywalls = needPlacementsPaywalls,
                 isNew = isNew,
                 forceRegistration = true,
                 userId = userId,
@@ -970,68 +911,29 @@ internal object ApphudInternal {
             null
         }
 
-        ApphudInternal.userId = customer?.userId ?: currentUser?.userId ?: originalUserId
+        ApphudInternal.userId = customer?.userId ?: userRepository.getCurrentUser()?.userId ?: originalUserId
         storage.userId = ApphudInternal.userId
 
         customer?.let {
             mainScope.launch { notifyLoadingCompleted(it) }
         }
-        return currentUser
+        return userRepository.getCurrentUser()
     }
 
 //endregion
 
     //region === Primary methods ===
-    fun grantPromotional(
-        daysCount: Int,
-        productId: String?,
-        permissionGroup: ApphudGroup?,
-        callback: ((Boolean) -> Unit)?,
-    ) {
-        performWhenUserRegistered { error ->
-            error?.let {
-                callback?.invoke(false)
-            } ?: run {
-                coroutineScope.launch(errorHandler) {
-                    val grantPromotionalResult = RequestManager.grantPromotional(daysCount, productId, permissionGroup)
-                    withContext(Dispatchers.Main) {
-                        grantPromotionalResult
-                            .onSuccess {
-                                notifyLoadingCompleted(it)
-                                callback?.invoke(true)
-                                ApphudLog.logI("Promotional is granted")
-                            }
-                            .onFailure {
-                                callback?.invoke(false)
-                                ApphudLog.logI("Promotional is NOT granted")
-                            }
-                    }
-                }
-            }
-        }
-    }
-
     fun paywallShown(paywall: ApphudPaywall) {
-        performWhenUserRegistered { error ->
-            error?.let {
-                ApphudLog.logI(error.message)
-            } ?: run {
-                coroutineScope.launch(errorHandler) {
-                    RequestManager.paywallShown(paywall)
-                }
-            }
+        coroutineScope.launch(errorHandler) {
+            runCatchingCancellable { paywallShownSuspend(paywall) }
+                .onFailure { error -> ApphudLog.logI(error.message ?: "Unknown error") }
         }
     }
 
     fun paywallClosed(paywall: ApphudPaywall) {
-        performWhenUserRegistered { error ->
-            error?.let {
-                ApphudLog.logI(error.message)
-            } ?: run {
-                coroutineScope.launch(errorHandler) {
-                    RequestManager.paywallClosed(paywall)
-                }
-            }
+        coroutineScope.launch(errorHandler) {
+            runCatchingCancellable { paywallClosedSuspend(paywall) }
+                .onFailure { error -> ApphudLog.logI(error.message ?: "Unknown error") }
         }
     }
 
@@ -1135,14 +1037,10 @@ internal object ApphudInternal {
         productId: String?,
         screenId: String?,
     ) {
-        performWhenUserRegistered { error ->
-            error?.let {
-                ApphudLog.logI(error.message)
-            } ?: run {
-                coroutineScope.launch(errorHandler) {
-                    RequestManager.paywallCheckoutInitiated(paywallId, placementId, productId, screenId)
-                }
-            }
+        coroutineScope.launch(errorHandler) {
+            runCatchingCancellable {
+                paywallCheckoutInitiatedSuspend(paywallId, placementId, productId, screenId)
+            }.onFailure { error -> ApphudLog.logI(error.message ?: "Unknown error") }
         }
     }
 
@@ -1152,19 +1050,64 @@ internal object ApphudInternal {
         productId: String?,
         errorCode: Int,
     ) {
-        performWhenUserRegistered { error ->
-            error?.let {
-                ApphudLog.logI(error.message)
-            } ?: run {
-                coroutineScope.launch(errorHandler) {
-                    if (errorCode == BillingClient.BillingResponseCode.USER_CANCELED) {
-                        RequestManager.paywallPaymentCancelled(paywallId, placementId, productId)
-                    } else {
-                        val errorMessage = ApphudBillingResponseCodes.getName(errorCode)
-                        RequestManager.paywallPaymentError(paywallId, placementId, productId, errorMessage)
-                    }
-                }
+        coroutineScope.launch(errorHandler) {
+            runCatchingCancellable {
+                paywallPaymentCancelledSuspend(paywallId, placementId, productId, errorCode)
+            }.onFailure { error -> ApphudLog.logI(error.message ?: "Unknown error") }
+        }
+    }
+
+    // Suspend helper methods for event tracking
+    internal suspend fun grantPromotionalSuspend(
+        daysCount: Int,
+        productId: String?,
+        permissionGroup: ApphudGroup?,
+    ): Boolean {
+        awaitUserRegistration()
+
+        return RequestManager.grantPromotional(daysCount, productId, permissionGroup)
+            .onSuccess { user ->
+                notifyLoadingCompleted(user)
+                ApphudLog.logI("Promotional is granted")
             }
+            .onFailure {
+                ApphudLog.logI("Promotional is NOT granted")
+            }
+            .isSuccess
+    }
+
+    private suspend fun paywallShownSuspend(paywall: ApphudPaywall) {
+        awaitUserRegistration()
+        RequestManager.paywallShown(paywall)
+    }
+
+    private suspend fun paywallClosedSuspend(paywall: ApphudPaywall) {
+        awaitUserRegistration()
+        RequestManager.paywallClosed(paywall)
+    }
+
+    private suspend fun paywallCheckoutInitiatedSuspend(
+        paywallId: String?,
+        placementId: String?,
+        productId: String?,
+        screenId: String?,
+    ) {
+        awaitUserRegistration()
+        RequestManager.paywallCheckoutInitiated(paywallId, placementId, productId, screenId)
+    }
+
+    private suspend fun paywallPaymentCancelledSuspend(
+        paywallId: String?,
+        placementId: String?,
+        productId: String?,
+        errorCode: Int,
+    ) {
+        awaitUserRegistration()
+        if (errorCode == BillingClient.BillingResponseCode.USER_CANCELED) {
+            RequestManager.paywallPaymentCancelled(paywallId, placementId, productId)
+        } else {
+            val errorMessage = ApphudBillingResponseCodes.getName(errorCode)
+            RequestManager.paywallPaymentError(paywallId, placementId, productId, errorMessage)
         }
     }
 
@@ -1173,44 +1116,16 @@ internal object ApphudInternal {
             throw ApphudError(MUST_REGISTER_ERROR)
         }
 
-        val mCurrentUser = currentUser
+        val mCurrentUser = userRepository.getCurrentUser()
         when {
             mCurrentUser == null -> {
-                suspendCancellableCoroutine { cont ->
-                    registration { _, error ->
-                        if (error == null) {
-                            if (cont.isActive) cont.resume(Unit)
-                        } else {
-                            if (cont.isActive) cont.resumeWithException(error)
-                        }
-                    }
-                }
+                registration()
             }
             mCurrentUser.isTemporary != false -> {
                 refreshPaywallsIfNeeded()
                 throw ApphudError("Fallback mode")
             }
             else -> Unit
-        }
-    }
-
-    internal fun performWhenUserRegistered(callback: (ApphudError?) -> Unit) {
-        if (!isInitialized()) {
-            callback.invoke(ApphudError(MUST_REGISTER_ERROR))
-            return
-        }
-
-        currentUser?.let {
-            if (it.isTemporary == false) {
-                callback.invoke(null)
-            } else {
-                callback.invoke(ApphudError("Fallback mode"))
-                refreshPaywallsIfNeeded()
-            }
-        } ?: run {
-            registration { _, error ->
-                callback.invoke(error)
-            }
         }
     }
 
@@ -1256,18 +1171,6 @@ internal object ApphudInternal {
 
     fun getProductDetails(): List<ProductDetails> =
         productDetails.toList()
-
-    fun getPaywalls(): List<ApphudPaywall> {
-        synchronized(paywalls) {
-            return paywalls.toCollection(mutableListOf())
-        }
-    }
-
-    fun getPlacements(): List<ApphudPlacement> {
-        synchronized(placements) {
-            return placements.toCollection(mutableListOf())
-        }
-    }
 
     fun getPermissionGroups(): List<ApphudGroup> {
         return this.productGroups.get()
@@ -1373,15 +1276,22 @@ internal object ApphudInternal {
     }
 
     private fun clear() {
-        try {
+        runCatching {
             val controller = ServiceLocator.instance.ruleController
             controller.stop()
-        } catch (e: IllegalStateException) {
-            ApphudLog.log("ServiceLocator not initialized, skip ruleController.stop()")
+        }.onFailure { e ->
+            ApphudLog.log("ServiceLocator not initialized, skip ruleController.stop(): ${e.message}")
         }
+
+        // Clear user through Repository
+        runCatching {
+            userRepository.clearUser()
+        }.onFailure { e ->
+            ApphudLog.log("ServiceLocator not initialized, skip userRepository.clearUser(): ${e.message}")
+        }
+
         ServiceLocator.clearInstance()
         RequestManager.cleanRegistration()
-        currentUser = null
         productsStatus = ApphudProductsStatus.none
         productsResponseCode = BillingClient.BillingResponseCode.OK
         customProductsFetchedBlock = null
@@ -1422,46 +1332,29 @@ internal object ApphudInternal {
         }
     }
 
-    // Paywalls cache ======================================
-    internal fun cachePaywalls(paywalls: List<ApphudPaywall>) {
-        storage.paywalls = paywalls
-    }
-
-    private fun readPaywallsFromCache(): List<ApphudPaywall>? {
-        return storage.paywalls
-    }
-
-    private fun cachePlacements(placements: List<ApphudPlacement>) {
-        storage.placements = placements
-    }
-
-    private fun readPlacementsFromCache(): List<ApphudPlacement>? {
-        return storage.placements
-    }
-
     private fun updatePaywallsAndPlacements() {
-        synchronized(paywalls) {
-            paywalls.forEach { paywall ->
-                paywall.products?.forEach { product ->
-                    product.paywallId = paywall.id
-                    product.paywallIdentifier = paywall.identifier
-                    product.productDetails = getProductDetailsByProductId(product.productId)
-                }
+        val user = userRepository.getCurrentUser()
+        val userPaywalls = user?.paywalls.orEmpty()
+        val userPlacements = user?.placements.orEmpty()
+
+        userPaywalls.forEach { paywall ->
+            paywall.products?.forEach { product ->
+                product.paywallId = paywall.id
+                product.paywallIdentifier = paywall.identifier
+                product.productDetails = getProductDetailsByProductId(product.productId)
             }
         }
 
-        synchronized(placements) {
-            placements.forEach { placement ->
-                val paywall = placement.paywall
-                paywall?.placementId = placement.id
-                paywall?.placementIdentifier = placement.identifier
-                paywall?.products?.forEach { product ->
-                    product.paywallId = placement.paywall.id
-                    product.paywallIdentifier = placement.paywall.identifier
-                    product.placementId = placement.id
-                    product.placementIdentifier = placement.identifier
-                    product.productDetails = getProductDetailsByProductId(product.productId)
-                }
+        userPlacements.forEach { placement ->
+            val paywall = placement.paywall ?: return@forEach
+            paywall.placementId = placement.id
+            paywall.placementIdentifier = placement.identifier
+            paywall.products?.forEach { product ->
+                product.paywallId = paywall.id
+                product.paywallIdentifier = paywall.identifier
+                product.placementId = placement.id
+                product.placementIdentifier = placement.identifier
+                product.productDetails = getProductDetailsByProductId(product.productId)
             }
         }
     }
@@ -1471,4 +1364,42 @@ internal object ApphudInternal {
         return productDetails.firstOrNull { it.productId == productIdentifier }
     }
 //endregion
+
+    //region === State Update Methods ===
+    /**
+     * Update user state through Repository
+     * Separation of concerns: state mutation is separated from notifications
+     */
+    private fun updateUserState(user: ApphudUser, fromFallback: Boolean = false) {
+        val userIdChanged = userRepository.setCurrentUser(user)
+        if (userIdChanged && !fromFallback) {
+            mainScope.launch {
+                apphudListener?.apphudDidChangeUserID(user.userId)
+            }
+        }
+
+        userId = user.userId
+
+        hasRespondedToPaywallsRequest =
+            hasRespondedToPaywallsRequest || user.paywalls.isNotEmpty() || user.placements.isNotEmpty() || observerMode
+
+        // Disable fallback mode if needed
+        if (user.isTemporary != true && fallbackMode) {
+            disableFallback()
+        }
+    }
+
+    private fun updateProductState(productsLoaded: List<ProductDetails>) {
+        synchronized(productDetails) {
+            productsLoaded.forEach { detail ->
+                if (!productDetails.map { it.productId }.contains(detail.productId)) {
+                    productDetails.add(detail)
+                }
+            }
+        }
+        val cachedProductGroups = readGroupsFromCache()
+        productGroups.set(cachedProductGroups.toList())
+        updateGroupsWithProductDetails(productGroups.get())
+    }
+    //endregion
 }

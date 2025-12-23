@@ -11,7 +11,6 @@ import com.apphud.sdk.internal.callback_status.PurchaseRestoredCallbackStatus
 import com.apphud.sdk.internal.util.runCatchingCancellable
 import com.apphud.sdk.managers.RequestManager
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
@@ -22,40 +21,6 @@ internal suspend fun ApphudInternal.restorePurchases(): ApphudPurchasesRestoreRe
 }
 
 private val mutexSync = Mutex()
-
-private var unvalidatedPurchases = listOf<Purchase>()
-
-internal suspend fun ApphudInternal.fetchNativePurchases(
-    forceRefresh: Boolean = false,
-    needSync: Boolean = true,
-): Pair<List<Purchase>, Int> {
-    var responseCode = BillingClient.BillingResponseCode.OK
-    if (unvalidatedPurchases.isEmpty() || forceRefresh) {
-        val result = billing.queryPurchasesSync()
-        val purchases = result.first
-        responseCode = result.second
-        if (!purchases.isNullOrEmpty()) {
-            unvalidatedPurchases = purchases
-            val notSyncedPurchases = filterNotSynced(unvalidatedPurchases)
-            if (needSync) {
-                if (notSyncedPurchases.isNotEmpty()) {
-                    syncPurchases(unvalidatedPurchs = notSyncedPurchases)
-                } else {
-                    ApphudLog.logI("Google Billing: All Tracked (${unvalidatedPurchases.count()})")
-                }
-            }
-        } else {
-            ApphudLog.logI("Google Billing: No Active Purchases")
-        }
-    }
-    return Pair(unvalidatedPurchases, responseCode)
-}
-
-private fun ApphudInternal.filterNotSynced(allPurchases: List<Purchase>): List<Purchase> {
-    val allKnownTokens = (currentUser?.subscriptions?.map { it.purchaseToken }
-        ?: listOf<String>()) + (currentUser?.purchases?.map { it.purchaseToken } ?: listOf<String>())
-    return allPurchases.filter { !allKnownTokens.contains(it.purchaseToken) }
-}
 
 private suspend fun queryPurchases(): List<Purchase> {
     val result = ApphudInternal.billing.queryPurchasesSync()
@@ -70,7 +35,7 @@ internal suspend fun ApphudInternal.syncPurchases(
 ): ApphudPurchasesRestoreResult {
     runCatchingCancellable { awaitUserRegistration() }
         .onFailure { error ->
-            ApphudLog.log("SyncPurchases: performWhenUserRegistered fail")
+            ApphudLog.log("SyncPurchases: awaitUserRegistration fail")
             return ApphudPurchasesRestoreResult.Error(error.toApphudError())
         }
 
@@ -103,7 +68,7 @@ internal suspend fun ApphudInternal.syncPurchases(
             ApphudLog.log(message = "SyncPurchases: Nothing to restore")
             storage.isNeedSync = false
             refreshEntitlements(true)
-            val user = currentUser
+            val user = userRepository.getCurrentUser()
             return if (user != null) {
                 ApphudPurchasesRestoreResult.Success(user.subscriptions.toList(), user.purchases.toList())
             } else {
@@ -147,10 +112,8 @@ internal suspend fun ApphudInternal.syncPurchases(
             if (prevPurchases.containsAll(restoredPurchases)) {
                 ApphudLog.log("SyncPurchases: Don't send equal purchases from prev state")
                 storage.isNeedSync = false
-                mainScope.launch {
-                    refreshEntitlements(true)
-                }
-                val user = currentUser
+                refreshEntitlements(true)
+                val user = userRepository.getCurrentUser()
                 return if (user != null) {
                     ApphudPurchasesRestoreResult.Success(user.subscriptions.toList(), user.purchases.toList())
                 } else {
@@ -234,8 +197,8 @@ private fun processHistoryCallbackStatus(result: PurchaseHistoryCallbackStatus):
             val type = if (result.type() == BillingClient.ProductType.SUBS) "subscriptions" else "in-app products"
             ApphudLog.log(
                 "Failed to load history for $type with error: (" +
-                        "${result.result?.responseCode})" +
-                        "${result.result?.debugMessage})",
+                    "${result.result?.responseCode})" +
+                    "${result.result?.debugMessage})",
             )
         }
         is PurchaseHistoryCallbackStatus.Success -> {
@@ -271,11 +234,15 @@ private fun ApphudInternal.findJustPurchasedProduct(
     tempPurchaseRecordDetails: List<PurchaseRecordDetails>?,
 ): ApphudProduct? {
     try {
+        val user = userRepository.getCurrentUser()
+        val userPaywalls = user?.paywalls.orEmpty()
+        val userPlacements = user?.placements.orEmpty()
+
         val targetPaywall =
             if (placementIdentifier != null) {
-                placements.firstOrNull { it.identifier == placementIdentifier }?.paywall
+                userPlacements.firstOrNull { it.identifier == placementIdentifier }?.paywall
             } else {
-                paywalls.firstOrNull { it.identifier == paywallIdentifier }
+                userPaywalls.firstOrNull { it.identifier == paywallIdentifier }
             }
 
         productDetails?.let { details ->

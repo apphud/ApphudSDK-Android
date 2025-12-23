@@ -25,14 +25,19 @@ import com.apphud.sdk.internal.data.remote.RenderRemoteRepository
 import com.apphud.sdk.internal.data.remote.ScreenRemoteRepository
 import com.apphud.sdk.internal.data.remote.UserRemoteRepository
 import com.apphud.sdk.internal.data.serializer.RenderItemsSerializer
+import com.apphud.sdk.internal.data.UserDataSource
+import com.apphud.sdk.internal.data.UserRepository
 import com.apphud.sdk.internal.domain.FetchMostActualRuleScreenUseCase
+import com.apphud.sdk.internal.domain.FetchNativePurchasesUseCase
 import com.apphud.sdk.internal.domain.FetchRulesScreenUseCase
+import com.apphud.sdk.internal.domain.RegistrationUseCase
 import com.apphud.sdk.internal.domain.RenderPaywallPropertiesUseCase
 import com.apphud.sdk.internal.domain.mapper.DateTimeMapper
 import com.apphud.sdk.internal.domain.mapper.NotificationMapper
 import com.apphud.sdk.internal.domain.model.ApiKey
 import com.apphud.sdk.internal.presentation.rule.RuleController
 import com.apphud.sdk.internal.provider.RegistrationProvider
+import com.apphud.sdk.managers.RequestManager
 import com.apphud.sdk.mappers.AttributionMapper
 import com.apphud.sdk.storage.SharedPreferencesStorage
 import com.google.gson.Gson
@@ -175,6 +180,28 @@ internal class ServiceLocator(
         )
 
     val paywallEventManager: PaywallEventManager = PaywallEventManager()
+
+    // User management dependencies
+    val userDataSource: UserDataSource = UserDataSource(SharedPreferencesStorage)
+
+    val userRepository: UserRepository = UserRepository(userDataSource)
+
+    val registrationUseCase: RegistrationUseCase =
+        RegistrationUseCase(
+            userRepository = userRepository,
+            userDataSource = userDataSource,
+            requestManager = RequestManager
+        )
+
+    // Billing dependencies
+    val billingWrapper: BillingWrapper by lazy { BillingWrapper(applicationContext) }
+
+    val fetchNativePurchasesUseCase: FetchNativePurchasesUseCase by lazy {
+        FetchNativePurchasesUseCase(
+            billingWrapper = billingWrapper,
+            userRepository = userRepository,
+        )
+    }
 
     internal class ServiceLocatorInstanceFactory {
 

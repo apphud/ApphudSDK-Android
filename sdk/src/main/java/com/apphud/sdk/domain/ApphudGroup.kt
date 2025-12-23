@@ -28,7 +28,7 @@ data class ApphudGroup(
      * Keep in mind, that this method doesn't take into account non-renewing purchases.
      */
     fun hasAccess(): Boolean {
-        ApphudInternal.currentUser?.subscriptions?.forEach {
+        ApphudInternal.userRepository.getCurrentUser()?.subscriptions?.forEach {
             if (it.isActive() && it.groupId == id) {
                 return true
             }

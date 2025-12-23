@@ -12,7 +12,6 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 
 internal class ApphudApplication : Application() {
-    val API_KEY = "YOUR_API_KEY"
 
     companion object {
         private lateinit var instance: ApphudApplication
@@ -36,7 +35,7 @@ internal class ApphudApplication : Application() {
     override fun onCreate() {
         super.onCreate()
         ApphudUtils.enableAllLogs()
-        Apphud.start(this, API_KEY, observerMode = false)
+        Apphud.start(this, BuildConfig.APPHUD_API_KEY, observerMode = false)
         Apphud.collectDeviceIdentifiers()
         fetchPlacements()
     }

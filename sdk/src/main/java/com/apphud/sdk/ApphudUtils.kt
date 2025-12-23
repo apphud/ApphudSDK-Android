@@ -38,6 +38,21 @@ object ApphudUtils {
         httpLogging = true
     }
 
+    /**
+     * Override base URL for API requests.
+     * Must be called after Apphud.start().
+     *
+     * @param baseUrl The base URL to use (e.g., "https://custom.gateway.com")
+     * @param onError Callback invoked if ServiceLocator is not initialized
+     */
+    fun overrideBaseUrl(baseUrl: String, onError: ((Exception) -> Unit)? = null) {
+        try {
+            ServiceLocator.instance.urlProvider.updateBaseUrl(baseUrl)
+        } catch (e: IllegalStateException) {
+            onError?.invoke(e)
+        }
+    }
+
     internal fun setPackageName(packageName: String) {
         this.packageName = packageName
     }
@@ -65,29 +80,29 @@ object ApphudUtils {
             val capabilities = connectivityManager
                 .getNetworkCapabilities(network)
             capabilities != null && capabilities.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET) &&
-                    capabilities.hasCapability(NetworkCapabilities.NET_CAPABILITY_VALIDATED)
+                capabilities.hasCapability(NetworkCapabilities.NET_CAPABILITY_VALIDATED)
         } else {
             false
         }
     }
 
     fun isEmulator(): Boolean = (Build.BRAND.startsWith("generic") && Build.DEVICE.startsWith("generic"))
-            || Build.FINGERPRINT.startsWith("generic")
-            || Build.FINGERPRINT.startsWith("unknown")
-            || Build.HARDWARE.contains("goldfish")
-            || Build.HARDWARE.contains("ranchu")
-            || Build.MODEL.contains("google_sdk")
-            || Build.MODEL.contains("Emulator")
-            || Build.MODEL.contains("Android SDK built for x86")
-            || Build.MANUFACTURER.contains("Genymotion")
-            || Build.PRODUCT.contains("sdk_google")
-            || Build.PRODUCT.contains("google_sdk")
-            || Build.PRODUCT.contains("sdk")
-            || Build.PRODUCT.contains("sdk_x86")
-            || Build.PRODUCT.contains("sdk_gphone64_arm64")
-            || Build.PRODUCT.contains("vbox86p")
-            || Build.PRODUCT.contains("emulator")
-            || Build.PRODUCT.contains("simulator")
+        || Build.FINGERPRINT.startsWith("generic")
+        || Build.FINGERPRINT.startsWith("unknown")
+        || Build.HARDWARE.contains("goldfish")
+        || Build.HARDWARE.contains("ranchu")
+        || Build.MODEL.contains("google_sdk")
+        || Build.MODEL.contains("Emulator")
+        || Build.MODEL.contains("Android SDK built for x86")
+        || Build.MANUFACTURER.contains("Genymotion")
+        || Build.PRODUCT.contains("sdk_google")
+        || Build.PRODUCT.contains("google_sdk")
+        || Build.PRODUCT.contains("sdk")
+        || Build.PRODUCT.contains("sdk_x86")
+        || Build.PRODUCT.contains("sdk_gphone64_arm64")
+        || Build.PRODUCT.contains("vbox86p")
+        || Build.PRODUCT.contains("emulator")
+        || Build.PRODUCT.contains("simulator")
 
     fun getInstallerPackageName(context: Context): String? {
         kotlin.runCatching {
