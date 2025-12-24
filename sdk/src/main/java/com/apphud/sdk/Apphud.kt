@@ -229,6 +229,10 @@ object Apphud {
      * retry attempts to Apphud backend in case of failures and return an error.
      * The default and minimum value for this parameter is 10.0 seconds.
      * This parameter doesn't affect fetching products from Google Play.
+     * @param forceRefresh When set to `true`, forces Apphud to refresh user data and reload
+     * placements from the server before returning the result. Use this when you need to apply
+     * updated audience segmentation or A/B test assignments
+     * (for example, after changing user properties that affect placement targeting).
      * @param callback The callback function that is invoked with the list of `ApphudPlacement` objects.
      * Second parameter in callback represents optional error, which may be
      * on Google (BillingClient issue) or Apphud side.
@@ -236,13 +240,25 @@ object Apphud {
      */
     fun fetchPlacements(
         preferredTimeout: Double = APPHUD_DEFAULT_MAX_TIMEOUT,
+        forceRefresh: Boolean = false,
         callback: (List<ApphudPlacement>, ApphudError?) -> Unit,
     ) {
-        ApphudInternal.performWhenOfferingsPrepared(preferredTimeout = preferredTimeout) {
-            callback(
-                ServiceLocator.instance.userRepository.getCurrentUser()?.placements.orEmpty(),
-                it
-            )
+        if (forceRefresh) {
+            refreshUserData {
+                ApphudInternal.performWhenOfferingsPrepared(preferredTimeout = preferredTimeout) {
+                    callback(
+                        ServiceLocator.instance.userRepository.getCurrentUser()?.placements.orEmpty(),
+                        it
+                    )
+                }
+            }
+        } else {
+            ApphudInternal.performWhenOfferingsPrepared(preferredTimeout = preferredTimeout) {
+                callback(
+                    ServiceLocator.instance.userRepository.getCurrentUser()?.placements.orEmpty(),
+                    it
+                )
+            }
         }
     }
 

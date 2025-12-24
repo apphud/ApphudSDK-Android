@@ -1,0 +1,9 @@
+# OpenCode local files
+node_modules/
+workflow/
+settings.local.json
+bun.lock
+package.json
+
+# Keep command symlinks (they point to .claude/commands/)
+!command/

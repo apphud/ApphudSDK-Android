@@ -69,7 +69,8 @@ internal object ApphudInternal {
         get() = ServiceLocator.instance.billingWrapper
     internal val userRepository
         get() = ServiceLocator.instance.userRepository
-    internal val storage by lazy { SharedPreferencesStorage.getInstance(context) }
+    internal val storage: SharedPreferencesStorage
+        get() = ServiceLocator.instance.storage
     internal val prevPurchases = CopyOnWriteArraySet<PurchaseRecordDetails>()
     internal val productDetails = CopyOnWriteArrayList<ProductDetails>()
 

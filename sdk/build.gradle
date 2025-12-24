@@ -86,8 +86,9 @@ if (isJitPackBuild) {
                 release(MavenPublication) {
                     groupId PUBLISH_GROUP_ID
                     artifactId PUBLISH_ARTIFACT_ID
-                    // Use local version for mavenLocal, otherwise use regular version
-                    version gradle.startParameter.taskNames.any { it.contains('ToMavenLocal') } ? PUBLISH_VERSION_LOCAL : PUBLISH_VERSION
+                    // Use local version (0.0.0-local) only for regular local testing
+                    def publishVersion = isPublishToMavenLocal ? PUBLISH_VERSION_LOCAL : PUBLISH_VERSION
+                    version publishVersion
 
                     from components.release
                 }
