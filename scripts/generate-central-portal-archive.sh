@@ -52,6 +52,22 @@ check_prerequisites() {
     else
         GPG_AVAILABLE=true
         log_success "GPG found"
+        
+        # Read GPG configuration from local.properties
+        if [[ -f "local.properties" ]]; then
+            SIGNING_KEY_ID=$(grep "signing.keyId=" local.properties | cut -d'=' -f2)
+            SIGNING_PASSWORD=$(grep "signing.password=" local.properties | cut -d'=' -f2)
+            SIGNING_SECRET_KEY_RING=$(grep "signing.secretKeyRingFile=" local.properties | cut -d'=' -f2)
+            
+            # Remove escape characters from password (properties file format uses backslash escapes)
+            SIGNING_PASSWORD=$(echo "$SIGNING_PASSWORD" | sed 's/\\//g')
+            
+            if [[ -n "$SIGNING_KEY_ID" ]] && [[ -n "$SIGNING_PASSWORD" ]]; then
+                log_success "GPG signing configuration loaded from local.properties"
+            else
+                log_warn "GPG configuration incomplete in local.properties"
+            fi
+        fi
     fi
     
     # Check if md5sum/md5 is available
@@ -140,11 +156,24 @@ generate_checksums_and_signatures() {
             
             # Generate GPG signature if available
             if [[ "$GPG_AVAILABLE" == true ]]; then
-                if gpg --armor --detach-sign --output "${file}.asc" "$file" 2>/dev/null; then
-                    log_success "Generated GPG signature for $file"
+                # Use password and key ID from local.properties if available
+                if [[ -n "$SIGNING_PASSWORD" ]] && [[ -n "$SIGNING_KEY_ID" ]]; then
+                    # Sign with password using passphrase-fd
+                    if echo "$SIGNING_PASSWORD" | gpg --batch --yes --passphrase-fd 0 --pinentry-mode loopback \
+                        --local-user "$SIGNING_KEY_ID" --armor --detach-sign --output "${file}.asc" "$file" 2>/dev/null; then
+                        log_success "Generated GPG signature for $file"
+                    else
+                        log_warn "Failed to generate GPG signature for $file"
+                        log_warn "Check your signing.keyId and signing.password in local.properties"
+                    fi
                 else
-                    log_warn "Failed to generate GPG signature for $file"
-                    log_warn "Make sure your GPG key is properly configured"
+                    # Fallback: try without password (for keys with gpg-agent)
+                    if gpg --armor --detach-sign --output "${file}.asc" "$file" 2>/dev/null; then
+                        log_success "Generated GPG signature for $file"
+                    else
+                        log_warn "Failed to generate GPG signature for $file"
+                        log_warn "Configure signing.keyId and signing.password in local.properties"
+                    fi
                 fi
             fi
         fi
@@ -176,35 +205,110 @@ verify_archive() {
     log_info "Verifying archive contents..."
     
     ARCHIVE_NAME="${ARTIFACT_ID}-${VERSION}-central-portal.zip"
+    local has_errors=false
     
     echo ""
     echo "Archive contents:"
     unzip -l "build/$ARCHIVE_NAME"
     echo ""
     
-    # Count expected files
-    expected_files=("\.aar" "\.pom" "-sources\.jar" "-javadoc\.jar" "\.module")
-    expected_names=("*.aar" "*.pom" "*-sources.jar" "*-javadoc.jar" "*.module")
+    # Define the 5 required artifacts
+    local artifacts=(
+        "${ARTIFACT_ID}-${VERSION}.aar"
+        "${ARTIFACT_ID}-${VERSION}.pom"
+        "${ARTIFACT_ID}-${VERSION}-sources.jar"
+        "${ARTIFACT_ID}-${VERSION}-javadoc.jar"
+        "${ARTIFACT_ID}-${VERSION}.module"
+    )
     
-    for i in "${!expected_files[@]}"; do
-        pattern="${expected_files[$i]}"
-        name="${expected_names[$i]}"
-        count=$(unzip -l "build/$ARCHIVE_NAME" | grep -c "$pattern" || true)
-        if [[ $count -gt 0 ]]; then
-            log_success "Found $name files: $count"
+    local artifact_count=0
+    
+    # Check each required artifact exists
+    log_info "Checking required artifacts..."
+    for artifact in "${artifacts[@]}"; do
+        if unzip -l "build/$ARCHIVE_NAME" | grep -q "$artifact\$"; then
+            log_success "✓ Found: $artifact"
+            artifact_count=$((artifact_count + 1))
         else
-            log_warn "No $name files found"
+            log_error "✗ Missing: $artifact"
+            has_errors=true
         fi
     done
+    
+    echo ""
     
     # Check for signatures and checksums
     sig_count=$(unzip -l "build/$ARCHIVE_NAME" | grep -c "\.asc$" || true)
     md5_count=$(unzip -l "build/$ARCHIVE_NAME" | grep -c "\.md5$" || true)
     sha1_count=$(unzip -l "build/$ARCHIVE_NAME" | grep -c "\.sha1$" || true)
     
-    log_info "Signatures (.asc): $sig_count"
-    log_info "MD5 checksums (.md5): $md5_count"
-    log_info "SHA1 checksums (.sha1): $sha1_count"
+    log_info "File counts:"
+    log_info "  Artifacts: $artifact_count/5"
+    log_info "  Signatures (.asc): $sig_count"
+    log_info "  MD5 checksums (.md5): $md5_count"
+    log_info "  SHA1 checksums (.sha1): $sha1_count"
+    echo ""
+    
+    # Validate signatures - Maven Central requires signatures for ALL artifacts
+    log_info "Validating signatures (required by Maven Central)..."
+    
+    if [[ $sig_count -lt 5 ]]; then
+        log_error "Missing signatures! Found $sig_count but expected 5 (one per artifact)"
+        has_errors=true
+    fi
+    
+    # Check each artifact has its signature
+    for artifact in "${artifacts[@]}"; do
+        local sig_file="${artifact}.asc"
+        if unzip -l "build/$ARCHIVE_NAME" | grep -q "$sig_file\$"; then
+            log_success "✓ Signature exists: $(basename "$sig_file")"
+        else
+            log_error "✗ Missing signature: $(basename "$sig_file")"
+            has_errors=true
+        fi
+    done
+    
+    echo ""
+    
+    # Validate checksums
+    log_info "Validating checksums..."
+    if [[ $md5_count -eq 5 ]]; then
+        log_success "✓ All MD5 checksums present ($md5_count/5)"
+    else
+        log_error "✗ MD5 checksum mismatch: found $md5_count, expected 5"
+        has_errors=true
+    fi
+    
+    if [[ $sha1_count -eq 5 ]]; then
+        log_success "✓ All SHA1 checksums present ($sha1_count/5)"
+    else
+        log_error "✗ SHA1 checksum mismatch: found $sha1_count, expected 5"
+        has_errors=true
+    fi
+    
+    echo ""
+    
+    # Final validation result
+    if [[ "$has_errors" == true ]]; then
+        log_error "=========================================="
+        log_error "Archive validation FAILED!"
+        log_error "=========================================="
+        log_error "Please fix the errors above before uploading to Maven Central."
+        log_error "Missing signatures will cause Maven Central to reject your upload."
+        echo ""
+        exit 1
+    else
+        log_success "=========================================="
+        log_success "Archive validation PASSED!"
+        log_success "=========================================="
+        log_success "All required files are present:"
+        log_success "  ✓ 5 artifacts"
+        log_success "  ✓ 5 GPG signatures (.asc)"
+        log_success "  ✓ 5 MD5 checksums (.md5)"
+        log_success "  ✓ 5 SHA1 checksums (.sha1)"
+        log_success "Total: 23 files (5 artifacts × 4 files each + 3 directories)"
+        echo ""
+    fi
 }
 
 print_usage_instructions() {

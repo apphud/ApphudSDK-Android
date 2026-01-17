@@ -67,6 +67,8 @@ internal class RegistrationUseCase(
                 "isNew=$isNew, userId=$userId, email=$email"
         )
 
+        val cachedUser = userRepository.getCurrentUser()
+
         val newUser = runCatchingCancellable {
             requestManager.registration(
                 needPaywalls = needPlacementsPaywalls,
@@ -80,11 +82,36 @@ internal class RegistrationUseCase(
             throw error.toApphudError()
         }
 
-        userRepository.setCurrentUser(newUser)
+        val finalUser = mergePaywallsAndPlacements(newUser, cachedUser)
+
+        userRepository.setCurrentUser(finalUser)
         userDataSource.updateLastRegistrationTime(System.currentTimeMillis())
 
-        ApphudLog.log("$registrationType successful: userId=${newUser.userId}")
+        ApphudLog.log("$registrationType successful: userId=${finalUser.userId}")
 
-        return newUser
+        return finalUser
+    }
+
+    private fun mergePaywallsAndPlacements(
+        newUser: ApphudUser,
+        cachedUser: ApphudUser?,
+    ): ApphudUser {
+        if (cachedUser == null) return newUser
+
+        val shouldPreservePaywalls = newUser.paywalls.isEmpty() && cachedUser.paywalls.isNotEmpty()
+        val shouldPreservePlacements = newUser.placements.isEmpty() && cachedUser.placements.isNotEmpty()
+
+        return if (shouldPreservePaywalls || shouldPreservePlacements) {
+            ApphudLog.log(
+                "Preserving cached paywalls/placements: " +
+                    "paywalls=${shouldPreservePaywalls}, placements=${shouldPreservePlacements}"
+            )
+            newUser.copy(
+                paywalls = if (shouldPreservePaywalls) cachedUser.paywalls else newUser.paywalls,
+                placements = if (shouldPreservePlacements) cachedUser.placements else newUser.placements
+            )
+        } else {
+            newUser
+        }
     }
 }
