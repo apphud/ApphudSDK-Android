@@ -22,6 +22,8 @@ import com.apphud.sdk.domain.PaywallEvent
 import com.apphud.sdk.domain.PurchaseRecordDetails
 import com.apphud.sdk.internal.BillingWrapper
 import com.apphud.sdk.internal.ServiceLocator
+import com.apphud.sdk.internal.data.ProductLoadingState
+import com.apphud.sdk.internal.data.ProductRepository
 import com.apphud.sdk.internal.domain.model.ApiKey as ApiKeyModel
 import com.apphud.sdk.internal.presentation.figma.FigmaWebViewActivity
 import com.apphud.sdk.internal.util.runCatchingCancellable
@@ -69,10 +71,13 @@ internal object ApphudInternal {
         get() = ServiceLocator.instance.billingWrapper
     internal val userRepository
         get() = ServiceLocator.instance.userRepository
+    internal val productRepository
+        get() = ServiceLocator.instance.productRepository
     internal val storage: SharedPreferencesStorage
         get() = ServiceLocator.instance.storage
     internal val prevPurchases = CopyOnWriteArraySet<PurchaseRecordDetails>()
-    internal val productDetails = CopyOnWriteArrayList<ProductDetails>()
+    internal val productDetails: List<ProductDetails>
+        get() = productRepository.state.value.products
 
     internal var isRegisteringUser = false
 
@@ -347,7 +352,7 @@ internal object ApphudInternal {
             forceRegistration()
         }.onSuccess {
             if (wasDeferred) {
-                productsStatus = ApphudProductsStatus.none
+                productRepository.reset()
             }
             loadProducts()
         }.getOrNull()
@@ -457,10 +462,10 @@ internal object ApphudInternal {
     private fun hasDataLoadFailed(customerError: ApphudError?) =
         (customerError != null && (userRepository.getCurrentUser()?.paywalls?.isEmpty() != false)) || isProductsLoadFailed()
 
-    private fun isProductsLoadFailed() =
-        productsStatus != ApphudProductsStatus.loading &&
-            productsResponseCode != BillingClient.BillingResponseCode.OK &&
-            productDetails.isEmpty()
+    private fun isProductsLoadFailed(): Boolean {
+        val state = productRepository.state.value
+        return state is ProductLoadingState.Failed && state.cachedProducts.isEmpty()
+    }
 
     private fun handleSuccessfulLoad() {
         val user = userRepository.getCurrentUser()
@@ -487,10 +492,12 @@ internal object ApphudInternal {
     }
 
     private fun handleError(customerError: ApphudError?) {
-        val error = latestCustomerLoadError ?: customerError ?: if (productsResponseCode == APPHUD_NO_REQUEST) {
-            ApphudError("Paywalls load error", errorCode = productsResponseCode)
+        val state = productRepository.state.value
+        val responseCode = if (state is ProductLoadingState.Failed) state.responseCode else BillingClient.BillingResponseCode.OK
+        val error = latestCustomerLoadError ?: customerError ?: if (responseCode == APPHUD_NO_REQUEST) {
+            ApphudError("Paywalls load error", errorCode = responseCode)
         } else {
-            ApphudError("Google Billing error", errorCode = productsResponseCode)
+            ApphudError("Google Billing error", errorCode = responseCode)
         }
 
         if (offeringsPreparedCallbacks.isNotEmpty()) {
@@ -509,7 +516,9 @@ internal object ApphudInternal {
 
     private fun logNotReadyState() {
         val user = userRepository.getCurrentUser()
-        ApphudLog.log("Not yet ready for callbacks invoke: isRegisteringUser: $isRegisteringUser, currentUserExist: ${user != null}, latestCustomerError: $latestCustomerLoadError, paywallsEmpty: ${user?.paywalls?.isEmpty() != false}, productsResponseCode = $productsResponseCode, productsStatus: $productsStatus, productDetailsEmpty: ${productDetails.isEmpty()}, deferred: $deferPlacements, hasRespondedToPaywallsRequest=$hasRespondedToPaywallsRequest")
+        val productsState = productRepository.state.value
+        val productsResponseCode = if (productsState is ProductLoadingState.Failed) productsState.responseCode else BillingClient.BillingResponseCode.OK
+        ApphudLog.log("Not yet ready for callbacks invoke: isRegisteringUser: $isRegisteringUser, currentUserExist: ${user != null}, latestCustomerError: $latestCustomerLoadError, paywallsEmpty: ${user?.paywalls?.isEmpty() != false}, productsResponseCode = $productsResponseCode, productsStatus: $productsState, productDetailsEmpty: ${productDetails.isEmpty()}, deferred: $deferPlacements, hasRespondedToPaywallsRequest=$hasRespondedToPaywallsRequest")
     }
 
     private fun trackAnalytics(success: Boolean) {
@@ -521,7 +530,9 @@ internal object ApphudInternal {
         val totalLoad = (System.currentTimeMillis() - sdkLaunchedAt)
         val userLoad = if (firstCustomerLoadedTime != null) (firstCustomerLoadedTime!! - sdkLaunchedAt) else 0
         val productsLoaded = productsLoadedTime ?: 0
-        ApphudLog.logI("SDK Benchmarks: User ${userLoad}ms, Products: ${productsLoaded}ms, Total: ${totalLoad}ms, Apphud Error: ${latestCustomerLoadError?.message}, Billing Response Code: ${productsResponseCode}, ErrorCode: ${latestCustomerLoadError?.errorCode}")
+        val state = productRepository.state.value
+        val responseCode = if (state is ProductLoadingState.Failed) state.responseCode else BillingClient.BillingResponseCode.OK
+        ApphudLog.logI("SDK Benchmarks: User ${userLoad}ms, Products: ${productsLoaded}ms, Total: ${totalLoad}ms, Apphud Error: ${latestCustomerLoadError?.message}, Billing Response Code: ${responseCode}, ErrorCode: ${latestCustomerLoadError?.errorCode}")
         coroutineScope.launch {
             RequestManager.sendPaywallLogs(
                 sdkLaunchedAt,
@@ -530,7 +541,7 @@ internal object ApphudInternal {
                 productsLoaded.toDouble(),
                 totalLoad.toDouble(),
                 latestCustomerLoadError,
-                productsResponseCode,
+                responseCode,
                 success
             )
         }
@@ -707,7 +718,7 @@ internal object ApphudInternal {
         preferredTimeout?.let {
             this.preferredTimeout = max(it, APPHUD_DEFAULT_MAX_TIMEOUT)
             this.offeringsCalledAt = System.currentTimeMillis()
-            currentPoductsLoadingCounts = 0
+            // Retry counts are now managed by state transitions
         }
 
         mainScope.launch {
@@ -1293,10 +1304,15 @@ internal object ApphudInternal {
             ApphudLog.log("ServiceLocator not initialized, skip userRepository.clearUser(): ${e.message}")
         }
 
+        // Reset products state to Idle
+        runCatching {
+            productRepository.reset()
+        }.onFailure { e ->
+            ApphudLog.log("ServiceLocator not initialized, skip productRepository.reset(): ${e.message}")
+        }
+
         ServiceLocator.clearInstance()
         RequestManager.cleanRegistration()
-        productsStatus = ApphudProductsStatus.none
-        productsResponseCode = BillingClient.BillingResponseCode.OK
         customProductsFetchedBlock = null
         offeringsPreparedCallbacks.clear()
         purchaseCallbacks.clear()
@@ -1307,7 +1323,6 @@ internal object ApphudInternal {
             ApphudLog.log("SDK not initialized, skip storage.clean()")
         }
         prevPurchases.clear()
-        productDetails.clear()
         productGroups.set(emptyList())
         pendingUserProperties.clear()
         allowIdentifyUser = true
@@ -1393,13 +1408,6 @@ internal object ApphudInternal {
     }
 
     private fun updateProductState(productsLoaded: List<ProductDetails>) {
-        synchronized(productDetails) {
-            productsLoaded.forEach { detail ->
-                if (!productDetails.map { it.productId }.contains(detail.productId)) {
-                    productDetails.add(detail)
-                }
-            }
-        }
         val cachedProductGroups = readGroupsFromCache()
         productGroups.set(cachedProductGroups.toList())
         updateGroupsWithProductDetails(productGroups.get())

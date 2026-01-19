@@ -6,6 +6,7 @@ import com.apphud.sdk.ApphudRuleCallback
 import com.apphud.sdk.internal.data.local.LifecycleRepository
 import com.apphud.sdk.internal.data.local.LocalRulesScreenRepository
 import com.apphud.sdk.internal.data.local.PaywallRepository
+import com.apphud.sdk.internal.data.ProductRepository
 import com.apphud.sdk.internal.data.mapper.CustomerMapper
 import com.apphud.sdk.internal.data.mapper.PaywallsMapper
 import com.apphud.sdk.internal.data.mapper.PlacementsMapper
@@ -187,6 +188,8 @@ internal class ServiceLocator(
     val userDataSource: UserDataSource = UserDataSource(storage)
 
     val userRepository: UserRepository = UserRepository(userDataSource)
+
+    val productRepository: ProductRepository = ProductRepository()
 
     val registrationUseCase: RegistrationUseCase =
         RegistrationUseCase(
