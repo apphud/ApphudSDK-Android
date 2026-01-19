@@ -366,8 +366,6 @@ internal object ApphudInternal {
         fromFallback: Boolean = false,
         customerError: ApphudError? = null,
     ) {
-        var paywallsPrepared = true
-
         customerError?.let {
             ApphudLog.logE("Customer Registration Error: ${it}")
             latestCustomerLoadError = it
@@ -397,14 +395,6 @@ internal object ApphudInternal {
 
         customerLoaded?.let {
             updateUserState(it, fromFallback)
-
-            if (!fromCache && !fromFallback && it.paywalls.isEmpty()) {
-                /* Attention:
-                 * If customer loaded without paywalls, do not reload paywalls from cache!
-                 * If cache time is over, paywall from cache will be NULL
-                 */
-                paywallsPrepared = false
-            }
 
             // TODO: should be called only if something changed
             coroutineScope.launch {
