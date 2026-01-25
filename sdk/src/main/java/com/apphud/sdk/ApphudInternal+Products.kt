@@ -6,6 +6,7 @@ import com.android.billingclient.api.ProductDetails
 import com.apphud.sdk.domain.ApphudGroup
 import com.apphud.sdk.domain.ApphudPaywall
 import com.apphud.sdk.domain.ApphudPlacement
+import com.apphud.sdk.internal.util.runCatchingCancellable
 import kotlinx.coroutines.async
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.launch
@@ -59,19 +60,23 @@ internal fun ApphudInternal.loadProducts() {
     productsStatus = ApphudProductsStatus.loading
     ApphudLog.logI("Loading ProductDetails from the Store")
 
-    coroutineScope.launch(errorHandler) {
-        fetchProducts()
+    coroutineScope.launch {
+        runCatchingCancellable {
+            fetchProducts()
 
-        if (productsResponseCode != APPHUD_NO_REQUEST) {
-            totalPoductsLoadingCounts += 1
-            currentPoductsLoadingCounts += 1
-        }
+            if (productsResponseCode != APPHUD_NO_REQUEST) {
+                totalPoductsLoadingCounts += 1
+                currentPoductsLoadingCounts += 1
+            }
 
-        if (isRetriableProductsRequest() && shouldRetryRequest("billing") && currentPoductsLoadingCounts < APPHUD_DEFAULT_RETRIES) {
-            retryProductsLoad()
-        } else {
-            ApphudLog.log("Finished Loading Product Details")
-            respondWithProducts()
+            if (isRetriableProductsRequest() && shouldRetryRequest("billing") && currentPoductsLoadingCounts < APPHUD_DEFAULT_RETRIES) {
+                retryProductsLoad()
+            } else {
+                ApphudLog.log("Finished Loading Product Details")
+                respondWithProducts()
+            }
+        }.onFailure { error ->
+            ApphudLog.logE("Error loading products: ${error.message}")
         }
     }
 }
