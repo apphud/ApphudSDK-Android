@@ -16,6 +16,8 @@ import com.apphud.sdk.internal.data.mapper.SubscriptionMapper
 import com.apphud.sdk.internal.data.network.HeadersInterceptor
 import com.apphud.sdk.internal.data.network.HostSwitcherInterceptor
 import com.apphud.sdk.internal.data.network.HttpRetryInterceptor
+import com.apphud.sdk.internal.data.network.PrettyHttpLoggingInterceptor
+import com.apphud.sdk.internal.data.network.PrettyJsonFormatter
 import com.apphud.sdk.internal.data.network.TimeoutInterceptor
 import com.apphud.sdk.internal.data.network.UrlProvider
 import com.apphud.sdk.internal.data.remote.PurchaseBodyFactory
@@ -41,6 +43,7 @@ import com.apphud.sdk.managers.RequestManager
 import com.apphud.sdk.mappers.AttributionMapper
 import com.apphud.sdk.storage.SharedPreferencesStorage
 import com.google.gson.Gson
+import com.google.gson.GsonBuilder
 import okhttp3.OkHttpClient
 import okhttp3.logging.HttpLoggingInterceptor
 
@@ -68,6 +71,14 @@ internal class ServiceLocator(
     private val hostSwitcherInterceptor = HostSwitcherInterceptor(OkHttpClient(), urlProvider)
     private val hostSwitcherInterceptorWithoutHeaders = HostSwitcherInterceptor(OkHttpClient(), urlProvider)
 
+    private val prettyGson: Gson by lazy {
+        GsonBuilder().setPrettyPrinting().create()
+    }
+    private val prettyJsonFormatter: PrettyJsonFormatter by lazy { PrettyJsonFormatter(prettyGson) }
+    private val prettyLoggingInterceptor: PrettyHttpLoggingInterceptor by lazy {
+        PrettyHttpLoggingInterceptor(prettyJsonFormatter)
+    }
+
     private val okHttpClient: OkHttpClient =
         OkHttpClient.Builder()
             .addInterceptor(
@@ -84,6 +95,7 @@ internal class ServiceLocator(
             .addInterceptor(TimeoutInterceptor())
             .addInterceptor(hostSwitcherInterceptor)
             .addInterceptor(HttpRetryInterceptor())
+            .addInterceptor(prettyLoggingInterceptor)
             .build()
 
     private val okHttpClientWithoutHeaders: OkHttpClient =
@@ -101,6 +113,7 @@ internal class ServiceLocator(
             .addInterceptor(TimeoutInterceptor())
             .addInterceptor(hostSwitcherInterceptorWithoutHeaders)
             .addInterceptor(HttpRetryInterceptor())
+            .addInterceptor(prettyLoggingInterceptor)
             .build()
 
     val remoteRepository: RemoteRepository =
