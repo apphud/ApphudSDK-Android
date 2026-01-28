@@ -6,31 +6,16 @@ import com.android.billingclient.api.ProductDetails
 import com.apphud.sdk.domain.ApphudGroup
 import com.apphud.sdk.domain.ApphudPaywall
 import com.apphud.sdk.domain.ApphudPlacement
+import com.apphud.sdk.internal.data.ProductLoadingState
 import kotlinx.coroutines.async
 import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
-import java.util.concurrent.CopyOnWriteArrayList
 
-internal var productsStatus = ApphudProductsStatus.none
-internal var respondedWithProducts = false
-private var loadingStoreProducts = false
-internal var productsResponseCode = BillingClient.BillingResponseCode.OK
-private var loadedDetails = CopyOnWriteArrayList<ProductDetails>()
-
-// to avoid Google servers spamming if there is no productDetails added at all
-internal var currentPoductsLoadingCounts: Int = 0
-internal var totalPoductsLoadingCounts: Int = 0
 const val MAX_TOTAL_PRODUCTS_RETRIES: Int = 100
 
-internal enum class ApphudProductsStatus {
-    none,
-    loading,
-    loaded,
-    failed
-}
-
 internal fun ApphudInternal.finishedLoadingProducts(): Boolean {
-    return productsStatus == ApphudProductsStatus.loaded || productsStatus == ApphudProductsStatus.failed
+    return productRepository.state.value.isFinished
 }
 
 internal fun ApphudInternal.shouldLoadProducts(): Boolean {
@@ -39,35 +24,36 @@ internal fun ApphudInternal.shouldLoadProducts(): Boolean {
         return false
     }
 
-    return when (productsStatus) {
-        ApphudProductsStatus.none -> true
-        ApphudProductsStatus.loading -> false
-        else -> {
-            productDetails.isEmpty() && totalPoductsLoadingCounts < MAX_TOTAL_PRODUCTS_RETRIES
+    return when (val state = productRepository.state.value) {
+        is ProductLoadingState.Idle -> true
+        is ProductLoadingState.Loading -> false
+        is ProductLoadingState.Success -> false
+        is ProductLoadingState.Failed -> {
+            state.cachedProducts.isEmpty() && state.totalRetryCount < MAX_TOTAL_PRODUCTS_RETRIES
         }
     }
 }
 
 internal fun ApphudInternal.loadProducts() {
     if (!shouldLoadProducts()) {
-        if (totalPoductsLoadingCounts >= MAX_TOTAL_PRODUCTS_RETRIES) {
+        val state = productRepository.state.value
+        if (state is ProductLoadingState.Failed && state.totalRetryCount >= MAX_TOTAL_PRODUCTS_RETRIES) {
             respondWithProducts()
         }
         return
     }
 
-    productsStatus = ApphudProductsStatus.loading
+    productRepository.transitionToLoading()
     ApphudLog.logI("Loading ProductDetails from the Store")
 
     coroutineScope.launch(errorHandler) {
-        fetchProducts()
+        val responseCode = fetchProducts()
 
-        if (productsResponseCode != APPHUD_NO_REQUEST) {
-            totalPoductsLoadingCounts += 1
-            currentPoductsLoadingCounts += 1
+        if (responseCode == APPHUD_NO_REQUEST) {
+            productRepository.rollbackRetryCounters()
         }
 
-        if (isRetriableProductsRequest() && shouldRetryRequest("billing") && currentPoductsLoadingCounts < APPHUD_DEFAULT_RETRIES) {
+        if (isRetriableProductsRequest() && shouldRetryRequest("billing")) {
             retryProductsLoad()
         } else {
             ApphudLog.log("Finished Loading Product Details")
@@ -77,40 +63,31 @@ internal fun ApphudInternal.loadProducts() {
 }
 
 internal fun respondWithProducts() {
-    respondedWithProducts = true
+    ApphudInternal.productRepository.markAsResponded()
     ApphudInternal.mainScope.launch {
-        ApphudInternal.notifyLoadingCompleted(null, loadedDetails.toList(), false, false)
+        ApphudInternal.notifyLoadingCompleted(null, ApphudInternal.productRepository.state.value.products, false, false)
     }
 }
 
 internal fun isRetriableProductsRequest(): Boolean {
-    return ApphudInternal.productDetails.isEmpty() && productsStatus == ApphudProductsStatus.failed && isRetriableErrorCode(
-        productsResponseCode
-    ) && ApphudInternal.isActive && !ApphudUtils.isEmulator()
+    val state = ApphudInternal.productRepository.state.value
+    return state is ProductLoadingState.Failed &&
+        state.isRetriable &&
+        ApphudInternal.isActive &&
+        !ApphudUtils.isEmulator()
 }
 
-internal fun retryProductsLoad() {
-    val delay: Long = 300
+internal suspend fun retryProductsLoad() {
+    val delayMs: Long = 300
+    val state = ApphudInternal.productRepository.state.value
+    val responseCode = if (state is ProductLoadingState.Failed) state.responseCode else BillingResponseCode.OK
     ApphudLog.logI(
         "Load products from store status code: (${
-            ApphudBillingResponseCodes.getName(
-                productsResponseCode
-            )
-        }), will retry in $delay ms"
+            ApphudBillingResponseCodes.getName(responseCode)
+        }), will retry in $delayMs ms"
     )
-    Thread.sleep(delay)
+    delay(delayMs)
     ApphudInternal.loadProducts()
-}
-
-private fun isRetriableErrorCode(code: Int): Boolean {
-    return listOf(
-        BillingClient.BillingResponseCode.NETWORK_ERROR,
-        BillingClient.BillingResponseCode.SERVICE_TIMEOUT,
-        BillingClient.BillingResponseCode.SERVICE_DISCONNECTED,
-        BillingClient.BillingResponseCode.SERVICE_UNAVAILABLE,
-        BillingClient.BillingResponseCode.BILLING_UNAVAILABLE,
-        BillingClient.BillingResponseCode.ERROR
-    ).contains(code)
 }
 
 internal suspend fun ApphudInternal.fetchProducts(): Int {
@@ -146,12 +123,12 @@ private fun allAvailableProductIds(
         placements.map { pl -> pl.paywall?.products?.map { it.productId } ?: listOf() }.flatten().toMutableList()
 
     idsGroups.forEach {
-        if (!ids.contains(it) && it != null) {
+        if (!ids.contains(it)) {
             ids.add(it)
         }
     }
     idsFromPlacements.forEach {
-        if (!ids.contains(it) && it != null) {
+        if (!ids.contains(it)) {
             ids.add(it)
         }
     }
@@ -163,34 +140,26 @@ internal suspend fun ApphudInternal.fetchDetails(
     ids: List<String>,
     loadingAll: Boolean = false,
 ): Pair<Int, List<ProductDetails>?> {
-    if (loadingAll) {
-        loadedDetails.clear()
-    }
-    // Assuming ProductDetails has a property 'id' that corresponds to the product ID
-    val existingIds = productDetails.map { it.productId }
+    val tempLoadedDetails = mutableListOf<ProductDetails>()
+
+    val existingIds = productRepository.state.value.products.map { it.productId }
 
     val idsToFetch = ids.filterNot { existingIds.contains(it) }
 
     if (existingIds.isNotEmpty() && idsToFetch.isEmpty()) {
-        // All Ids already loaded, return OK
-        if (loadingAll) {
-            productsStatus = ApphudProductsStatus.loaded
-        }
+        // All requested IDs already loaded in state
+        // Don't call transitionToSuccess - it would replace all products with just the requested subset!
         return Pair(BillingResponseCode.OK, null)
     } else if (idsToFetch.isEmpty()) {
         // If none ids to load, return immediately
+        // This happens when user/paywall has no products configured
         ApphudLog.log("NO REQUEST TO FETCH PRODUCT DETAILS")
-        if (loadingAll) {
-            productsStatus = ApphudProductsStatus.loaded
-        }
+        // Don't transition to Success (requires at least one product)
+        // Leave state as-is
         return Pair(APPHUD_NO_REQUEST, null)
     }
 
     ApphudLog.log("Fetching Product Details: ${idsToFetch.toString()}")
-    loadingStoreProducts = true
-    if (productsStatus != ApphudProductsStatus.loading && loadingAll) {
-        productsStatus = ApphudProductsStatus.loading
-    }
 
     val startTime = System.currentTimeMillis()
 
@@ -201,11 +170,9 @@ internal suspend fun ApphudInternal.fetchDetails(
         val inAppResult = async { billing.detailsEx(BillingClient.ProductType.INAPP, idsToFetch) }.await()
 
         subsResult.first?.let { subsDetails ->
-            // Add new subscription details if they're not already present
-            // CopyOnWriteArrayList is thread-safe, no synchronization needed
             subsDetails.forEach { detail ->
-                if (!loadedDetails.any { it.productId == detail.productId }) {
-                    loadedDetails.add(detail)
+                if (!tempLoadedDetails.any { it.productId == detail.productId }) {
+                    tempLoadedDetails.add(detail)
                 }
             }
         } ?: run {
@@ -215,11 +182,9 @@ internal suspend fun ApphudInternal.fetchDetails(
         }
 
         inAppResult.first?.let { inAppDetails ->
-            // Add new in-app product details if they're not already present
-            // CopyOnWriteArrayList is thread-safe, no synchronization needed
             inAppDetails.forEach { detail ->
-                if (!loadedDetails.any { it.productId == detail.productId }) {
-                    loadedDetails.add(detail)
+                if (!tempLoadedDetails.any { it.productId == detail.productId }) {
+                    tempLoadedDetails.add(detail)
                 }
             }
         } ?: run {
@@ -230,14 +195,24 @@ internal suspend fun ApphudInternal.fetchDetails(
     }
 
     val benchmark = System.currentTimeMillis() - startTime
-    loadingStoreProducts = false
     ApphudInternal.productsLoadedTime = benchmark
 
     if (loadingAll) {
-        productsResponseCode = responseCode
-        productsStatus = if (responseCode == BillingClient.BillingResponseCode.OK) ApphudProductsStatus.loaded else
-            ApphudProductsStatus.failed
+        if (responseCode == BillingClient.BillingResponseCode.OK) {
+            if (tempLoadedDetails.isNotEmpty()) {
+                productRepository.transitionToSuccess(tempLoadedDetails, loadTimeMs = benchmark)
+            } else {
+                val currentProducts = productRepository.state.value.products
+                if (currentProducts.isEmpty()) {
+                    productRepository.transitionToFailed(BillingClient.BillingResponseCode.ITEM_UNAVAILABLE)
+                } else {
+                    productRepository.transitionToSuccess(currentProducts, loadTimeMs = benchmark)
+                }
+            }
+        } else {
+            productRepository.transitionToFailed(responseCode)
+        }
     }
 
-    return Pair(responseCode, loadedDetails)
+    return Pair(responseCode, tempLoadedDetails)
 }
