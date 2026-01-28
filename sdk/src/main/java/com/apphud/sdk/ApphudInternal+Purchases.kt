@@ -63,17 +63,21 @@ internal fun ApphudInternal.purchase(
                 callback
             )
         } ?: run {
-            coroutineScope.launch(errorHandler) {
-                fetchDetailsAndPurchase(
-                    activity,
-                    product,
-                    offerIdToken,
-                    oldToken,
-                    replacementMode,
-                    fromScreen = fromScreen,
-                    consumableInappProduct,
-                    callback
-                )
+            coroutineScope.launch {
+                runCatchingCancellable {
+                    fetchDetailsAndPurchase(
+                        activity,
+                        product,
+                        offerIdToken,
+                        oldToken,
+                        replacementMode,
+                        fromScreen = fromScreen,
+                        consumableInappProduct,
+                        callback
+                    )
+                }.onFailure { error ->
+                    ApphudLog.logE("Error fetching details for purchase: ${error.message}")
+                }
             }
         }
     } ?: run {
@@ -163,7 +167,7 @@ private fun ApphudInternal.purchaseInternal(
 
         scheduleLookupPurchase(25000L)
 
-        coroutineScope.launch(errorHandler) {
+        coroutineScope.launch {
             billing.purchasesCallback = { purchasesResult ->
                 mainScope.launch {
                     when (purchasesResult) {
@@ -288,24 +292,24 @@ private fun ApphudInternal.purchaseInternal(
 }
 
 internal fun ApphudInternal.lookupFreshPurchase(extraMessage: String = "resend_fresh_purchase") {
-    coroutineScope.launch(errorHandler) {
-        val purchase = freshPurchase ?: run {
-            val purchases = ServiceLocator.instance
-                .fetchNativePurchasesUseCase(needSync = false)
-                .first
-                .ifEmpty { return@launch }
+    coroutineScope.launch {
+        runCatchingCancellable {
+            val purchase = freshPurchase ?: run {
+                val purchases = ServiceLocator.instance
+                    .fetchNativePurchasesUseCase(needSync = false)
+                    .first
+                if (purchases.isEmpty()) return@runCatchingCancellable
 
-            ApphudLog.logE("recover_native_purchases")
-            purchases.first()
-        }
-        if ((purchaseCallbacks.isNotEmpty() && purchasingProduct != null) || storage.isNeedSync) {
+                ApphudLog.logE("recover_native_purchases")
+                purchases.first()
+            }
+            if ((purchaseCallbacks.isNotEmpty() && purchasingProduct != null) || storage.isNeedSync) {
 
-            launch(Dispatchers.Main) { apphudListener?.apphudDidReceivePurchase(purchase) }
+                launch(Dispatchers.Main) { apphudListener?.apphudDidReceivePurchase(purchase) }
 
-            ApphudLog.logE("resending fresh purchase ${purchase.orderId}")
+                ApphudLog.logE("resending fresh purchase ${purchase.orderId}")
 
-            runCatchingCancellable {
-                RequestManager.purchased(
+                val customer = RequestManager.purchased(
                     PurchaseContext(
                         purchase,
                         getProductDetailsByProductId(purchase.products.first()),
@@ -318,18 +322,19 @@ internal fun ApphudInternal.lookupFreshPurchase(extraMessage: String = "resend_f
                         screenId = null,
                     )
                 )
-            }
-                .onSuccess { customer ->
-                    withContext(Dispatchers.Main) {
-                        val newSubscriptions =
-                            customer.subscriptions.firstOrNull { it.productId == purchase.products.first() }
-                        val newPurchases =
-                            customer.purchases.firstOrNull { it.productId == purchase.products.first() }
 
-                        storage.isNeedSync = false
-                        handleCheckSubmissionResult(customer, purchase, newSubscriptions, newPurchases, false)
-                    }
+                withContext(Dispatchers.Main) {
+                    val newSubscriptions =
+                        customer.subscriptions.firstOrNull { it.productId == purchase.products.first() }
+                    val newPurchases =
+                        customer.purchases.firstOrNull { it.productId == purchase.products.first() }
+
+                    storage.isNeedSync = false
+                    handleCheckSubmissionResult(customer, purchase, newSubscriptions, newPurchases, false)
                 }
+            }
+        }.onFailure { error ->
+            ApphudLog.logE("Error in lookupFreshPurchase: ${error.message}")
         }
     }
 }
@@ -410,9 +415,13 @@ internal fun ApphudInternal.handleObservedPurchase(
 private fun ApphudInternal.processPurchaseError(status: PurchaseUpdatedCallbackStatus.Error) {
     if (status.result.responseCode == BillingClient.BillingResponseCode.ITEM_ALREADY_OWNED) {
         storage.isNeedSync = true
-        coroutineScope.launch(errorHandler) {
-            ApphudLog.log("ProcessPurchaseError: syncPurchases()")
-            ServiceLocator.instance.fetchNativePurchasesUseCase()
+        coroutineScope.launch {
+            runCatchingCancellable {
+                ApphudLog.log("ProcessPurchaseError: syncPurchases()")
+                ServiceLocator.instance.fetchNativePurchasesUseCase()
+            }.onFailure { error ->
+                ApphudLog.logE("Error in processPurchaseError: ${error.message}")
+            }
         }
     }
 }
@@ -454,6 +463,8 @@ private suspend fun ApphudInternal.sendCheckToApphud(
                         screenId = currentPaywallScreenId
                     )
                 )
+            }.onFailure { error ->
+                ApphudLog.logE("Failed to send purchase in fallback mode: ${error.message}")
             }
             withContext(Dispatchers.Main) {
                 addTempPurchase(

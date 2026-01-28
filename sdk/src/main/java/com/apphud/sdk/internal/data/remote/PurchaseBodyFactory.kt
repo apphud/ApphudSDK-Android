@@ -2,6 +2,7 @@ package com.apphud.sdk.internal.data.remote
 
 import com.android.billingclient.api.ProductDetails
 import com.android.billingclient.api.Purchase
+import com.apphud.sdk.ApphudError
 import com.apphud.sdk.ApphudInternal
 import com.apphud.sdk.body.PurchaseBody
 import com.apphud.sdk.body.PurchaseItemBody
@@ -18,7 +19,7 @@ internal class PurchaseBodyFactory {
 
     fun create(purchaseContext: PurchaseContext): PurchaseBody =
         PurchaseBody(
-            deviceId = ApphudInternal.deviceId,
+            deviceId = ApphudInternal.deviceId ?: throw ApphudError("SDK not initialized"),
             purchases = listOf(
                 with(purchaseContext) {
                     PurchaseItemBody(
@@ -50,7 +51,7 @@ internal class PurchaseBodyFactory {
         observerMode: Boolean,
     ): PurchaseBody =
         PurchaseBody(
-            deviceId = ApphudInternal.deviceId,
+            deviceId = ApphudInternal.deviceId ?: throw ApphudError("SDK not initialized"),
             purchases =
             purchases.map { purchase ->
                 PurchaseItemBody(

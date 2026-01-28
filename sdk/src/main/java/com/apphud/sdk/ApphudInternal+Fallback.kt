@@ -4,6 +4,7 @@ import android.content.Context
 import com.android.billingclient.api.BillingClient.BillingResponseCode
 import com.apphud.sdk.domain.ApphudUser
 import com.apphud.sdk.domain.FallbackJsonObject
+import com.apphud.sdk.internal.util.runCatchingCancellable
 import com.apphud.sdk.mappers.PaywallsMapperLegacy
 import com.apphud.sdk.parser.GsonParser
 import com.apphud.sdk.parser.Parser
@@ -12,6 +13,7 @@ import com.google.gson.GsonBuilder
 import com.google.gson.reflect.TypeToken
 import kotlinx.coroutines.launch
 import java.io.IOException
+import java.util.UUID
 
 private val gson = GsonBuilder().serializeNulls().create()
 private val parser: Parser = GsonParser(gson)
@@ -23,7 +25,7 @@ internal fun ApphudInternal.processFallbackData(callback: PaywallCallback) {
     try {
         if (userRepository.getCurrentUser() == null) {
             val temporaryUser = ApphudUser(
-                userId, "", "", listOf(), listOf(), listOf(),
+                userId ?: UUID.randomUUID().toString(), "", "", listOf(), listOf(), listOf(),
                 listOf(), true,
             )
             userRepository.setCurrentUser(temporaryUser)
@@ -42,7 +44,7 @@ internal fun ApphudInternal.processFallbackData(callback: PaywallCallback) {
             ids = paywallToParse.map { it.products?.map { it.productId } ?: listOf() }.flatten()
 
             val fallbackUser = ApphudUser(
-                userId = userId,
+                userId = userId ?: UUID.randomUUID().toString(),
                 currencyCode = "",
                 countryCode = "",
                 subscriptions = listOf(),
@@ -116,14 +118,18 @@ internal fun ApphudInternal.disableFallback() {
     fallbackMode = false
     processedFallbackData = false
     ApphudLog.log("Fallback: DISABLED")
-    coroutineScope.launch(errorHandler) {
-        // if fallback raised on start, there no product groups, so reload products and details
-        if (productGroups.get().isEmpty()) {
-            ApphudLog.log("Fallback: reload products")
-            loadProducts()
-        }
-        if (storage.isNeedSync) {
-            syncPurchases()
+    coroutineScope.launch {
+        runCatchingCancellable {
+            // if fallback raised on start, there no product groups, so reload products and details
+            if (productGroups.get().isEmpty()) {
+                ApphudLog.log("Fallback: reload products")
+                loadProducts()
+            }
+            if (storage.isNeedSync) {
+                syncPurchases()
+            }
+        }.onFailure { error ->
+            ApphudLog.logE("Error in disableFallback: ${error.message}")
         }
     }
 }
