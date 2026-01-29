@@ -59,7 +59,7 @@ internal class RegistrationProvider(
         else androidId
     }
 
-    fun getDeviceId(): String = ApphudInternal.deviceId
+    fun getDeviceId(): String? = ApphudInternal.deviceId
 
     fun getTimeZone(): String = TimeZone.getDefault().id
 

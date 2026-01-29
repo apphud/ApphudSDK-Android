@@ -7,6 +7,7 @@ import com.apphud.sdk.domain.ApphudGroup
 import com.apphud.sdk.domain.ApphudPaywall
 import com.apphud.sdk.domain.ApphudPlacement
 import com.apphud.sdk.internal.data.ProductLoadingState
+import com.apphud.sdk.internal.util.runCatchingCancellable
 import kotlinx.coroutines.async
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
@@ -46,18 +47,22 @@ internal fun ApphudInternal.loadProducts() {
     productRepository.transitionToLoading()
     ApphudLog.logI("Loading ProductDetails from the Store")
 
-    coroutineScope.launch(errorHandler) {
-        val responseCode = fetchProducts()
+    coroutineScope.launch {
+        runCatchingCancellable {
+            val responseCode = fetchProducts()
 
-        if (responseCode == APPHUD_NO_REQUEST) {
-            productRepository.rollbackRetryCounters()
-        }
+            if (responseCode == APPHUD_NO_REQUEST) {
+                productRepository.rollbackRetryCounters()
+            }
 
-        if (isRetriableProductsRequest() && shouldRetryRequest("billing")) {
-            retryProductsLoad()
-        } else {
-            ApphudLog.log("Finished Loading Product Details")
-            respondWithProducts()
+            if (isRetriableProductsRequest() && shouldRetryRequest("billing")) {
+                retryProductsLoad()
+            } else {
+                ApphudLog.log("Finished Loading Product Details")
+                respondWithProducts()
+            }
+        }.onFailure { error ->
+            ApphudLog.logE("Error loading products: ${error.message}")
         }
     }
 }

@@ -33,13 +33,13 @@ import com.apphud.sdk.storage.SharedPreferencesStorage
 import com.google.android.gms.appset.AppSet
 import com.google.android.gms.appset.AppSetIdInfo
 import com.google.android.gms.tasks.Task
-import kotlinx.coroutines.CoroutineExceptionHandler
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.TimeoutCancellationException
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.cancel
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -58,12 +58,8 @@ import kotlin.math.max
 @SuppressLint("StaticFieldLeak")
 internal object ApphudInternal {
     //region === Variables ===
-    internal val mainScope = CoroutineScope(Dispatchers.Main)
-    internal val coroutineScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
-    internal val errorHandler =
-        CoroutineExceptionHandler { _, error ->
-            error.message?.let { ApphudLog.logI("Coroutine exception: " + it) }
-        }
+    internal var mainScope = CoroutineScope(Dispatchers.Main)
+    internal var coroutineScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
     internal val FALLBACK_ERRORS = listOf(APPHUD_ERROR_TIMEOUT, 404, 500, 502, 503)
     internal var ignoreCache: Boolean = false
@@ -103,12 +99,16 @@ internal object ApphudInternal {
             field = value
             if (value) {
                 updateUserPropertiesJob?.cancel()
-                updateUserPropertiesJob = coroutineScope.launch(errorHandler) {
-                    delay(1000L)
-                    if (userRepository.getCurrentUser() != null) {
-                        updateUserProperties()
-                    } else {
-                        setNeedsToUpdateUserProperties = true
+                updateUserPropertiesJob = coroutineScope.launch {
+                    runCatchingCancellable {
+                        delay(1000L)
+                        if (userRepository.getCurrentUser() != null) {
+                            updateUserProperties()
+                        } else {
+                            setNeedsToUpdateUserProperties = true
+                        }
+                    }.onFailure { error ->
+                        ApphudLog.logE("Error in updateUserProperties job: ${error.message}")
                     }
                 }
             } else {
@@ -128,9 +128,10 @@ internal object ApphudInternal {
     internal var didRegisterCustomerAtThisLaunch = false
     private var isNew = true
     private lateinit var apiKey: ApiKey
-    lateinit var deviceId: DeviceId
+    var deviceId: DeviceId? = null
+        private set
     internal var fallbackMode = false
-    internal lateinit var userId: UserId
+    internal var userId: UserId? = null
     internal lateinit var context: Context
 
     internal var apphudListener: ApphudListener? = null
@@ -291,7 +292,7 @@ internal object ApphudInternal {
                         loadProducts()
                     }
                     ServiceLocator.instance.fetchNativePurchasesUseCase()
-                    ruleController.start(deviceId)
+                    deviceId?.let { ruleController.start(it) }
                 }.onFailure { error ->
                     ApphudLog.logE("Registration failed in initialize: ${error.message}")
                     // Even if registration failed, attempt to load products and start ruleController
@@ -299,7 +300,7 @@ internal object ApphudInternal {
                         loadProducts()
                     }
                     ServiceLocator.instance.fetchNativePurchasesUseCase()
-                    ruleController.start(deviceId)
+                    deviceId?.let { ruleController.start(it) }
                 }
             }
         } else {
@@ -310,7 +311,7 @@ internal object ApphudInternal {
                 }
                 coroutineScope.launch {
                     ServiceLocator.instance.fetchNativePurchasesUseCase()
-                    ruleController.start(deviceId)
+                    deviceId?.let { ruleController.start(it) }
                 }
             }
         }
@@ -516,6 +517,13 @@ internal object ApphudInternal {
             return
         }
 
+        val user = userRepository.getCurrentUser()
+        val currentDeviceId = deviceId
+        if (user == null || currentDeviceId == null) {
+            ApphudLog.logE("Cannot track analytics: user not loaded or deviceId not set")
+            return
+        }
+
         trackedAnalytics = true
         val totalLoad = (System.currentTimeMillis() - sdkLaunchedAt)
         val userLoad = if (firstCustomerLoadedTime != null) (firstCustomerLoadedTime!! - sdkLaunchedAt) else 0
@@ -524,16 +532,22 @@ internal object ApphudInternal {
         val responseCode = if (state is ProductLoadingState.Failed) state.responseCode else BillingClient.BillingResponseCode.OK
         ApphudLog.logI("SDK Benchmarks: User ${userLoad}ms, Products: ${productsLoaded}ms, Total: ${totalLoad}ms, Apphud Error: ${latestCustomerLoadError?.message}, Billing Response Code: ${responseCode}, ErrorCode: ${latestCustomerLoadError?.errorCode}")
         coroutineScope.launch {
-            RequestManager.sendPaywallLogs(
-                sdkLaunchedAt,
-                productDetails.count(),
-                userLoad.toDouble(),
-                productsLoaded.toDouble(),
-                totalLoad.toDouble(),
-                latestCustomerLoadError,
-                responseCode,
-                success
-            )
+            runCatchingCancellable {
+                RequestManager.sendPaywallLogs(
+                    sdkLaunchedAt,
+                    productDetails.count(),
+                    userLoad.toDouble(),
+                    productsLoaded.toDouble(),
+                    totalLoad.toDouble(),
+                    latestCustomerLoadError,
+                    responseCode,
+                    success,
+                    user.userId,
+                    currentDeviceId
+                )
+            }.onFailure { error ->
+                ApphudLog.logE("Failed to send analytics: ${error.message}")
+            }
         }
     }
 
@@ -605,9 +619,13 @@ internal object ApphudInternal {
             updateUserState(newUser)
 
             if (storage.isNeedSync) {
-                coroutineScope.launch(errorHandler) {
-                    ApphudLog.log("Registration: isNeedSync true, start syncing")
-                    ServiceLocator.instance.fetchNativePurchasesUseCase()
+                coroutineScope.launch {
+                    runCatchingCancellable {
+                        ApphudLog.log("Registration: isNeedSync true, start syncing")
+                        ServiceLocator.instance.fetchNativePurchasesUseCase()
+                    }.onFailure { error ->
+                        ApphudLog.logE("Error syncing native purchases: ${error.message}")
+                    }
                 }
             }
 
@@ -834,7 +852,7 @@ internal object ApphudInternal {
                 }
             }
 
-            val body = UserPropertiesBody(deviceId, properties, force)
+            val body = UserPropertiesBody(deviceId ?: throw ApphudError("SDK not initialized"), properties, force)
 
             return withContext(Dispatchers.IO) {
                 runCatchingCancellable { RequestManager.postUserProperties(body) }
@@ -928,14 +946,14 @@ internal object ApphudInternal {
 
     //region === Primary methods ===
     fun paywallShown(paywall: ApphudPaywall) {
-        coroutineScope.launch(errorHandler) {
+        coroutineScope.launch {
             runCatchingCancellable { paywallShownSuspend(paywall) }
                 .onFailure { error -> ApphudLog.logI(error.message ?: "Unknown error") }
         }
     }
 
     fun paywallClosed(paywall: ApphudPaywall) {
-        coroutineScope.launch(errorHandler) {
+        coroutineScope.launch {
             runCatchingCancellable { paywallClosedSuspend(paywall) }
                 .onFailure { error -> ApphudLog.logI(error.message ?: "Unknown error") }
         }
@@ -1041,7 +1059,7 @@ internal object ApphudInternal {
         productId: String?,
         screenId: String?,
     ) {
-        coroutineScope.launch(errorHandler) {
+        coroutineScope.launch {
             runCatchingCancellable {
                 paywallCheckoutInitiatedSuspend(paywallId, placementId, productId, screenId)
             }.onFailure { error -> ApphudLog.logI(error.message ?: "Unknown error") }
@@ -1054,7 +1072,7 @@ internal object ApphudInternal {
         productId: String?,
         errorCode: Int,
     ) {
-        coroutineScope.launch(errorHandler) {
+        coroutineScope.launch {
             runCatchingCancellable {
                 paywallPaymentCancelledSuspend(paywallId, placementId, productId, errorCode)
             }.onFailure { error -> ApphudLog.logI(error.message ?: "Unknown error") }
@@ -1195,12 +1213,39 @@ internal object ApphudInternal {
 
         this.productGroups.set(groups.toList())
 
-        coroutineScope.launch(errorHandler) {
-            fetchProducts()
-            respondWithProducts()
+        coroutineScope.launch {
+            runCatchingCancellable {
+                fetchProducts()
+                respondWithProducts()
+            }.onFailure { error ->
+                ApphudLog.logE("Error fetching products: ${error.message}")
+            }
         }
 
         return groups
+    }
+
+    private suspend fun fetchAllDeviceIdentifiers(): Array<String> {
+        val newIdentifiers = arrayOf("", "", "")
+        kotlinx.coroutines.coroutineScope {
+            listOf(
+                async {
+                    val adId = fetchAdvertisingId()
+                    if (adId == null || adId == "00000000-0000-0000-0000-000000000000") {
+                        ApphudLog.log("Unable to fetch Advertising ID, please check AD_ID permission in the manifest file.")
+                    } else {
+                        newIdentifiers[0] = adId
+                    }
+                },
+                async {
+                    fetchAppSetId()?.let { newIdentifiers[1] = it }
+                },
+                async {
+                    fetchAndroidId()?.let { newIdentifiers[2] = it }
+                }
+            ).awaitAll()
+        }
+        return newIdentifiers
     }
 
     @Synchronized
@@ -1215,39 +1260,18 @@ internal object ApphudInternal {
             return
         }
 
-        coroutineScope.launch(errorHandler) {
-            val cachedIdentifiers = storage.deviceIdentifiers
-            val newIdentifiers = arrayOf("", "", "")
-            val threads =
-                listOf(
-                    async {
-                        val adId = fetchAdvertisingId()
-                        if (adId == null || adId == "00000000-0000-0000-0000-000000000000") {
-                            ApphudLog.log("Unable to fetch Advertising ID, please check AD_ID permission in the manifest file.")
-                        } else {
-                            newIdentifiers[0] = adId
-                        }
-                    },
-                    async {
-                        val appSetID = fetchAppSetId()
-                        appSetID?.let {
-                            newIdentifiers[1] = it
-                        }
-                    },
-                    async {
-                        val androidID = fetchAndroidId()
-                        androidID?.let {
-                            newIdentifiers[2] = it
-                        }
-                    },
-                )
-            threads.awaitAll().let {
+        coroutineScope.launch {
+            runCatchingCancellable {
+                val cachedIdentifiers = storage.deviceIdentifiers
+                val newIdentifiers = fetchAllDeviceIdentifiers()
                 if (!newIdentifiers.contentEquals(cachedIdentifiers)) {
                     storage.deviceIdentifiers = newIdentifiers
                     repeatRegistrationSilent()
                 } else {
                     ApphudLog.log("Device Identifiers not changed")
                 }
+            }.onFailure { error ->
+                ApphudLog.logE("Error collecting device identifiers: ${error.message}")
             }
         }
     }
@@ -1259,8 +1283,8 @@ internal object ApphudInternal {
 
     private fun isInitialized(): Boolean {
         return ::context.isInitialized &&
-            ::userId.isInitialized &&
-            ::deviceId.isInitialized &&
+            userId != null &&
+            deviceId != null &&
             ::apiKey.isInitialized
     }
 
@@ -1280,6 +1304,14 @@ internal object ApphudInternal {
     }
 
     private fun clear() {
+        // Cancel all active coroutines to prevent race conditions when userId/deviceId become null
+        coroutineScope.cancel()
+        mainScope.cancel()
+
+        // Recreate scopes for next initialization
+        coroutineScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+        mainScope = CoroutineScope(Dispatchers.Main)
+
         runCatching {
             val controller = ServiceLocator.instance.ruleController
             controller.stop()
@@ -1318,6 +1350,8 @@ internal object ApphudInternal {
         allowIdentifyUser = true
         didRegisterCustomerAtThisLaunch = false
         setNeedsToUpdateUserProperties = false
+        userId = null
+        deviceId = null
     }
 
 //endregion

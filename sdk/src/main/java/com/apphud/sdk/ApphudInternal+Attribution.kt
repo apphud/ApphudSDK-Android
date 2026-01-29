@@ -79,75 +79,75 @@ internal fun ApphudInternal.setAttribution(
         BRANCH -> identifier?.let { "identifier" to it }
     }
 
-    coroutineScope.launch(errorHandler) {
-        runCatchingCancellable { awaitUserRegistration() }
-            .onFailure { error ->
-                ApphudLog.logE(error.message.orEmpty())
-                return@launch
+    coroutineScope.launch {
+        runCatchingCancellable {
+            awaitUserRegistration()
+
+            val mergedRawData = apphudAttributionData.rawData.toMutableMap().apply {
+                providerIdPair?.let { (key, value) -> put(key, value) }
             }
 
-        val mergedRawData = apphudAttributionData.rawData.toMutableMap().apply {
-            providerIdPair?.let { (key, value) -> put(key, value) }
-        }
-
-        val requestBody = AttributionRequestDto(
-            deviceId = deviceId,
-            packageName = context.packageName,
-            provider = provider.value,
-            rawData = mergedRawData,
-            attribution = listOf(
-                "ad_network" to apphudAttributionData.adNetwork,
-                "channel" to apphudAttributionData.channel,
-                "campaign" to apphudAttributionData.campaign,
-                "ad_set" to apphudAttributionData.adSet,
-                "creative" to apphudAttributionData.creative,
-                "keyword" to apphudAttributionData.keyword,
-                "custom_1" to apphudAttributionData.custom1,
-                "custom_2" to apphudAttributionData.custom2,
-            )
-                .mapNotNull { (key, value) ->
-                    value?.let { key to value }
-                }
-                .toMap()
-        )
-        RequestManager.send(requestBody)
-            .onSuccess {
-                withContext(Dispatchers.Main) {
-                    when (provider) {
-                        APPSFLYER -> {
-                            storage.appsflyer = AppsflyerInfo(
-                                id = identifier,
-                                data = apphudAttributionData.rawData,
-                            )
-                        }
-
-                        FACEBOOK -> {
-                            storage.facebook = FacebookInfo(apphudAttributionData.rawData)
-                        }
-
-                        FIREBASE -> {
-                            storage.firebase = identifier
-                        }
-
-                        ADJUST -> {
-                            storage.adjust = AdjustInfo(
-                                adid = identifier,
-                                adjustData = apphudAttributionData.rawData,
-                            )
-                        }
-
-                        CUSTOM,
-                        BRANCH,
-                        SINGULAR,
-                        TENJIN,
-                        TIKTOK,
-                        VOLUUM,
-                            -> Unit
+            val requestBody = AttributionRequestDto(
+                deviceId = deviceId ?: throw ApphudError("deviceId is null"),
+                packageName = context.packageName,
+                provider = provider.value,
+                rawData = mergedRawData,
+                attribution = listOf(
+                    "ad_network" to apphudAttributionData.adNetwork,
+                    "channel" to apphudAttributionData.channel,
+                    "campaign" to apphudAttributionData.campaign,
+                    "ad_set" to apphudAttributionData.adSet,
+                    "creative" to apphudAttributionData.creative,
+                    "keyword" to apphudAttributionData.keyword,
+                    "custom_1" to apphudAttributionData.custom1,
+                    "custom_2" to apphudAttributionData.custom2,
+                )
+                    .mapNotNull { (key, value) ->
+                        value?.let { key to value }
                     }
+                    .toMap()
+            )
+            RequestManager.send(requestBody)
+                .onSuccess {
+                    withContext(Dispatchers.Main) {
+                        when (provider) {
+                            APPSFLYER -> {
+                                storage.appsflyer = AppsflyerInfo(
+                                    id = identifier,
+                                    data = apphudAttributionData.rawData,
+                                )
+                            }
+
+                            FACEBOOK -> {
+                                storage.facebook = FacebookInfo(apphudAttributionData.rawData)
+                            }
+
+                            FIREBASE -> {
+                                storage.firebase = identifier
+                            }
+
+                            ADJUST -> {
+                                storage.adjust = AdjustInfo(
+                                    adid = identifier,
+                                    adjustData = apphudAttributionData.rawData,
+                                )
+                            }
+
+                            CUSTOM,
+                            BRANCH,
+                            SINGULAR,
+                            TENJIN,
+                            TIKTOK,
+                            VOLUUM,
+                                -> Unit
+                        }
+                    }
+                }.onFailure { error ->
+                    ApphudLog.logE(message = error.message.orEmpty())
                 }
-            }.onFailure { error ->
-                ApphudLog.logE(message = error.message.orEmpty())
-            }
+        }.onFailure { error ->
+            ApphudLog.logE("Error setting attribution: ${error.message}")
+        }
     }
 }
 

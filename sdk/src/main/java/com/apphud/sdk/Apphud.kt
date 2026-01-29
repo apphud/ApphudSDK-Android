@@ -5,7 +5,7 @@ import android.content.Context
 import com.android.billingclient.api.ProductDetails
 import com.android.billingclient.api.Purchase
 import com.apphud.sdk.ApphudInternal.coroutineScope
-import com.apphud.sdk.ApphudInternal.errorHandler
+import com.apphud.sdk.internal.util.runCatchingCancellable
 import com.apphud.sdk.domain.ApphudGroup
 import com.apphud.sdk.domain.ApphudNonRenewingPurchase
 import com.apphud.sdk.domain.ApphudPaywall
@@ -16,9 +16,7 @@ import com.apphud.sdk.domain.ApphudSubscription
 import com.apphud.sdk.domain.ApphudUser
 import com.apphud.sdk.internal.ServiceLocator
 import com.apphud.sdk.internal.domain.model.ApiKey as ApiKeyModel
-import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.TimeoutCancellationException
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.withContext
@@ -116,10 +114,18 @@ object Apphud {
      * @param userId The new user ID value to be set.
      */
     fun updateUserId(userId: UserId, callback: ((ApphudUser?) -> Unit)? = null) {
-        coroutineScope.launch(errorHandler) {
-            val result = ApphudInternal.updateUserId(userId)
-            withContext(Dispatchers.Main) {
-                callback?.invoke(result)
+        coroutineScope.launch {
+            runCatchingCancellable {
+                ApphudInternal.updateUserId(userId)
+            }.onSuccess { result ->
+                withContext(Dispatchers.Main) {
+                    callback?.invoke(result)
+                }
+            }.onFailure { error ->
+                ApphudLog.logE("Error in updateUserId: ${error.message}")
+                withContext(Dispatchers.Main) {
+                    callback?.invoke(null)
+                }
             }
         }
     }
@@ -139,17 +145,17 @@ object Apphud {
     /**
      * Retrieves the current user ID that identifies the user across multiple devices.
      *
-     * @return The user ID.
+     * @return The user ID, or null if the SDK is not initialized.
      */
-    fun userId(): UserId = ApphudInternal.userId
+    fun userId(): UserId? = ApphudInternal.userId
 
     /**
      * Retrieves the current device ID. This method is useful if you want to implement
      * a custom logout/login flow by saving the User ID and Device ID pair for each app user.
      *
-     * @return The device ID.
+     * @return The device ID, or null if the SDK is not initialized.
      */
-    fun deviceId(): String {
+    fun deviceId(): String? {
         return ApphudInternal.deviceId
     }
 
@@ -180,9 +186,6 @@ object Apphud {
     suspend fun placements(preferredTimeout: Double = APPHUD_DEFAULT_MAX_TIMEOUT): List<ApphudPlacement> =
         suspendCancellableCoroutine { continuation ->
             fetchPlacements(preferredTimeout = preferredTimeout) { _, _ ->
-                /* Error is not returned is suspending function.
-                    If you want to handle error, use `fetchPlacements` method.
-                */
                 continuation.resume(ServiceLocator.instance.userRepository.getCurrentUser()?.placements.orEmpty())
             }
         }
@@ -408,8 +411,12 @@ object Apphud {
         callbacks: ApphudPaywallScreenCallbacks = ApphudPaywallScreenCallbacks(),
         maxTimeout: Long = APPHUD_PAYWALL_SCREEN_LOAD_TIMEOUT,
     ) {
-        coroutineScope.launch(errorHandler) {
-            ApphudInternal.showPaywallScreen(context, paywall, callbacks, maxTimeout)
+        coroutineScope.launch {
+            runCatchingCancellable {
+                ApphudInternal.showPaywallScreen(context, paywall, callbacks, maxTimeout)
+            }.onFailure { error ->
+                ApphudLog.logE("Error in showPaywallScreen: ${error.message}")
+            }
         }
     }
 
@@ -513,7 +520,14 @@ object Apphud {
      *
      * @return A list of `ApphudSubscription` objects.
      */
-    fun subscriptions(): List<ApphudSubscription> = ServiceLocator.instance.userRepository.getCurrentUser()?.subscriptions ?: listOf()
+    fun subscriptions(): List<ApphudSubscription> {
+        return if (ApphudInternal.userId == null) {
+            ApphudLog.logE("subscriptions: SDK not initialized. Call Apphud.start() first.")
+            emptyList()
+        } else {
+            ServiceLocator.instance.userRepository.getCurrentUser()?.subscriptions ?: emptyList()
+        }
+    }
 
     /**
      * Retrieves all non-renewing product purchases that the user has ever made.
@@ -521,7 +535,14 @@ object Apphud {
      *
      * @return A list of `ApphudNonRenewingPurchase` objects.
      */
-    fun nonRenewingPurchases(): List<ApphudNonRenewingPurchase> = ServiceLocator.instance.userRepository.getCurrentUser()?.purchases ?: listOf()
+    fun nonRenewingPurchases(): List<ApphudNonRenewingPurchase> {
+        return if (ApphudInternal.userId == null) {
+            ApphudLog.logE("nonRenewingPurchases: SDK not initialized. Call Apphud.start() first.")
+            emptyList()
+        } else {
+            ServiceLocator.instance.userRepository.getCurrentUser()?.purchases ?: emptyList()
+        }
+    }
 
     /**
      * Checks if the current user has purchased a specific in-app product.
@@ -642,13 +663,17 @@ object Apphud {
         paywallIdentifier: String? = null,
         placementIdentifier: String? = null,
     ) {
-        coroutineScope.launch(errorHandler) {
-            ApphudInternal.trackPurchase(
-                productId,
-                offerIdToken,
-                paywallIdentifier,
-                placementIdentifier
-            )
+        coroutineScope.launch {
+            runCatchingCancellable {
+                ApphudInternal.trackPurchase(
+                    productId,
+                    offerIdToken,
+                    paywallIdentifier,
+                    placementIdentifier
+                )
+            }.onFailure { error ->
+                ApphudLog.logE("Error in trackPurchase: ${error.message}")
+            }
         }
     }
 
@@ -662,10 +687,18 @@ object Apphud {
      *                 or an optional error.
      */
     fun restorePurchases(callback: (ApphudPurchasesRestoreResult) -> Unit) {
-        coroutineScope.launch(errorHandler) {
-            val result = ApphudInternal.restorePurchases()
-            withContext(Dispatchers.Main) {
-                callback(result)
+        coroutineScope.launch {
+            runCatchingCancellable {
+                ApphudInternal.restorePurchases()
+            }.onSuccess { result ->
+                withContext(Dispatchers.Main) {
+                    callback(result)
+                }
+            }.onFailure { error ->
+                ApphudLog.logE("Error in restorePurchases: ${error.message}")
+                withContext(Dispatchers.Main) {
+                    callback(ApphudPurchasesRestoreResult.Error(error.toApphudError()))
+                }
             }
         }
     }
@@ -682,10 +715,18 @@ object Apphud {
      * You can call this method, when the app reactivates from the background, if needed.
      */
     fun refreshUserData(callback: ((ApphudUser?) -> Unit)? = null) {
-        coroutineScope.launch(errorHandler) {
-            val result = ApphudInternal.refreshEntitlements(forceRefresh = true)
-            withContext(Dispatchers.Main) {
-                callback?.invoke(result)
+        coroutineScope.launch {
+            runCatchingCancellable {
+                ApphudInternal.refreshEntitlements(forceRefresh = true)
+            }.onSuccess { result ->
+                withContext(Dispatchers.Main) {
+                    callback?.invoke(result)
+                }
+            }.onFailure { error ->
+                ApphudLog.logE("Error in refreshUserData: ${error.message}")
+                withContext(Dispatchers.Main) {
+                    callback?.invoke(null)
+                }
             }
         }
     }
@@ -696,8 +737,6 @@ object Apphud {
      * Compared to `Apphud.restorePurchases`, this method offers a quicker way
      * to determine the presence of owned purchases as it bypasses validation by Apphud.
      *
-     * Returns `BillingClient.BillingResponseCode` as second parameter of Pair.
-     *
      * Usage of this function for granting premium access is not advised,
      * as these purchases may not yet be validated.
      *
@@ -707,9 +746,18 @@ object Apphud {
      * __NOTE__: If any native purchases were found in the result of this method call,
      * Apphud will automatically track and validate them in the background,
      * so developer doesn't need to call `Apphud.restorePurchases` afterwards.
+     *
+     * @return Pair of (purchases list, billing response code).
+     *         On error returns (emptyList(), -1) where -1 indicates SDK error
+     *         (not a BillingResponseCode).
      */
     suspend fun nativePurchases(): Pair<List<Purchase>, Int> =
-        ServiceLocator.instance.fetchNativePurchasesUseCase()
+        runCatchingCancellable {
+            ServiceLocator.instance.fetchNativePurchasesUseCase()
+        }.getOrElse { error ->
+            ApphudLog.logE("Error in nativePurchases: ${error.message}")
+            Pair(emptyList(), -1)
+        }
 
     //endregion
     //region === Attribution ===
@@ -759,11 +807,18 @@ object Apphud {
      * along with the updated `ApphudUser` object (if applicable).
      */
     fun attributeFromWeb(data: Map<String, Any>, callback: (Boolean, ApphudUser?) -> Unit) {
-        coroutineScope.launch(errorHandler) {
-            val (success, user) = ApphudInternal.tryWebAttribution(data = data)
-
-            withContext(Dispatchers.Main) {
-                callback(success, user)
+        coroutineScope.launch {
+            runCatchingCancellable {
+                ApphudInternal.tryWebAttribution(data = data)
+            }.onSuccess { (success, user) ->
+                withContext(Dispatchers.Main) {
+                    callback(success, user)
+                }
+            }.onFailure { error ->
+                ApphudLog.logE("Error in attributeFromWeb: ${error.message}")
+                withContext(Dispatchers.Main) {
+                    callback(false, null)
+                }
             }
         }
     }
@@ -819,10 +874,18 @@ object Apphud {
      *     ```
      */
     fun forceFlushUserProperties(completion: ((Boolean) -> Unit)?) {
-        coroutineScope.launch(errorHandler) {
-            val result = ApphudInternal.forceFlushUserProperties(true)
-            withContext(Dispatchers.Main) {
-                completion?.invoke(result)
+        coroutineScope.launch {
+            runCatchingCancellable {
+                ApphudInternal.forceFlushUserProperties(true)
+            }.onSuccess { result ->
+                withContext(Dispatchers.Main) {
+                    completion?.invoke(result)
+                }
+            }.onFailure { error ->
+                ApphudLog.logE("Error in forceFlushUserProperties: ${error.message}")
+                withContext(Dispatchers.Main) {
+                    completion?.invoke(false)
+                }
             }
         }
     }
@@ -865,13 +928,18 @@ object Apphud {
         permissionGroup: ApphudGroup? = null,
         callback: ((Boolean) -> Unit)? = null,
     ) {
-        coroutineScope.launch(errorHandler) {
-            val result = runCatching {
+        coroutineScope.launch {
+            runCatchingCancellable {
                 ApphudInternal.grantPromotionalSuspend(daysCount, productId, permissionGroup)
-            }.getOrElse { false }
-
-            withContext(Dispatchers.Main) {
-                callback?.invoke(result)
+            }.onSuccess { result ->
+                withContext(Dispatchers.Main) {
+                    callback?.invoke(result)
+                }
+            }.onFailure { error ->
+                ApphudLog.logE("Error in grantPromotional: ${error.message}")
+                withContext(Dispatchers.Main) {
+                    callback?.invoke(false)
+                }
             }
         }
     }
