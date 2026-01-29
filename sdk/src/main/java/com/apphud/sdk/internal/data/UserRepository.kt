@@ -22,10 +22,24 @@ internal class UserRepository(
     @Synchronized
     fun setCurrentUser(user: ApphudUser): Boolean {
         val userIdChanged = currentUser?.userId != user.userId
-        currentUser = user
 
-        if (user.isTemporary != true) {
-            dataSource.saveUser(user)
+        // Preserve paywalls/placements if server returned empty ones.
+        // This happens when /subscriptions endpoint is called (purchase verification)
+        // which doesn't return paywalls, only subscription data.
+        val existing = currentUser
+        val mergedUser = if (user.paywalls.isEmpty() && existing?.paywalls?.isNotEmpty() == true) {
+            user.copy(
+                paywalls = existing.paywalls,
+                placements = existing.placements
+            )
+        } else {
+            user
+        }
+
+        currentUser = mergedUser
+
+        if (mergedUser.isTemporary != true) {
+            dataSource.saveUser(mergedUser)
         }
 
         return userIdChanged
