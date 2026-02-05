@@ -78,6 +78,7 @@ Updated kotlinx-coroutines-android to version 1.7.3.
 ## Important
 
 - **Warning**: This command rewrites commit history!
+- **Commit messages must be based strictly on diffs**: When creating new commits, analyze only the actual diff that will be included in each commit. Do not copy or rely on old commit messages - generate new descriptions based solely on the code changes in the diff
 - One commit = one context of changes
 - Don't mix refactoring with new features
 - Don't include unrelated files in one commit

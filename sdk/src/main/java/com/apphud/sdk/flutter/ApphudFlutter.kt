@@ -3,8 +3,9 @@ package com.apphud.sdk.flutter
 import android.app.Activity
 import com.apphud.sdk.ApphudInternal
 import com.apphud.sdk.ApphudInternal.coroutineScope
-import com.apphud.sdk.ApphudInternal.errorHandler
+import com.apphud.sdk.ApphudLog
 import com.apphud.sdk.ApphudPurchaseResult
+import com.apphud.sdk.internal.util.runCatchingCancellable
 import com.apphud.sdk.purchase
 import com.apphud.sdk.syncPurchases
 import kotlinx.coroutines.launch
@@ -21,8 +22,12 @@ object ApphudFlutter {
         paywallIdentifier: String? = null,
         placementIdentifier: String? = null,
     ) {
-        coroutineScope.launch(errorHandler) {
-            ApphudInternal.syncPurchases(paywallIdentifier, placementIdentifier)
+        coroutineScope.launch {
+            runCatchingCancellable {
+                ApphudInternal.syncPurchases(paywallIdentifier, placementIdentifier)
+            }.onFailure { error ->
+                ApphudLog.logE("Error syncing purchases: ${error.message}")
+            }
         }
     }
 
