@@ -156,7 +156,7 @@ object Apphud {
      * @return The device ID, or null if the SDK is not initialized.
      */
     fun deviceId(): String? {
-        return ApphudInternal.deviceId
+        return runCatching { ServiceLocator.instance.userRepository.getDeviceId() }.getOrNull()
     }
 
     //endregion

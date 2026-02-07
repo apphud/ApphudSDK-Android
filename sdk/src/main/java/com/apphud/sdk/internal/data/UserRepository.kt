@@ -11,6 +11,10 @@ internal class UserRepository(
 ) {
     private var currentUser: ApphudUser? = null
 
+    fun getDeviceId(): String? = dataSource.getDeviceId()
+
+    fun setDeviceId(id: String) = dataSource.saveDeviceId(id)
+
     @Synchronized
     fun getCurrentUser(): ApphudUser? {
         return currentUser ?: dataSource.getCachedUser()

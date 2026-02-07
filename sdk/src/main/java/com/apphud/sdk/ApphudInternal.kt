@@ -128,8 +128,6 @@ internal object ApphudInternal {
     internal var didRegisterCustomerAtThisLaunch = false
     private var isNew = true
     private lateinit var apiKey: ApiKey
-    var deviceId: DeviceId? = null
-        private set
     internal var fallbackMode = false
     internal var userId: UserId? = null
     internal lateinit var context: Context
@@ -241,7 +239,7 @@ internal object ApphudInternal {
 
         val cachedPaywalls = if (ignoreCache || !isValid || observerMode) null else userRepository.getCurrentUser()?.paywalls
         val cachedGroups = if (isValid) readGroupsFromCache() else mutableListOf()
-        val cachedDeviceId = storage.deviceId
+        val cachedDeviceId = userRepository.getDeviceId()
         val cachedUserId = storage.userId
 
         sdkLaunchedAt = System.currentTimeMillis()
@@ -265,11 +263,10 @@ internal object ApphudInternal {
 
         if (credentialsChanged) {
             storage.userId = newUserId
-            storage.deviceId = newDeviceId
         }
 
         this.userId = newUserId
-        this.deviceId = newDeviceId
+        userRepository.setDeviceId(newDeviceId)
 
         this.productGroups.set(cachedGroups.toList())
 
@@ -292,7 +289,7 @@ internal object ApphudInternal {
                         loadProducts()
                     }
                     ServiceLocator.instance.fetchNativePurchasesUseCase()
-                    deviceId?.let { ruleController.start(it) }
+                    userRepository.getDeviceId()?.let { ruleController.start(it) }
                 }.onFailure { error ->
                     ApphudLog.logE("Registration failed in initialize: ${error.message}")
                     // Even if registration failed, attempt to load products and start ruleController
@@ -300,7 +297,7 @@ internal object ApphudInternal {
                         loadProducts()
                     }
                     ServiceLocator.instance.fetchNativePurchasesUseCase()
-                    deviceId?.let { ruleController.start(it) }
+                    userRepository.getDeviceId()?.let { ruleController.start(it) }
                 }
             }
         } else {
@@ -311,7 +308,7 @@ internal object ApphudInternal {
                 }
                 coroutineScope.launch {
                     ServiceLocator.instance.fetchNativePurchasesUseCase()
-                    deviceId?.let { ruleController.start(it) }
+                    userRepository.getDeviceId()?.let { ruleController.start(it) }
                 }
             }
         }
@@ -518,7 +515,7 @@ internal object ApphudInternal {
         }
 
         val user = userRepository.getCurrentUser()
-        val currentDeviceId = deviceId
+        val currentDeviceId = userRepository.getDeviceId()
         if (user == null || currentDeviceId == null) {
             ApphudLog.logE("Cannot track analytics: user not loaded or deviceId not set")
             return
@@ -852,7 +849,7 @@ internal object ApphudInternal {
                 }
             }
 
-            val body = UserPropertiesBody(deviceId ?: throw ApphudError("SDK not initialized"), properties, force)
+            val body = UserPropertiesBody(userRepository.getDeviceId() ?: throw ApphudError("SDK not initialized"), properties, force)
 
             return withContext(Dispatchers.IO) {
                 runCatchingCancellable { RequestManager.postUserProperties(body) }
@@ -1284,7 +1281,7 @@ internal object ApphudInternal {
     private fun isInitialized(): Boolean {
         return ::context.isInitialized &&
             userId != null &&
-            deviceId != null &&
+            runCatching { userRepository.getDeviceId() }.getOrNull() != null &&
             ::apiKey.isInitialized
     }
 
@@ -1351,7 +1348,6 @@ internal object ApphudInternal {
         didRegisterCustomerAtThisLaunch = false
         setNeedsToUpdateUserProperties = false
         userId = null
-        deviceId = null
     }
 
 //endregion

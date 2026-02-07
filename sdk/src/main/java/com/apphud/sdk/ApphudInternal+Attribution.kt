@@ -88,7 +88,7 @@ internal fun ApphudInternal.setAttribution(
             }
 
             val requestBody = AttributionRequestDto(
-                deviceId = deviceId ?: throw ApphudError("deviceId is null"),
+                deviceId = userRepository.getDeviceId() ?: throw ApphudError("deviceId is null"),
                 packageName = context.packageName,
                 provider = provider.value,
                 rawData = mergedRawData,

@@ -3,23 +3,25 @@ package com.apphud.sdk.internal.data.remote
 import com.android.billingclient.api.ProductDetails
 import com.android.billingclient.api.Purchase
 import com.apphud.sdk.ApphudError
-import com.apphud.sdk.ApphudInternal
 import com.apphud.sdk.body.PurchaseBody
 import com.apphud.sdk.body.PurchaseItemBody
 import com.apphud.sdk.domain.ApphudProduct
 import com.apphud.sdk.domain.ProductInfo
 import com.apphud.sdk.domain.PurchaseRecordDetails
+import com.apphud.sdk.internal.data.UserRepository
 import com.apphud.sdk.internal.domain.model.PurchaseContext
 import com.apphud.sdk.managers.RequestManager.BILLING_VERSION
 import com.apphud.sdk.managers.priceAmountMicros
 import com.apphud.sdk.managers.priceCurrencyCode
 import com.apphud.sdk.managers.subscriptionPeriod
 
-internal class PurchaseBodyFactory {
+internal class PurchaseBodyFactory(
+    private val userRepository: UserRepository,
+) {
 
     fun create(purchaseContext: PurchaseContext): PurchaseBody =
         PurchaseBody(
-            deviceId = ApphudInternal.deviceId ?: throw ApphudError("SDK not initialized"),
+            deviceId = userRepository.getDeviceId() ?: throw ApphudError("SDK not initialized"),
             purchases = listOf(
                 with(purchaseContext) {
                     PurchaseItemBody(
@@ -51,7 +53,7 @@ internal class PurchaseBodyFactory {
         observerMode: Boolean,
     ): PurchaseBody =
         PurchaseBody(
-            deviceId = ApphudInternal.deviceId ?: throw ApphudError("SDK not initialized"),
+            deviceId = userRepository.getDeviceId() ?: throw ApphudError("SDK not initialized"),
             purchases =
             purchases.map { purchase ->
                 PurchaseItemBody(

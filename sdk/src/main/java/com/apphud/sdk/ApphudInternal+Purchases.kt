@@ -272,7 +272,7 @@ private fun ApphudInternal.purchaseInternal(
                     billing.purchasesCallback = null
                 }
             }
-            val error = billing.purchase(activity, it, token, oldToken, replacementMode, deviceId)
+            val error = billing.purchase(activity, it, token, oldToken, replacementMode, userRepository.getDeviceId())
             if (error != null) {
                 billing.purchasesCallback = null
                 purchasingProduct = null
