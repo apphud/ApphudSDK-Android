@@ -129,7 +129,6 @@ internal object ApphudInternal {
     private var isNew = true
     private lateinit var apiKey: ApiKey
     internal var fallbackMode = false
-    internal var userId: UserId? = null
     internal lateinit var context: Context
 
     internal var apphudListener: ApphudListener? = null
@@ -240,7 +239,7 @@ internal object ApphudInternal {
         val cachedPaywalls = if (ignoreCache || !isValid || observerMode) null else userRepository.getCurrentUser()?.paywalls
         val cachedGroups = if (isValid) readGroupsFromCache() else mutableListOf()
         val cachedDeviceId = userRepository.getDeviceId()
-        val cachedUserId = storage.userId
+        val cachedUserId = userRepository.getUserId()
 
         sdkLaunchedAt = System.currentTimeMillis()
 
@@ -261,11 +260,7 @@ internal object ApphudInternal {
 
         val credentialsChanged = cachedUserId != newUserId || cachedDeviceId != newDeviceId
 
-        if (credentialsChanged) {
-            storage.userId = newUserId
-        }
-
-        this.userId = newUserId
+        userRepository.setUserId(newUserId)
         userRepository.setDeviceId(newDeviceId)
 
         this.productGroups.set(cachedGroups.toList())
@@ -904,15 +899,14 @@ internal object ApphudInternal {
                 return userRepository.getCurrentUser()
             }
 
-        val originalUserId = this.userId
+        val originalUserId = userRepository.getUserId()
         if (web2Web == false) {
-            this.userId = userId
-            storage.userId = userId
+            userRepository.setUserId(userId)
         }
         RequestManager.setParams(this.context, this.apiKey)
 
         if (web2Web == true) {
-            ApphudInternal.userId = userId
+            userRepository.setUserId(userId)
             fromWeb2Web = true
         }
         val needPlacementsPaywalls = !didRegisterCustomerAtThisLaunch && !deferPlacements && !observerMode
@@ -930,8 +924,8 @@ internal object ApphudInternal {
             null
         }
 
-        ApphudInternal.userId = customer?.userId ?: userRepository.getCurrentUser()?.userId ?: originalUserId
-        storage.userId = ApphudInternal.userId
+        val resolvedUserId = customer?.userId ?: userRepository.getCurrentUser()?.userId ?: originalUserId
+        resolvedUserId?.let { userRepository.setUserId(it) }
 
         customer?.let {
             mainScope.launch { notifyLoadingCompleted(it) }
@@ -1280,7 +1274,7 @@ internal object ApphudInternal {
 
     private fun isInitialized(): Boolean {
         return ::context.isInitialized &&
-            userId != null &&
+            runCatching { userRepository.getUserId() }.getOrNull() != null &&
             runCatching { userRepository.getDeviceId() }.getOrNull() != null &&
             ::apiKey.isInitialized
     }
@@ -1347,7 +1341,6 @@ internal object ApphudInternal {
         allowIdentifyUser = true
         didRegisterCustomerAtThisLaunch = false
         setNeedsToUpdateUserProperties = false
-        userId = null
     }
 
 //endregion
@@ -1415,8 +1408,6 @@ internal object ApphudInternal {
                 apphudListener?.apphudDidChangeUserID(user.userId)
             }
         }
-
-        userId = user.userId
 
         hasRespondedToPaywallsRequest =
             hasRespondedToPaywallsRequest || user.paywalls.isNotEmpty() || user.placements.isNotEmpty() || observerMode

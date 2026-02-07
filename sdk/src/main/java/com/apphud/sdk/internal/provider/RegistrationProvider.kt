@@ -61,6 +61,8 @@ internal class RegistrationProvider(
         else androidId
     }
 
+    fun getUserId(): String? = userRepository.getUserId()
+
     fun getDeviceId(): String? = userRepository.getDeviceId()
 
     fun getTimeZone(): String = TimeZone.getDefault().id

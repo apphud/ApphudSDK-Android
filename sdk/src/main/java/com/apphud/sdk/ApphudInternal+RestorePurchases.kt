@@ -176,8 +176,6 @@ internal suspend fun ApphudInternal.sendPurchasesToApphud(
             storage.isNeedSync = false
             prevPurchases.addAll(tempPurchaseRecordDetails)
 
-            userId = customer.userId
-
             withContext(Dispatchers.Main) {
                 ApphudLog.log("SyncPurchases: success $customer")
                 notifyLoadingCompleted(customer)
