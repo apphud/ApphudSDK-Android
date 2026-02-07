@@ -1,7 +1,6 @@
 package com.apphud.sdk.internal.data.remote
 
 import com.apphud.sdk.ApphudError
-import com.apphud.sdk.ApphudInternal
 import com.apphud.sdk.UserId
 import com.apphud.sdk.body.RegistrationBody
 import com.apphud.sdk.internal.provider.RegistrationProvider
@@ -28,7 +27,7 @@ internal class RegistrationBodyFactory(
             idfv = registrationProvider.getIdfv(),
             idfa = registrationProvider.getIdfa(),
             androidId = registrationProvider.getAndroidId(),
-            userId = userId ?: ApphudInternal.userId,
+            userId = userId ?: registrationProvider.getUserId(),
             deviceId = registrationProvider.getDeviceId() ?: throw ApphudError("SDK not initialized"),
             timeZone = registrationProvider.getTimeZone(),
             isSandbox = registrationProvider.isSandbox(),

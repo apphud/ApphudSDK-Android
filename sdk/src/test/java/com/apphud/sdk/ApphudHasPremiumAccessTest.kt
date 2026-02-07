@@ -30,7 +30,7 @@ class ApphudHasPremiumAccessTest {
 
     @After
     fun tearDown() {
-        ApphudInternal.userId = null
+        runCatching { ServiceLocator.instance.userRepository.clearUser() }
         ServiceLocator.clearInstance()
     }
 
@@ -40,7 +40,7 @@ class ApphudHasPremiumAccessTest {
         val cachedUser = createUserWithSubscriptions(listOf(activeSubscription))
         setupStorageWithCachedUser(cachedUser)
         createServiceLocator()
-        ApphudInternal.userId = "test-user-id"
+        ServiceLocator.instance.userRepository.setUserId("test-user-id")
 
         val result = Apphud.hasPremiumAccess()
 
@@ -74,7 +74,7 @@ class ApphudHasPremiumAccessTest {
         val cachedUser = createUserWithPurchases(listOf(activePurchase))
         setupStorageWithCachedUser(cachedUser)
         createServiceLocator()
-        ApphudInternal.userId = "test-user-id"
+        ServiceLocator.instance.userRepository.setUserId("test-user-id")
 
         val result = Apphud.hasPremiumAccess()
 
@@ -142,6 +142,7 @@ class ApphudHasPremiumAccessTest {
         } else null
 
         every { mockPreferences.getString("APPHUD_USER_KEY", null) } returns userJson
+        every { mockPreferences.getString("userIdKey", null) } returns user?.userId
         every { mockPreferences.getString("APPHUD_CACHE_VERSION", null) } returns "3"
     }
 

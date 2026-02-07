@@ -128,10 +128,7 @@ internal object ApphudInternal {
     internal var didRegisterCustomerAtThisLaunch = false
     private var isNew = true
     private lateinit var apiKey: ApiKey
-    var deviceId: DeviceId? = null
-        private set
     internal var fallbackMode = false
-    internal var userId: UserId? = null
     internal lateinit var context: Context
 
     internal var apphudListener: ApphudListener? = null
@@ -241,8 +238,8 @@ internal object ApphudInternal {
 
         val cachedPaywalls = if (ignoreCache || !isValid || observerMode) null else userRepository.getCurrentUser()?.paywalls
         val cachedGroups = if (isValid) readGroupsFromCache() else mutableListOf()
-        val cachedDeviceId = storage.deviceId
-        val cachedUserId = storage.userId
+        val cachedDeviceId = userRepository.getDeviceId()
+        val cachedUserId = userRepository.getUserId()
 
         sdkLaunchedAt = System.currentTimeMillis()
 
@@ -263,13 +260,8 @@ internal object ApphudInternal {
 
         val credentialsChanged = cachedUserId != newUserId || cachedDeviceId != newDeviceId
 
-        if (credentialsChanged) {
-            storage.userId = newUserId
-            storage.deviceId = newDeviceId
-        }
-
-        this.userId = newUserId
-        this.deviceId = newDeviceId
+        userRepository.setUserId(newUserId)
+        userRepository.setDeviceId(newDeviceId)
 
         this.productGroups.set(cachedGroups.toList())
 
@@ -292,7 +284,7 @@ internal object ApphudInternal {
                         loadProducts()
                     }
                     ServiceLocator.instance.fetchNativePurchasesUseCase()
-                    deviceId?.let { ruleController.start(it) }
+                    userRepository.getDeviceId()?.let { ruleController.start(it) }
                 }.onFailure { error ->
                     ApphudLog.logE("Registration failed in initialize: ${error.message}")
                     // Even if registration failed, attempt to load products and start ruleController
@@ -300,7 +292,7 @@ internal object ApphudInternal {
                         loadProducts()
                     }
                     ServiceLocator.instance.fetchNativePurchasesUseCase()
-                    deviceId?.let { ruleController.start(it) }
+                    userRepository.getDeviceId()?.let { ruleController.start(it) }
                 }
             }
         } else {
@@ -311,7 +303,7 @@ internal object ApphudInternal {
                 }
                 coroutineScope.launch {
                     ServiceLocator.instance.fetchNativePurchasesUseCase()
-                    deviceId?.let { ruleController.start(it) }
+                    userRepository.getDeviceId()?.let { ruleController.start(it) }
                 }
             }
         }
@@ -517,9 +509,9 @@ internal object ApphudInternal {
             return
         }
 
-        val user = userRepository.getCurrentUser()
-        val currentDeviceId = deviceId
-        if (user == null || currentDeviceId == null) {
+        val currentUserId = userRepository.getUserId()
+        val currentDeviceId = userRepository.getDeviceId()
+        if (currentUserId == null || currentDeviceId == null) {
             ApphudLog.logE("Cannot track analytics: user not loaded or deviceId not set")
             return
         }
@@ -542,7 +534,7 @@ internal object ApphudInternal {
                     latestCustomerLoadError,
                     responseCode,
                     success,
-                    user.userId,
+                    currentUserId,
                     currentDeviceId
                 )
             }.onFailure { error ->
@@ -852,7 +844,7 @@ internal object ApphudInternal {
                 }
             }
 
-            val body = UserPropertiesBody(deviceId ?: throw ApphudError("SDK not initialized"), properties, force)
+            val body = UserPropertiesBody(userRepository.getDeviceId() ?: throw ApphudError("SDK not initialized"), properties, force)
 
             return withContext(Dispatchers.IO) {
                 runCatchingCancellable { RequestManager.postUserProperties(body) }
@@ -907,15 +899,14 @@ internal object ApphudInternal {
                 return userRepository.getCurrentUser()
             }
 
-        val originalUserId = this.userId
+        val originalUserId = userRepository.getUserId()
         if (web2Web == false) {
-            this.userId = userId
-            storage.userId = userId
+            userRepository.setUserId(userId)
         }
         RequestManager.setParams(this.context, this.apiKey)
 
         if (web2Web == true) {
-            ApphudInternal.userId = userId
+            userRepository.setUserId(userId)
             fromWeb2Web = true
         }
         val needPlacementsPaywalls = !didRegisterCustomerAtThisLaunch && !deferPlacements && !observerMode
@@ -933,8 +924,8 @@ internal object ApphudInternal {
             null
         }
 
-        ApphudInternal.userId = customer?.userId ?: userRepository.getCurrentUser()?.userId ?: originalUserId
-        storage.userId = ApphudInternal.userId
+        val resolvedUserId = customer?.userId ?: userRepository.getUserId() ?: originalUserId
+        resolvedUserId?.let { userRepository.setUserId(it) }
 
         customer?.let {
             mainScope.launch { notifyLoadingCompleted(it) }
@@ -1283,8 +1274,8 @@ internal object ApphudInternal {
 
     private fun isInitialized(): Boolean {
         return ::context.isInitialized &&
-            userId != null &&
-            deviceId != null &&
+            runCatching { userRepository.getUserId() }.getOrNull() != null &&
+            runCatching { userRepository.getDeviceId() }.getOrNull() != null &&
             ::apiKey.isInitialized
     }
 
@@ -1350,8 +1341,6 @@ internal object ApphudInternal {
         allowIdentifyUser = true
         didRegisterCustomerAtThisLaunch = false
         setNeedsToUpdateUserProperties = false
-        userId = null
-        deviceId = null
     }
 
 //endregion
@@ -1419,8 +1408,6 @@ internal object ApphudInternal {
                 apphudListener?.apphudDidChangeUserID(user.userId)
             }
         }
-
-        userId = user.userId
 
         hasRespondedToPaywallsRequest =
             hasRespondedToPaywallsRequest || user.paywalls.isNotEmpty() || user.placements.isNotEmpty() || observerMode
