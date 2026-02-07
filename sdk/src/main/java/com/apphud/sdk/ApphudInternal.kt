@@ -509,9 +509,9 @@ internal object ApphudInternal {
             return
         }
 
-        val user = userRepository.getCurrentUser()
+        val currentUserId = userRepository.getUserId()
         val currentDeviceId = userRepository.getDeviceId()
-        if (user == null || currentDeviceId == null) {
+        if (currentUserId == null || currentDeviceId == null) {
             ApphudLog.logE("Cannot track analytics: user not loaded or deviceId not set")
             return
         }
@@ -534,7 +534,7 @@ internal object ApphudInternal {
                     latestCustomerLoadError,
                     responseCode,
                     success,
-                    user.userId,
+                    currentUserId,
                     currentDeviceId
                 )
             }.onFailure { error ->
@@ -924,7 +924,7 @@ internal object ApphudInternal {
             null
         }
 
-        val resolvedUserId = customer?.userId ?: userRepository.getCurrentUser()?.userId ?: originalUserId
+        val resolvedUserId = customer?.userId ?: userRepository.getUserId() ?: originalUserId
         resolvedUserId?.let { userRepository.setUserId(it) }
 
         customer?.let {
