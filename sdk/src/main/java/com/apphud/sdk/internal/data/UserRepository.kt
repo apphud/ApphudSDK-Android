@@ -11,6 +11,10 @@ internal class UserRepository(
 ) {
     private var currentUser: ApphudUser? = null
 
+    fun getUserId(): String? = dataSource.getUserId()
+
+    fun setUserId(id: String) = dataSource.saveUserId(id)
+
     fun getDeviceId(): String? = dataSource.getDeviceId()
 
     fun setDeviceId(id: String) = dataSource.saveDeviceId(id)
@@ -41,6 +45,7 @@ internal class UserRepository(
         }
 
         currentUser = mergedUser
+        dataSource.saveUserId(mergedUser.userId)
 
         if (mergedUser.isTemporary != true) {
             dataSource.saveUser(mergedUser)
