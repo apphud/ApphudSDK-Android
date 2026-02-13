@@ -1333,17 +1333,17 @@ internal object ApphudInternal {
             ApphudLog.log("ServiceLocator not initialized, skip productRepository.reset(): ${e.message}")
         }
 
+        if (isInitialized()) {
+            storage.clean()
+        } else {
+            ApphudLog.log("SDK not initialized, skip storage.clean()")
+        }
         ServiceLocator.clearInstance()
         RequestManager.cleanRegistration()
         customProductsFetchedBlock = null
         offeringsPreparedCallbacks.clear()
         purchaseCallbacks.clear()
         freshPurchase = null
-        if (isInitialized()) {
-            storage.clean()
-        } else {
-            ApphudLog.log("SDK not initialized, skip storage.clean()")
-        }
         prevPurchases.clear()
         productGroups.set(emptyList())
         pendingUserProperties.clear()
@@ -1352,6 +1352,7 @@ internal object ApphudInternal {
         setNeedsToUpdateUserProperties = false
         userId = null
         deviceId = null
+        ApphudLog.log("SDK did logout")
     }
 
 //endregion
