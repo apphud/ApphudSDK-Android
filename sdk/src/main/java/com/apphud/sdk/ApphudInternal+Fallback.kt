@@ -25,11 +25,11 @@ internal fun ApphudInternal.processFallbackData(callback: PaywallCallback) {
     try {
         if (userRepository.getCurrentUser() == null) {
             val temporaryUser = ApphudUser(
-                userId ?: UUID.randomUUID().toString(), "", "", listOf(), listOf(), listOf(),
+                userRepository.getUserId() ?: UUID.randomUUID().toString(), "", "", listOf(), listOf(), listOf(),
                 listOf(), true,
             )
             userRepository.setCurrentUser(temporaryUser)
-            ApphudLog.log("Fallback: user created: $userId")
+            ApphudLog.log("Fallback: user created: ${userRepository.getUserId()}")
         }
 
         processedFallbackData = true
@@ -44,7 +44,7 @@ internal fun ApphudInternal.processFallbackData(callback: PaywallCallback) {
             ids = paywallToParse.map { it.products?.map { it.productId } ?: listOf() }.flatten()
 
             val fallbackUser = ApphudUser(
-                userId = userId ?: UUID.randomUUID().toString(),
+                userId = userRepository.getUserId() ?: UUID.randomUUID().toString(),
                 currencyCode = "",
                 countryCode = "",
                 subscriptions = listOf(),
