@@ -34,6 +34,7 @@ import com.apphud.sdk.internal.domain.FetchMostActualRuleScreenUseCase
 import com.apphud.sdk.internal.domain.FetchNativePurchasesUseCase
 import com.apphud.sdk.internal.domain.FetchRulesScreenUseCase
 import com.apphud.sdk.internal.domain.RegistrationUseCase
+import com.apphud.sdk.internal.domain.ResolveCredentialsUseCase
 import com.apphud.sdk.internal.domain.RenderPaywallPropertiesUseCase
 import com.apphud.sdk.internal.domain.mapper.DateTimeMapper
 import com.apphud.sdk.internal.domain.mapper.NotificationMapper
@@ -64,8 +65,12 @@ internal class ServiceLocator(
     private val customerMapper =
         CustomerMapper(subscriptionMapper, paywallsMapper, placementsMapper)
 
+    val userDataSource: UserDataSource = UserDataSource(storage)
+
+    val userRepository: UserRepository = UserRepository(userDataSource)
+
     private val registrationProvider: RegistrationProvider =
-        RegistrationProvider(applicationContext, storage)
+        RegistrationProvider(applicationContext, storage, userRepository)
 
     internal val urlProvider = UrlProvider()
 
@@ -122,7 +127,7 @@ internal class ServiceLocator(
             okHttpClient = okHttpClient,
             gson = gson,
             customerMapper = customerMapper,
-            purchaseBodyFactory = PurchaseBodyFactory(),
+            purchaseBodyFactory = PurchaseBodyFactory(userRepository),
             registrationBodyFactory = RegistrationBodyFactory(registrationProvider),
             productMapper = ProductMapper(),
             attributionMapper = AttributionMapper(),
@@ -197,12 +202,10 @@ internal class ServiceLocator(
 
     val paywallEventManager: PaywallEventManager = PaywallEventManager()
 
-    // User management dependencies
-    val userDataSource: UserDataSource = UserDataSource(storage)
-
-    val userRepository: UserRepository = UserRepository(userDataSource)
-
     val productRepository: ProductRepository = ProductRepository()
+
+    val resolveCredentialsUseCase: ResolveCredentialsUseCase =
+        ResolveCredentialsUseCase(userRepository = userRepository)
 
     val registrationUseCase: RegistrationUseCase =
         RegistrationUseCase(

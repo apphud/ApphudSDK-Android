@@ -108,8 +108,8 @@ internal object RequestManager {
     suspend fun allProducts(): List<ApphudGroup> {
         val params = GetProductsParams(
             System.currentTimeMillis().toString(),
-            ApphudInternal.deviceId ?: throw ApphudError("SDK not initialized"),
-            ApphudInternal.userId ?: throw ApphudError("SDK not initialized"),
+            ServiceLocator.instance.userRepository.getDeviceId() ?: throw ApphudError("SDK not initialized"),
+            ServiceLocator.instance.userRepository.getUserId() ?: throw ApphudError("SDK not initialized"),
         )
         val repository = ServiceLocator.instance.remoteRepository
 
@@ -208,8 +208,8 @@ internal object RequestManager {
 
             val grantPromotionalDto = GrantPromotionalDto(
                 duration = daysCount,
-                userId = ApphudInternal.userId ?: throw ApphudError("SDK not initialized"),
-                deviceId = ApphudInternal.deviceId ?: throw ApphudError("SDK not initialized"),
+                userId = ServiceLocator.instance.userRepository.getUserId() ?: throw ApphudError("SDK not initialized"),
+                deviceId = ServiceLocator.instance.userRepository.getDeviceId() ?: throw ApphudError("SDK not initialized"),
                 productId = productId,
                 productGroupId = permissionGroup?.id
             )
@@ -344,8 +344,8 @@ internal object RequestManager {
         screenId: String? = null,
         errorMessage: String? = null,
     ): PaywallEventDto {
-        val currentUserId = ApphudInternal.userId
-        val currentDeviceId = ApphudInternal.deviceId
+        val currentUserId = ServiceLocator.instance.userRepository.getUserId()
+        val currentDeviceId = ServiceLocator.instance.userRepository.getDeviceId()
 
         if (currentUserId == null || currentDeviceId == null) {
             ApphudLog.logE("Cannot track event '$name': SDK not fully initialized")

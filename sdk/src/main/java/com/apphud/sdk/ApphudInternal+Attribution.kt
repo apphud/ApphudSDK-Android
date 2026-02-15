@@ -88,7 +88,7 @@ internal fun ApphudInternal.setAttribution(
             }
 
             val requestBody = AttributionRequestDto(
-                deviceId = deviceId ?: throw ApphudError("deviceId is null"),
+                deviceId = userRepository.getDeviceId() ?: throw ApphudError("deviceId is null"),
                 packageName = context.packageName,
                 provider = provider.value,
                 rawData = mergedRawData,
@@ -164,11 +164,12 @@ internal suspend fun ApphudInternal.tryWebAttribution(
     runCatchingCancellable { awaitUserRegistration() }
 
     val user = userRepository.getCurrentUser() ?: return false to null
+    val currentUserId = userRepository.getUserId() ?: return false to null
     fromWeb2Web = true
 
     return when {
         !userId.isNullOrEmpty() -> {
-            if (user.userId == userId) {
+            if (currentUserId == userId) {
                 ApphudLog.logI("Already web2web user, skipping")
                 true to user
             } else {
@@ -179,7 +180,7 @@ internal suspend fun ApphudInternal.tryWebAttribution(
 
         !email.isNullOrEmpty() -> {
             ApphudLog.logI("Trying to attribute from web by email: $email")
-            true to updateUserId(user.userId, email = email, web2Web = true)
+            true to updateUserId(currentUserId, email = email, web2Web = true)
         }
 
         else -> false to null
