@@ -1,7 +1,5 @@
 package com.apphud.sdk.internal.data.remote
 
-import com.android.billingclient.api.ProductDetails
-import com.android.billingclient.api.Purchase
 import com.apphud.sdk.ApphudError
 import com.apphud.sdk.body.PurchaseBody
 import com.apphud.sdk.body.PurchaseItemBody
@@ -55,44 +53,44 @@ internal class PurchaseBodyFactory(
         PurchaseBody(
             deviceId = userRepository.getDeviceId() ?: throw ApphudError("SDK not initialized"),
             purchases =
-            purchases.map { purchase ->
-                PurchaseItemBody(
-                    orderId = null,
-                    productId = purchase.details.productId,
-                    purchaseToken = purchase.record.purchaseToken,
-                    priceCurrencyCode = purchase.details.priceCurrencyCode(),
-                    priceAmountMicros =
-                    if ((System.currentTimeMillis() - purchase.record.purchaseTime) < ONE_HOUR) {
-                        purchase.details.priceAmountMicros()
-                    } else {
-                        null
-                    },
-                    subscriptionPeriod = purchase.details.subscriptionPeriod(),
-                    screenId = null,
-                    paywallId = if (apphudProduct?.productDetails?.productId == purchase.details.productId) {
-                        apphudProduct.paywallId
-                    } else {
-                        null
-                    },
-                    placementId = if (apphudProduct?.productDetails?.productId == purchase.details.productId) {
-                        apphudProduct.placementId
-                    } else {
-                        null
-                    },
-                    productBundleId = if (apphudProduct?.productDetails?.productId == purchase.details.productId) {
-                        apphudProduct.id
-                    } else {
-                        null
-                    },
-                    observerMode = observerMode,
-                    billingVersion = BILLING_VERSION,
-                    purchaseTime = purchase.record.purchaseTime,
-                    productInfo = null,
-                    productType = purchase.details.productType,
-                    timestamp = System.currentTimeMillis(),
-                    extraMessage = null
-                )
-            }.sortedByDescending { it.purchaseTime },
+                purchases.map { item ->
+                    PurchaseItemBody(
+                        orderId = null,
+                        productId = item.details.productId,
+                        purchaseToken = item.purchase.purchaseToken,
+                        priceCurrencyCode = item.details.priceCurrencyCode(),
+                        priceAmountMicros =
+                            if ((System.currentTimeMillis() - item.purchase.purchaseTime) < ONE_HOUR) {
+                                item.details.priceAmountMicros()
+                            } else {
+                                null
+                            },
+                        subscriptionPeriod = item.details.subscriptionPeriod(),
+                        screenId = null,
+                        paywallId = if (apphudProduct?.productDetails?.productId == item.details.productId) {
+                            apphudProduct.paywallId
+                        } else {
+                            null
+                        },
+                        placementId = if (apphudProduct?.productDetails?.productId == item.details.productId) {
+                            apphudProduct.placementId
+                        } else {
+                            null
+                        },
+                        productBundleId = if (apphudProduct?.productDetails?.productId == item.details.productId) {
+                            apphudProduct.id
+                        } else {
+                            null
+                        },
+                        observerMode = observerMode,
+                        billingVersion = BILLING_VERSION,
+                        purchaseTime = item.purchase.purchaseTime,
+                        productInfo = null,
+                        productType = item.details.productType,
+                        timestamp = System.currentTimeMillis(),
+                        extraMessage = null
+                    )
+                }.sortedByDescending { it.purchaseTime },
         )
 
     private companion object {

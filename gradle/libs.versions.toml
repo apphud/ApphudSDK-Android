@@ -1,5 +1,5 @@
 [versions]
-billing_ver = "7.1.1"
+billing_ver = "8.3.0"
 espresso_ver = "3.6.0"
 gson_ver = "2.10.1"
 junit_ver = "4.13.2"

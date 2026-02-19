@@ -10,7 +10,6 @@ import com.apphud.sdk.ApphudUtils
 import com.apphud.sdk.ProductId
 import com.apphud.sdk.handleObservedPurchase
 import com.apphud.sdk.internal.callback_status.PurchaseCallbackStatus
-import com.apphud.sdk.internal.callback_status.PurchaseHistoryCallbackStatus
 import com.apphud.sdk.internal.callback_status.PurchaseRestoredCallbackStatus
 import com.apphud.sdk.isSuccess
 import com.apphud.sdk.logMessage
@@ -27,7 +26,12 @@ internal class BillingWrapper(context: Context) : Closeable {
     private val builder =
         BillingClient
             .newBuilder(context)
-            .enablePendingPurchases()
+            .enablePendingPurchases(
+                PendingPurchasesParams.newBuilder()
+                    .enableOneTimeProducts()
+                    .build()
+            )
+            .enableAutoServiceReconnection()
     private val purchases = PurchasesUpdated(builder)
 
     var obfuscatedAccountId: String? = null
@@ -47,17 +51,17 @@ internal class BillingWrapper(context: Context) : Closeable {
             } else {
                 try {
                     // Skip retries on emulators to avoid excessive warnings
-                    val MAX_RETRIES = if (ApphudUtils.isEmulator()) 1 else 5
+                    val MAX_RETRIES = if (ApphudUtils.isEmulator()) 1 else 2
                     var connected = false
                     var retries = 0
-                    
+
                     while (!connected && retries < MAX_RETRIES) {
                         if (retries > 0) {
-                            Thread.sleep(300)
+                            delay(300)
                         }
                         retries += 1
                         connected = billing.connect()
-                        
+
                         if (!connected && retries >= MAX_RETRIES) {
                             ApphudLog.log("Connect to Billing failed after $MAX_RETRIES attempts")
                             break
@@ -73,7 +77,7 @@ internal class BillingWrapper(context: Context) : Closeable {
         return result
     }
 
-    suspend fun BillingClient.connect(): Boolean {
+    private suspend fun BillingClient.connect(): Boolean {
         return suspendCancellableCoroutine { continuation ->
             startConnection(
                 object : BillingClientStateListener {
@@ -114,14 +118,6 @@ internal class BillingWrapper(context: Context) : Closeable {
         return history.queryPurchasesSync()
     }
 
-    suspend fun queryPurchaseHistorySync(
-        @BillingClient.ProductType type: ProductType,
-    ): PurchaseHistoryCallbackStatus {
-        val connectIfNeeded = connectIfNeeded()
-        if (!connectIfNeeded) return PurchaseHistoryCallbackStatus.Error(type, null)
-        return history.queryPurchaseHistorySync(type)
-    }
-
     suspend fun detailsEx(
         @BillingClient.ProductType type: ProductType,
         products: List<ProductId>,
@@ -134,11 +130,11 @@ internal class BillingWrapper(context: Context) : Closeable {
 
     suspend fun restoreSync(
         @BillingClient.ProductType type: ProductType,
-        products: List<PurchaseHistoryRecord>,
+        purchases: List<Purchase>,
     ): PurchaseRestoredCallbackStatus {
         val connectIfNeeded = connectIfNeeded()
         if (!connectIfNeeded) return PurchaseRestoredCallbackStatus.Error(type)
-        return prod.restoreSync(type, products)
+        return prod.restoreSync(type, purchases)
     }
 
     suspend fun purchase(
@@ -147,7 +143,7 @@ internal class BillingWrapper(context: Context) : Closeable {
         offerToken: String?,
         oldToken: String?,
         replacementMode: Int?,
-        deviceId: String? = null
+        deviceId: String? = null,
     ): ApphudError? {
         val connectIfNeeded = connectIfNeeded()
         if (!connectIfNeeded) {
@@ -167,14 +163,10 @@ internal class BillingWrapper(context: Context) : Closeable {
 
         try {
             val params: BillingFlowParams =
-                if (offerToken != null) {
-                    if (oldToken != null) {
-                        upDowngradeBillingFlowParamsBuilder(details, offerToken, oldToken, replacementMode)
-                    } else {
-                        billingFlowParamsBuilder(details, offerToken)
-                    }
+                if (offerToken != null && oldToken != null) {
+                    upDowngradeBillingFlowParamsBuilder(details, offerToken, oldToken, replacementMode)
                 } else {
-                    billingFlowParamsBuilder(details)
+                    billingFlowParamsBuilder(details, offerToken)
                 }
             billing.launchBillingFlow(activity, params).also {
                 return when (it.isSuccess()) {
@@ -213,9 +205,11 @@ internal class BillingWrapper(context: Context) : Closeable {
                 .setPurchaseToken(token)
                 .build()
         billing.acknowledgePurchase(params) { result: BillingResult ->
-            result.response("purchase acknowledge is failed",
+            result.response(
+                "purchase acknowledge is failed",
                 { callBack?.invoke(PurchaseCallbackStatus.Error(result.responseCode.toString()), purchase) },
-                { callBack?.invoke(PurchaseCallbackStatus.Success(), purchase)?: run {
+                {
+                    callBack?.invoke(PurchaseCallbackStatus.Success(), purchase) ?: run {
                         ApphudInternal.handleObservedPurchase(purchase, false)
                     }
                 },
@@ -247,15 +241,6 @@ internal class BillingWrapper(context: Context) : Closeable {
         }
     }
 
-    /**
-     * BillingFlowParams Builder for upgrades and downgrades.
-     *
-     * @param productDetails ProductDetails object returned by the library.
-     * @param offerToken offer id token
-     * @param oldToken the purchase token of the subscription purchase being upgraded or downgraded.
-     *
-     * @return [BillingFlowParams].
-     */
     private fun upDowngradeBillingFlowParamsBuilder(
         productDetails: ProductDetails,
         offerToken: String,
@@ -282,42 +267,15 @@ internal class BillingWrapper(context: Context) : Closeable {
             .build()
     }
 
-    /**
-     * BillingFlowParams Builder for normal purchases.
-     *
-     * @param productDetails ProductDetails object returned by the library.
-     * @param offerToken  offer id token
-     *
-     * @return [BillingFlowParams].
-     */
     private fun billingFlowParamsBuilder(
         productDetails: ProductDetails,
-        offerToken: String,
+        offerToken: String? = null,
     ): BillingFlowParams {
         return BillingFlowParams.newBuilder().setProductDetailsParamsList(
             listOf(
                 BillingFlowParams.ProductDetailsParams.newBuilder()
                     .setProductDetails(productDetails)
-                    .setOfferToken(offerToken)
-                    .build(),
-            ),
-        )
-            .apply { obfuscatedAccountId?.let { setObfuscatedAccountId(it) } }
-            .build()
-    }
-
-    /**
-     * BillingFlowParams Builder for normal purchases.
-     *
-     * @param productDetails ProductDetails object returned by the library.
-     *
-     * @return [BillingFlowParams].
-     */
-    private fun billingFlowParamsBuilder(productDetails: ProductDetails): BillingFlowParams {
-        return BillingFlowParams.newBuilder().setProductDetailsParamsList(
-            listOf(
-                BillingFlowParams.ProductDetailsParams.newBuilder()
-                    .setProductDetails(productDetails)
+                    .apply { offerToken?.let { setOfferToken(it) } }
                     .build(),
             ),
         )
