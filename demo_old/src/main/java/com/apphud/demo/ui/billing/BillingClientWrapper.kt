@@ -9,11 +9,13 @@ import com.android.billingclient.api.BillingClient
 import com.android.billingclient.api.BillingClientStateListener
 import com.android.billingclient.api.BillingFlowParams
 import com.android.billingclient.api.BillingResult
+import com.android.billingclient.api.PendingPurchasesParams
 import com.android.billingclient.api.ProductDetails
 import com.android.billingclient.api.ProductDetailsResponseListener
 import com.android.billingclient.api.Purchase
 import com.android.billingclient.api.PurchasesUpdatedListener
 import com.android.billingclient.api.QueryProductDetailsParams
+import com.android.billingclient.api.QueryProductDetailsResult
 import com.android.billingclient.api.QueryPurchasesParams
 import org.greenrobot.eventbus.EventBus
 
@@ -23,7 +25,6 @@ class BillingClientWrapper(
     companion object {
         private const val TAG = "ApphudLogs"
 
-        // List of subscription product offerings
         private const val PEACH = "com.apphud.demo.consumable.peach"
         private const val APPLE = "com.apphud.demo.consumable.apple1"
         private const val SUBS_1 = "com.apphud.demo.subscriptions.s1"
@@ -37,21 +38,23 @@ class BillingClientWrapper(
     var purchasesList = mutableListOf<Purchase>()
     var purchaseSuccessListener: ((purchase: Purchase?, billingResult: BillingResult) -> Unit)? = null
 
-    // Initialize the BillingClient.
     private val billingClient =
         BillingClient.newBuilder(context)
             .setListener(this)
-            .enablePendingPurchases()
+            .enablePendingPurchases(
+                PendingPurchasesParams.newBuilder()
+                    .enableOneTimeProducts()
+                    .build()
+            )
+            .enableAutoServiceReconnection()
             .build()
 
-    // Establish a connection to Google Play.
     fun startBillingConnection(billingConnectionState: MutableLiveData<Boolean>) {
         billingClient.startConnection(
             object : BillingClientStateListener {
                 override fun onBillingSetupFinished(billingResult: BillingResult) {
                     if (billingResult.responseCode == BillingClient.BillingResponseCode.OK) {
                         Log.d(TAG, "Billing response OK")
-                        // The BillingClient is ready. You can query purchases and product details here
                         queryPurchases()
                         queryProductDetails()
                         billingConnectionState.postValue(true)
@@ -68,13 +71,11 @@ class BillingClientWrapper(
         )
     }
 
-    // Query Google Play Billing for existing purchases.
-    // New purchases will be provided to PurchasesUpdatedListener.onPurchasesUpdated().
     fun queryPurchases() {
         if (!billingClient.isReady) {
             Log.e(TAG, "queryPurchases: BillingClient is not ready")
+            return
         }
-        // Query for existing subscription products that have been purchased.
         billingClient.queryPurchasesAsync(
             QueryPurchasesParams.newBuilder().setProductType(BillingClient.ProductType.SUBS).build(),
         ) { billingResult, purchaseList ->
@@ -90,32 +91,24 @@ class BillingClientWrapper(
         }
     }
 
-    // Query Google Play Billing for products available to sell and present them in the UI
     fun queryProductDetails() {
-        val params = QueryProductDetailsParams.newBuilder()
-        val productList = mutableListOf<QueryProductDetailsParams.Product>()
-        for (product in LIST_OF_PRODUCTS) {
-            productList.add(
-                QueryProductDetailsParams.Product.newBuilder()
-                    .setProductId(product)
-                    .setProductType(BillingClient.ProductType.SUBS)
-                    .build(),
-            )
-
-            params.setProductList(productList).let { productDetailsParams ->
-                Log.i(TAG, "queryProductDetailsAsync")
-                billingClient.queryProductDetailsAsync(productDetailsParams.build(), this)
-            }
+        val productList = LIST_OF_PRODUCTS.map { product ->
+            QueryProductDetailsParams.Product.newBuilder()
+                .setProductId(product)
+                .setProductType(BillingClient.ProductType.SUBS)
+                .build()
         }
+        val params = QueryProductDetailsParams.newBuilder()
+            .setProductList(productList)
+            .build()
+        billingClient.queryProductDetailsAsync(params, this)
     }
 
-    // [ProductDetailsResponseListener] implementation
-    // Listen to response back from [queryProductDetails] and emits the results
-    // to [_productWithProductDetails].
     override fun onProductDetailsResponse(
         billingResult: BillingResult,
-        productDetailsList: MutableList<ProductDetails>,
+        queryResult: QueryProductDetailsResult,
     ) {
+        val productDetailsList = queryResult.productDetailsList
         val responseCode = billingResult.responseCode
         val debugMessage = billingResult.debugMessage
         when (responseCode) {
@@ -144,7 +137,6 @@ class BillingClientWrapper(
         }
     }
 
-    // Launch Purchase flow
     fun launchBillingFlow(
         activity: Activity,
         params: BillingFlowParams,
@@ -155,7 +147,6 @@ class BillingClientWrapper(
         billingClient.launchBillingFlow(activity, params)
     }
 
-    // PurchasesUpdatedListener that helps handle new purchases returned from the API
     override fun onPurchasesUpdated(
         billingResult: BillingResult,
         purchases: List<Purchase>?,
@@ -181,7 +172,6 @@ class BillingClientWrapper(
         }
     }
 
-    // Perform new subscription purchases' acknowledgement client side.
     private fun acknowledgePurchases(purchase: Purchase?) {
         purchase?.let {
             if (!it.isAcknowledged) {
@@ -203,7 +193,6 @@ class BillingClientWrapper(
         }
     }
 
-    // End Billing connection.
     fun terminateBillingConnection() {
         Log.i(TAG, "Terminating connection")
         billingClient.endConnection()
