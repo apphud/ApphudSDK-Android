@@ -46,7 +46,6 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeout
-import java.util.UUID
 import java.util.concurrent.CancellationException
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.CopyOnWriteArrayList
@@ -128,10 +127,7 @@ internal object ApphudInternal {
     internal var didRegisterCustomerAtThisLaunch = false
     private var isNew = true
     private lateinit var apiKey: ApiKey
-    var deviceId: DeviceId? = null
-        private set
     internal var fallbackMode = false
-    internal var userId: UserId? = null
     internal lateinit var context: Context
 
     internal var apphudListener: ApphudListener? = null
@@ -240,38 +236,12 @@ internal object ApphudInternal {
         }
 
         val cachedPaywalls = if (ignoreCache || !isValid || observerMode) null else userRepository.getCurrentUser()?.paywalls
-        val cachedGroups = if (isValid) readGroupsFromCache() else mutableListOf()
-        val cachedDeviceId = storage.deviceId
-        val cachedUserId = storage.userId
 
         sdkLaunchedAt = System.currentTimeMillis()
 
-        val generatedUUID = UUID.randomUUID().toString()
+        val credentialsChanged = ServiceLocator.instance.resolveCredentialsUseCase(inputUserId, inputDeviceId).credentialsChanged
 
-        val newUserId =
-            if (inputUserId.isNullOrBlank()) {
-                cachedUserId ?: generatedUUID
-            } else {
-                inputUserId
-            }
-        val newDeviceId =
-            if (inputDeviceId.isNullOrBlank()) {
-                cachedDeviceId ?: generatedUUID
-            } else {
-                inputDeviceId
-            }
-
-        val credentialsChanged = cachedUserId != newUserId || cachedDeviceId != newDeviceId
-
-        if (credentialsChanged) {
-            storage.userId = newUserId
-            storage.deviceId = newDeviceId
-        }
-
-        this.userId = newUserId
-        this.deviceId = newDeviceId
-
-        this.productGroups.set(cachedGroups.toList())
+        this.productGroups.set(if (isValid) storage.productGroups.orEmpty() else emptyList())
 
         this.userRegisteredBlock = callback
         RequestManager.setParams(this.context, this.apiKey)
@@ -282,39 +252,21 @@ internal object ApphudInternal {
 
         ApphudLog.log("Need to register user: $needRegistration")
 
-        val ruleController = ServiceLocator.instance.ruleController
-        if (needRegistration) {
-            coroutineScope.launch {
-                runCatchingCancellable {
-                    registration()
-                }.onSuccess {
-                    if (shouldLoadProducts()) {
-                        loadProducts()
-                    }
-                    ServiceLocator.instance.fetchNativePurchasesUseCase()
-                    deviceId?.let { ruleController.start(it) }
-                }.onFailure { error ->
-                    ApphudLog.logE("Registration failed in initialize: ${error.message}")
-                    // Even if registration failed, attempt to load products and start ruleController
-                    if (shouldLoadProducts()) {
-                        loadProducts()
-                    }
-                    ServiceLocator.instance.fetchNativePurchasesUseCase()
-                    deviceId?.let { ruleController.start(it) }
-                }
+        coroutineScope.launch {
+            if (needRegistration) {
+                runCatchingCancellable { registration() }
+                    .onFailure { ApphudLog.logE("Registration failed in initialize: ${it.message}") }
+            } else {
+                mainScope.launch { notifyLoadingCompleted(userRepository.getCurrentUser(), null, true) }
             }
-        } else {
-            mainScope.launch {
-                notifyLoadingCompleted(userRepository.getCurrentUser(), null, true)
-                if (shouldLoadProducts()) {
-                    loadProducts()
-                }
-                coroutineScope.launch {
-                    ServiceLocator.instance.fetchNativePurchasesUseCase()
-                    deviceId?.let { ruleController.start(it) }
-                }
-            }
+            postInitSetup()
         }
+    }
+
+    private suspend fun postInitSetup() {
+        if (shouldLoadProducts()) { loadProducts() }
+        ServiceLocator.instance.fetchNativePurchasesUseCase()
+        userRepository.getDeviceId()?.let { ServiceLocator.instance.ruleController.start(it) }
     }
 
     //endregion
@@ -517,9 +469,9 @@ internal object ApphudInternal {
             return
         }
 
-        val user = userRepository.getCurrentUser()
-        val currentDeviceId = deviceId
-        if (user == null || currentDeviceId == null) {
+        val currentUserId = userRepository.getUserId()
+        val currentDeviceId = userRepository.getDeviceId()
+        if (currentUserId == null || currentDeviceId == null) {
             ApphudLog.logE("Cannot track analytics: user not loaded or deviceId not set")
             return
         }
@@ -542,7 +494,7 @@ internal object ApphudInternal {
                     latestCustomerLoadError,
                     responseCode,
                     success,
-                    user.userId,
+                    currentUserId,
                     currentDeviceId
                 )
             }.onFailure { error ->
@@ -852,7 +804,7 @@ internal object ApphudInternal {
                 }
             }
 
-            val body = UserPropertiesBody(deviceId ?: throw ApphudError("SDK not initialized"), properties, force)
+            val body = UserPropertiesBody(userRepository.getDeviceId() ?: throw ApphudError("SDK not initialized"), properties, force)
 
             return withContext(Dispatchers.IO) {
                 runCatchingCancellable { RequestManager.postUserProperties(body) }
@@ -907,15 +859,10 @@ internal object ApphudInternal {
                 return userRepository.getCurrentUser()
             }
 
-        val originalUserId = this.userId
-        if (web2Web == false) {
-            this.userId = userId
-            storage.userId = userId
-        }
+        userRepository.setUserId(userId)
         RequestManager.setParams(this.context, this.apiKey)
 
         if (web2Web == true) {
-            ApphudInternal.userId = userId
             fromWeb2Web = true
         }
         val needPlacementsPaywalls = !didRegisterCustomerAtThisLaunch && !deferPlacements && !observerMode
@@ -932,9 +879,6 @@ internal object ApphudInternal {
             ApphudLog.logE("updateUserId error: ${apphudError.message}")
             null
         }
-
-        ApphudInternal.userId = customer?.userId ?: userRepository.getCurrentUser()?.userId ?: originalUserId
-        storage.userId = ApphudInternal.userId
 
         customer?.let {
             mainScope.launch { notifyLoadingCompleted(it) }
@@ -1283,8 +1227,8 @@ internal object ApphudInternal {
 
     private fun isInitialized(): Boolean {
         return ::context.isInitialized &&
-            userId != null &&
-            deviceId != null &&
+            runCatching { userRepository.getUserId() }.getOrNull() != null &&
+            runCatching { userRepository.getDeviceId() }.getOrNull() != null &&
             ::apiKey.isInitialized
     }
 
@@ -1350,8 +1294,6 @@ internal object ApphudInternal {
         allowIdentifyUser = true
         didRegisterCustomerAtThisLaunch = false
         setNeedsToUpdateUserProperties = false
-        userId = null
-        deviceId = null
         ApphudLog.log("SDK did logout")
     }
 
@@ -1361,10 +1303,6 @@ internal object ApphudInternal {
 // Groups cache ======================================
     internal fun cacheGroups(groups: List<ApphudGroup>) {
         storage.productGroups = groups
-    }
-
-    private fun readGroupsFromCache(): MutableList<ApphudGroup> {
-        return storage.productGroups?.toMutableList() ?: mutableListOf()
     }
 
     private fun updateGroupsWithProductDetails(productGroups: List<ApphudGroup>) {
@@ -1416,12 +1354,11 @@ internal object ApphudInternal {
     private fun updateUserState(user: ApphudUser, fromFallback: Boolean = false) {
         val userIdChanged = userRepository.setCurrentUser(user)
         if (userIdChanged && !fromFallback) {
+            val newUserId = user.userId
             mainScope.launch {
-                apphudListener?.apphudDidChangeUserID(user.userId)
+                apphudListener?.apphudDidChangeUserID(newUserId)
             }
         }
-
-        userId = user.userId
 
         hasRespondedToPaywallsRequest =
             hasRespondedToPaywallsRequest || user.paywalls.isNotEmpty() || user.placements.isNotEmpty() || observerMode
@@ -1433,8 +1370,7 @@ internal object ApphudInternal {
     }
 
     private fun updateProductState(productsLoaded: List<ProductDetails>) {
-        val cachedProductGroups = readGroupsFromCache()
-        productGroups.set(cachedProductGroups.toList())
+        productGroups.set(storage.productGroups.orEmpty())
         updateGroupsWithProductDetails(productGroups.get())
     }
     //endregion

@@ -26,14 +26,6 @@ internal class UserDataSource(
         storage.userId = null
     }
 
-    fun getUserId(): String? {
-        return storage.userId
-    }
-
-    fun saveUserId(userId: String) {
-        storage.userId = userId
-    }
-
     fun getDeviceId(): String? {
         return storage.deviceId
     }

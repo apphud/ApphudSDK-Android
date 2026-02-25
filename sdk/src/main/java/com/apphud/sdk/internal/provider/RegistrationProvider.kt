@@ -8,6 +8,7 @@ import com.apphud.sdk.ApphudLog
 import com.apphud.sdk.ApphudUtils
 import com.apphud.sdk.BuildConfig
 import com.apphud.sdk.buildAppVersion
+import com.apphud.sdk.internal.data.UserRepository
 import com.apphud.sdk.isDebuggable
 import com.apphud.sdk.storage.Storage
 import java.util.Locale
@@ -17,6 +18,7 @@ import java.util.TimeZone
 internal class RegistrationProvider(
     private val applicationContext: Context,
     private val storage: Storage,
+    private val userRepository: UserRepository,
 ) {
 
     fun getLocale(): String = Locale.getDefault().toString()
@@ -59,7 +61,9 @@ internal class RegistrationProvider(
         else androidId
     }
 
-    fun getDeviceId(): String? = ApphudInternal.deviceId
+    fun getUserId(): String? = userRepository.getUserId()
+
+    fun getDeviceId(): String? = userRepository.getDeviceId()
 
     fun getTimeZone(): String = TimeZone.getDefault().id
 

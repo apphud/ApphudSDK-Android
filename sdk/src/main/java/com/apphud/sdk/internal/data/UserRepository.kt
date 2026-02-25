@@ -10,6 +10,20 @@ internal class UserRepository(
     private val dataSource: UserDataSource
 ) {
     private var currentUser: ApphudUser? = null
+    private var pendingUserId: String? = null
+
+    @Synchronized
+    fun getUserId(): String? =
+        currentUser?.userId ?: pendingUserId ?: dataSource.getCachedUser()?.userId
+
+    @Synchronized
+    fun setUserId(id: String) {
+        pendingUserId = id
+    }
+
+    fun getDeviceId(): String? = dataSource.getDeviceId()
+
+    fun setDeviceId(id: String) = dataSource.saveDeviceId(id)
 
     @Synchronized
     fun getCurrentUser(): ApphudUser? {
@@ -37,6 +51,7 @@ internal class UserRepository(
         }
 
         currentUser = mergedUser
+        pendingUserId = null
 
         if (mergedUser.isTemporary != true) {
             dataSource.saveUser(mergedUser)
@@ -48,6 +63,7 @@ internal class UserRepository(
     @Synchronized
     fun clearUser() {
         currentUser = null
+        pendingUserId = null
         dataSource.clearUser()
     }
 }

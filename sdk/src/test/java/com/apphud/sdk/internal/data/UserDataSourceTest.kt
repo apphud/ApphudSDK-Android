@@ -71,34 +71,6 @@ class UserDataSourceTest {
     }
 
     @Test
-    fun `getUserId should return userId from storage`() {
-        val expectedUserId = "test-user-id"
-        every { storage.userId } returns expectedUserId
-
-        val result = dataSource.getUserId()
-
-        assertEquals("Should return userId from storage", expectedUserId, result)
-    }
-
-    @Test
-    fun `getUserId should return null when no userId in storage`() {
-        every { storage.userId } returns null
-
-        val result = dataSource.getUserId()
-
-        assertNull("Should return null when no userId in storage", result)
-    }
-
-    @Test
-    fun `saveUserId should save userId to storage`() {
-        val userId = "test-user-id"
-
-        dataSource.saveUserId(userId)
-
-        verify { storage.userId = userId }
-    }
-
-    @Test
     fun `getDeviceId should return deviceId from storage`() {
         val expectedDeviceId = "test-device-id"
         every { storage.deviceId } returns expectedDeviceId

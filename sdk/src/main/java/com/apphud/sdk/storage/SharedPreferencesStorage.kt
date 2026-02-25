@@ -202,7 +202,6 @@ internal class SharedPreferencesStorage(
             }
         }
         this.apphudUser = apphudUser
-        this.userId = apphudUser.userId
 
         return userIdChanged
     }

@@ -147,7 +147,7 @@ object Apphud {
      *
      * @return The user ID, or null if the SDK is not initialized.
      */
-    fun userId(): UserId? = ApphudInternal.userId
+    fun userId(): UserId? = runCatching { ServiceLocator.instance.userRepository.getUserId() }.getOrNull()
 
     /**
      * Retrieves the current device ID. This method is useful if you want to implement
@@ -156,7 +156,7 @@ object Apphud {
      * @return The device ID, or null if the SDK is not initialized.
      */
     fun deviceId(): String? {
-        return ApphudInternal.deviceId
+        return runCatching { ServiceLocator.instance.userRepository.getDeviceId() }.getOrNull()
     }
 
     //endregion
@@ -521,7 +521,7 @@ object Apphud {
      * @return A list of `ApphudSubscription` objects.
      */
     fun subscriptions(): List<ApphudSubscription> {
-        return if (ApphudInternal.userId == null) {
+        return if (runCatching { ServiceLocator.instance.userRepository.getUserId() }.getOrNull() == null) {
             ApphudLog.logE("subscriptions: SDK not initialized. Call Apphud.start() first.")
             emptyList()
         } else {
@@ -536,7 +536,7 @@ object Apphud {
      * @return A list of `ApphudNonRenewingPurchase` objects.
      */
     fun nonRenewingPurchases(): List<ApphudNonRenewingPurchase> {
-        return if (ApphudInternal.userId == null) {
+        return if (runCatching { ServiceLocator.instance.userRepository.getUserId() }.getOrNull() == null) {
             ApphudLog.logE("nonRenewingPurchases: SDK not initialized. Call Apphud.start() first.")
             emptyList()
         } else {

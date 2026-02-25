@@ -252,11 +252,7 @@ private fun registration(callback: (ApphudUser?, ApphudError?) -> Unit) {
 }
 ```
 
-## Testing
+## Agent Docs
 
-Tests are located in `sdk/src/test/java/com/apphud/sdk/`.
-
-When writing tests:
-- Use MockK for mocking
-- Use `runTest` from kotlinx-coroutines-test for suspend functions
-- Follow existing test patterns in `internal/data/remote/RemoteRepositoryTest.kt`
+Detailed guides are located in `agentdocs/`:
+- [Testing Guide](agentdocs/unitTest.md) — how to write unit tests
