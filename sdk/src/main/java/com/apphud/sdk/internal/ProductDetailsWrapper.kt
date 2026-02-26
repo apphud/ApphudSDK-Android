@@ -2,7 +2,7 @@ package com.apphud.sdk.internal
 
 import com.android.billingclient.api.BillingClient
 import com.android.billingclient.api.ProductDetails
-import com.android.billingclient.api.PurchaseHistoryRecord
+import com.android.billingclient.api.Purchase
 import com.android.billingclient.api.QueryProductDetailsParams
 import com.apphud.sdk.ApphudLog
 import com.apphud.sdk.ProductId
@@ -26,12 +26,12 @@ internal class ProductDetailsWrapper(
 
     suspend fun restoreSync(
         @BillingClient.ProductType type: ProductType,
-        records: List<PurchaseHistoryRecord>,
+        purchases: List<Purchase>,
     ): PurchaseRestoredCallbackStatus =
         suspendCancellableCoroutine { continuation ->
-            val products = records.map { it.products }.flatten().distinct()
+            val productIds = purchases.map { it.products }.flatten().distinct()
             val productList =
-                products.map {
+                productIds.map {
                     QueryProductDetailsParams.Product.newBuilder()
                         .setProductId(it)
                         .setProductType(type)
@@ -44,27 +44,33 @@ internal class ProductDetailsWrapper(
                     .build()
 
             thread(start = true, name = "restoreAsync+$type") {
-                billing.queryProductDetailsAsync(params) { result, details ->
+                billing.queryProductDetailsAsync(params) { result, queryResult ->
                     kotlin.runCatching {
+                        val details = queryResult.productDetailsList
+                        val unfetched = queryResult.unfetchedProductList
+                        if (unfetched.isNotEmpty()) {
+                            ApphudLog.log("Unfetched products for $type: ${unfetched.map { "${it.productId}(statusCode=${it.statusCode})" }}")
+                        }
                         when (result.isSuccess()) {
                             true -> {
-                                val purchases = mutableListOf<PurchaseRecordDetails>()
+                                val restored = mutableListOf<PurchaseRecordDetails>()
                                 for (productDetails in details) {
-                                    val record = records.firstOrNull { it.products.contains(productDetails.productId) }
-                                    record?.let {
-                                        purchases.add(
+                                    val purchase =
+                                        purchases.firstOrNull { it.products.contains(productDetails.productId) }
+                                    purchase?.let {
+                                        restored.add(
                                             PurchaseRecordDetails(
-                                                record = it,
+                                                purchase = it,
                                                 details = productDetails,
                                             ),
                                         )
                                     }
                                 }
 
-                                when (purchases.isEmpty()) {
+                                when (restored.isEmpty()) {
                                     true -> {
                                         val message =
-                                            "ProductsDetails return empty list for $type and records: $records"
+                                            "ProductsDetails return empty list for $type and purchases: $purchases"
                                         if (continuation.isActive && !continuation.isCompleted) {
                                             continuation.resume(
                                                 PurchaseRestoredCallbackStatus.Error(
@@ -80,7 +86,7 @@ internal class ProductDetailsWrapper(
                                             continuation.resume(
                                                 PurchaseRestoredCallbackStatus.Success(
                                                     type = type,
-                                                    purchases
+                                                    restored
                                                 )
                                             )
                                         }
@@ -88,7 +94,7 @@ internal class ProductDetailsWrapper(
                                 }
                             }
                             else -> {
-                                result.logMessage("RestoreAsync failed for type: $type products: $products")
+                                result.logMessage("RestoreAsync failed for type: $type products: $productIds")
                                 if (continuation.isActive && !continuation.isCompleted) {
                                     continuation.resume(
                                         PurchaseRestoredCallbackStatus.Error(
@@ -131,7 +137,8 @@ internal class ProductDetailsWrapper(
                 .build()
 
         thread(start = true, name = "queryAsync+$type") {
-            billing.queryProductDetailsAsync(params) { result, details ->
+            billing.queryProductDetailsAsync(params) { result, queryResult ->
+                val details = queryResult.productDetailsList
                 when (result.isSuccess()) {
                     true -> {
                         manualCallback?.let { manualCallback.invoke(details) }
@@ -162,8 +169,13 @@ internal class ProductDetailsWrapper(
                     .build()
 
             thread(start = true, name = "queryAsync+$type") {
-                billing.queryProductDetailsAsync(params) { result, details ->
+                billing.queryProductDetailsAsync(params) { result, queryResult ->
                     kotlin.runCatching {
+                        val details = queryResult.productDetailsList
+                        val unfetched = queryResult.unfetchedProductList
+                        if (unfetched.isNotEmpty()) {
+                            ApphudLog.log("Unfetched products for $type: ${unfetched.map { "${it.productId}(statusCode=${it.statusCode})" }}")
+                        }
                         when (result.isSuccess()) {
                             true -> {
                                 if (continuation.isActive && !continuation.isCompleted) {
