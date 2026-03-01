@@ -1193,6 +1193,12 @@ internal object ApphudInternal {
             ApphudLog.log("ServiceLocator not initialized, skip productRepository.reset(): ${e.message}")
         }
 
+        runCatching {
+            ServiceLocator.instance.deviceIdentifiersRepository.clear()
+        }.onFailure { e ->
+            ApphudLog.log("ServiceLocator not initialized, skip deviceIdentifiersRepository.clear(): ${e.message}")
+        }
+
         if (isInitialized()) {
             storage.clean()
         } else {
