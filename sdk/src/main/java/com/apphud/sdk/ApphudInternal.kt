@@ -4,7 +4,6 @@ import android.annotation.SuppressLint
 import android.content.Context
 import android.os.Handler
 import android.os.Looper
-import android.provider.Settings
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.ProcessLifecycleOwner
@@ -15,7 +14,6 @@ import com.apphud.sdk.body.UserPropertiesBody
 import com.apphud.sdk.domain.ApphudGroup
 import com.apphud.sdk.domain.ApphudPaywall
 import com.apphud.sdk.domain.ApphudPaywallScreenShowResult
-import com.apphud.sdk.domain.ApphudPlacement
 import com.apphud.sdk.domain.ApphudProduct
 import com.apphud.sdk.domain.ApphudUser
 import com.apphud.sdk.domain.PaywallEvent
@@ -23,27 +21,19 @@ import com.apphud.sdk.domain.PurchaseRecordDetails
 import com.apphud.sdk.internal.BillingWrapper
 import com.apphud.sdk.internal.ServiceLocator
 import com.apphud.sdk.internal.data.ProductLoadingState
-import com.apphud.sdk.internal.data.ProductRepository
 import com.apphud.sdk.internal.domain.model.ApiKey as ApiKeyModel
 import com.apphud.sdk.internal.presentation.figma.FigmaWebViewActivity
 import com.apphud.sdk.internal.util.runCatchingCancellable
 import com.apphud.sdk.managers.RequestManager
-import com.apphud.sdk.managers.RequestManager.applicationContext
 import com.apphud.sdk.storage.SharedPreferencesStorage
-import com.google.android.gms.appset.AppSet
-import com.google.android.gms.appset.AppSetIdInfo
-import com.google.android.gms.tasks.Task
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.TimeoutCancellationException
-import kotlinx.coroutines.async
-import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeout
 import java.util.concurrent.CancellationException
@@ -51,7 +41,6 @@ import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.CopyOnWriteArrayList
 import java.util.concurrent.CopyOnWriteArraySet
 import java.util.concurrent.atomic.AtomicReference
-import kotlin.coroutines.resume
 import kotlin.math.max
 
 @SuppressLint("StaticFieldLeak")
@@ -235,11 +224,13 @@ internal object ApphudInternal {
             ApphudLog.logI("Ignoring local paywalls cache")
         }
 
-        val cachedPaywalls = if (ignoreCache || !isValid || observerMode) null else userRepository.getCurrentUser()?.paywalls
+        val cachedPaywalls =
+            if (ignoreCache || !isValid || observerMode) null else userRepository.getCurrentUser()?.paywalls
 
         sdkLaunchedAt = System.currentTimeMillis()
 
-        val credentialsChanged = ServiceLocator.instance.resolveCredentialsUseCase(inputUserId, inputDeviceId).credentialsChanged
+        val credentialsChanged =
+            ServiceLocator.instance.resolveCredentialsUseCase(inputUserId, inputDeviceId).credentialsChanged
 
         this.productGroups.set(if (isValid) storage.productGroups.orEmpty() else emptyList())
 
@@ -264,7 +255,9 @@ internal object ApphudInternal {
     }
 
     private suspend fun postInitSetup() {
-        if (shouldLoadProducts()) { loadProducts() }
+        if (shouldLoadProducts()) {
+            loadProducts()
+        }
         ServiceLocator.instance.fetchNativePurchasesUseCase()
         userRepository.getDeviceId()?.let { ServiceLocator.instance.ruleController.start(it) }
     }
@@ -436,7 +429,8 @@ internal object ApphudInternal {
 
     private fun handleError(customerError: ApphudError?) {
         val state = productRepository.state.value
-        val responseCode = if (state is ProductLoadingState.Failed) state.responseCode else BillingClient.BillingResponseCode.OK
+        val responseCode =
+            if (state is ProductLoadingState.Failed) state.responseCode else BillingClient.BillingResponseCode.OK
         val error = latestCustomerLoadError ?: customerError ?: if (responseCode == APPHUD_NO_REQUEST) {
             ApphudError("Paywalls load error", errorCode = responseCode)
         } else {
@@ -460,7 +454,8 @@ internal object ApphudInternal {
     private fun logNotReadyState() {
         val user = userRepository.getCurrentUser()
         val productsState = productRepository.state.value
-        val productsResponseCode = if (productsState is ProductLoadingState.Failed) productsState.responseCode else BillingClient.BillingResponseCode.OK
+        val productsResponseCode =
+            if (productsState is ProductLoadingState.Failed) productsState.responseCode else BillingClient.BillingResponseCode.OK
         ApphudLog.log("Not yet ready for callbacks invoke: isRegisteringUser: $isRegisteringUser, currentUserExist: ${user != null}, latestCustomerError: $latestCustomerLoadError, paywallsEmpty: ${user?.paywalls?.isEmpty() != false}, productsResponseCode = $productsResponseCode, productsStatus: $productsState, productDetailsEmpty: ${productDetails.isEmpty()}, deferred: $deferPlacements, hasRespondedToPaywallsRequest=$hasRespondedToPaywallsRequest")
     }
 
@@ -481,7 +476,8 @@ internal object ApphudInternal {
         val userLoad = if (firstCustomerLoadedTime != null) (firstCustomerLoadedTime!! - sdkLaunchedAt) else 0
         val productsLoaded = productsLoadedTime ?: 0
         val state = productRepository.state.value
-        val responseCode = if (state is ProductLoadingState.Failed) state.responseCode else BillingClient.BillingResponseCode.OK
+        val responseCode =
+            if (state is ProductLoadingState.Failed) state.responseCode else BillingClient.BillingResponseCode.OK
         ApphudLog.logI("SDK Benchmarks: User ${userLoad}ms, Products: ${productsLoaded}ms, Total: ${totalLoad}ms, Apphud Error: ${latestCustomerLoadError?.message}, Billing Response Code: ${responseCode}, ErrorCode: ${latestCustomerLoadError?.errorCode}")
         coroutineScope.launch {
             runCatchingCancellable {
@@ -608,19 +604,6 @@ internal object ApphudInternal {
             }
 
             throw error.toApphudError()
-        }
-    }
-
-    private suspend fun repeatRegistrationSilent() {
-        val needPlacementsPaywalls = !didRegisterCustomerAtThisLaunch && !deferPlacements && !observerMode
-        runCatchingCancellable {
-            ServiceLocator.instance.registrationUseCase(
-                needPlacementsPaywalls = needPlacementsPaywalls,
-                isNew = isNew,
-                forceRegistration = true
-            )
-        }.onSuccess {
-            mainScope.launch { notifyLoadingCompleted(it) }
         }
     }
 
@@ -804,7 +787,11 @@ internal object ApphudInternal {
                 }
             }
 
-            val body = UserPropertiesBody(userRepository.getDeviceId() ?: throw ApphudError("SDK not initialized"), properties, force)
+            val body = UserPropertiesBody(
+                userRepository.getDeviceId() ?: throw ApphudError("SDK not initialized"),
+                properties,
+                force
+            )
 
             return withContext(Dispatchers.IO) {
                 runCatchingCancellable { RequestManager.postUserProperties(body) }
@@ -1095,45 +1082,6 @@ internal object ApphudInternal {
         }
     }
 
-    private suspend fun fetchAdvertisingId(): String? {
-        return RequestManager.fetchAdvertisingId()
-    }
-
-    private suspend fun fetchAppSetId(): String? =
-        suspendCancellableCoroutine { continuation ->
-            val client = AppSet.getClient(applicationContext)
-            val task: Task<AppSetIdInfo> = client.appSetIdInfo
-            task.addOnSuccessListener {
-                // Read app set ID value, which uses version 4 of the
-                // universally unique identifier (UUID) format.
-                val id: String = it.id
-
-                if (continuation.isActive) {
-                    continuation.resume(id)
-                }
-            }
-            task.addOnFailureListener {
-                if (continuation.isActive) {
-                    continuation.resume(null)
-                }
-            }
-            task.addOnCanceledListener {
-                if (continuation.isActive) {
-                    continuation.resume(null)
-                }
-            }
-        }
-
-    private suspend fun fetchAndroidId(): String? =
-        suspendCancellableCoroutine { continuation ->
-            val androidId: String? = fetchAndroidIdSync()
-            if (continuation.isActive) {
-                continuation.resume(androidId)
-            }
-        }
-
-    fun fetchAndroidIdSync(): String? =
-        Settings.Secure.getString(context.contentResolver, Settings.Secure.ANDROID_ID)
 
     fun getProductDetails(): List<ProductDetails> =
         productDetails.toList()
@@ -1169,54 +1117,22 @@ internal object ApphudInternal {
         return groups
     }
 
-    private suspend fun fetchAllDeviceIdentifiers(): Array<String> {
-        val newIdentifiers = arrayOf("", "", "")
-        kotlinx.coroutines.coroutineScope {
-            listOf(
-                async {
-                    val adId = fetchAdvertisingId()
-                    if (adId == null || adId == "00000000-0000-0000-0000-000000000000") {
-                        ApphudLog.log("Unable to fetch Advertising ID, please check AD_ID permission in the manifest file.")
-                    } else {
-                        newIdentifiers[0] = adId
-                    }
-                },
-                async {
-                    fetchAppSetId()?.let { newIdentifiers[1] = it }
-                },
-                async {
-                    fetchAndroidId()?.let { newIdentifiers[2] = it }
-                }
-            ).awaitAll()
-        }
-        return newIdentifiers
-    }
-
     @Synchronized
     fun collectDeviceIdentifiers() {
         if (!isInitialized()) {
             ApphudLog.logE("collectDeviceIdentifiers: $MUST_REGISTER_ERROR")
             return
         }
-
-        if (ApphudUtils.optOutOfTracking) {
-            ApphudLog.logE("Unable to collect device identifiers because optOutOfTracking() is called.")
-            return
-        }
-
         coroutineScope.launch {
             runCatchingCancellable {
-                val cachedIdentifiers = storage.deviceIdentifiers
-                val newIdentifiers = fetchAllDeviceIdentifiers()
-                if (!newIdentifiers.contentEquals(cachedIdentifiers)) {
-                    storage.deviceIdentifiers = newIdentifiers
-                    repeatRegistrationSilent()
-                } else {
-                    ApphudLog.log("Device Identifiers not changed")
-                }
-            }.onFailure { error ->
-                ApphudLog.logE("Error collecting device identifiers: ${error.message}")
-            }
+                val needPP = !didRegisterCustomerAtThisLaunch && !deferPlacements && !observerMode
+                val user = ServiceLocator.instance.deviceIdentifiersInteractor(
+                    scope = this,
+                    needPlacementsPaywalls = needPP,
+                    isNew = isNew,
+                )
+                user?.let { mainScope.launch { notifyLoadingCompleted(it) } }
+            }.onFailure { ApphudLog.logE("Error collecting device identifiers: ${it.message}") }
         }
     }
 

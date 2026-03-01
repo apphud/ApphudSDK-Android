@@ -1,9 +1,6 @@
 package com.apphud.sdk.managers
 
 import android.content.Context
-import android.content.pm.PackageManager
-import android.content.pm.PackageManager.PackageInfoFlags
-import android.os.Build
 import com.android.billingclient.api.BillingClient
 import com.android.billingclient.api.ProductDetails
 import com.apphud.sdk.ApphudError
@@ -26,15 +23,12 @@ import com.apphud.sdk.internal.domain.model.GetProductsParams
 import com.apphud.sdk.internal.domain.model.PurchaseContext
 import com.apphud.sdk.internal.util.runCatchingCancellable
 import com.apphud.sdk.isDebuggable
-import com.apphud.sdk.managers.AdvertisingIdManager.AdInfo
 import com.apphud.sdk.parser.GsonParser
 import com.apphud.sdk.parser.Parser
 import com.apphud.sdk.processFallbackData
 import com.apphud.sdk.storage.SharedPreferencesStorage
 import com.google.gson.GsonBuilder
-import kotlinx.coroutines.suspendCancellableCoroutine
 import java.net.SocketTimeoutException
-import kotlin.coroutines.resume
 
 internal object RequestManager {
     private const val MUST_REGISTER_ERROR =
@@ -412,54 +406,6 @@ internal object RequestManager {
         )
     }
 
-    suspend fun fetchAdvertisingId(): String? =
-        suspendCancellableCoroutine { continuation ->
-            if (hasPermission("com.google.android.gms.permission.AD_ID")) {
-                var advId: String? = null
-                try {
-                    val adInfo: AdInfo = AdvertisingIdManager.getAdvertisingIdInfo(applicationContext)
-                    advId = adInfo.id
-                } catch (e: java.lang.Exception) {
-                    ApphudLog.logE("Finish load advertisingId: $e")
-                }
-
-                if (continuation.isActive) {
-                    continuation.resume(advId)
-                }
-            } else {
-                if (continuation.isActive) {
-                    continuation.resume(null)
-                }
-            }
-        }
-
-    private fun hasPermission(permission: String): Boolean {
-        try {
-            var pInfo =
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-                    applicationContext.packageManager.getPackageInfo(
-                        ApphudUtils.packageName,
-                        PackageInfoFlags.of(PackageManager.GET_PERMISSIONS.toLong()),
-                    )
-                } else {
-                    applicationContext.packageManager.getPackageInfo(
-                        ApphudUtils.packageName,
-                        PackageManager.GET_PERMISSIONS
-                    )
-                }
-
-            if (pInfo.requestedPermissions != null) {
-                for (p in pInfo.requestedPermissions) {
-                    if (p == permission) {
-                        return true
-                    }
-                }
-            }
-        } catch (e: java.lang.Exception) {
-            e.printStackTrace()
-        }
-        return false
-    }
 }
 
 fun ProductDetails.priceCurrencyCode(): String? {
