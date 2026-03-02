@@ -58,14 +58,17 @@ internal class DeviceIdentifiersDataSource(
     private suspend fun fetchAdvertisingId(): String? =
         suspendCancellableCoroutine { continuation ->
             if (hasAdIdPermission()) {
+                ApphudLog.logI("Started fetching AD ID")
                 var advId: String? = null
                 try {
                     val adInfo: AdvertisingIdManager.AdInfo =
                         AdvertisingIdManager.getAdvertisingIdInfo(applicationContext)
                     advId = adInfo.id
                 } catch (e: Exception) {
-                    ApphudLog.logE("Finish load advertisingId: $e")
+                    ApphudLog.logE("Failed to fetch AD ID: $e")
                 }
+
+                ApphudLog.logI("Finished fetching AD ID $advId")
 
                 if (continuation.isActive) {
                     if (advId == null || advId == "00000000-0000-0000-0000-000000000000") {
@@ -84,10 +87,12 @@ internal class DeviceIdentifiersDataSource(
 
     private suspend fun fetchAppSetId(): String? =
         suspendCancellableCoroutine { continuation ->
+            ApphudLog.logI("Started fetching App Set ID")
             val client = AppSet.getClient(applicationContext)
             val task: Task<AppSetIdInfo> = client.appSetIdInfo
             task.addOnSuccessListener {
                 val id: String = it.id
+                ApphudLog.logI("Finished fetching App Set ID $id")
                 if (continuation.isActive) {
                     continuation.resume(id)
                 }
@@ -106,7 +111,9 @@ internal class DeviceIdentifiersDataSource(
 
     private suspend fun fetchAndroidId(): String? =
         suspendCancellableCoroutine { continuation ->
+            ApphudLog.logI("Started fetching Android ID")
             val androidId: String? = fetchAndroidIdSync()
+            ApphudLog.logI("Finished fetching Android ID")
             if (continuation.isActive) {
                 continuation.resume(androidId)
             }
