@@ -71,7 +71,7 @@ internal class RegistrationUseCase(
 
         val newUser = runCatchingCancellable {
             requestManager.registration(
-                needPaywalls = needPlacementsPaywalls,
+                needPlacements = needPlacementsPaywalls,
                 isNew = isNew,
                 forceRegistration = forceRegistration,
                 userId = userId,
@@ -98,17 +98,11 @@ internal class RegistrationUseCase(
     ): ApphudUser {
         if (cachedUser == null) return newUser
 
-        val shouldPreservePaywalls = newUser.paywalls.isEmpty() && cachedUser.paywalls.isNotEmpty()
         val shouldPreservePlacements = newUser.placements.isEmpty() && cachedUser.placements.isNotEmpty()
 
-        return if (shouldPreservePaywalls || shouldPreservePlacements) {
-            ApphudLog.log(
-                "Preserving cached paywalls/placements: " +
-                    "paywalls=${shouldPreservePaywalls}, placements=${shouldPreservePlacements}"
-            )
+        return if (shouldPreservePlacements) {
             newUser.copy(
-                paywalls = if (shouldPreservePaywalls) cachedUser.paywalls else newUser.paywalls,
-                placements = if (shouldPreservePlacements) cachedUser.placements else newUser.placements
+                placements = cachedUser.placements
             )
         } else {
             newUser

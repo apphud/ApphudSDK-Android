@@ -63,7 +63,7 @@ internal class ServiceLocator(
     private val placementsMapper = PlacementsMapper(paywallsMapper)
     private val subscriptionMapper = SubscriptionMapper()
     private val customerMapper =
-        CustomerMapper(subscriptionMapper, paywallsMapper, placementsMapper)
+        CustomerMapper(subscriptionMapper, placementsMapper)
 
     val userDataSource: UserDataSource = UserDataSource(storage)
 

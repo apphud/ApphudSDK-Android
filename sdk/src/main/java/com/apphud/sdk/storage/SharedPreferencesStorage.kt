@@ -249,23 +249,19 @@ internal class SharedPreferencesStorage(
             return
         }
 
-        val legacyPaywalls = readLegacyPaywalls()
         val legacyPlacements = readLegacyPlacements()
 
-        if (legacyPaywalls.isNullOrEmpty() && legacyPlacements.isNullOrEmpty()) {
+        if (legacyPlacements.isNullOrEmpty()) {
             clearLegacyPaywallsCache()
             return
         }
 
-        val needMigration = currentUser.paywalls.isEmpty() && !legacyPaywalls.isNullOrEmpty()
+        val needMigration = currentUser.placements.isEmpty() && !legacyPlacements.isNullOrEmpty()
 
         if (needMigration) {
-            val migratedUser = currentUser.copy(
-                paywalls = legacyPaywalls,
-                placements = legacyPlacements ?: listOf()
-            )
+            val migratedUser = currentUser.copy(placements = legacyPlacements)
             apphudUser = migratedUser
-            ApphudLog.log("Migrated paywalls/placements to ApphudUser")
+            ApphudLog.log("Migrated placements to ApphudUser")
         }
 
         clearLegacyPaywallsCache()

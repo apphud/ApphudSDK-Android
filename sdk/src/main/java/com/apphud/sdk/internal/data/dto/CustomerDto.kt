@@ -7,6 +7,5 @@ internal data class CustomerDto(
     val userId: String,
     val subscriptions: List<SubscriptionDto>,
     val currency: CurrencyDto?,
-    val paywalls: List<ApphudPaywallDto>?,
     val placements: List<ApphudPlacementDto>?,
 )

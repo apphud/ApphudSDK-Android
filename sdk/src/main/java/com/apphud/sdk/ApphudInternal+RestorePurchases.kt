@@ -194,15 +194,15 @@ private fun ApphudInternal.findJustPurchasedProduct(
 ): ApphudProduct? {
     try {
         val user = userRepository.getCurrentUser()
-        val userPaywalls = user?.paywalls.orEmpty()
         val userPlacements = user?.placements.orEmpty()
 
-        val targetPaywall =
-            if (placementIdentifier != null) {
-                userPlacements.firstOrNull { it.identifier == placementIdentifier }?.paywall
-            } else {
-                userPaywalls.firstOrNull { it.identifier == paywallIdentifier }
-            }
+        val targetPaywall = when {
+            placementIdentifier != null ->
+                userPlacements.firstOrNull { placement -> placement.identifier == placementIdentifier }?.paywall
+            paywallIdentifier != null ->
+                userPlacements.firstNotNullOfOrNull { placement -> placement.paywall?.takeIf { paywall -> paywall.identifier == paywallIdentifier } }
+            else -> null
+        }
 
         productDetails?.let { details ->
             return targetPaywall?.products?.find { it.productDetails?.productId == details.productId }

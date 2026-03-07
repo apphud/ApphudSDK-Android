@@ -45,14 +45,14 @@ internal class RemoteRepository(
 ) {
 
     suspend fun getCustomers(
-        needPaywalls: Boolean,
+        needPlacements: Boolean,
         isNew: Boolean,
         userId: UserId? = null,
         email: String? = null,
     ): Result<ApphudUser> =
         runCatchingCancellable {
             val request =
-                buildPostRequest(urlProvider.customersUrl, registrationBodyFactory.create(needPaywalls, isNew, userId, email))
+                buildPostRequest(urlProvider.customersUrl, registrationBodyFactory.create(needPlacements, isNew, userId, email))
             executeForResponse<CustomerDto>(okHttpClient, gson, request)
         }
             .recoverCatchingCancellable { e ->
