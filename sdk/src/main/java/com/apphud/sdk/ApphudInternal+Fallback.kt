@@ -2,6 +2,7 @@ package com.apphud.sdk
 
 import android.content.Context
 import com.android.billingclient.api.BillingClient.BillingResponseCode
+import com.apphud.sdk.domain.ApphudPlacement
 import com.apphud.sdk.domain.ApphudUser
 import com.apphud.sdk.domain.FallbackJsonObject
 import com.apphud.sdk.internal.util.runCatchingCancellable
@@ -25,8 +26,7 @@ internal fun ApphudInternal.processFallbackData(callback: PaywallCallback) {
     try {
         if (userRepository.getCurrentUser() == null) {
             val temporaryUser = ApphudUser(
-                userRepository.getUserId() ?: UUID.randomUUID().toString(), "", "", listOf(), listOf(), listOf(),
-                listOf(), true,
+                userRepository.getUserId() ?: UUID.randomUUID().toString(), "", "", listOf(), listOf(), listOf(), true,
             )
             userRepository.setCurrentUser(temporaryUser)
             ApphudLog.log("Fallback: user created: ${userRepository.getUserId()}")
@@ -34,7 +34,11 @@ internal fun ApphudInternal.processFallbackData(callback: PaywallCallback) {
 
         processedFallbackData = true
 
-        var ids = (userRepository.getCurrentUser()?.paywalls.orEmpty()).map { it.products?.map { it.productId } ?: listOf() }.flatten()
+        var ids = userRepository.getCurrentUser()
+            ?.placements
+            ?.flatMap { it.paywall?.products.orEmpty() }
+            ?.map { it.productId }
+            .orEmpty()
         if (ids.isEmpty()) {
             val jsonFileString = getJsonDataFromAsset(context, "apphud_paywalls_fallback.json")
             val gson = Gson()
@@ -43,14 +47,14 @@ internal fun ApphudInternal.processFallbackData(callback: PaywallCallback) {
             val paywallToParse = paywallsMapperLegacy.map(fallbackJson.data.results)
             ids = paywallToParse.map { it.products?.map { it.productId } ?: listOf() }.flatten()
 
+            val placements = paywallToParse.map { ApphudPlacement.createCustom(it.identifier, it) }
             val fallbackUser = ApphudUser(
                 userId = userRepository.getUserId() ?: UUID.randomUUID().toString(),
                 currencyCode = "",
                 countryCode = "",
                 subscriptions = listOf(),
                 purchases = listOf(),
-                paywalls = paywallToParse,
-                placements = listOf(),
+                placements = placements,
                 isTemporary = true
             )
             userRepository.setCurrentUser(fallbackUser)
@@ -85,7 +89,7 @@ internal fun ApphudInternal.processFallbackData(callback: PaywallCallback) {
                     fromFallback = true,
                     fromCache = true
                 )
-                callback(user?.paywalls.orEmpty(), error)
+                callback(user?.placements?.mapNotNull { it.paywall }.orEmpty(), error)
             }
         }
     } catch (ex: Exception) {

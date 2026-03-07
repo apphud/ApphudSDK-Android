@@ -77,11 +77,10 @@ class SharedPreferencesStorageMigrationTest {
     }
 
     @Test
-    fun `migration from v2 to v3 should transfer paywalls to user when user has empty paywalls`() {
-        // Arrange: Set up v2 cache with user (empty paywalls) and separate paywalls cache
-        val userWithEmptyPaywalls = createTestUser(
+    fun `migration from v2 to v3 should transfer placements to user when user has empty placements`() {
+        // Arrange: Set up v2 cache with user (empty placements) and separate placements cache
+        val userWithEmptyPlacements = createTestUser(
             userId = "test-user-id",
-            paywalls = emptyList(),
             placements = emptyList()
         )
         val legacyPaywalls = listOf(
@@ -92,7 +91,7 @@ class SharedPreferencesStorageMigrationTest {
             createTestPlacement("placement-1", "onboarding")
         )
 
-        setupV2Cache(userWithEmptyPaywalls, legacyPaywalls, legacyPlacements)
+        setupV2Cache(userWithEmptyPlacements, legacyPaywalls, legacyPlacements)
 
         // Act: Initialize storage (triggers migration)
         val storage = SharedPreferencesStorage(context)
@@ -102,7 +101,7 @@ class SharedPreferencesStorageMigrationTest {
         assertTrue("Cache should be valid after migration", isValid)
         assertEquals("Cache version should be 3", "3", prefsMap[CACHE_VERSION_KEY])
 
-        // Verify migrated user has paywalls
+        // Verify migrated user has placements
         val migratedUserJson = prefsMap[APPHUD_USER_KEY] as? String
         assertNotNull("User JSON should exist after migration", migratedUserJson)
 
@@ -111,12 +110,11 @@ class SharedPreferencesStorageMigrationTest {
             object : TypeToken<ApphudUser>() {}.type
         )
         assertNotNull("User should be deserializable", migratedUser)
-        assertEquals("User should have 2 paywalls", 2, migratedUser?.paywalls?.size)
         assertEquals("User should have 1 placement", 1, migratedUser?.placements?.size)
         assertEquals(
-            "First paywall identifier should match",
-            "main_paywall",
-            migratedUser?.paywalls?.get(0)?.identifier
+            "First placement identifier should match",
+            "onboarding",
+            migratedUser?.placements?.get(0)?.identifier
         )
 
         // Legacy keys should be cleared
@@ -125,19 +123,21 @@ class SharedPreferencesStorageMigrationTest {
     }
 
     @Test
-    fun `migration from v2 to v3 should not overwrite user paywalls if user already has paywalls`() {
-        // Arrange: User already has paywalls, legacy cache also has paywalls
-        val existingPaywalls = listOf(createTestPaywall("existing-1", "existing_paywall"))
-        val userWithPaywalls = createTestUser(
+    fun `migration from v2 to v3 should not overwrite user placements if user already has placements`() {
+        // Arrange: User already has placements, legacy cache also has placements
+        val existingPlacement = createTestPlacement("existing-1", "existing_placement")
+        val userWithPlacements = createTestUser(
             userId = "test-user-id",
-            paywalls = existingPaywalls,
-            placements = emptyList()
+            placements = listOf(existingPlacement)
         )
         val legacyPaywalls = listOf(
             createTestPaywall("legacy-1", "legacy_paywall")
         )
+        val legacyPlacements = listOf(
+            createTestPlacement("legacy-pl-1", "legacy_placement")
+        )
 
-        setupV2Cache(userWithPaywalls, legacyPaywalls, emptyList())
+        setupV2Cache(userWithPlacements, legacyPaywalls, legacyPlacements)
 
         // Act
         val storage = SharedPreferencesStorage(context)
@@ -152,11 +152,11 @@ class SharedPreferencesStorageMigrationTest {
             object : TypeToken<ApphudUser>() {}.type
         )
         assertNotNull("User should exist after migration", migratedUser)
-        assertEquals("User should keep original paywall count", 1, migratedUser?.paywalls?.size)
+        assertEquals("User should keep original placement count", 1, migratedUser?.placements?.size)
         assertEquals(
-            "User should keep existing paywall identifier",
-            "existing_paywall",
-            migratedUser?.paywalls?.get(0)?.identifier
+            "User should keep existing placement identifier",
+            "existing_placement",
+            migratedUser?.placements?.get(0)?.identifier
         )
 
         // Legacy keys should still be cleared
@@ -168,7 +168,6 @@ class SharedPreferencesStorageMigrationTest {
         // Arrange: User exists, but no legacy paywalls/placements
         val user = createTestUser(
             userId = "test-user-id",
-            paywalls = emptyList(),
             placements = emptyList()
         )
 
@@ -188,7 +187,7 @@ class SharedPreferencesStorageMigrationTest {
             object : TypeToken<ApphudUser>() {}.type
         )
         assertNotNull("User should exist after migration", migratedUser)
-        assertTrue("User paywalls should remain empty", migratedUser?.paywalls?.isEmpty() == true)
+        assertTrue("User placements should remain empty", migratedUser?.placements?.isEmpty() == true)
     }
 
     @Test
@@ -216,7 +215,7 @@ class SharedPreferencesStorageMigrationTest {
     @Test
     fun `validateCaches should clear all caches for invalid version`() {
         // Arrange: Invalid cache version (version 1)
-        val user = createTestUser("test-user", emptyList(), emptyList())
+        val user = createTestUser("test-user", emptyList())
 
         prefsMap[CACHE_VERSION_KEY] = "1"
         prefsMap[APPHUD_USER_KEY] = parser.toJson(user)
@@ -237,8 +236,7 @@ class SharedPreferencesStorageMigrationTest {
         // Arrange: Already on v3
         val user = createTestUser(
             userId = "test-user",
-            paywalls = listOf(createTestPaywall("p1", "paywall")),
-            placements = emptyList()
+            placements = listOf(createTestPlacement("pl1", "placement"))
         )
 
         prefsMap[CACHE_VERSION_KEY] = "3"
@@ -257,13 +255,13 @@ class SharedPreferencesStorageMigrationTest {
             object : TypeToken<ApphudUser>() {}.type
         )
         assertNotNull("User should exist", storedUser)
-        assertEquals("User paywalls should be preserved", 1, storedUser?.paywalls?.size)
+        assertEquals("User placements should be preserved", 1, storedUser?.placements?.size)
     }
 
     @Test
     fun `validateCaches should handle null cache version`() {
         // Arrange: No cache version set (fresh install or corrupted)
-        val user = createTestUser("test-user", emptyList(), emptyList())
+        val user = createTestUser("test-user", emptyList())
         prefsMap[APPHUD_USER_KEY] = parser.toJson(user)
         // No CACHE_VERSION_KEY set
 
@@ -280,7 +278,6 @@ class SharedPreferencesStorageMigrationTest {
 
     private fun createTestUser(
         userId: String,
-        paywalls: List<ApphudPaywall>,
         placements: List<ApphudPlacement>,
     ): ApphudUser {
         return ApphudUser(
@@ -289,7 +286,6 @@ class SharedPreferencesStorageMigrationTest {
             countryCode = "US",
             subscriptions = emptyList(),
             purchases = emptyList(),
-            paywalls = paywalls,
             placements = placements,
             isTemporary = false
         )

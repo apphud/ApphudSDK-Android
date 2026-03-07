@@ -1,6 +1,5 @@
 package com.apphud.sdk.domain
 
-import com.apphud.sdk.ApphudInternal
 import com.apphud.sdk.UserId
 
 data class ApphudUser(
@@ -32,39 +31,12 @@ data class ApphudUser(
     var purchases: List<ApphudNonRenewingPurchase>,
 
     /**
-     * There properties are for internal usage, to get paywalls and placements
-     * use paywalls() and placements() functions below
+     * There properties are for internal usage, to get placements
+     * use placements() function below
      */
-    internal val paywalls: List<ApphudPaywall>,
     internal val placements: List<ApphudPlacement>,
     internal val isTemporary: Boolean?,
 ) {
-    /** Returns:
-     * List<ApphudPlacement>: A list of placements, potentially altered based
-     * on the user's involvement in A/B testing, if any.
-     *
-     * __Note__: This function doesn't suspend until inner `ProductDetails`
-     * are loaded from Google Play. That means placements may or may not have
-     * inner Google Play products at the time you call this function.
-     *
-     * To get placements with awaiting for inner Google Play products, use
-     * Apphud.placements() or Apphud.placementsDidLoadCallback(...) functions.
-     */
-    fun rawPlacements(): List<ApphudPlacement> = ApphudInternal.userRepository.getCurrentUser()?.placements.orEmpty()
-
-    /** Returns:
-     * List<ApphudPaywall>: A list of paywalls, potentially altered based
-     * on the user's involvement in A/B testing, if any.
-     *
-     * __Note__: This function doesn't suspend until inner `ProductDetails`
-     * are loaded from Google Play. That means paywalls may or may not have
-     * inner Google Play products at the time you call this function.
-     *
-     * To get paywalls with awaiting for inner Google Play products, use
-     * Apphud.paywalls() or Apphud.paywallsDidLoadCallback(...) functions.
-     */
-    fun rawPaywalls(): List<ApphudPaywall> = ApphudInternal.userRepository.getCurrentUser()?.paywalls.orEmpty()
-
     /**
      * Returns true if user has any subscriptions or non-renewing purchases.
      */

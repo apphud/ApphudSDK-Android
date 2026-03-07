@@ -117,7 +117,6 @@ class ApphudHasPremiumAccessTest {
             countryCode = "US",
             subscriptions = subscriptions,
             purchases = emptyList(),
-            paywalls = emptyList(),
             placements = emptyList(),
             isTemporary = false
         )
@@ -130,7 +129,6 @@ class ApphudHasPremiumAccessTest {
             countryCode = "US",
             subscriptions = emptyList(),
             purchases = purchases,
-            paywalls = emptyList(),
             placements = emptyList(),
             isTemporary = false
         )

@@ -127,7 +127,7 @@ class ProductsFragment : Fragment() {
             if (placementId != null) {
                 Apphud.placements().firstOrNull { it.identifier == placementId }?.paywall
             } else {
-                Apphud.rawPaywalls().firstOrNull { it.identifier == paywallId }
+                Apphud.rawPlacements().mapNotNull { it.paywall }.firstOrNull { it.identifier == paywallId }
             }
         return paywall
     }

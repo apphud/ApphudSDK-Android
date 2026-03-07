@@ -1,6 +1,5 @@
 package com.apphud.sdk.internal.data.mapper
 
-import android.util.Log
 import com.apphud.sdk.domain.ApphudPaywall
 import com.apphud.sdk.domain.ApphudPaywallScreen
 import com.apphud.sdk.domain.ApphudProduct

@@ -106,7 +106,7 @@ class RemoteRepositoryTest {
         mockHttpCall(createMockResponse(200, createSuccessResponse()))
 
         val result = remoteRepository.getCustomers(
-            needPaywalls = true,
+            needPlacements = true,
             isNew = false,
             userId = null,
             email = null
@@ -121,7 +121,7 @@ class RemoteRepositoryTest {
         mockHttpCall(createMockResponse(401, create401ErrorResponse()))
 
         val result = remoteRepository.getCustomers(
-            needPaywalls = true,
+            needPlacements = true,
             isNew = false,
             userId = null,
             email = null
@@ -145,7 +145,7 @@ class RemoteRepositoryTest {
         mockHttpCallWithException(java.net.SocketTimeoutException("timeout"))
 
         val result = remoteRepository.getCustomers(
-            needPaywalls = true,
+            needPlacements = true,
             isNew = false,
             userId = null,
             email = null
@@ -168,7 +168,7 @@ class RemoteRepositoryTest {
         mockHttpCall(createMockResponse(200, invalidJson))
 
         val result = remoteRepository.getCustomers(
-            needPaywalls = true,
+            needPlacements = true,
             isNew = false,
             userId = null,
             email = null
@@ -183,7 +183,7 @@ class RemoteRepositoryTest {
         mockHttpCall(createMockResponse(200, responseWithNullResults))
 
         val result = remoteRepository.getCustomers(
-            needPaywalls = true,
+            needPlacements = true,
             isNew = false,
             userId = null,
             email = null
@@ -203,7 +203,7 @@ class RemoteRepositoryTest {
         mockHttpCall(createMockResponse(500, "Internal Server Error"))
 
         val result = remoteRepository.getCustomers(
-            needPaywalls = true,
+            needPlacements = true,
             isNew = false,
             userId = null,
             email = null
@@ -223,7 +223,7 @@ class RemoteRepositoryTest {
         mockHttpCallWithException(java.net.ConnectException("Connection refused"))
 
         val result = remoteRepository.getCustomers(
-            needPaywalls = true,
+            needPlacements = true,
             isNew = false,
             userId = null,
             email = null

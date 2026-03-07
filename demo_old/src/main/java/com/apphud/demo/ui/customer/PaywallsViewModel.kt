@@ -24,7 +24,7 @@ class PaywallsViewModel : ViewModel() {
                 items.add(AdapterItem(null, it))
             }
         } else {
-            val list = Apphud.rawPaywalls()
+            val list = Apphud.rawPlacements().mapNotNull { it.paywall }
             items.clear()
             val sortedPaywalls = list.sortedBy { it.name ?: "" }
             sortedPaywalls.forEach {

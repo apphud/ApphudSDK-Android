@@ -1,6 +1,5 @@
 package com.apphud.sdk.internal.data
 
-import com.apphud.sdk.domain.ApphudPaywall
 import com.apphud.sdk.domain.ApphudPlacement
 import com.apphud.sdk.domain.ApphudUser
 import io.mockk.every
@@ -21,22 +20,7 @@ class UserRepositoryTest {
     private val mockUser2: ApphudUser = mockk(relaxed = true)
     private val temporaryUser: ApphudUser = mockk(relaxed = true)
 
-    private fun createTestPaywall(id: String = "paywall-1") = ApphudPaywall(
-        id = id,
-        name = "Test Paywall",
-        identifier = "test_paywall",
-        default = false,
-        json = null,
-        products = null,
-        screen = null,
-        experimentName = null,
-        variationName = null,
-        parentPaywallIdentifier = null,
-        placementIdentifier = null,
-        placementId = null
-    )
-
-    private fun createTestPlacement(id: String = "placement-1", paywall: ApphudPaywall? = null) = ApphudPlacement(
+    private fun createTestPlacement(id: String = "placement-1", paywall: com.apphud.sdk.domain.ApphudPaywall? = null) = ApphudPlacement(
         identifier = "test_placement",
         paywall = paywall,
         id = id
@@ -44,7 +28,6 @@ class UserRepositoryTest {
 
     private fun createTestUser(
         userId: String,
-        paywalls: List<ApphudPaywall> = emptyList(),
         placements: List<ApphudPlacement> = emptyList(),
         isTemporary: Boolean = false
     ) = ApphudUser(
@@ -53,7 +36,6 @@ class UserRepositoryTest {
         countryCode = null,
         subscriptions = emptyList(),
         purchases = emptyList(),
-        paywalls = paywalls,
         placements = placements,
         isTemporary = isTemporary
     )
@@ -155,91 +137,80 @@ class UserRepositoryTest {
     }
 
     @Test
-    fun `setCurrentUser should preserve paywalls when new user has empty paywalls`() {
-        val paywall = createTestPaywall()
-        val placement = createTestPlacement(paywall = paywall)
-        val userWithPaywalls = createTestUser(
+    fun `setCurrentUser should preserve placements when new user has empty placements`() {
+        val placement = createTestPlacement()
+        val userWithPlacements = createTestUser(
             userId = "user-1",
-            paywalls = listOf(paywall),
             placements = listOf(placement)
         )
-        val userWithEmptyPaywalls = createTestUser(
+        val userWithEmptyPlacements = createTestUser(
             userId = "user-1",
-            paywalls = emptyList(),
             placements = emptyList()
         )
 
-        repository.setCurrentUser(userWithPaywalls)
-        repository.setCurrentUser(userWithEmptyPaywalls)
+        repository.setCurrentUser(userWithPlacements)
+        repository.setCurrentUser(userWithEmptyPlacements)
         val result = repository.getCurrentUser()
 
-        assertEquals("Paywalls should be preserved", 1, result?.paywalls?.size)
         assertEquals("Placements should be preserved", 1, result?.placements?.size)
-        assertEquals("Paywall id should match", paywall.id, result?.paywalls?.first()?.id)
+        assertEquals("Placement id should match", placement.id, result?.placements?.first()?.id)
     }
 
     @Test
-    fun `setCurrentUser should replace paywalls when new user has non-empty paywalls`() {
-        val oldPaywall = createTestPaywall(id = "old-paywall")
-        val newPaywall = createTestPaywall(id = "new-paywall")
-        val userWithOldPaywalls = createTestUser(
+    fun `setCurrentUser should replace placements when new user has non-empty placements`() {
+        val oldPlacement = createTestPlacement(id = "old-placement")
+        val newPlacement = createTestPlacement(id = "new-placement")
+        val userWithOldPlacements = createTestUser(
             userId = "user-1",
-            paywalls = listOf(oldPaywall),
-            placements = emptyList()
+            placements = listOf(oldPlacement)
         )
-        val userWithNewPaywalls = createTestUser(
+        val userWithNewPlacements = createTestUser(
             userId = "user-1",
-            paywalls = listOf(newPaywall),
-            placements = emptyList()
+            placements = listOf(newPlacement)
         )
 
-        repository.setCurrentUser(userWithOldPaywalls)
-        repository.setCurrentUser(userWithNewPaywalls)
+        repository.setCurrentUser(userWithOldPlacements)
+        repository.setCurrentUser(userWithNewPlacements)
         val result = repository.getCurrentUser()
 
-        assertEquals("Should have 1 paywall", 1, result?.paywalls?.size)
-        assertEquals("Paywall should be replaced with new one", "new-paywall", result?.paywalls?.first()?.id)
+        assertEquals("Should have 1 placement", 1, result?.placements?.size)
+        assertEquals("Placement should be replaced with new one", "new-placement", result?.placements?.first()?.id)
     }
 
     @Test
-    fun `setCurrentUser should not preserve paywalls when current user has none`() {
-        val userWithEmptyPaywalls1 = createTestUser(
+    fun `setCurrentUser should not preserve placements when current user has none`() {
+        val userWithEmptyPlacements1 = createTestUser(
             userId = "user-1",
-            paywalls = emptyList(),
             placements = emptyList()
         )
-        val userWithEmptyPaywalls2 = createTestUser(
+        val userWithEmptyPlacements2 = createTestUser(
             userId = "user-1",
-            paywalls = emptyList(),
             placements = emptyList()
         )
 
-        repository.setCurrentUser(userWithEmptyPaywalls1)
-        repository.setCurrentUser(userWithEmptyPaywalls2)
+        repository.setCurrentUser(userWithEmptyPlacements1)
+        repository.setCurrentUser(userWithEmptyPlacements2)
         val result = repository.getCurrentUser()
 
-        assertTrue("Paywalls should remain empty", result?.paywalls?.isEmpty() == true)
+        assertTrue("Placements should remain empty", result?.placements?.isEmpty() == true)
     }
 
     @Test
     fun `setCurrentUser should save merged user to dataSource`() {
-        val paywall = createTestPaywall()
-        val placement = createTestPlacement(paywall = paywall)
-        val userWithPaywalls = createTestUser(
+        val placement = createTestPlacement()
+        val userWithPlacements = createTestUser(
             userId = "user-1",
-            paywalls = listOf(paywall),
             placements = listOf(placement)
         )
-        val userWithEmptyPaywalls = createTestUser(
+        val userWithEmptyPlacements = createTestUser(
             userId = "user-1",
-            paywalls = emptyList(),
             placements = emptyList()
         )
 
-        repository.setCurrentUser(userWithPaywalls)
-        repository.setCurrentUser(userWithEmptyPaywalls)
+        repository.setCurrentUser(userWithPlacements)
+        repository.setCurrentUser(userWithEmptyPlacements)
 
-        verify(exactly = 2) { dataSource.saveUser(match { it.paywalls.size == 1 }) }
+        verify(exactly = 2) { dataSource.saveUser(match { it.placements.size == 1 }) }
     }
 
     // region getUserId fallback chain
