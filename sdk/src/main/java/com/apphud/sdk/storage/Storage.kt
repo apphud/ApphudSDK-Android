@@ -12,7 +12,6 @@ internal interface Storage {
     var userId: String?
     var deviceId: String?
     var apphudUser: ApphudUser?
-    var deviceIdentifiers: Array<String>
     var isNeedSync: Boolean
     var facebook: FacebookInfo?
     var firebase: String?
@@ -21,5 +20,6 @@ internal interface Storage {
     var productGroups: List<ApphudGroup>?
     var productDetails: List<String>?
     var properties: HashMap<String, ApphudUserProperty>?
+    var deviceIdentifiers: Array<String>
     var cacheVersion: String?
 }

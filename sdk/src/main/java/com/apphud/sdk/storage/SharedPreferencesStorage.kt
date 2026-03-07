@@ -78,19 +78,6 @@ internal class SharedPreferencesStorage(
             }
         }
 
-    override var deviceIdentifiers: Array<String>
-        get() {
-            val string = preferences.getString(DEVICE_IDENTIFIERS_KEY, null)
-            val ids = string?.split("|")
-            return if (ids?.count() == 3) ids.toTypedArray() else arrayOf("", "", "")
-        }
-        set(value) {
-            val idsString = value.joinToString("|")
-            preferences.edit {
-                putString(DEVICE_IDENTIFIERS_KEY, idsString)
-            }
-        }
-
     override var isNeedSync: Boolean
         get() = preferences.getBoolean(NEED_RESTART_KEY, false)
         set(value) {
@@ -211,7 +198,6 @@ internal class SharedPreferencesStorage(
         apphudUser = null
         userId = null
         deviceId = null
-        deviceIdentifiers = arrayOf("", "", "")
         isNeedSync = false
         facebook = null
         firebase = null
@@ -221,6 +207,7 @@ internal class SharedPreferencesStorage(
         productDetails = null
         properties = null
         adjust = null
+        deviceIdentifiers = arrayOf("", "", "")
     }
 
     fun validateCaches(): Boolean {
@@ -326,6 +313,19 @@ internal class SharedPreferencesStorage(
             }
         }
 
+    override var deviceIdentifiers: Array<String>
+        get() {
+            val string = preferences.getString(DEVICE_IDENTIFIERS_KEY, null)
+            val ids = string?.split("|")
+            return if (ids?.count() == 3) ids.toTypedArray() else arrayOf("", "", "")
+        }
+        set(value) {
+            val idsString = value.joinToString("|")
+            preferences.edit {
+                putString(DEVICE_IDENTIFIERS_KEY, idsString)
+            }
+        }
+
     fun needSendProperty(property: ApphudUserProperty): Boolean {
         val currentProperties = properties ?: hashMapOf()
         val existingProperty = currentProperties[property.key]
@@ -380,7 +380,6 @@ internal class SharedPreferencesStorage(
         private const val USER_ID_KEY = "userIdKey"
         private const val APPHUD_USER_KEY = "APPHUD_USER_KEY"
         private const val DEVICE_ID_KEY = "deviceIdKey"
-        private const val DEVICE_IDENTIFIERS_KEY = "DEVICE_IDENTIFIERS_KEY"
         private const val NEED_RESTART_KEY = "needRestartKey"
         private const val PROPERTIES_KEY = "propertiesKey"
         private const val FACEBOOK_KEY = "facebookKey"
@@ -396,6 +395,7 @@ internal class SharedPreferencesStorage(
         private const val SKU_KEY = "skuKey"
         private const val SKU_TIMESTAMP_KEY = "skuTimestampKey"
         private const val LAST_REGISTRATION_KEY = "lastRegistrationKey"
+        private const val DEVICE_IDENTIFIERS_KEY = "DEVICE_IDENTIFIERS_KEY"
         private const val CURRENT_CACHE_VERSION = "3"
     }
 }
