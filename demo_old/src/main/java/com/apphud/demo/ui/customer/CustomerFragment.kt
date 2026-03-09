@@ -20,8 +20,6 @@ import com.apphud.demo.databinding.FragmentCustomerBinding
 import com.apphud.sdk.Apphud
 import com.apphud.sdk.ApphudListener
 import com.apphud.sdk.domain.ApphudNonRenewingPurchase
-import com.apphud.sdk.domain.ApphudPaywall
-
 import com.apphud.sdk.domain.ApphudPlacement
 import com.apphud.sdk.domain.ApphudSubscription
 import com.apphud.sdk.domain.ApphudUser
@@ -107,11 +105,6 @@ class CustomerFragment : Fragment() {
                 override fun userDidLoad(user: ApphudUser) {
                     Log.d("ApphudDemo", "userDidLoad(): ${user.userId}")
                     // TODO handle user registered event
-                    updateData()
-                }
-
-                override fun paywallsDidFullyLoad(paywalls: List<ApphudPaywall>) {
-                    Log.d("ApphudDemo", "paywallsDidFullyLoad()")
                     updateData()
                 }
 

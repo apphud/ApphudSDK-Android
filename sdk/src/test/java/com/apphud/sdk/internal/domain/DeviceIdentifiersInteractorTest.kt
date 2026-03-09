@@ -22,7 +22,6 @@ class DeviceIdentifiersInteractorTest {
         countryCode = null,
         subscriptions = emptyList(),
         purchases = emptyList(),
-        paywalls = emptyList(),
         placements = emptyList(),
         isTemporary = false,
     )

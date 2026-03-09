@@ -17,7 +17,6 @@ import com.apphud.sdk.ApphudPurchasesRestoreResult
 import com.apphud.sdk.ApphudUserPropertyKey
 import com.apphud.sdk.ApphudUtils
 import com.apphud.sdk.domain.ApphudNonRenewingPurchase
-import com.apphud.sdk.domain.ApphudPaywall
 import com.apphud.sdk.domain.ApphudPlacement
 import com.apphud.sdk.domain.ApphudProduct
 import com.apphud.sdk.domain.ApphudSubscription
@@ -72,11 +71,6 @@ object ApphudSdkManager {
 
         override fun userDidLoad(user: ApphudUser) {
             Log.d("ColorGenerator", "userDidLoad(): ${user.userId}")
-            notifyAboutProducts()
-        }
-
-        override fun paywallsDidFullyLoad(paywalls: List<ApphudPaywall>) {
-            Log.d("ColorGenerator", "paywallsDidFullyLoad()")
             notifyAboutProducts()
         }
 
