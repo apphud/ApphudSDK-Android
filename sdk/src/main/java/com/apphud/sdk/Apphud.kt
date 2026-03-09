@@ -278,19 +278,6 @@ object Apphud {
      */
     fun rawPlacements(): List<ApphudPlacement> = ServiceLocator.instance.userRepository.getCurrentUser()?.placements.orEmpty()
 
-    /** Returns:
-     * List<ApphudPaywall>: A list of paywalls, potentially altered based
-     * on the user's involvement in A/B testing, if any.
-     *
-     * __Note__: This function doesn't suspend until inner `ProductDetails`
-     * are loaded from Google Play. That means paywalls may or may not have
-     * inner Google Play products at the time you call this function.
-     *
-     * To get paywalls with awaiting for inner Google Play products, use
-     * Apphud.paywalls() or Apphud.paywallsDidLoadCallback(...) functions.
-     */
-    fun rawPaywalls(): List<ApphudPaywall> = ServiceLocator.instance.userRepository.getCurrentUser()?.paywalls.orEmpty()
-
     /**
      * Disables automatic paywall and placement requests during the SDK's initial setup.
      * Developers must explicitly call `fetchPlacements` or `placements()` methods
@@ -313,49 +300,6 @@ object Apphud {
     }
 
     /**
-     * Returns the paywalls from Product Hub > Paywalls, potentially altered
-     * based on the user's involvement in A/B testing, if applicable.
-     * __Note:__ Method waits until the inner `ProductDetails` are loaded from Google Play.
-     *
-     * This is equivalent to `suspend fun paywalls()` method.
-     *
-     * Each paywall contains an array of `ApphudProduct` objects that
-     * can be used for purchases.
-     * `ApphudProduct` is Apphud's wrapper around `ProductDetails`.
-     *
-     * If you want to obtain paywalls without waiting for `ProductDetails` from
-     * Google Play, you can use `rawPaywalls()` method.
-     *
-     * __IMPORTANT:__ The callback may return both paywalls and an error simultaneously.
-     * If there is an issue with Google Billing and inner product details could not be fetched,
-     * an error will be returned along with the raw paywalls array.
-     * This allows for handling situations where partial data is available.
-     *
-     * @param preferredTimeout The approximate duration, in seconds, after which the SDK will cease
-     * retry attempts to Apphud backend in case of failures and return an error.
-     * The default and minimum value for this parameter is 10.0 seconds.
-     * This parameter doesn't affect fetching products from Google Play.
-     * @param callback The callback function that is invoked with the list of `ApphudPaywall` objects.
-     * Second parameter in callback represents optional error, which may be
-     * on Google (BillingClient issue) or Apphud side.
-     */
-    @Deprecated(
-        "Deprecated in favor of Placements",
-        ReplaceWith("this.placementsDidLoadCallback(callback)"),
-    )
-    fun paywallsDidLoadCallback(
-        preferredTimeout: Double = APPHUD_DEFAULT_MAX_TIMEOUT,
-        callback: (List<ApphudPaywall>, ApphudError?) -> Unit,
-    ) {
-        ApphudInternal.performWhenOfferingsPrepared(preferredTimeout = preferredTimeout) {
-            callback(
-                ServiceLocator.instance.userRepository.getCurrentUser()?.paywalls.orEmpty(),
-                it
-            )
-        }
-    }
-
-    /**
      * Call this method when your paywall screen is displayed to the user.
      * This is required for A/B testing analysis.
      *
@@ -363,16 +307,6 @@ object Apphud {
      */
     fun paywallShown(paywall: ApphudPaywall) {
         ApphudInternal.paywallShown(paywall)
-    }
-
-    /**
-     * Call this method when your paywall screen is dismissed without a purchase.
-     * This is required for A/B testing analysis.
-     *
-     * @param paywall The `ApphudPaywall` object representing the paywall that was closed.
-     */
-    fun paywallClosed(paywall: ApphudPaywall) {
-        ApphudInternal.paywallClosed(paywall)
     }
 
     /**
@@ -434,7 +368,7 @@ object Apphud {
      * Returns an array of `ProductDetails` objects, whose identifiers you added in Apphud > Product Hub > Products.
      * Note that this method will return empty array if products are not yet fetched.
      * To get notified when `products` are ready to use, implement `ApphudListener`'s
-     * `apphudFetchProductsDetails` or `paywallsDidFullyLoad` methods, or use `productsFetchCallback`.
+     * `apphudFetchProductsDetails` or `placementsDidFullyLoad` methods, or use `productsFetchCallback`.
      * When any of these methods is called, it indicates that `ProductDetails` are loaded and
      * the `products` method is ready to use.
      * It is recommended not to use this method directly, but to use `paywalls()` instead.

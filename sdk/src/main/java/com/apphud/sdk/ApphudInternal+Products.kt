@@ -4,7 +4,6 @@ import com.android.billingclient.api.BillingClient
 import com.android.billingclient.api.BillingClient.BillingResponseCode
 import com.android.billingclient.api.ProductDetails
 import com.apphud.sdk.domain.ApphudGroup
-import com.apphud.sdk.domain.ApphudPaywall
 import com.apphud.sdk.domain.ApphudPlacement
 import com.apphud.sdk.internal.data.ProductLoadingState
 import com.apphud.sdk.internal.util.runCatchingCancellable
@@ -97,9 +96,8 @@ internal suspend fun retryProductsLoad() {
 
 internal suspend fun ApphudInternal.fetchProducts(): Int {
     val user = userRepository.getCurrentUser()
-    val userPaywalls = user?.paywalls.orEmpty()
     val userPlacements = user?.placements.orEmpty()
-    if (userPlacements.isEmpty() && userPaywalls.isEmpty()) {
+    if (userPlacements.isEmpty()) {
         if (user == null) {
             ApphudLog.log("Awaiting for user registration before proceeding to products load")
             awaitUserRegistration()
@@ -110,7 +108,6 @@ internal suspend fun ApphudInternal.fetchProducts(): Int {
     val refreshedUser = userRepository.getCurrentUser()
     val ids = allAvailableProductIds(
         getPermissionGroups(),
-        refreshedUser?.paywalls.orEmpty(),
         refreshedUser?.placements.orEmpty()
     )
 
@@ -119,26 +116,12 @@ internal suspend fun ApphudInternal.fetchProducts(): Int {
 
 private fun allAvailableProductIds(
     groups: List<ApphudGroup>,
-    paywalls: List<ApphudPaywall>,
     placements: List<ApphudPlacement>,
 ): List<String> {
-    val ids = paywalls.map { p -> p.products?.map { it.productId } ?: listOf() }.flatten().toMutableList()
-    val idsGroups = groups.map { it -> it.products?.map { it.productId } ?: listOf() }.flatten()
-    val idsFromPlacements =
-        placements.map { pl -> pl.paywall?.products?.map { it.productId } ?: listOf() }.flatten().toMutableList()
-
-    idsGroups.forEach {
-        if (!ids.contains(it)) {
-            ids.add(it)
-        }
-    }
-    idsFromPlacements.forEach {
-        if (!ids.contains(it)) {
-            ids.add(it)
-        }
-    }
-
-    return ids.toSet().toList()
+    return (
+        placements.flatMap { it.paywall?.products.orEmpty() }.map { it.productId } +
+        groups.flatMap { it.products.orEmpty() }.map { it.productId }
+    ).distinct()
 }
 
 internal suspend fun ApphudInternal.fetchDetails(

@@ -14,6 +14,7 @@ import com.apphud.sdk.body.UserPropertiesBody
 import com.apphud.sdk.domain.ApphudGroup
 import com.apphud.sdk.domain.ApphudPaywall
 import com.apphud.sdk.domain.ApphudPaywallScreenShowResult
+import com.apphud.sdk.domain.ApphudPlacement
 import com.apphud.sdk.domain.ApphudProduct
 import com.apphud.sdk.domain.ApphudUser
 import com.apphud.sdk.domain.PaywallEvent
@@ -224,8 +225,8 @@ internal object ApphudInternal {
             ApphudLog.logI("Ignoring local paywalls cache")
         }
 
-        val cachedPaywalls =
-            if (ignoreCache || !isValid || observerMode) null else userRepository.getCurrentUser()?.paywalls
+        val cachedPlacements =
+            if (ignoreCache || !isValid || observerMode) null else userRepository.getCurrentUser()?.placements
 
         sdkLaunchedAt = System.currentTimeMillis()
 
@@ -239,7 +240,7 @@ internal object ApphudInternal {
 
         forceNotifyAllLoaded()
 
-        val needRegistration = needRegistration(credentialsChanged, cachedPaywalls)
+        val needRegistration = needRegistration(credentialsChanged, cachedPlacements)
 
         ApphudLog.log("Need to register user: $needRegistration")
 
@@ -267,11 +268,11 @@ internal object ApphudInternal {
     //region === Registration ===
     private fun needRegistration(
         credentialsChanged: Boolean,
-        cachedPaywalls: List<ApphudPaywall>?,
+        cachedPlacements: List<ApphudPlacement>?,
     ): Boolean {
         val cachedUser = userRepository.getCurrentUser()
         return credentialsChanged ||
-            cachedPaywalls == null ||
+            cachedPlacements == null ||
             cachedUser == null ||
             cachedUser.isTemporary == true ||
             cachedUser.hasPurchases() ||
@@ -382,7 +383,7 @@ internal object ApphudInternal {
     private fun isDataReady(): Boolean {
         val user = userRepository.getCurrentUser()
         return user != null &&
-            user.paywalls.isNotEmpty() &&
+            user.placements.isNotEmpty() &&
             productDetails.isNotEmpty() &&
             !isRegisteringUser
     }
@@ -396,7 +397,7 @@ internal object ApphudInternal {
         hasRespondedToPaywallsRequest || customerError != null
 
     private fun hasDataLoadFailed(customerError: ApphudError?) =
-        (customerError != null && (userRepository.getCurrentUser()?.paywalls?.isEmpty() != false)) || isProductsLoadFailed()
+        (customerError != null && (userRepository.getCurrentUser()?.placements?.isEmpty() != false)) || isProductsLoadFailed()
 
     private fun isProductsLoadFailed(): Boolean {
         val state = productRepository.state.value
@@ -406,7 +407,6 @@ internal object ApphudInternal {
     private fun handleSuccessfulLoad() {
         val user = userRepository.getCurrentUser()
         if (!notifiedAboutPaywallsDidFullyLoaded) {
-            apphudListener?.paywallsDidFullyLoad(user?.paywalls?.toList().orEmpty())
             apphudListener?.placementsDidFullyLoad(user?.placements?.toList().orEmpty())
 
             notifiedAboutPaywallsDidFullyLoaded = true
@@ -456,7 +456,7 @@ internal object ApphudInternal {
         val productsState = productRepository.state.value
         val productsResponseCode =
             if (productsState is ProductLoadingState.Failed) productsState.responseCode else BillingClient.BillingResponseCode.OK
-        ApphudLog.log("Not yet ready for callbacks invoke: isRegisteringUser: $isRegisteringUser, currentUserExist: ${user != null}, latestCustomerError: $latestCustomerLoadError, paywallsEmpty: ${user?.paywalls?.isEmpty() != false}, productsResponseCode = $productsResponseCode, productsStatus: $productsState, productDetailsEmpty: ${productDetails.isEmpty()}, deferred: $deferPlacements, hasRespondedToPaywallsRequest=$hasRespondedToPaywallsRequest")
+        ApphudLog.log("Not yet ready for callbacks invoke: isRegisteringUser: $isRegisteringUser, currentUserExist: ${user != null}, latestCustomerError: $latestCustomerLoadError, placementsEmpty: ${user?.placements?.isEmpty() != false}, productsResponseCode = $productsResponseCode, productsStatus: $productsState, productDetailsEmpty: ${productDetails.isEmpty()}, deferred: $deferPlacements, hasRespondedToPaywallsRequest=$hasRespondedToPaywallsRequest")
     }
 
     private fun trackAnalytics(success: Boolean) {
@@ -501,7 +501,7 @@ internal object ApphudInternal {
 
     private fun handleCustomerError(customerError: ApphudError) {
         val user = userRepository.getCurrentUser()
-        if (customerError.isRetryable() && (user == null || productDetails.isEmpty() || ((user.paywalls.isEmpty()) && !observerMode)) && isActive && !refreshUserPending && userLoadRetryCount < APPHUD_INFINITE_RETRIES) {
+        if (customerError.isRetryable() && (user == null || productDetails.isEmpty() || ((user.placements.isEmpty()) && !observerMode)) && isActive && !refreshUserPending && userLoadRetryCount < APPHUD_INFINITE_RETRIES) {
             refreshUserPending = true
             coroutineScope.launch {
                 val delay = 500L * userLoadRetryCount
@@ -696,7 +696,7 @@ internal object ApphudInternal {
         if (isRegisteringUser) {
             // already loading
             isLoading = true
-        } else if (user == null || fallbackMode || user.isTemporary == true || ((user.paywalls.isEmpty()) && !observerMode) || latestCustomerLoadError != null) {
+        } else if (user == null || fallbackMode || user.isTemporary == true || ((user.placements.isEmpty()) && !observerMode) || latestCustomerLoadError != null) {
             ApphudLog.logI("Refreshing User")
             didRegisterCustomerAtThisLaunch = false
             refreshEntitlements(true)
@@ -883,14 +883,6 @@ internal object ApphudInternal {
         }
     }
 
-    fun paywallClosed(paywall: ApphudPaywall) {
-        coroutineScope.launch {
-            runCatchingCancellable { paywallClosedSuspend(paywall) }
-                .onFailure { error -> ApphudLog.logI(error.message ?: "Unknown error") }
-        }
-    }
-
-
     suspend fun showPaywallScreen(
         context: Context,
         paywall: ApphudPaywall,
@@ -1032,11 +1024,6 @@ internal object ApphudInternal {
     private suspend fun paywallShownSuspend(paywall: ApphudPaywall) {
         awaitUserRegistration()
         RequestManager.paywallShown(paywall)
-    }
-
-    private suspend fun paywallClosedSuspend(paywall: ApphudPaywall) {
-        awaitUserRegistration()
-        RequestManager.paywallClosed(paywall)
     }
 
     private suspend fun paywallCheckoutInitiatedSuspend(
@@ -1237,16 +1224,7 @@ internal object ApphudInternal {
 
     private fun updatePaywallsAndPlacements() {
         val user = userRepository.getCurrentUser()
-        val userPaywalls = user?.paywalls.orEmpty()
         val userPlacements = user?.placements.orEmpty()
-
-        userPaywalls.forEach { paywall ->
-            paywall.products?.forEach { product ->
-                product.paywallId = paywall.id
-                product.paywallIdentifier = paywall.identifier
-                product.productDetails = getProductDetailsByProductId(product.productId)
-            }
-        }
 
         userPlacements.forEach { placement ->
             val paywall = placement.paywall ?: return@forEach
@@ -1283,7 +1261,7 @@ internal object ApphudInternal {
         }
 
         hasRespondedToPaywallsRequest =
-            hasRespondedToPaywallsRequest || user.paywalls.isNotEmpty() || user.placements.isNotEmpty() || observerMode
+            hasRespondedToPaywallsRequest || user.placements.isNotEmpty() || observerMode
 
         // Disable fallback mode if needed
         if (user.isTemporary != true && fallbackMode) {

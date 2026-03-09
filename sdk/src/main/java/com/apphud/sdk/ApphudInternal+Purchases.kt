@@ -18,6 +18,11 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
+private fun ApphudInternal.findPaywallScreenId(paywallId: String?): String? =
+    userRepository.getCurrentUser()?.placements
+        ?.firstNotNullOfOrNull { placement -> placement.paywall?.takeIf { it.id == paywallId } }
+        ?.screen?.id
+
 internal fun ApphudInternal.purchase(
     activity: Activity,
     apphudProduct: ApphudProduct?,
@@ -158,7 +163,7 @@ private fun ApphudInternal.purchaseInternal(
             ApphudLog.logE("OfferToken not set. You are required to pass offer token in Apphud.purchase method when purchasing subscription. Passing first offerToken as a fallback.")
         }
 
-        val currentPaywallScreenId = if (fromScreen) { userRepository.getCurrentUser()?.paywalls?.firstOrNull { it.id == apphudProduct.paywallId }?.screen?.id } else null
+        val currentPaywallScreenId = if (fromScreen) findPaywallScreenId(apphudProduct.paywallId) else null
 
         paywallCheckoutInitiated(apphudProduct.paywallId, apphudProduct.placementId, apphudProduct.productId, currentPaywallScreenId)
         purchasingProduct = apphudProduct
@@ -443,7 +448,7 @@ private suspend fun ApphudInternal.sendCheckToApphud(
     fromScreen: Boolean,
     callback: ((ApphudPurchaseResult) -> Unit)?,
 ) {
-    val currentPaywallScreenId = if (fromScreen) { userRepository.getCurrentUser()?.paywalls?.firstOrNull { it.id == paywallId }?.screen?.id } else null
+    val currentPaywallScreenId = if (fromScreen) findPaywallScreenId(paywallId) else null
 
     val localCurrentUser = userRepository.getCurrentUser()
     when {

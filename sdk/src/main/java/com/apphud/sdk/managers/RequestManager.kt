@@ -67,7 +67,7 @@ internal object RequestManager {
     }
 
     suspend fun registration(
-        needPaywalls: Boolean,
+        needPlacements: Boolean,
         isNew: Boolean,
         forceRegistration: Boolean = false,
         userId: UserId? = null,
@@ -82,7 +82,7 @@ internal object RequestManager {
         return if (currentUserLocal == null || forceRegistration) {
             val repository = ServiceLocator.instance.remoteRepository
 
-            val getCustomersResult = repository.getCustomers(needPaywalls, isNew, userId, email)
+            val getCustomersResult = repository.getCustomers(needPlacements, isNew, userId, email)
 
             getCustomersResult
                 .getOrElse { t ->
@@ -119,7 +119,7 @@ internal object RequestManager {
         }
 
         if (currentUser == null) {
-            registration(needPaywalls = true, isNew = true)
+            registration(needPlacements = true, isNew = true)
         }
 
         val remoteRepository = ServiceLocator.instance.remoteRepository
@@ -139,7 +139,7 @@ internal object RequestManager {
         }
 
         if (currentUser == null) {
-            registration(needPaywalls = true, isNew = true)
+            registration(needPlacements = true, isNew = true)
         }
 
         val repository = ServiceLocator.instance.remoteRepository
@@ -159,7 +159,7 @@ internal object RequestManager {
             val repository = ServiceLocator.instance.remoteRepository
 
             if (currentUser == null) {
-                registration(needPaywalls = true, isNew = true)
+                registration(needPlacements = true, isNew = true)
             }
 
             repository.sendAttribution(attributionRequestBody).getOrThrow()
@@ -175,7 +175,7 @@ internal object RequestManager {
         }
 
         if (currentUser == null) {
-            registration(needPaywalls = true, isNew = true)
+            registration(needPlacements = true, isNew = true)
         }
 
         val userRemoteRepository = ServiceLocator.instance.userRemoteRepository
@@ -195,7 +195,7 @@ internal object RequestManager {
 
         return runCatchingCancellable {
             if (currentUser == null) {
-                registration(needPaywalls = true, isNew = true)
+                registration(needPlacements = true, isNew = true)
             }
 
             val repository = ServiceLocator.instance.remoteRepository
@@ -216,16 +216,6 @@ internal object RequestManager {
         trackPaywallEvent(
             makePaywallEventBody(
                 name = "paywall_shown",
-                paywallId = paywall.id,
-                placementId = paywall.placementId,
-            ),
-        )
-    }
-
-    suspend fun paywallClosed(paywall: ApphudPaywall) {
-        trackPaywallEvent(
-            makePaywallEventBody(
-                name = "paywall_closed",
                 paywallId = paywall.id,
                 placementId = paywall.placementId,
             ),
@@ -317,7 +307,7 @@ internal object RequestManager {
 
         runCatchingCancellable {
             if (currentUser == null) {
-                registration(needPaywalls = true, isNew = true)
+                registration(needPlacements = true, isNew = true)
             }
 
             val repository = ServiceLocator.instance.remoteRepository
