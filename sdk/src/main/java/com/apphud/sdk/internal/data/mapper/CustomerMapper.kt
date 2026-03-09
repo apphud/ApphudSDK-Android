@@ -6,7 +6,6 @@ import com.apphud.sdk.domain.ApphudUser
 
 internal class CustomerMapper(
     private val mapper: SubscriptionMapper,
-    private val paywallsMapper: PaywallsMapper,
     private var placementsMapper: PlacementsMapper,
 ) {
     fun map(customer: CustomerDto) =
@@ -24,12 +23,6 @@ internal class CustomerMapper(
                 .filter { it.kind == ApphudKind.NONRENEWABLE.source }
                 .mapNotNull { mapper.mapNonRenewable(it) }
                 .sortedByDescending { it.purchasedAt },
-            paywalls =
-            customer.paywalls?.let { paywallsList ->
-                paywallsList.map { paywallsMapper.map(it) }
-            } ?: run {
-                listOf()
-            },
             placements =
             customer.placements?.let { placementsList ->
                 placementsList.map { placementsMapper.map(it) }

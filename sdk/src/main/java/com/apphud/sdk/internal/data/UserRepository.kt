@@ -37,15 +37,12 @@ internal class UserRepository(
     fun setCurrentUser(user: ApphudUser): Boolean {
         val userIdChanged = currentUser?.userId != user.userId
 
-        // Preserve paywalls/placements if server returned empty ones.
+        // Merges placements if server returned empty ones.
         // This happens when /subscriptions endpoint is called (purchase verification)
-        // which doesn't return paywalls, only subscription data.
+        // which doesn't return placements, only subscription data.
         val existing = currentUser
-        val mergedUser = if (user.paywalls.isEmpty() && existing?.paywalls?.isNotEmpty() == true) {
-            user.copy(
-                paywalls = existing.paywalls,
-                placements = existing.placements
-            )
+        val mergedUser = if (user.placements.isEmpty() && existing?.placements?.isNotEmpty() == true) {
+            user.copy(placements = existing.placements)
         } else {
             user
         }

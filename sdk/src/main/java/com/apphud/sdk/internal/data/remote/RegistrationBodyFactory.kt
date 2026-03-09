@@ -10,7 +10,7 @@ internal class RegistrationBodyFactory(
 ) {
 
     fun create(
-        needPaywalls: Boolean,
+        needPlacements: Boolean,
         isNew: Boolean,
         userId: UserId? = null,
         email: String? = null,
@@ -32,8 +32,7 @@ internal class RegistrationBodyFactory(
             timeZone = registrationProvider.getTimeZone(),
             isSandbox = registrationProvider.isSandbox(),
             isNew = isNew,
-            needPaywalls = needPaywalls,
-            needPlacements = needPaywalls,
+            needPlacements = needPlacements,
             firstSeen = registrationProvider.getFirstSeen(),
             sdkLaunchedAt = registrationProvider.getSdkLaunchedAt(),
             requestTime = registrationProvider.getRequestTime(),

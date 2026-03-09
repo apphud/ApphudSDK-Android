@@ -31,8 +31,6 @@ internal data class RegistrationBody(
     val isSandbox: Boolean,
     @SerializedName("is_new")
     val isNew: Boolean,
-    @SerializedName("need_paywalls")
-    val needPaywalls: Boolean,
     @SerializedName("need_placements")
     val needPlacements: Boolean,
     @SerializedName("first_seen")
