@@ -3,21 +3,20 @@ package com.apphud.sdk.internal.provider;
 import android.content.Context
 import android.os.Build
 import com.apphud.sdk.ApphudInternal
-import com.apphud.sdk.ApphudInternal.fetchAndroidIdSync
 import com.apphud.sdk.ApphudLog
 import com.apphud.sdk.ApphudUtils
 import com.apphud.sdk.BuildConfig
 import com.apphud.sdk.buildAppVersion
+import com.apphud.sdk.internal.data.DeviceIdentifiersRepository
 import com.apphud.sdk.internal.data.UserRepository
 import com.apphud.sdk.isDebuggable
-import com.apphud.sdk.storage.Storage
 import java.util.Locale
 import java.util.TimeZone
 
 @Suppress("TooManyFunctions")
 internal class RegistrationProvider(
     private val applicationContext: Context,
-    private val storage: Storage,
+    private val deviceIdentifiersRepository: DeviceIdentifiersRepository,
     private val userRepository: UserRepository,
 ) {
 
@@ -39,26 +38,24 @@ internal class RegistrationProvider(
     fun getStartAppVersion(): String = applicationContext.buildAppVersion()
 
     fun getIdfa(): String? {
-        val idfa = storage.deviceIdentifiers[0]
-        return if (ApphudUtils.optOutOfTracking || idfa.isEmpty()) null
-        else idfa
+        if (ApphudUtils.optOutOfTracking) return null
+        val idfa = deviceIdentifiersRepository.getIdentifiers().advertisingId
+        return if (idfa.isNullOrEmpty()) null else idfa
     }
 
     fun getIdfv(): String? {
-        val appSetId = storage.deviceIdentifiers[1]
-        return if (ApphudUtils.optOutOfTracking || appSetId.isEmpty()) null
-        else appSetId
+        if (ApphudUtils.optOutOfTracking) return null
+        val appSetId = deviceIdentifiersRepository.getIdentifiers().appSetId
+        return if (appSetId.isNullOrEmpty()) null else appSetId
     }
 
     fun getAndroidId(): String? {
-        var androidId = storage.deviceIdentifiers[2]
-        if (androidId.isEmpty()) {
-            fetchAndroidIdSync()?.let {
-                androidId = it
-            }
+        if (ApphudUtils.optOutOfTracking) return null
+        var androidId = deviceIdentifiersRepository.getIdentifiers().androidId
+        if (androidId.isNullOrEmpty()) {
+            androidId = deviceIdentifiersRepository.fetchAndroidIdSync()
         }
-        return if (ApphudUtils.optOutOfTracking || androidId.isEmpty()) null
-        else androidId
+        return if (androidId.isNullOrEmpty()) null else androidId
     }
 
     fun getUserId(): String? = userRepository.getUserId()

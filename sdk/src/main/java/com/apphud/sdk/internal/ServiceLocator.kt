@@ -3,6 +3,8 @@ package com.apphud.sdk.internal
 import android.content.Context
 import com.apphud.sdk.ApphudInternal
 import com.apphud.sdk.ApphudRuleCallback
+import com.apphud.sdk.internal.data.DeviceIdentifiersDataSource
+import com.apphud.sdk.internal.data.DeviceIdentifiersRepository
 import com.apphud.sdk.internal.data.local.LifecycleRepository
 import com.apphud.sdk.internal.data.local.LocalRulesScreenRepository
 import com.apphud.sdk.internal.data.local.PaywallRepository
@@ -31,6 +33,8 @@ import com.apphud.sdk.internal.data.serializer.RenderItemsSerializer
 import com.apphud.sdk.internal.data.UserDataSource
 import com.apphud.sdk.internal.data.UserRepository
 import com.apphud.sdk.internal.domain.FetchMostActualRuleScreenUseCase
+import com.apphud.sdk.internal.domain.CollectDeviceIdentifiersUseCase
+import com.apphud.sdk.internal.domain.DeviceIdentifiersInteractor
 import com.apphud.sdk.internal.domain.FetchNativePurchasesUseCase
 import com.apphud.sdk.internal.domain.FetchRulesScreenUseCase
 import com.apphud.sdk.internal.domain.RegistrationUseCase
@@ -69,8 +73,14 @@ internal class ServiceLocator(
 
     val userRepository: UserRepository = UserRepository(userDataSource)
 
+    val deviceIdentifiersDataSource: DeviceIdentifiersDataSource =
+        DeviceIdentifiersDataSource(applicationContext, storage)
+
+    val deviceIdentifiersRepository: DeviceIdentifiersRepository =
+        DeviceIdentifiersRepository(deviceIdentifiersDataSource)
+
     private val registrationProvider: RegistrationProvider =
-        RegistrationProvider(applicationContext, storage, userRepository)
+        RegistrationProvider(applicationContext, deviceIdentifiersRepository, userRepository)
 
     internal val urlProvider = UrlProvider()
 
@@ -213,6 +223,12 @@ internal class ServiceLocator(
             userDataSource = userDataSource,
             requestManager = RequestManager
         )
+
+    val collectDeviceIdentifiersUseCase: CollectDeviceIdentifiersUseCase =
+        CollectDeviceIdentifiersUseCase(deviceIdentifiersRepository)
+
+    val deviceIdentifiersInteractor: DeviceIdentifiersInteractor =
+        DeviceIdentifiersInteractor(collectDeviceIdentifiersUseCase, registrationUseCase)
 
     // Billing dependencies
     val billingWrapper: BillingWrapper by lazy { BillingWrapper(applicationContext) }

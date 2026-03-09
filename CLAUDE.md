@@ -104,6 +104,53 @@ Registration uses `RegistrationUseCase` which:
 
 The flow is protected by a Mutex to prevent race conditions.
 
+### UseCase / Interactor
+
+Stateless business logic is implemented as a `UseCase` or `Interactor`.
+
+**Rules:**
+
+1. **Single public method** — `operator fun invoke(...)`. No other public/internal methods allowed.
+2. **Stateless** — the class holds no data between calls. All dependencies are injected via constructor as `private val`. The only permitted field is a `Mutex` for concurrency control.
+3. **Private helpers** — all implementation lives in private methods; `invoke` delegates to them.
+4. **suspend vs sync** — use `suspend` for I/O operations, regular functions for pure logic.
+5. **Visibility** — `internal class`, located in `internal/domain/`.
+6. **Wiring** — instantiated in `ServiceLocator`, dependencies passed via constructor.
+
+**UseCase vs Interactor:**
+- `UseCase` — performs a single operation over repositories/data sources.
+- `Interactor` — orchestrates multiple UseCases (parallelism, timeouts, sequencing).
+
+```kotlin
+// UseCase — single operation
+internal class RegistrationUseCase(
+    private val remoteRepository: RemoteRepository,
+    private val userRepository: UserRepository,
+) {
+    private val mutex = Mutex()
+
+    suspend operator fun invoke(params: RegistrationParams): ApphudUser {
+        return mutex.withLock { performRegistration(params) }
+    }
+
+    private suspend fun performRegistration(params: RegistrationParams): ApphudUser {
+        // implementation
+    }
+}
+
+// Interactor — orchestrates multiple UseCases
+internal class DeviceIdentifiersInteractor(
+    private val collectUseCase: CollectDeviceIdentifiersUseCase,
+    private val repository: DeviceIdentifiersRepository,
+) {
+    suspend operator fun invoke(): DeviceIdentifiers {
+        val identifiers = collectUseCase()
+        repository.save(identifiers)
+        return identifiers
+    }
+}
+```
+
 ## Code Style and Patterns
 
 ### Coroutines Over Callbacks
