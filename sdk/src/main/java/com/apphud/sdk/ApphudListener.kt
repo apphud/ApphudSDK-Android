@@ -3,7 +3,6 @@ package com.apphud.sdk
 import com.android.billingclient.api.ProductDetails
 import com.android.billingclient.api.Purchase
 import com.apphud.sdk.domain.ApphudNonRenewingPurchase
-import com.apphud.sdk.domain.ApphudPaywall
 import com.apphud.sdk.domain.ApphudPlacement
 import com.apphud.sdk.domain.ApphudSubscription
 import com.apphud.sdk.domain.ApphudUser
@@ -48,11 +47,6 @@ interface ApphudListener {
      * since it may change at runtime.
      */
     fun userDidLoad(user: ApphudUser)
-
-    /**
-    Called when paywalls are fully loaded with their inner ProductDetails.
-     */
-    fun paywallsDidFullyLoad(paywalls: List<ApphudPaywall>)
 
     /**
      * Called when placements are fully loaded with their ApphudPaywalls and
