@@ -18,6 +18,7 @@ internal class OfferingsCallbackManager(
     private val analyticsTracker: AnalyticsTracker,
 ) {
     private val offeringsPreparedCallbacks = CopyOnWriteArrayList<(ApphudError?) -> Unit>()
+    @Volatile
     private var customProductsFetchedBlock: ((List<ProductDetails>) -> Unit)? = null
     @Volatile
     private var notifiedAboutPaywallsDidFullyLoaded: Boolean = false
@@ -55,7 +56,7 @@ internal class OfferingsCallbackManager(
     ) {
         when {
             isDataReady(isRegisteringUser, productDetails) -> handleSuccessfulLoad(apphudListener, productDetails)
-            isErrorOccurred(customerError, isRegisteringUser, hasRespondedToPaywallsRequest, productDetails) -> handleError(customerError, productDetails)
+            isErrorOccurred(customerError, isRegisteringUser, hasRespondedToPaywallsRequest) -> handleError(customerError, productDetails)
             else -> logNotReadyState(isRegisteringUser, hasRespondedToPaywallsRequest, productDetails, deferPlacements)
         }
     }
@@ -72,16 +73,15 @@ internal class OfferingsCallbackManager(
         customerError: ApphudError?,
         isRegisteringUser: Boolean,
         hasRespondedToPaywallsRequest: Boolean,
-        productDetails: List<ProductDetails>,
     ): Boolean =
         !isRegisteringUser &&
             hasResponseOrError(customerError, hasRespondedToPaywallsRequest) &&
-            hasDataLoadFailed(customerError, productDetails)
+            hasDataLoadFailed(customerError)
 
     private fun hasResponseOrError(customerError: ApphudError?, hasRespondedToPaywallsRequest: Boolean) =
         hasRespondedToPaywallsRequest || customerError != null
 
-    private fun hasDataLoadFailed(customerError: ApphudError?, productDetails: List<ProductDetails>) =
+    private fun hasDataLoadFailed(customerError: ApphudError?) =
         (customerError != null && (userRepository.getCurrentUser()?.placements?.isEmpty() != false)) || isProductsLoadFailed()
 
     private fun isProductsLoadFailed(): Boolean {
