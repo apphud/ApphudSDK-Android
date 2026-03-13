@@ -87,7 +87,6 @@ internal fun ApphudInternal.processFallbackData(callback: PaywallCallback) {
                     customerLoaded = user,
                     productDetailsLoaded = details,
                     fromFallback = true,
-                    fromCache = true
                 )
                 callback(user?.placements?.mapNotNull { it.paywall }.orEmpty(), error)
             }

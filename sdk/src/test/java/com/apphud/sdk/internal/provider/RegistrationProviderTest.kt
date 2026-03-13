@@ -2,6 +2,7 @@ package com.apphud.sdk.internal.provider
 
 import android.content.Context
 import com.apphud.sdk.ApphudUtils
+import com.apphud.sdk.internal.data.AnalyticsTracker
 import com.apphud.sdk.internal.data.DeviceIdentifiersRepository
 import com.apphud.sdk.internal.data.UserRepository
 import com.apphud.sdk.internal.domain.model.DeviceIdentifiers
@@ -20,7 +21,10 @@ class RegistrationProviderTest {
     private val deviceIdentifiersRepository: DeviceIdentifiersRepository = mockk()
     private val userRepository: UserRepository = mockk()
     private val applicationContext: Context = mockk()
-    private val provider = RegistrationProvider(applicationContext, deviceIdentifiersRepository, userRepository)
+    private val analyticsTracker: AnalyticsTracker = mockk {
+        every { sdkLaunchTimeMs() } returns 0L
+    }
+    private val provider = RegistrationProvider(applicationContext, deviceIdentifiersRepository, userRepository, analyticsTracker = analyticsTracker)
 
     @Before
     fun setup() {
