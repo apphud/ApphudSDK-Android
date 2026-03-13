@@ -53,7 +53,7 @@ internal class UserPropertiesManager(
         }
 
     @Volatile
-    internal var isUpdatingProperties = false
+    private var _isUpdatingProperties = false
 
     fun setUserProperty(
         key: ApphudUserPropertyKey,
@@ -101,10 +101,10 @@ internal class UserPropertiesManager(
             return false
         }
 
-        if (isUpdatingProperties && !force) {
+        if (_isUpdatingProperties && !force) {
             return false
         }
-        isUpdatingProperties = true
+        _isUpdatingProperties = true
 
         try {
             runCatchingCancellable { awaitUserRegistration() }
@@ -117,7 +117,8 @@ internal class UserPropertiesManager(
             val sentPropertiesForSave = mutableListOf<ApphudUserProperty>()
 
             pendingUserProperties.forEach {
-                properties.add(it.value.toJSON()!!)
+                val json = it.value.toJSON() ?: return@forEach
+                properties.add(json)
                 if (!it.value.increment && it.value.value != null) {
                     sentPropertiesForSave.add(it.value)
                 }
@@ -156,7 +157,7 @@ internal class UserPropertiesManager(
                     )
             }
         } finally {
-            isUpdatingProperties = false
+            _isUpdatingProperties = false
         }
     }
 

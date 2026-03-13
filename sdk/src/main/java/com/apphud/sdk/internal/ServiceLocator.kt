@@ -3,12 +3,16 @@ package com.apphud.sdk.internal
 import android.content.Context
 import com.apphud.sdk.ApphudInternal
 import com.apphud.sdk.ApphudRuleCallback
+import com.apphud.sdk.internal.data.AnalyticsTracker
 import com.apphud.sdk.internal.data.DeviceIdentifiersDataSource
 import com.apphud.sdk.internal.data.DeviceIdentifiersRepository
+import com.apphud.sdk.internal.data.ProductRepository
+import com.apphud.sdk.internal.data.UserDataSource
+import com.apphud.sdk.internal.data.UserPropertiesManager
+import com.apphud.sdk.internal.data.UserRepository
 import com.apphud.sdk.internal.data.local.LifecycleRepository
 import com.apphud.sdk.internal.data.local.LocalRulesScreenRepository
 import com.apphud.sdk.internal.data.local.PaywallRepository
-import com.apphud.sdk.internal.data.ProductRepository
 import com.apphud.sdk.internal.data.mapper.CustomerMapper
 import com.apphud.sdk.internal.data.mapper.PaywallsMapper
 import com.apphud.sdk.internal.data.mapper.PlacementsMapper
@@ -30,16 +34,14 @@ import com.apphud.sdk.internal.data.remote.RenderRemoteRepository
 import com.apphud.sdk.internal.data.remote.ScreenRemoteRepository
 import com.apphud.sdk.internal.data.remote.UserRemoteRepository
 import com.apphud.sdk.internal.data.serializer.RenderItemsSerializer
-import com.apphud.sdk.internal.data.UserDataSource
-import com.apphud.sdk.internal.data.UserRepository
-import com.apphud.sdk.internal.domain.FetchMostActualRuleScreenUseCase
 import com.apphud.sdk.internal.domain.CollectDeviceIdentifiersUseCase
 import com.apphud.sdk.internal.domain.DeviceIdentifiersInteractor
+import com.apphud.sdk.internal.domain.FetchMostActualRuleScreenUseCase
 import com.apphud.sdk.internal.domain.FetchNativePurchasesUseCase
 import com.apphud.sdk.internal.domain.FetchRulesScreenUseCase
 import com.apphud.sdk.internal.domain.RegistrationUseCase
-import com.apphud.sdk.internal.domain.ResolveCredentialsUseCase
 import com.apphud.sdk.internal.domain.RenderPaywallPropertiesUseCase
+import com.apphud.sdk.internal.domain.ResolveCredentialsUseCase
 import com.apphud.sdk.internal.domain.mapper.DateTimeMapper
 import com.apphud.sdk.internal.domain.mapper.NotificationMapper
 import com.apphud.sdk.internal.domain.model.ApiKey
@@ -79,8 +81,17 @@ internal class ServiceLocator(
     val deviceIdentifiersRepository: DeviceIdentifiersRepository =
         DeviceIdentifiersRepository(deviceIdentifiersDataSource)
 
+    val analyticsTracker: AnalyticsTracker = AnalyticsTracker(
+        coroutineScope = ApphudInternal.coroutineScope,
+        userRepository = userRepository,
+    )
+
     private val registrationProvider: RegistrationProvider =
-        RegistrationProvider(applicationContext, deviceIdentifiersRepository, userRepository)
+        RegistrationProvider(
+            applicationContext,
+            deviceIdentifiersRepository,
+            userRepository,
+            analyticsTracker = analyticsTracker)
 
     internal val urlProvider = UrlProvider()
 
@@ -213,6 +224,19 @@ internal class ServiceLocator(
     val paywallEventManager: PaywallEventManager = PaywallEventManager()
 
     val productRepository: ProductRepository = ProductRepository()
+
+    val userPropertiesManager: UserPropertiesManager = UserPropertiesManager(
+        coroutineScope = ApphudInternal.coroutineScope,
+        userRepository = userRepository,
+        storage = storage,
+        awaitUserRegistration = { ApphudInternal.awaitUserRegistration() },
+    )
+
+    val offeringsCallbackManager: OfferingsCallbackManager = OfferingsCallbackManager(
+        userRepository = userRepository,
+        productRepository = productRepository,
+        analyticsTracker = analyticsTracker,
+    )
 
     val resolveCredentialsUseCase: ResolveCredentialsUseCase =
         ResolveCredentialsUseCase(userRepository = userRepository)

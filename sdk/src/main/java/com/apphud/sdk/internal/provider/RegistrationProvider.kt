@@ -1,4 +1,4 @@
-package com.apphud.sdk.internal.provider;
+package com.apphud.sdk.internal.provider
 
 import android.content.Context
 import android.os.Build
@@ -7,6 +7,7 @@ import com.apphud.sdk.ApphudLog
 import com.apphud.sdk.ApphudUtils
 import com.apphud.sdk.BuildConfig
 import com.apphud.sdk.buildAppVersion
+import com.apphud.sdk.internal.data.AnalyticsTracker
 import com.apphud.sdk.internal.data.DeviceIdentifiersRepository
 import com.apphud.sdk.internal.data.UserRepository
 import com.apphud.sdk.isDebuggable
@@ -18,6 +19,7 @@ internal class RegistrationProvider(
     private val applicationContext: Context,
     private val deviceIdentifiersRepository: DeviceIdentifiersRepository,
     private val userRepository: UserRepository,
+    private val analyticsTracker: AnalyticsTracker,
 ) {
 
     fun getLocale(): String = Locale.getDefault().toString()
@@ -69,7 +71,7 @@ internal class RegistrationProvider(
     fun getFirstSeen(): Long? =
         getInstallationDate()
 
-    fun getSdkLaunchedAt(): Long = ApphudInternal.sdkLaunchedAt
+    fun getSdkLaunchedAt(): Long = analyticsTracker.sdkLaunchTimeMs()
 
     fun getRequestTime(): Long = System.currentTimeMillis()
 

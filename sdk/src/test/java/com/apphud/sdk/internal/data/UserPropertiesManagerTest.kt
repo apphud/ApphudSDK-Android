@@ -5,9 +5,13 @@ import com.apphud.sdk.storage.SharedPreferencesStorage
 import io.mockk.every
 import io.mockk.mockk
 import io.mockk.verify
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.test.StandardTestDispatcher
+import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertFalse
 import org.junit.Test
@@ -74,13 +78,25 @@ class UserPropertiesManagerTest {
 
     @Test
     fun `GIVEN isUpdatingProperties and not force EXPECT forceFlush returns false`() = runTest {
+        val testDispatcher = StandardTestDispatcher(testScheduler)
+        val gate = CompletableDeferred<Unit>()
+        val blockedManager = UserPropertiesManager(
+            coroutineScope = CoroutineScope(SupervisorJob() + testDispatcher),
+            userRepository = userRepository,
+            storage = storage,
+            awaitUserRegistration = { gate.await() },
+        )
+        every { userRepository.getCurrentUser() } returns mockk()
         val key = ApphudUserPropertyKey.CustomProperty("test_key")
-        manager.setUserProperty(key = key, value = "value", setOnce = false, increment = false)
-        manager.isUpdatingProperties = true
+        blockedManager.setUserProperty(key = key, value = "value", setOnce = false, increment = false)
+        launch(testDispatcher) { blockedManager.forceFlushUserProperties(true) }
+        advanceUntilIdle()
 
-        val result = manager.forceFlushUserProperties(false)
+        val result = blockedManager.forceFlushUserProperties(false)
 
         assertFalse(result)
+        gate.complete(Unit)
+        advanceUntilIdle()
     }
 
     // endregion

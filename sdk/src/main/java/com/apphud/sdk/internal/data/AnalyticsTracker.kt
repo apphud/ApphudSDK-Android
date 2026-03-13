@@ -15,7 +15,6 @@ internal class AnalyticsTracker(
 ) {
     @Volatile
     private var _sdkLaunchedAt: Long = 0L
-    val sdkLaunchedAt: Long get() = _sdkLaunchedAt
 
     @Volatile
     private var _offeringsCalledAt: Long = 0L
@@ -34,6 +33,8 @@ internal class AnalyticsTracker(
     fun recordSdkLaunch() {
         _sdkLaunchedAt = timeProvider()
     }
+
+    fun sdkLaunchTimeMs(): Long = _sdkLaunchedAt
 
     fun recordOfferingsCalled() {
         _offeringsCalledAt = timeProvider()
@@ -68,7 +69,8 @@ internal class AnalyticsTracker(
 
         _trackedAnalytics = true
         val totalLoad = (timeProvider() - _sdkLaunchedAt)
-        val userLoad = if (_firstCustomerLoadedTime != null) (_firstCustomerLoadedTime!! - _sdkLaunchedAt) else 0
+        val firstCustomer = _firstCustomerLoadedTime
+        val userLoad = if (firstCustomer != null) (firstCustomer - _sdkLaunchedAt) else 0
         val productsLoaded = _productsLoadedTime ?: 0
         ApphudLog.logI("SDK Benchmarks: User ${userLoad}ms, Products: ${productsLoaded}ms, Total: ${totalLoad}ms, Apphud Error: ${latestError?.message}, Billing Response Code: ${billingResponseCode}, ErrorCode: ${latestError?.errorCode}")
         coroutineScope.launch {
