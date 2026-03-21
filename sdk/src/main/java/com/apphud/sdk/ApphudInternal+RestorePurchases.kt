@@ -156,7 +156,7 @@ internal suspend fun ApphudInternal.sendPurchasesToApphud(
 
             withContext(Dispatchers.Main) {
                 ApphudLog.log("SyncPurchases: success $customer")
-                notifyLoadingCompleted(customer)
+                notifyLoadingCompleted(customerLoaded = customer)
             }
 
             ApphudPurchasesRestoreResult.Success(customer.subscriptions.toList(), customer.purchases.toList())

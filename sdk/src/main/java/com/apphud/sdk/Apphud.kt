@@ -396,7 +396,11 @@ object Apphud {
         ReplaceWith("this.paywalls()"),
     )
     fun productsFetchCallback(callback: (List<ProductDetails>) -> Unit) {
-        ApphudInternal.productsFetchCallback(callback)
+        runCatching {
+            ApphudInternal.offeringsCallbackManager.productsFetchCallback(callback, ApphudInternal.productDetails)
+        }.onFailure {
+            ApphudLog.logE("productsFetchCallback: SDK not initialized. Call Apphud.start() first.")
+        }
     }
 
     /**
@@ -785,7 +789,11 @@ object Apphud {
         value: Any?,
         setOnce: Boolean = false,
     ) {
-        ApphudInternal.setUserProperty(key = key, value = value, setOnce = setOnce, increment = false)
+        runCatching {
+            ApphudInternal.userPropertiesManager.setUserProperty(key = key, value = value, setOnce = setOnce, increment = false)
+        }.onFailure {
+            ApphudLog.logE("setUserProperty: SDK not initialized. Call Apphud.start() first.")
+        }
     }
 
     /**
@@ -810,7 +818,7 @@ object Apphud {
     fun forceFlushUserProperties(completion: ((Boolean) -> Unit)?) {
         coroutineScope.launch {
             runCatchingCancellable {
-                ApphudInternal.forceFlushUserProperties(true)
+                ApphudInternal.userPropertiesManager.forceFlushUserProperties(true)
             }.onSuccess { result ->
                 withContext(Dispatchers.Main) {
                     completion?.invoke(result)
@@ -838,7 +846,11 @@ object Apphud {
         key: ApphudUserPropertyKey,
         by: Any,
     ) {
-        ApphudInternal.setUserProperty(key = key, value = by, setOnce = false, increment = true)
+        runCatching {
+            ApphudInternal.userPropertiesManager.setUserProperty(key = key, value = by, setOnce = false, increment = true)
+        }.onFailure {
+            ApphudLog.logE("incrementUserProperty: SDK not initialized. Call Apphud.start() first.")
+        }
     }
 
     //endregion

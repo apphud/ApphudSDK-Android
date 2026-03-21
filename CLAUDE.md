@@ -220,6 +220,33 @@ userRepository.setCurrentUser(user, saveToCache = true)
 
 Or just no comment if the code is self-explanatory.
 
+### Encapsulation
+
+**Mutable state (`var`) in classes MUST be `private`**. Never expose `var` properties as `public` or `internal`. Instead, provide dedicated methods to read and modify state.
+
+Bad:
+```kotlin
+@Volatile
+var sdkLaunchedAt: Long = 0L
+```
+
+Good:
+```kotlin
+@Volatile
+private var sdkLaunchedAt: Long = 0L
+
+fun recordSdkLaunch() {
+    sdkLaunchedAt = System.currentTimeMillis()
+}
+```
+
+If external read access is needed, expose an immutable getter:
+```kotlin
+@Volatile
+private var _trackedAnalytics = false
+val trackedAnalytics: Boolean get() = _trackedAnalytics
+```
+
 ### Thread Safety
 
 When dealing with mutable state:

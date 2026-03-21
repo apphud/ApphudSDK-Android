@@ -69,7 +69,7 @@ internal fun ApphudInternal.loadProducts() {
 internal fun respondWithProducts() {
     ApphudInternal.productRepository.markAsResponded()
     ApphudInternal.mainScope.launch {
-        ApphudInternal.notifyLoadingCompleted(null, ApphudInternal.productRepository.state.value.products, false, false)
+        ApphudInternal.notifyLoadingCompleted(productDetailsLoaded = ApphudInternal.productRepository.state.value.products)
     }
 }
 
@@ -183,7 +183,7 @@ internal suspend fun ApphudInternal.fetchDetails(
     }
 
     val benchmark = System.currentTimeMillis() - startTime
-    ApphudInternal.productsLoadedTime = benchmark
+    ApphudInternal.analyticsTracker.recordProductsLoaded(benchmark)
 
     if (loadingAll) {
         if (responseCode == BillingClient.BillingResponseCode.OK) {
