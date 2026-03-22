@@ -171,10 +171,11 @@ internal object ApphudInternal {
         this.context = context.applicationContext
         this.apiKey = apiKey
 
-        ServiceLocator.ServiceLocatorInstanceFactory().create(
-            applicationContext = context.applicationContext,
+        ServiceLocator.initSessionScope(
+            apiKey = ApiKeyModel(apiKey),
             ruleCallback = ruleCallback,
-            apiKey = ApiKeyModel(apiKey)
+            coroutineScope = coroutineScope,
+            awaitUserRegistration = { awaitUserRegistration() },
         )
 
         mainScope.launch {
@@ -900,7 +901,7 @@ internal object ApphudInternal {
         }.onFailure { e ->
             ApphudLog.log("ServiceLocator not initialized, skip managers clear: ${e.message}")
         }
-        ServiceLocator.clearInstance()
+        ServiceLocator.clearSession()
         RequestManager.cleanRegistration()
         purchaseCallbacks.clear()
         freshPurchase = null
