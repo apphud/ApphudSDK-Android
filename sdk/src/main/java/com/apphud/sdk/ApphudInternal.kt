@@ -18,6 +18,7 @@ import com.apphud.sdk.domain.ApphudProduct
 import com.apphud.sdk.domain.ApphudUser
 import com.apphud.sdk.domain.PaywallEvent
 import com.apphud.sdk.domain.PurchaseRecordDetails
+import com.apphud.sdk.internal.ApphudDispatchers
 import com.apphud.sdk.internal.BillingWrapper
 import com.apphud.sdk.internal.ServiceLocator
 import com.apphud.sdk.internal.data.ProductLoadingState
@@ -27,10 +28,7 @@ import com.apphud.sdk.internal.util.runCatchingCancellable
 import com.apphud.sdk.managers.RequestManager
 import com.apphud.sdk.storage.SharedPreferencesStorage
 import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.TimeoutCancellationException
-import kotlinx.coroutines.cancel
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -45,8 +43,10 @@ import kotlin.math.max
 @SuppressLint("StaticFieldLeak")
 internal object ApphudInternal {
     //region === Variables ===
-    internal var mainScope = CoroutineScope(Dispatchers.Main)
-    internal var coroutineScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+    internal val coroutineScope: CoroutineScope
+        get() = ServiceLocator.instance.coroutineScope
+    internal val dispatchers: ApphudDispatchers
+        get() = ServiceLocator.instance.dispatchers
 
     internal val FALLBACK_ERRORS = listOf(APPHUD_ERROR_TIMEOUT, 404, 500, 502, 503)
     internal var ignoreCache: Boolean = false
@@ -174,11 +174,10 @@ internal object ApphudInternal {
         ServiceLocator.initSessionScope(
             apiKey = ApiKeyModel(apiKey),
             ruleCallback = ruleCallback,
-            coroutineScope = coroutineScope,
             awaitUserRegistration = { awaitUserRegistration() },
         )
 
-        mainScope.launch {
+        coroutineScope.launch(dispatchers.main) {
             ProcessLifecycleOwner.get().lifecycle.addObserver(lifecycleEventObserver)
         }
 
@@ -214,7 +213,7 @@ internal object ApphudInternal {
                 runCatchingCancellable { registration() }
                     .onFailure { ApphudLog.logE("Registration failed in initialize: ${it.message}") }
             } else {
-                mainScope.launch { notifyLoadingCompleted(customerLoaded = userRepository.getCurrentUser()) }
+                coroutineScope.launch(dispatchers.main) { notifyLoadingCompleted(customerLoaded = userRepository.getCurrentUser()) }
             }
             postInitSetup()
         }
@@ -321,7 +320,7 @@ internal object ApphudInternal {
             // TODO: should be called only if something changed
             coroutineScope.launch {
                 delay(500)
-                mainScope.launch {
+                coroutineScope.launch(dispatchers.main) {
                     userRepository.getCurrentUser()?.let { user ->
                         apphudListener?.apphudNonRenewingPurchasesUpdated(user.purchases.toList())
                         apphudListener?.apphudSubscriptionsUpdated(user.subscriptions.toList())
@@ -442,7 +441,7 @@ internal object ApphudInternal {
             isRegisteringUser = false
 
             val cachedUser = userRepository.getCurrentUser()
-            withContext(Dispatchers.Main) {
+            withContext(dispatchers.main) {
                 notifyLoadingCompleted(
                     customerLoaded = cachedUser,
                     productDetailsLoaded = null,
@@ -461,7 +460,7 @@ internal object ApphudInternal {
                 return@launch
             }
             delay((preferredTimeout * 1000.0 * 1.5).toLong())
-            mainScope.launch {
+            coroutineScope.launch(dispatchers.main) {
                 if (offeringsCallbackManager.hasPendingWork()) {
                     ApphudLog.logE("Force Notify About Current State")
                     notifyLoadingCompleted(
@@ -491,7 +490,7 @@ internal object ApphudInternal {
             // Retry counts are now managed by state transitions
         }
 
-        mainScope.launch {
+        coroutineScope.launch(dispatchers.main) {
 
             if (observerMode) {
                 observerMode = false
@@ -582,7 +581,7 @@ internal object ApphudInternal {
         }
 
         customer?.let {
-            mainScope.launch { notifyLoadingCompleted(customerLoaded = it) }
+            coroutineScope.launch(dispatchers.main) { notifyLoadingCompleted(customerLoaded = it) }
         }
         return userRepository.getCurrentUser()
     }
@@ -609,7 +608,7 @@ internal object ApphudInternal {
             val eventsJob = launch {
                 try {
                     ServiceLocator.instance.paywallEventManager.events.collect { event ->
-                        withContext(Dispatchers.Main) {
+                        withContext(dispatchers.main) {
                             when (event) {
                                 is PaywallEvent.ScreenShown -> {
                                     ApphudLog.logI("[ApphudInternal] Paywall screen shown via event bus")
@@ -648,7 +647,7 @@ internal object ApphudInternal {
                 } catch (e: Exception) {
                     val error = e.toApphudError()
                     ApphudLog.logE("[ApphudInternal] Error in event subscription: ${error.message}")
-                    withContext(Dispatchers.Main) {
+                    withContext(dispatchers.main) {
                         callbacks.onScreenError(error)
                     }
                 }
@@ -672,7 +671,7 @@ internal object ApphudInternal {
                 eventsJob.cancel()
                 val error = e.toApphudError()
                 ApphudLog.logE("[ApphudInternal] Timeout showing paywall screen: ${error.message}")
-                withContext(Dispatchers.Main) {
+                withContext(dispatchers.main) {
                     callbacks.onScreenError(error)
                 }
                 throw e
@@ -683,7 +682,7 @@ internal object ApphudInternal {
                 eventsJob.cancel()
                 val error = e.toApphudError()
                 ApphudLog.logE("[ApphudInternal] Error showing paywall screen: ${error.message}")
-                withContext(Dispatchers.Main) {
+                withContext(dispatchers.main) {
                     callbacks.onScreenError(error)
                 }
             }
@@ -832,7 +831,7 @@ internal object ApphudInternal {
                     needPlacementsPaywalls = needPP,
                     isNew = isNew,
                 )
-                user?.let { mainScope.launch { notifyLoadingCompleted(customerLoaded = it) } }
+                user?.let { coroutineScope.launch(dispatchers.main) { notifyLoadingCompleted(customerLoaded = it) } }
             }.onFailure { ApphudLog.logE("Error collecting device identifiers: ${it.message}") }
         }
     }
@@ -854,53 +853,6 @@ internal object ApphudInternal {
     }
 
     private fun clear() {
-        // Cancel all active coroutines to prevent race conditions when userId/deviceId become null
-        coroutineScope.cancel()
-        mainScope.cancel()
-
-        // Recreate scopes for next initialization
-        coroutineScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
-        mainScope = CoroutineScope(Dispatchers.Main)
-
-        runCatching {
-            val controller = ServiceLocator.instance.ruleController
-            controller.stop()
-        }.onFailure { e ->
-            ApphudLog.log("ServiceLocator not initialized, skip ruleController.stop(): ${e.message}")
-        }
-
-        // Clear user through Repository
-        runCatching {
-            userRepository.clearUser()
-        }.onFailure { e ->
-            ApphudLog.log("ServiceLocator not initialized, skip userRepository.clearUser(): ${e.message}")
-        }
-
-        // Reset products state to Idle
-        runCatching {
-            productRepository.reset()
-        }.onFailure { e ->
-            ApphudLog.log("ServiceLocator not initialized, skip productRepository.reset(): ${e.message}")
-        }
-
-        runCatching {
-            ServiceLocator.instance.deviceIdentifiersRepository.clear()
-        }.onFailure { e ->
-            ApphudLog.log("ServiceLocator not initialized, skip deviceIdentifiersRepository.clear(): ${e.message}")
-        }
-
-        if (isInitialized()) {
-            storage.clean()
-        } else {
-            ApphudLog.log("SDK not initialized, skip storage.clean()")
-        }
-        runCatching {
-            offeringsCallbackManager.clear()
-            userPropertiesManager.clear()
-            analyticsTracker.reset()
-        }.onFailure { e ->
-            ApphudLog.log("ServiceLocator not initialized, skip managers clear: ${e.message}")
-        }
         ServiceLocator.clearSession()
         RequestManager.cleanRegistration()
         purchaseCallbacks.clear()
@@ -961,7 +913,7 @@ internal object ApphudInternal {
         val userIdChanged = userRepository.setCurrentUser(user)
         if (userIdChanged && !fromFallback) {
             val newUserId = user.userId
-            mainScope.launch {
+            coroutineScope.launch(dispatchers.main) {
                 apphudListener?.apphudDidChangeUserID(newUserId)
             }
         }

@@ -8,7 +8,6 @@ import com.apphud.sdk.domain.PurchaseRecordDetails
 import com.apphud.sdk.internal.callback_status.PurchaseRestoredCallbackStatus
 import com.apphud.sdk.internal.util.runCatchingCancellable
 import com.apphud.sdk.managers.RequestManager
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
@@ -154,7 +153,7 @@ internal suspend fun ApphudInternal.sendPurchasesToApphud(
             storage.isNeedSync = false
             prevPurchases.addAll(tempPurchaseRecordDetails)
 
-            withContext(Dispatchers.Main) {
+            withContext(dispatchers.main) {
                 ApphudLog.log("SyncPurchases: success $customer")
                 notifyLoadingCompleted(customerLoaded = customer)
             }

@@ -3,7 +3,6 @@ package com.apphud.sdk.internal
 import android.content.Context
 import com.apphud.sdk.ApphudRuleCallback
 import com.apphud.sdk.internal.domain.model.ApiKey
-import kotlinx.coroutines.CoroutineScope
 
 internal class ServiceLocator private constructor() {
 
@@ -27,8 +26,10 @@ internal class ServiceLocator private constructor() {
     val localRulesScreenRepository get() = appScope.localRulesScreenRepository
     val lifecycleRepository get() = appScope.lifecycleRepository
     val billingWrapper get() = appScope.billingWrapper
+    val dispatchers get() = appScope.dispatchers
 
     // Session-scoped passthrough properties
+    val coroutineScope get() = session.coroutineScope
     val ruleCallback get() = session.ruleCallback
     val userDataSource get() = session.userDataSource
     val userRepository get() = session.userRepository
@@ -74,7 +75,6 @@ internal class ServiceLocator private constructor() {
         fun initSessionScope(
             apiKey: ApiKey,
             ruleCallback: ApphudRuleCallback,
-            coroutineScope: CoroutineScope,
             awaitUserRegistration: suspend () -> Unit,
         ) {
             val locator = instance
@@ -83,12 +83,12 @@ internal class ServiceLocator private constructor() {
                 appScope = locator.appScope,
                 apiKey = apiKey,
                 ruleCallback = ruleCallback,
-                coroutineScope = coroutineScope,
                 awaitUserRegistration = awaitUserRegistration,
             )
         }
 
         fun clearSession() {
+            _instance?._session?.cancel()
             _instance?._session = null
         }
 

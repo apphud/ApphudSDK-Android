@@ -14,7 +14,6 @@ import com.apphud.sdk.internal.callback_status.PurchaseUpdatedCallbackStatus
 import com.apphud.sdk.internal.domain.model.PurchaseContext
 import com.apphud.sdk.internal.util.runCatchingCancellable
 import com.apphud.sdk.managers.RequestManager
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
@@ -104,7 +103,7 @@ private suspend fun ApphudInternal.fetchDetailsAndPurchase(
     val responseCode = fetchDetails(listOf(apphudProduct.productId))
     val productDetails = responseCode.second?.firstOrNull() ?: getProductDetailsByProductId(apphudProduct.productId)
     if (productDetails != null) {
-        mainScope.launch {
+        coroutineScope.launch(dispatchers.main) {
             apphudProduct.productDetails = productDetails
             purchaseInternal(
                 activity,
@@ -121,7 +120,7 @@ private suspend fun ApphudInternal.fetchDetailsAndPurchase(
         val message =
             "[${ApphudBillingResponseCodes.getName(responseCode.first)}] Aborting purchase because product unavailable: ${apphudProduct.productId}"
         ApphudLog.log(message = message)
-        mainScope.launch {
+        coroutineScope.launch(dispatchers.main) {
             callback?.invoke(
                 ApphudPurchaseResult(
                     null,
@@ -174,7 +173,7 @@ private fun ApphudInternal.purchaseInternal(
 
         coroutineScope.launch {
             billing.purchasesCallback = { purchasesResult ->
-                mainScope.launch {
+                coroutineScope.launch(dispatchers.main) {
                     when (purchasesResult) {
                         is PurchaseUpdatedCallbackStatus.Error -> {
                             val message =
@@ -281,7 +280,7 @@ private fun ApphudInternal.purchaseInternal(
             if (error != null) {
                 billing.purchasesCallback = null
                 purchasingProduct = null
-                mainScope.launch {
+                coroutineScope.launch(dispatchers.main) {
                     callback?.invoke(ApphudPurchaseResult(null, null, null, error))
                 }
             }
@@ -290,7 +289,7 @@ private fun ApphudInternal.purchaseInternal(
         val message =
             "Unable to buy product with because ProductDetails is null [Apphud product ID: ${apphudProduct.id}]"
         ApphudLog.log(message = message)
-        mainScope.launch {
+        coroutineScope.launch(dispatchers.main) {
             callback?.invoke(ApphudPurchaseResult(null, null, null, ApphudError(message)))
         }
     }
@@ -310,7 +309,7 @@ internal fun ApphudInternal.lookupFreshPurchase(extraMessage: String = "resend_f
             }
             if ((purchaseCallbacks.isNotEmpty() && purchasingProduct != null) || storage.isNeedSync) {
 
-                launch(Dispatchers.Main) { apphudListener?.apphudDidReceivePurchase(purchase) }
+                launch(dispatchers.main) { apphudListener?.apphudDidReceivePurchase(purchase) }
 
                 ApphudLog.logE("resending fresh purchase ${purchase.orderId}")
 
@@ -328,7 +327,7 @@ internal fun ApphudInternal.lookupFreshPurchase(extraMessage: String = "resend_f
                     )
                 )
 
-                withContext(Dispatchers.Main) {
+                withContext(dispatchers.main) {
                     val newSubscriptions =
                         customer.subscriptions.firstOrNull { it.productId == purchase.products.first() }
                     val newPurchases =
@@ -351,7 +350,7 @@ private suspend fun ApphudInternal.handlePurchaseAcknowledgment(
 ) {
     ApphudLog.log("Start $productType purchase acknowledge")
     billing.acknowledge(purchase) { status, _ ->
-        mainScope.launch {
+        coroutineScope.launch(dispatchers.main) {
             when (status) {
                 is PurchaseCallbackStatus.Error -> {
                     val message =
@@ -369,7 +368,7 @@ private suspend fun ApphudInternal.handlePurchaseAcknowledgment(
 private suspend fun ApphudInternal.handlePurchaseConsumption(purchase: Purchase, apphudProduct: ApphudProduct?) {
     ApphudLog.log("Start inapp consume purchase")
     billing.consume(purchase) { status, _ ->
-        mainScope.launch {
+        coroutineScope.launch(dispatchers.main) {
             when (status) {
                 is PurchaseCallbackStatus.Error -> {
                     val message =
@@ -471,7 +470,7 @@ private suspend fun ApphudInternal.sendCheckToApphud(
             }.onFailure { error ->
                 ApphudLog.logE("Failed to send purchase in fallback mode: ${error.message}")
             }
-            withContext(Dispatchers.Main) {
+            withContext(dispatchers.main) {
                 addTempPurchase(
                     apphudUser = localCurrentUser, purchase = purchase,
                     type = apphudProduct?.productDetails?.productType ?: productDetails?.productType ?: "",
@@ -505,7 +504,7 @@ private suspend fun ApphudInternal.sendCheckToApphud(
                 )
             }
                 .onSuccess { customer ->
-                    withContext(Dispatchers.IO) {
+                    withContext(dispatchers.io) {
                         val newSubscriptions =
                             customer.subscriptions.firstOrNull { it.productId == purchase.products.first() }
                         val newPurchases =
@@ -648,7 +647,7 @@ internal suspend fun ApphudInternal.trackPurchase(
         }
     } else {
         storage.isNeedSync = true
-        withContext(Dispatchers.Main) {
+        withContext(dispatchers.main) {
             syncPurchases(observerMode = true)
         }
     }

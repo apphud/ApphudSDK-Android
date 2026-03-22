@@ -4,7 +4,6 @@ import android.app.Activity
 import android.content.Context
 import com.android.billingclient.api.ProductDetails
 import com.android.billingclient.api.Purchase
-import com.apphud.sdk.ApphudInternal.coroutineScope
 import com.apphud.sdk.internal.util.runCatchingCancellable
 import com.apphud.sdk.domain.ApphudGroup
 import com.apphud.sdk.domain.ApphudNonRenewingPurchase
@@ -16,7 +15,6 @@ import com.apphud.sdk.domain.ApphudSubscription
 import com.apphud.sdk.domain.ApphudUser
 import com.apphud.sdk.internal.ServiceLocator
 import com.apphud.sdk.internal.domain.model.ApiKey as ApiKeyModel
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.withContext
@@ -24,6 +22,9 @@ import kotlinx.coroutines.withTimeout
 import kotlin.coroutines.resume
 
 object Apphud {
+    private val coroutineScope get() = ApphudInternal.coroutineScope
+    private val dispatchers get() = ApphudInternal.dispatchers
+
     //region === Initialization ===
 
     /**
@@ -118,12 +119,12 @@ object Apphud {
             runCatchingCancellable {
                 ApphudInternal.updateUserId(userId)
             }.onSuccess { result ->
-                withContext(Dispatchers.Main) {
+                withContext(dispatchers.main) {
                     callback?.invoke(result)
                 }
             }.onFailure { error ->
                 ApphudLog.logE("Error in updateUserId: ${error.message}")
-                withContext(Dispatchers.Main) {
+                withContext(dispatchers.main) {
                     callback?.invoke(null)
                 }
             }
@@ -519,7 +520,7 @@ object Apphud {
     ) {
         val wrappedCallback: ((ApphudPurchaseResult) -> Unit)? = block?.let { callback ->
             { result ->
-                coroutineScope.launch(Dispatchers.Main) {
+                coroutineScope.launch(dispatchers.main) {
                     callback(result)
                 }
             }
@@ -561,7 +562,7 @@ object Apphud {
     ) {
         val wrappedCallback: ((ApphudPurchaseResult) -> Unit)? = block?.let { callback ->
             { result ->
-                coroutineScope.launch(Dispatchers.Main) {
+                coroutineScope.launch(dispatchers.main) {
                     callback(result)
                 }
             }
@@ -629,12 +630,12 @@ object Apphud {
             runCatchingCancellable {
                 ApphudInternal.restorePurchases()
             }.onSuccess { result ->
-                withContext(Dispatchers.Main) {
+                withContext(dispatchers.main) {
                     callback(result)
                 }
             }.onFailure { error ->
                 ApphudLog.logE("Error in restorePurchases: ${error.message}")
-                withContext(Dispatchers.Main) {
+                withContext(dispatchers.main) {
                     callback(ApphudPurchasesRestoreResult.Error(error.toApphudError()))
                 }
             }
@@ -657,12 +658,12 @@ object Apphud {
             runCatchingCancellable {
                 ApphudInternal.refreshEntitlements(forceRefresh = true)
             }.onSuccess { result ->
-                withContext(Dispatchers.Main) {
+                withContext(dispatchers.main) {
                     callback?.invoke(result)
                 }
             }.onFailure { error ->
                 ApphudLog.logE("Error in refreshUserData: ${error.message}")
-                withContext(Dispatchers.Main) {
+                withContext(dispatchers.main) {
                     callback?.invoke(null)
                 }
             }
@@ -749,12 +750,12 @@ object Apphud {
             runCatchingCancellable {
                 ApphudInternal.tryWebAttribution(data = data)
             }.onSuccess { (success, user) ->
-                withContext(Dispatchers.Main) {
+                withContext(dispatchers.main) {
                     callback(success, user)
                 }
             }.onFailure { error ->
                 ApphudLog.logE("Error in attributeFromWeb: ${error.message}")
-                withContext(Dispatchers.Main) {
+                withContext(dispatchers.main) {
                     callback(false, null)
                 }
             }
@@ -820,12 +821,12 @@ object Apphud {
             runCatchingCancellable {
                 ApphudInternal.userPropertiesManager.forceFlushUserProperties(true)
             }.onSuccess { result ->
-                withContext(Dispatchers.Main) {
+                withContext(dispatchers.main) {
                     completion?.invoke(result)
                 }
             }.onFailure { error ->
                 ApphudLog.logE("Error in forceFlushUserProperties: ${error.message}")
-                withContext(Dispatchers.Main) {
+                withContext(dispatchers.main) {
                     completion?.invoke(false)
                 }
             }
@@ -878,12 +879,12 @@ object Apphud {
             runCatchingCancellable {
                 ApphudInternal.grantPromotionalSuspend(daysCount, productId, permissionGroup)
             }.onSuccess { result ->
-                withContext(Dispatchers.Main) {
+                withContext(dispatchers.main) {
                     callback?.invoke(result)
                 }
             }.onFailure { error ->
                 ApphudLog.logE("Error in grantPromotional: ${error.message}")
-                withContext(Dispatchers.Main) {
+                withContext(dispatchers.main) {
                     callback?.invoke(false)
                 }
             }

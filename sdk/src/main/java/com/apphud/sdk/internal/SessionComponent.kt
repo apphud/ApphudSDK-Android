@@ -35,16 +35,23 @@ import com.apphud.sdk.internal.provider.RegistrationProvider
 import com.apphud.sdk.managers.RequestManager
 import com.apphud.sdk.mappers.AttributionMapper
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.cancel
 import okhttp3.OkHttpClient
 import okhttp3.logging.HttpLoggingInterceptor
 
 internal class SessionComponent(
-    private val appScope: AppScopeComponent,
+    val appScope: AppScopeComponent,
     private val apiKey: ApiKey,
     val ruleCallback: ApphudRuleCallback,
-    private val coroutineScope: CoroutineScope,
     awaitUserRegistration: suspend () -> Unit,
 ) {
+
+    val coroutineScope: CoroutineScope = CoroutineScope(SupervisorJob() + appScope.dispatchers.io)
+
+    fun cancel() {
+        coroutineScope.cancel()
+    }
 
     val userDataSource: UserDataSource = UserDataSource(appScope.storage)
 
@@ -111,20 +118,23 @@ internal class SessionComponent(
             attributionMapper = AttributionMapper(),
             notificationMapper = NotificationMapper(),
             urlProvider = appScope.urlProvider,
+            dispatchers = appScope.dispatchers,
         )
 
     private val screenRemoteRepository: ScreenRemoteRepository =
         ScreenRemoteRepository(
             okHttpClient = okHttpClientWithoutHeaders,
             gson = appScope.gson,
-            apiKey = apiKey
+            apiKey = apiKey,
+            dispatchers = appScope.dispatchers,
         )
 
     val userRemoteRepository: UserRemoteRepository =
         UserRemoteRepository(
             okHttpClient = okHttpClient,
             gson = appScope.gson,
-            attributionMapper = AttributionMapper()
+            attributionMapper = AttributionMapper(),
+            dispatchers = appScope.dispatchers,
         )
 
     private val renderResultMapper: RenderResultMapper = RenderResultMapper()
@@ -133,7 +143,8 @@ internal class SessionComponent(
         RenderRemoteRepository(
             okHttpClient = okHttpClient,
             gson = appScope.gson,
-            renderResultMapper = renderResultMapper
+            renderResultMapper = renderResultMapper,
+            dispatchers = appScope.dispatchers,
         )
 
     val fetchRulesScreenUseCase: FetchRulesScreenUseCase =
@@ -167,6 +178,7 @@ internal class SessionComponent(
             lifecycleRepository = appScope.lifecycleRepository,
             localRulesScreenRepository = appScope.localRulesScreenRepository,
             ruleCallback = ruleCallback,
+            dispatchers = appScope.dispatchers,
         )
 
     val paywallEventManager: PaywallEventManager = PaywallEventManager()
@@ -178,6 +190,7 @@ internal class SessionComponent(
         userRepository = userRepository,
         storage = appScope.storage,
         awaitUserRegistration = awaitUserRegistration,
+        dispatchers = appScope.dispatchers,
     )
 
     val offeringsCallbackManager: OfferingsCallbackManager = OfferingsCallbackManager(

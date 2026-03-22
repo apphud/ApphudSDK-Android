@@ -68,7 +68,7 @@ internal fun ApphudInternal.loadProducts() {
 
 internal fun respondWithProducts() {
     ApphudInternal.productRepository.markAsResponded()
-    ApphudInternal.mainScope.launch {
+    ApphudInternal.coroutineScope.launch(ApphudInternal.dispatchers.main) {
         ApphudInternal.notifyLoadingCompleted(productDetailsLoaded = ApphudInternal.productRepository.state.value.products)
     }
 }
