@@ -8,6 +8,7 @@ import androidx.core.content.ContextCompat
 import com.apphud.sdk.ApphudLog
 import com.apphud.sdk.ApphudRuleCallback
 import com.apphud.sdk.DeviceId
+import com.apphud.sdk.internal.ApphudDispatchers
 import com.apphud.sdk.internal.data.local.LifecycleRepository
 import com.apphud.sdk.internal.data.local.LocalRulesScreenRepository
 import com.apphud.sdk.internal.domain.FetchMostActualRuleScreenUseCase
@@ -18,7 +19,6 @@ import com.apphud.sdk.internal.domain.model.LifecycleEvent
 import com.apphud.sdk.internal.domain.model.Rule
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.DelicateCoroutinesApi
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -37,6 +37,7 @@ internal class RuleController(
     private val localRulesScreenRepository: LocalRulesScreenRepository,
     coroutineScope: CoroutineScope,
     private val ruleCallback: ApphudRuleCallback,
+    private val dispatchers: ApphudDispatchers,
 ) {
     @Volatile
     private var fetchRuleScreenJob: Job? = null
@@ -86,7 +87,7 @@ internal class RuleController(
                 }
                 is RuleState.RuleActivityClosed -> false
             }
-            withContext(Dispatchers.Main) {
+            withContext(dispatchers.main) {
                 callback(wasShown)
             }
         }
@@ -151,7 +152,7 @@ internal class RuleController(
     }
 
     private suspend fun processPendingRule(pendingRule: Rule) {
-        val shouldShowScreen = withContext(Dispatchers.Main) {
+        val shouldShowScreen = withContext(dispatchers.main) {
             ruleCallback.shouldShowScreen(pendingRule)
         }
         if (shouldShowScreen) {
@@ -174,7 +175,7 @@ internal class RuleController(
                 when (val ruleResult = fetchMostActualRuleScreenUseCase()) {
                     is RuleScreenResult.Success -> {
                         val rule = getRuleById(ruleResult.ruleId) ?: return
-                        val shouldPerformRule = withContext(Dispatchers.Main) {
+                        val shouldPerformRule = withContext(dispatchers.main) {
                             ruleCallback.shouldPerformRule(rule)
                         }
                         if (shouldPerformRule) {

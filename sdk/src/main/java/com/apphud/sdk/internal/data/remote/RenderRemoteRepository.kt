@@ -5,6 +5,7 @@ import com.apphud.sdk.ApphudError
 import com.apphud.sdk.domain.RenderResult
 import com.apphud.sdk.internal.data.mapper.RenderResultMapper
 import com.apphud.sdk.internal.domain.model.RenderItem
+import com.apphud.sdk.internal.ApphudDispatchers
 import com.apphud.sdk.internal.util.runCatchingCancellable
 import com.google.gson.Gson
 import okhttp3.HttpUrl.Companion.toHttpUrl
@@ -14,6 +15,7 @@ internal class RenderRemoteRepository(
     private val okHttpClient: OkHttpClient,
     private val gson: Gson,
     private val renderResultMapper: RenderResultMapper,
+    private val dispatchers: ApphudDispatchers,
 ) {
 
     suspend fun renderPaywallProperties(
@@ -22,7 +24,7 @@ internal class RenderRemoteRepository(
         runCatchingCancellable {
             val requestBody = RenderPropertiesRequest(items)
             val request = buildPostRequest(RENDER_PROPERTIES_URL, requestBody)
-            executeForResponse<List<Map<String, Any>>>(okHttpClient, gson, request)
+            executeForResponse<List<Map<String, Any>>>(okHttpClient, gson, request, dispatchers.io)
         }
             .recoverCatching { e ->
                 val message = e.message ?: "Failed to render paywall properties"

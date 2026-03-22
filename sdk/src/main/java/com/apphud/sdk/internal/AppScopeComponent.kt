@@ -21,6 +21,8 @@ import okhttp3.OkHttpClient
 
 internal class AppScopeComponent(val applicationContext: Context) {
 
+    val dispatchers: ApphudDispatchers = ApphudDispatchers()
+
     val gson: Gson = Gson()
 
     val storage: SharedPreferencesStorage = SharedPreferencesStorage(applicationContext)
@@ -53,10 +55,11 @@ internal class AppScopeComponent(val applicationContext: Context) {
         LocalRulesScreenRepository(
             context = applicationContext,
             gson = gson,
-            ruleScreenMapper = RuleScreenMapper()
+            ruleScreenMapper = RuleScreenMapper(),
+            dispatchers = dispatchers,
         )
 
-    val lifecycleRepository: LifecycleRepository = LifecycleRepository()
+    val lifecycleRepository: LifecycleRepository = LifecycleRepository(dispatchers)
 
     val billingWrapper: BillingWrapper by lazy { BillingWrapper(applicationContext) }
 }

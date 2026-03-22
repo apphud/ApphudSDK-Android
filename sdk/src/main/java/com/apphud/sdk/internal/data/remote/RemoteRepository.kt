@@ -24,6 +24,7 @@ import com.apphud.sdk.internal.domain.model.GetProductsParams
 import com.apphud.sdk.internal.domain.model.Notification
 import com.apphud.sdk.internal.domain.model.PurchaseContext
 import com.apphud.sdk.internal.util.mapCatchingCancellable
+import com.apphud.sdk.internal.ApphudDispatchers
 import com.apphud.sdk.internal.data.network.UrlProvider
 import com.apphud.sdk.internal.util.recoverCatchingCancellable
 import com.apphud.sdk.internal.util.runCatchingCancellable
@@ -42,6 +43,7 @@ internal class RemoteRepository(
     private val attributionMapper: AttributionMapper,
     private val notificationMapper: NotificationMapper,
     private val urlProvider: UrlProvider,
+    private val dispatchers: ApphudDispatchers,
 ) {
 
     suspend fun getCustomers(
@@ -53,7 +55,7 @@ internal class RemoteRepository(
         runCatchingCancellable {
             val request =
                 buildPostRequest(urlProvider.customersUrl, registrationBodyFactory.create(needPlacements, isNew, userId, email))
-            executeForResponse<CustomerDto>(okHttpClient, gson, request)
+            executeForResponse<CustomerDto>(okHttpClient, gson, request, dispatchers.io)
         }
             .recoverCatchingCancellable { e ->
                 val message = e.message ?: "Registration failed"
@@ -69,7 +71,7 @@ internal class RemoteRepository(
         runCatchingCancellable {
             val request =
                 buildPostRequest(urlProvider.subscriptionsUrl, purchaseBodyFactory.create(purchaseContext))
-            executeForResponse<CustomerDto>(okHttpClient, gson, request)
+            executeForResponse<CustomerDto>(okHttpClient, gson, request, dispatchers.io)
         }
             .recoverCatching { e ->
                 val message = e.message ?: "Purchase failed"
@@ -92,7 +94,7 @@ internal class RemoteRepository(
                     urlProvider.subscriptionsUrl,
                     purchaseBodyFactory.create(apphudProduct, purchases, observerMode)
                 )
-            executeForResponse<CustomerDto>(okHttpClient, gson, request)
+            executeForResponse<CustomerDto>(okHttpClient, gson, request, dispatchers.io)
         }
             .recoverCatching { e ->
                 val message = e.message ?: "Restore purchase failed"
@@ -112,7 +114,7 @@ internal class RemoteRepository(
                 "user_id" to getProductsParams.userId,
             )
             val request = buildGetRequest(urlProvider.productsUrl, paramsMap)
-            executeForResponse<List<ApphudGroupDto>>(okHttpClient, gson, request)
+            executeForResponse<List<ApphudGroupDto>>(okHttpClient, gson, request, dispatchers.io)
         }
             .recoverCatching { e ->
                 val message = e.message ?: "Parse products failed"
@@ -129,7 +131,7 @@ internal class RemoteRepository(
     ): Result<Attribution> =
         runCatchingCancellable {
             val request = buildPostRequest(urlProvider.attributionUrl, attributionRequestBody)
-            executeForResponse<AttributionDto>(okHttpClient, gson, request)
+            executeForResponse<AttributionDto>(okHttpClient, gson, request, dispatchers.io)
         }
             .recoverCatching { e ->
                 val message = e.message ?: "Failed to send attribution"
@@ -146,7 +148,7 @@ internal class RemoteRepository(
     ): Result<ApphudUser> =
         runCatchingCancellable {
             val request = buildPostRequest(urlProvider.promotionsUrl, grantPromotionalDto)
-            executeForResponse<CustomerDto>(okHttpClient, gson, request)
+            executeForResponse<CustomerDto>(okHttpClient, gson, request, dispatchers.io)
         }
             .recoverCatching { e ->
                 val message = e.message ?: "Promotional grant failed"
@@ -161,7 +163,7 @@ internal class RemoteRepository(
     suspend fun trackEvent(event: PaywallEventDto): Result<Unit> =
         runCatchingCancellable {
             val request = buildPostRequest(urlProvider.eventsUrl, event)
-            executeForResponse<Unit>(okHttpClient, gson, request)
+            executeForResponse<Unit>(okHttpClient, gson, request, dispatchers.io)
         }
             .recoverCatching { e ->
                 val message = e.message ?: "Failed to track paywall event"
@@ -175,7 +177,7 @@ internal class RemoteRepository(
                 "device_id" to deviceId,
             )
             val request = buildGetRequest(urlProvider.notificationsUrl, paramsMap)
-            executeForResponse<List<NotificationDto>>(okHttpClient, gson, request)
+            executeForResponse<List<NotificationDto>>(okHttpClient, gson, request, dispatchers.io)
         }
             .recoverCatching { e ->
                 val message = e.message ?: "Failed to get notifications"
@@ -194,7 +196,7 @@ internal class RemoteRepository(
                 ruleId = ruleId
             )
             val request = buildPostRequest(urlProvider.notificationsReadUrl, requestDto)
-            executeForResponse<Unit>(okHttpClient, gson, request)
+            executeForResponse<Unit>(okHttpClient, gson, request, dispatchers.io)
         }
             .recoverCatching { e ->
                 val message = e.message ?: "Failed to mark notifications as read"

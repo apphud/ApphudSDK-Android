@@ -5,7 +5,7 @@ import com.apphud.sdk.internal.data.dto.ResponseDto
 import com.apphud.sdk.managers.RequestManager.parser
 import com.google.gson.Gson
 import com.google.gson.reflect.TypeToken
-import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.withContext
 import okhttp3.HttpUrl
 import okhttp3.MediaType.Companion.toMediaType
@@ -50,8 +50,9 @@ internal suspend inline fun <reified T> executeForResponse(
     okHttpClient: OkHttpClient,
     gson: Gson,
     request: Request,
+    dispatcher: CoroutineDispatcher,
 ): ResponseDto<T> =
-    withContext(Dispatchers.IO) {
+    withContext(dispatcher) {
         okHttpClient.newCall(request).execute().use { response ->
             val responseBody = response.body?.string()
 
