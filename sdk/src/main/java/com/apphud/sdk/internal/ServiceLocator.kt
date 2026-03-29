@@ -1,305 +1,99 @@
 package com.apphud.sdk.internal
 
 import android.content.Context
-import com.apphud.sdk.ApphudInternal
 import com.apphud.sdk.ApphudRuleCallback
-import com.apphud.sdk.internal.data.AnalyticsTracker
-import com.apphud.sdk.internal.data.DeviceIdentifiersDataSource
-import com.apphud.sdk.internal.data.DeviceIdentifiersRepository
-import com.apphud.sdk.internal.data.ProductRepository
-import com.apphud.sdk.internal.data.UserDataSource
-import com.apphud.sdk.internal.data.UserPropertiesManager
-import com.apphud.sdk.internal.data.UserRepository
-import com.apphud.sdk.internal.data.local.LifecycleRepository
-import com.apphud.sdk.internal.data.local.LocalRulesScreenRepository
-import com.apphud.sdk.internal.data.local.PaywallRepository
-import com.apphud.sdk.internal.data.mapper.CustomerMapper
-import com.apphud.sdk.internal.data.mapper.PaywallsMapper
-import com.apphud.sdk.internal.data.mapper.PlacementsMapper
-import com.apphud.sdk.internal.data.mapper.ProductMapper
-import com.apphud.sdk.internal.data.mapper.RenderResultMapper
-import com.apphud.sdk.internal.data.mapper.RuleScreenMapper
-import com.apphud.sdk.internal.data.mapper.SubscriptionMapper
-import com.apphud.sdk.internal.data.network.HeadersInterceptor
-import com.apphud.sdk.internal.data.network.HostSwitcherInterceptor
-import com.apphud.sdk.internal.data.network.HttpRetryInterceptor
-import com.apphud.sdk.internal.data.network.PrettyHttpLoggingInterceptor
-import com.apphud.sdk.internal.data.network.PrettyJsonFormatter
-import com.apphud.sdk.internal.data.network.TimeoutInterceptor
-import com.apphud.sdk.internal.data.network.UrlProvider
-import com.apphud.sdk.internal.data.remote.PurchaseBodyFactory
-import com.apphud.sdk.internal.data.remote.RegistrationBodyFactory
-import com.apphud.sdk.internal.data.remote.RemoteRepository
-import com.apphud.sdk.internal.data.remote.RenderRemoteRepository
-import com.apphud.sdk.internal.data.remote.ScreenRemoteRepository
-import com.apphud.sdk.internal.data.remote.UserRemoteRepository
-import com.apphud.sdk.internal.data.serializer.RenderItemsSerializer
-import com.apphud.sdk.internal.domain.CollectDeviceIdentifiersUseCase
-import com.apphud.sdk.internal.domain.DeviceIdentifiersInteractor
-import com.apphud.sdk.internal.domain.FetchMostActualRuleScreenUseCase
-import com.apphud.sdk.internal.domain.FetchNativePurchasesUseCase
-import com.apphud.sdk.internal.domain.FetchRulesScreenUseCase
-import com.apphud.sdk.internal.domain.RegistrationUseCase
-import com.apphud.sdk.internal.domain.RenderPaywallPropertiesUseCase
-import com.apphud.sdk.internal.domain.ResolveCredentialsUseCase
-import com.apphud.sdk.internal.domain.mapper.DateTimeMapper
-import com.apphud.sdk.internal.domain.mapper.NotificationMapper
 import com.apphud.sdk.internal.domain.model.ApiKey
-import com.apphud.sdk.internal.presentation.rule.RuleController
-import com.apphud.sdk.internal.provider.RegistrationProvider
-import com.apphud.sdk.managers.RequestManager
-import com.apphud.sdk.mappers.AttributionMapper
-import com.apphud.sdk.storage.SharedPreferencesStorage
-import com.google.gson.Gson
-import com.google.gson.GsonBuilder
-import okhttp3.OkHttpClient
-import okhttp3.logging.HttpLoggingInterceptor
 
-internal class ServiceLocator(
-    private val applicationContext: Context,
-    val ruleCallback: ApphudRuleCallback,
-    private val apiKey: ApiKey,
-) {
+internal class ServiceLocator private constructor() {
 
-    val gson: Gson = Gson()
+    @Volatile
+    private var _appScope: AppScopeComponent? = null
 
-    val storage: SharedPreferencesStorage = SharedPreferencesStorage(applicationContext)
+    @Volatile
+    private var _session: SessionComponent? = null
 
-    private val paywallsMapper = PaywallsMapper(gson)
-    private val placementsMapper = PlacementsMapper(paywallsMapper)
-    private val subscriptionMapper = SubscriptionMapper()
-    private val customerMapper =
-        CustomerMapper(subscriptionMapper, placementsMapper)
+    val appScope: AppScopeComponent
+        get() = _appScope ?: error("App scope not initialized. ApphudInitProvider may have failed to register.")
 
-    val userDataSource: UserDataSource = UserDataSource(storage)
+    val session: SessionComponent
+        get() = _session ?: error("Session not initialized. Call Apphud.start() first.")
 
-    val userRepository: UserRepository = UserRepository(userDataSource)
+    // App-scoped passthrough properties
+    val gson get() = appScope.gson
+    val storage get() = appScope.storage
+    val deviceIdentifiersRepository get() = appScope.deviceIdentifiersRepository
+    val urlProvider get() = appScope.urlProvider
+    val localRulesScreenRepository get() = appScope.localRulesScreenRepository
+    val lifecycleRepository get() = appScope.lifecycleRepository
+    val billingWrapper get() = appScope.billingWrapper
+    val dispatchers get() = appScope.dispatchers
 
-    val deviceIdentifiersDataSource: DeviceIdentifiersDataSource =
-        DeviceIdentifiersDataSource(applicationContext, storage)
-
-    val deviceIdentifiersRepository: DeviceIdentifiersRepository =
-        DeviceIdentifiersRepository(deviceIdentifiersDataSource)
-
-    val analyticsTracker: AnalyticsTracker = AnalyticsTracker(
-        coroutineScope = ApphudInternal.coroutineScope,
-        userRepository = userRepository,
-    )
-
-    private val registrationProvider: RegistrationProvider =
-        RegistrationProvider(
-            applicationContext,
-            deviceIdentifiersRepository,
-            userRepository,
-            analyticsTracker = analyticsTracker)
-
-    internal val urlProvider = UrlProvider()
-
-    private val hostSwitcherInterceptor = HostSwitcherInterceptor(OkHttpClient(), urlProvider)
-    private val hostSwitcherInterceptorWithoutHeaders = HostSwitcherInterceptor(OkHttpClient(), urlProvider)
-
-    private val prettyGson: Gson by lazy {
-        GsonBuilder().setPrettyPrinting().create()
-    }
-    private val prettyJsonFormatter: PrettyJsonFormatter by lazy { PrettyJsonFormatter(prettyGson) }
-    private val prettyLoggingInterceptor: PrettyHttpLoggingInterceptor by lazy {
-        PrettyHttpLoggingInterceptor(prettyJsonFormatter)
-    }
-
-    private val okHttpClient: OkHttpClient =
-        OkHttpClient.Builder()
-            .addInterceptor(
-                HttpLoggingInterceptor().apply {
-                    level =
-                        if (registrationProvider.isSandbox()) {
-                            HttpLoggingInterceptor.Level.BODY
-                        } else {
-                            HttpLoggingInterceptor.Level.BASIC
-                        }
-                }
-            )
-            .addInterceptor(HeadersInterceptor(apiKey))
-            .addInterceptor(TimeoutInterceptor())
-            .addInterceptor(hostSwitcherInterceptor)
-            .addInterceptor(HttpRetryInterceptor())
-            .addInterceptor(prettyLoggingInterceptor)
-            .build()
-
-    private val okHttpClientWithoutHeaders: OkHttpClient =
-        OkHttpClient.Builder()
-            .addInterceptor(
-                HttpLoggingInterceptor().apply {
-                    level =
-                        if (registrationProvider.isSandbox()) {
-                            HttpLoggingInterceptor.Level.BODY
-                        } else {
-                            HttpLoggingInterceptor.Level.BASIC
-                        }
-                }
-            )
-            .addInterceptor(TimeoutInterceptor())
-            .addInterceptor(hostSwitcherInterceptorWithoutHeaders)
-            .addInterceptor(HttpRetryInterceptor())
-            .addInterceptor(prettyLoggingInterceptor)
-            .build()
-
-    val remoteRepository: RemoteRepository =
-        RemoteRepository(
-            okHttpClient = okHttpClient,
-            gson = gson,
-            customerMapper = customerMapper,
-            purchaseBodyFactory = PurchaseBodyFactory(userRepository),
-            registrationBodyFactory = RegistrationBodyFactory(registrationProvider),
-            productMapper = ProductMapper(),
-            attributionMapper = AttributionMapper(),
-            notificationMapper = NotificationMapper(),
-            urlProvider = urlProvider,
-        )
-
-    private val screenRemoteRepository: ScreenRemoteRepository =
-        ScreenRemoteRepository(
-            okHttpClient = okHttpClientWithoutHeaders,
-            gson = gson,
-            apiKey = apiKey
-        )
-
-    val localRulesScreenRepository: LocalRulesScreenRepository =
-        LocalRulesScreenRepository(
-            context = applicationContext,
-            gson = gson,
-            ruleScreenMapper = RuleScreenMapper()
-        )
-
-    val lifecycleRepository: LifecycleRepository = LifecycleRepository()
-
-    val userRemoteRepository: UserRemoteRepository =
-        UserRemoteRepository(
-            okHttpClient = okHttpClient,
-            gson = gson,
-            attributionMapper = AttributionMapper()
-        )
-
-    private val renderResultMapper: RenderResultMapper = RenderResultMapper()
-
-    val renderRemoteRepository: RenderRemoteRepository =
-        RenderRemoteRepository(
-            okHttpClient = okHttpClient,
-            gson = gson,
-            renderResultMapper = renderResultMapper
-        )
-
-    val fetchRulesScreenUseCase: FetchRulesScreenUseCase =
-        FetchRulesScreenUseCase(
-            remoteRepository = remoteRepository,
-            screenRemoteRepository = screenRemoteRepository,
-            localRulesScreenRepository = localRulesScreenRepository,
-            dateTimeMapper = DateTimeMapper(),
-        )
-
-    private val fetchMostActualRuleScreenUseCase: FetchMostActualRuleScreenUseCase =
-        FetchMostActualRuleScreenUseCase(
-            localRulesScreenRepository = localRulesScreenRepository,
-        )
-
-    val renderPaywallPropertiesUseCase: RenderPaywallPropertiesUseCase =
-        RenderPaywallPropertiesUseCase(renderRemoteRepository)
-
-    val paywallRepository: PaywallRepository = PaywallRepository()
-
-    val renderItemsSerializer: RenderItemsSerializer = RenderItemsSerializer(gson)
-
-    val renderResultMapperWithSerializer: RenderResultMapper = RenderResultMapper(renderItemsSerializer)
-
-    val ruleController: RuleController =
-        RuleController(
-            context = applicationContext,
-            fetchRulesScreenUseCase = fetchRulesScreenUseCase,
-            fetchMostActualRuleScreenUseCase = fetchMostActualRuleScreenUseCase,
-            coroutineScope = ApphudInternal.coroutineScope,
-            lifecycleRepository = lifecycleRepository,
-            localRulesScreenRepository = localRulesScreenRepository,
-            ruleCallback = ruleCallback,
-        )
-
-    val paywallEventManager: PaywallEventManager = PaywallEventManager()
-
-    val productRepository: ProductRepository = ProductRepository()
-
-    val userPropertiesManager: UserPropertiesManager = UserPropertiesManager(
-        coroutineScope = ApphudInternal.coroutineScope,
-        userRepository = userRepository,
-        storage = storage,
-        awaitUserRegistration = { ApphudInternal.awaitUserRegistration() },
-    )
-
-    val offeringsCallbackManager: OfferingsCallbackManager = OfferingsCallbackManager(
-        userRepository = userRepository,
-        productRepository = productRepository,
-        analyticsTracker = analyticsTracker,
-    )
-
-    val resolveCredentialsUseCase: ResolveCredentialsUseCase =
-        ResolveCredentialsUseCase(userRepository = userRepository)
-
-    val registrationUseCase: RegistrationUseCase =
-        RegistrationUseCase(
-            userRepository = userRepository,
-            userDataSource = userDataSource,
-            requestManager = RequestManager
-        )
-
-    val collectDeviceIdentifiersUseCase: CollectDeviceIdentifiersUseCase =
-        CollectDeviceIdentifiersUseCase(deviceIdentifiersRepository)
-
-    val deviceIdentifiersInteractor: DeviceIdentifiersInteractor =
-        DeviceIdentifiersInteractor(collectDeviceIdentifiersUseCase, registrationUseCase)
-
-    // Billing dependencies
-    val billingWrapper: BillingWrapper by lazy { BillingWrapper(applicationContext) }
-
-    val fetchNativePurchasesUseCase: FetchNativePurchasesUseCase by lazy {
-        FetchNativePurchasesUseCase(
-            billingWrapper = billingWrapper,
-            userRepository = userRepository,
-        )
-    }
-
-    internal class ServiceLocatorInstanceFactory {
-
-        fun create(
-            applicationContext: Context,
-            ruleCallback: ApphudRuleCallback,
-            apiKey: ApiKey,
-        ): ServiceLocator =
-            synchronized(ServiceLocatorInstanceFactory::class.java) {
-                if (_instance != null) {
-                    error("Instance already exist")
-                }
-
-                ServiceLocator(
-                    applicationContext = applicationContext,
-                    ruleCallback = ruleCallback,
-                    apiKey = apiKey
-                ).also { serviceLocator ->
-                    _instance = serviceLocator
-                }
-            }
-    }
+    // Session-scoped passthrough properties
+    val coroutineScope get() = session.coroutineScope
+    val ruleCallback get() = session.ruleCallback
+    val userDataSource get() = session.userDataSource
+    val userRepository get() = session.userRepository
+    val analyticsTracker get() = session.analyticsTracker
+    val remoteRepository get() = session.remoteRepository
+    val userRemoteRepository get() = session.userRemoteRepository
+    val renderRemoteRepository get() = session.renderRemoteRepository
+    val fetchRulesScreenUseCase get() = session.fetchRulesScreenUseCase
+    val renderPaywallPropertiesUseCase get() = session.renderPaywallPropertiesUseCase
+    val paywallRepository get() = session.paywallRepository
+    val renderItemsSerializer get() = session.renderItemsSerializer
+    val renderResultMapperWithSerializer get() = session.renderResultMapperWithSerializer
+    val ruleController get() = session.ruleController
+    val paywallEventManager get() = session.paywallEventManager
+    val productRepository get() = session.productRepository
+    val userPropertiesManager get() = session.userPropertiesManager
+    val offeringsCallbackManager get() = session.offeringsCallbackManager
+    val resolveCredentialsUseCase get() = session.resolveCredentialsUseCase
+    val registrationUseCase get() = session.registrationUseCase
+    val collectDeviceIdentifiersUseCase get() = session.collectDeviceIdentifiersUseCase
+    val deviceIdentifiersInteractor get() = session.deviceIdentifiersInteractor
+    val fetchNativePurchasesUseCase get() = session.fetchNativePurchasesUseCase
 
     companion object {
         @Volatile
         private var _instance: ServiceLocator? = null
 
+        val instance: ServiceLocator
+            get() = _instance
+                ?: throw IllegalStateException(
+                    "ServiceLocator not initialized. ApphudInitProvider may be missing."
+                )
+
+        @Synchronized
+        fun initAppScope(applicationContext: Context) {
+            val locator = _instance ?: ServiceLocator().also { _instance = it }
+            if (locator._appScope == null) {
+                locator._appScope = AppScopeComponent(applicationContext)
+            }
+        }
+
+        @Synchronized
+        fun initSessionScope(
+            apiKey: ApiKey,
+            ruleCallback: ApphudRuleCallback,
+            awaitUserRegistration: suspend () -> Unit,
+        ) {
+            val locator = instance
+            check(locator._session == null) { "Session already initialized" }
+            locator._session = SessionComponent(
+                appScope = locator.appScope,
+                apiKey = apiKey,
+                ruleCallback = ruleCallback,
+                awaitUserRegistration = awaitUserRegistration,
+            )
+        }
+
+        fun clearSession() {
+            _instance?._session?.cancel()
+            _instance?._session = null
+        }
+
         internal fun clearInstance() {
             _instance = null
         }
-
-        val instance: ServiceLocator
-            get() =
-                _instance
-                    ?: throw IllegalStateException(
-                        """To get an instance of the ServiceLocator, you must first call
-                   Apphud.start()""".trimIndent(),
-                    )
     }
 }

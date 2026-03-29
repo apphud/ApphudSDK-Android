@@ -2,7 +2,6 @@ package com.apphud.sdk.flutter
 
 import android.app.Activity
 import com.apphud.sdk.ApphudInternal
-import com.apphud.sdk.ApphudInternal.coroutineScope
 import com.apphud.sdk.ApphudLog
 import com.apphud.sdk.ApphudPurchaseResult
 import com.apphud.sdk.internal.util.runCatchingCancellable
@@ -22,7 +21,7 @@ object ApphudFlutter {
         paywallIdentifier: String? = null,
         placementIdentifier: String? = null,
     ) {
-        coroutineScope.launch {
+        ApphudInternal.coroutineScope.launch {
             runCatchingCancellable {
                 ApphudInternal.syncPurchases(paywallIdentifier, placementIdentifier)
             }.onFailure { error ->

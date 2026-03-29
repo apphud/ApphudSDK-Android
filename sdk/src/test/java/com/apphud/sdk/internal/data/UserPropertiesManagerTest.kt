@@ -1,6 +1,7 @@
 package com.apphud.sdk.internal.data
 
 import com.apphud.sdk.ApphudUserPropertyKey
+import com.apphud.sdk.internal.ApphudDispatchers
 import com.apphud.sdk.storage.SharedPreferencesStorage
 import io.mockk.every
 import io.mockk.mockk
@@ -34,6 +35,7 @@ class UserPropertiesManagerTest {
         userRepository = userRepository,
         storage = storage,
         awaitUserRegistration = awaitUserRegistration,
+        dispatchers = ApphudDispatchers(),
     )
 
     // region setUserProperty
@@ -85,6 +87,7 @@ class UserPropertiesManagerTest {
             userRepository = userRepository,
             storage = storage,
             awaitUserRegistration = { gate.await() },
+            dispatchers = ApphudDispatchers(),
         )
         every { userRepository.getCurrentUser() } returns mockk()
         val key = ApphudUserPropertyKey.CustomProperty("test_key")

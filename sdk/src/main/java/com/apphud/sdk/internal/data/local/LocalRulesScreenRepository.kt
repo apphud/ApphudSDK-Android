@@ -5,9 +5,9 @@ import com.apphud.sdk.ApphudLog
 import com.apphud.sdk.internal.data.dto.RuleScreenDto
 import com.apphud.sdk.internal.data.mapper.RuleScreenMapper
 import com.apphud.sdk.internal.domain.model.RuleScreen
+import com.apphud.sdk.internal.ApphudDispatchers
 import com.apphud.sdk.internal.util.runCatchingCancellable
 import com.google.gson.Gson
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
@@ -20,6 +20,7 @@ internal class LocalRulesScreenRepository(
     private val context: Context,
     private val gson: Gson,
     private val ruleScreenMapper: RuleScreenMapper,
+    private val dispatchers: ApphudDispatchers,
 ) {
     private val logPrefix = "[RulesScreenRepo]"
 
@@ -39,7 +40,7 @@ internal class LocalRulesScreenRepository(
     suspend fun save(ruleScreen: RuleScreen): Result<Unit> =
         runCatchingCancellable {
             ApphudLog.log("$logPrefix Saving rule screen with id: ${ruleScreen.rule.id}")
-            withContext(Dispatchers.IO) {
+            withContext(dispatchers.io) {
                 fileMutex.withLock {
                     val ruleFile = File(rulesDir, "${ruleScreen.rule.id}.json")
                     FileWriter(ruleFile).use { writer ->
@@ -54,7 +55,7 @@ internal class LocalRulesScreenRepository(
     suspend fun getById(ruleId: String): Result<RuleScreen?> =
         runCatchingCancellable {
             ApphudLog.log("$logPrefix Getting rule screen by id: $ruleId")
-            withContext(Dispatchers.IO) {
+            withContext(dispatchers.io) {
                 fileMutex.withLock {
                     val ruleFile = File(rulesDir, "$ruleId.json")
                     if (!ruleFile.exists()) {
@@ -75,7 +76,7 @@ internal class LocalRulesScreenRepository(
     suspend fun getAll(): Result<List<RuleScreen>> =
         runCatchingCancellable {
             ApphudLog.log("$logPrefix Getting all rule screens")
-            withContext(Dispatchers.IO) {
+            withContext(dispatchers.io) {
                 fileMutex.withLock {
                     val files = rulesDir.listFiles()
                         ?.filter { it.isFile && it.extension == "json" }
@@ -102,7 +103,7 @@ internal class LocalRulesScreenRepository(
     suspend fun deleteById(ruleId: String): Result<Boolean> =
         runCatchingCancellable {
             ApphudLog.log("$logPrefix Deleting rule screen with id: $ruleId")
-            withContext(Dispatchers.IO) {
+            withContext(dispatchers.io) {
                 fileMutex.withLock {
                     val ruleFile = File(rulesDir, "$ruleId.json")
                     if (!ruleFile.exists()) {

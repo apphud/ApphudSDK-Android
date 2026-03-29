@@ -5,12 +5,12 @@ import com.apphud.sdk.ApphudLog
 import com.apphud.sdk.ApphudUserProperty
 import com.apphud.sdk.ApphudUserPropertyKey
 import com.apphud.sdk.body.UserPropertiesBody
+import com.apphud.sdk.internal.ApphudDispatchers
 import com.apphud.sdk.internal.util.runCatchingCancellable
 import com.apphud.sdk.managers.RequestManager
 import com.apphud.sdk.storage.SharedPreferencesStorage
 
 import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -22,6 +22,7 @@ internal class UserPropertiesManager(
     private val userRepository: UserRepository,
     private val storage: SharedPreferencesStorage,
     private val awaitUserRegistration: suspend () -> Unit,
+    private val dispatchers: ApphudDispatchers,
 ) {
     private val pendingUserProperties = ConcurrentHashMap<String, ApphudUserProperty>()
 
@@ -130,7 +131,7 @@ internal class UserPropertiesManager(
                 force
             )
 
-            return withContext(Dispatchers.IO) {
+            return withContext(dispatchers.io) {
                 runCatchingCancellable { RequestManager.postUserProperties(body) }
                     .fold(
                         onSuccess = { userProperties ->

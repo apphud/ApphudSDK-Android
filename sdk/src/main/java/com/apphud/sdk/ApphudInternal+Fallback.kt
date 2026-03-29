@@ -62,7 +62,7 @@ internal fun ApphudInternal.processFallbackData(callback: PaywallCallback) {
 
         if (ids.isEmpty()) {
             val error = ApphudError("Invalid Paywalls Fallback File")
-            mainScope.launch {
+            coroutineScope.launch(dispatchers.main) {
                 callback(null, error)
             }
             return
@@ -82,7 +82,7 @@ internal fun ApphudInternal.processFallbackData(callback: PaywallCallback) {
             ) else ApphudError("Google Billing error", errorCode = response.first))
             val details = response.second ?: productDetails
             val user = userRepository.getCurrentUser()
-            mainScope.launch {
+            coroutineScope.launch(dispatchers.main) {
                 notifyLoadingCompleted(
                     customerLoaded = user,
                     productDetailsLoaded = details,
@@ -94,7 +94,7 @@ internal fun ApphudInternal.processFallbackData(callback: PaywallCallback) {
     } catch (ex: Exception) {
         val error = ApphudError("Fallback Mode Failed: ${ex.message}")
         ApphudLog.logE("Fallback Mode Failed: ${ex.message}")
-        mainScope.launch {
+        coroutineScope.launch(dispatchers.main) {
             callback(null, error)
         }
     }

@@ -6,6 +6,7 @@ import com.apphud.sdk.body.UserPropertiesBody
 import com.apphud.sdk.domain.Attribution
 import com.apphud.sdk.internal.data.dto.AttributionDto
 import com.apphud.sdk.internal.data.dto.ResponseDto
+import com.apphud.sdk.internal.ApphudDispatchers
 import com.apphud.sdk.internal.util.runCatchingCancellable
 import com.apphud.sdk.mappers.AttributionMapper
 import com.google.gson.Gson
@@ -16,6 +17,7 @@ internal class UserRemoteRepository(
     private val okHttpClient: OkHttpClient,
     private val gson: Gson,
     private val attributionMapper: AttributionMapper,
+    private val dispatchers: ApphudDispatchers,
 ) {
 
     suspend fun setUserProperties(
@@ -23,7 +25,7 @@ internal class UserRemoteRepository(
     ): Result<Attribution> =
         runCatchingCancellable {
             val request = buildPostRequest(PROPERTIES_URL, userPropertiesBody)
-            executeForResponse<AttributionDto>(okHttpClient, gson, request)
+            executeForResponse<AttributionDto>(okHttpClient, gson, request, dispatchers.io)
         }
             .recoverCatching { e ->
                 val message = e.message ?: "Failed to send properties"

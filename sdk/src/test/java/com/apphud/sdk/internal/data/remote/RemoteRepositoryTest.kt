@@ -1,5 +1,6 @@
 package com.apphud.sdk.internal.data.remote
 
+import com.apphud.sdk.internal.ApphudDispatchers
 import com.apphud.sdk.body.RegistrationBody
 import com.apphud.sdk.domain.ApphudUser
 import com.apphud.sdk.internal.data.dto.CustomerDto
@@ -58,7 +59,8 @@ class RemoteRepositoryTest {
         productMapper = mockk(),
         attributionMapper = mockk(),
         notificationMapper = mockk(),
-        urlProvider = urlProvider
+        urlProvider = urlProvider,
+        dispatchers = ApphudDispatchers(),
     )
 
     private fun createSuccessResponse(): String {

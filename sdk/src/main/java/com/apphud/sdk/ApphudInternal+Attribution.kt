@@ -17,7 +17,6 @@ import com.apphud.sdk.domain.FacebookInfo
 import com.apphud.sdk.internal.data.dto.AttributionRequestDto
 import com.apphud.sdk.internal.util.runCatchingCancellable
 import com.apphud.sdk.managers.RequestManager
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
@@ -109,7 +108,7 @@ internal fun ApphudInternal.setAttribution(
             )
             RequestManager.send(requestBody)
                 .onSuccess {
-                    withContext(Dispatchers.Main) {
+                    withContext(dispatchers.main) {
                         when (provider) {
                             APPSFLYER -> {
                                 storage.appsflyer = AppsflyerInfo(

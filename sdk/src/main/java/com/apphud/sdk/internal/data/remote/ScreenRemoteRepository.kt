@@ -3,10 +3,10 @@ package com.apphud.sdk.internal.data.remote
 import com.apphud.sdk.APPHUD_ERROR_NO_INTERNET
 import com.apphud.sdk.ApphudError
 import com.apphud.sdk.ApphudLog
+import com.apphud.sdk.internal.ApphudDispatchers
 import com.apphud.sdk.internal.domain.model.ApiKey
 import com.apphud.sdk.internal.util.runCatchingCancellable
 import com.google.gson.Gson
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import okhttp3.HttpUrl.Companion.toHttpUrl
 import okhttp3.OkHttpClient
@@ -16,6 +16,7 @@ internal class ScreenRemoteRepository(
     private val okHttpClient: OkHttpClient,
     private val gson: Gson,
     private val apiKey: ApiKey,
+    private val dispatchers: ApphudDispatchers,
 ) {
 
     suspend fun loadScreenHtmlData(screenId: String, deviceId: String): Result<String> =
@@ -31,7 +32,7 @@ internal class ScreenRemoteRepository(
                 .addHeader("APPHUD-API-KEY", apiKey.value)
                 .build()
 
-            withContext(Dispatchers.IO) {
+            withContext(dispatchers.io) {
                 okHttpClient.newCall(request).execute().use { response ->
                     if (!response.isSuccessful) {
                         val responseBody = response.body?.string()

@@ -145,11 +145,11 @@ class ApphudHasPremiumAccessTest {
     }
 
     private fun createServiceLocator() {
-        val factory = ServiceLocator.ServiceLocatorInstanceFactory()
-        factory.create(
-            applicationContext = mockContext,
+        ServiceLocator.initAppScope(mockContext)
+        ServiceLocator.initSessionScope(
+            apiKey = ApiKey("test_api_key"),
             ruleCallback = object : ApphudRuleCallback {},
-            apiKey = ApiKey("test_api_key")
+            awaitUserRegistration = {},
         )
     }
 }
