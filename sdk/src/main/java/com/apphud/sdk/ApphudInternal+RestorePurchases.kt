@@ -44,7 +44,7 @@ internal suspend fun ApphudInternal.syncPurchases(
         if (purchases.isEmpty()) {
             ApphudLog.log(message = "SyncPurchases: Nothing to restore")
             storage.isNeedSync = false
-            refreshEntitlements(true)
+            refreshEntitlements()
             val user = userRepository.getCurrentUser()
             return if (user != null) {
                 ApphudPurchasesRestoreResult.Success(user.subscriptions.toList(), user.purchases.toList())
@@ -89,7 +89,7 @@ internal suspend fun ApphudInternal.syncPurchases(
             if (prevPurchases.containsAll(restoredPurchases)) {
                 ApphudLog.log("SyncPurchases: Don't send equal purchases from prev state")
                 storage.isNeedSync = false
-                refreshEntitlements(true)
+                refreshEntitlements()
                 val user = userRepository.getCurrentUser()
                 return if (user != null) {
                     ApphudPurchasesRestoreResult.Success(user.subscriptions.toList(), user.purchases.toList())

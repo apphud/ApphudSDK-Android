@@ -29,8 +29,10 @@ import com.apphud.sdk.internal.domain.RenderPaywallPropertiesUseCase
 import com.apphud.sdk.internal.domain.ResolveCredentialsUseCase
 import com.apphud.sdk.internal.domain.mapper.DateTimeMapper
 import com.apphud.sdk.internal.domain.mapper.NotificationMapper
+import com.apphud.sdk.internal.data.SdkRegistrationState
 import com.apphud.sdk.internal.domain.model.ApiKey
 import com.apphud.sdk.internal.presentation.rule.RuleController
+import com.apphud.sdk.internal.store.SdkEffectHandler
 import com.apphud.sdk.internal.provider.RegistrationProvider
 import com.apphud.sdk.managers.RequestManager
 import com.apphud.sdk.mappers.AttributionMapper
@@ -45,6 +47,7 @@ internal class SessionComponent(
     private val apiKey: ApiKey,
     val ruleCallback: ApphudRuleCallback,
     awaitUserRegistration: suspend () -> Unit,
+    val observerMode: Boolean,
 ) {
 
     val coroutineScope: CoroutineScope = CoroutineScope(SupervisorJob() + appScope.dispatchers.io)
@@ -62,12 +65,15 @@ internal class SessionComponent(
         userRepository = userRepository,
     )
 
+    val registrationState: SdkRegistrationState = SdkRegistrationState(observerMode = observerMode)
+
     private val registrationProvider: RegistrationProvider =
         RegistrationProvider(
             appScope.applicationContext,
             appScope.deviceIdentifiersRepository,
             userRepository,
             analyticsTracker = analyticsTracker,
+            registrationState = registrationState,
         )
 
     private val okHttpClient: OkHttpClient =
@@ -221,4 +227,19 @@ internal class SessionComponent(
             userRepository = userRepository,
         )
     }
+
+    val sdkEffectHandler: SdkEffectHandler by lazy {
+        SdkEffectHandler(
+            registrationUseCase = registrationUseCase,
+            userRepository = userRepository,
+            analyticsTracker = analyticsTracker,
+            userPropertiesManager = userPropertiesManager,
+            fetchNativePurchasesUseCase = fetchNativePurchasesUseCase,
+            storage = appScope.storage,
+            coroutineScope = coroutineScope,
+            registrationState = registrationState,
+        )
+    }
+
+    val sdkStore get() = appScope.sdkStore
 }

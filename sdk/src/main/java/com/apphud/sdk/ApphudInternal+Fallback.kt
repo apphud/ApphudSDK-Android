@@ -5,6 +5,8 @@ import com.android.billingclient.api.BillingClient.BillingResponseCode
 import com.apphud.sdk.domain.ApphudPlacement
 import com.apphud.sdk.domain.ApphudUser
 import com.apphud.sdk.domain.FallbackJsonObject
+import com.apphud.sdk.internal.ServiceLocator
+import com.apphud.sdk.internal.store.SdkEvent
 import com.apphud.sdk.internal.util.runCatchingCancellable
 import com.apphud.sdk.mappers.PaywallsMapperLegacy
 import com.apphud.sdk.parser.GsonParser
@@ -69,8 +71,8 @@ internal fun ApphudInternal.processFallbackData(callback: PaywallCallback) {
         }
 
         fallbackMode = true
-        didRegisterCustomerAtThisLaunch = false
-        isRegisteringUser = false
+        ServiceLocator.instance.registrationState.didRegisterCustomerAtThisLaunch = false
+        ServiceLocator.instance.registrationState.isRegisteringUser = false
         ApphudLog.log("Fallback: ENABLED")
         coroutineScope.launch {
             val response = fetchDetails(ids, loadingAll = true)
@@ -83,11 +85,7 @@ internal fun ApphudInternal.processFallbackData(callback: PaywallCallback) {
             val details = response.second ?: productDetails
             val user = userRepository.getCurrentUser()
             coroutineScope.launch(dispatchers.main) {
-                notifyLoadingCompleted(
-                    customerLoaded = user,
-                    productDetailsLoaded = details,
-                    fromFallback = true,
-                )
+                user?.let { ServiceLocator.instance.sdkStore.dispatch(SdkEvent.FallbackLoaded(it)) }
                 callback(user?.placements?.mapNotNull { it.paywall }.orEmpty(), error)
             }
         }
@@ -120,6 +118,7 @@ internal fun ApphudInternal.disableFallback() {
     }
     fallbackMode = false
     processedFallbackData = false
+    ServiceLocator.instance.sdkStore.dispatch(SdkEvent.FallbackDisabled)
     ApphudLog.log("Fallback: DISABLED")
     coroutineScope.launch {
         runCatchingCancellable {
