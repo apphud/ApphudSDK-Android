@@ -21,6 +21,7 @@ import com.apphud.sdk.internal.data.remote.UserRemoteRepository
 import com.apphud.sdk.internal.data.serializer.RenderItemsSerializer
 import com.apphud.sdk.internal.domain.CollectDeviceIdentifiersUseCase
 import com.apphud.sdk.internal.domain.DeviceIdentifiersInteractor
+import com.apphud.sdk.internal.domain.AwaitRegistrationUseCase
 import com.apphud.sdk.internal.domain.FetchMostActualRuleScreenUseCase
 import com.apphud.sdk.internal.domain.FetchNativePurchasesUseCase
 import com.apphud.sdk.internal.domain.FetchRulesScreenUseCase
@@ -29,8 +30,15 @@ import com.apphud.sdk.internal.domain.RenderPaywallPropertiesUseCase
 import com.apphud.sdk.internal.domain.ResolveCredentialsUseCase
 import com.apphud.sdk.internal.domain.mapper.DateTimeMapper
 import com.apphud.sdk.internal.domain.mapper.NotificationMapper
+import com.apphud.sdk.internal.data.SdkRegistrationState
 import com.apphud.sdk.internal.domain.model.ApiKey
 import com.apphud.sdk.internal.presentation.rule.RuleController
+import com.apphud.sdk.internal.store.SdkEffect
+import com.apphud.sdk.internal.store.SdkEffectHandler
+import com.apphud.sdk.internal.store.SdkEvent
+import com.apphud.sdk.internal.store.SdkState
+import com.apphud.sdk.internal.store.Store
+import com.apphud.sdk.internal.store.sdkReducer
 import com.apphud.sdk.internal.provider.RegistrationProvider
 import com.apphud.sdk.managers.RequestManager
 import com.apphud.sdk.mappers.AttributionMapper
@@ -44,7 +52,7 @@ internal class SessionComponent(
     val appScope: AppScopeComponent,
     private val apiKey: ApiKey,
     val ruleCallback: ApphudRuleCallback,
-    awaitUserRegistration: suspend () -> Unit,
+    val observerMode: Boolean,
 ) {
 
     val coroutineScope: CoroutineScope = CoroutineScope(SupervisorJob() + appScope.dispatchers.io)
@@ -62,12 +70,15 @@ internal class SessionComponent(
         userRepository = userRepository,
     )
 
+    val registrationState: SdkRegistrationState = SdkRegistrationState(observerMode = observerMode)
+
     private val registrationProvider: RegistrationProvider =
         RegistrationProvider(
             appScope.applicationContext,
             appScope.deviceIdentifiersRepository,
             userRepository,
             analyticsTracker = analyticsTracker,
+            registrationState = registrationState,
         )
 
     private val okHttpClient: OkHttpClient =
@@ -185,11 +196,18 @@ internal class SessionComponent(
 
     val productRepository: ProductRepository = ProductRepository()
 
+    val sdkStore: Store<SdkState, SdkEvent, SdkEffect> = Store(
+        initialState = SdkState.NotInitialized,
+        reducer = ::sdkReducer,
+        effectHandler = { effect, dispatch -> sdkEffectHandler.handle(effect, dispatch) },
+        scope = coroutineScope,
+    )
+
     val userPropertiesManager: UserPropertiesManager = UserPropertiesManager(
         coroutineScope = coroutineScope,
         userRepository = userRepository,
         storage = appScope.storage,
-        awaitUserRegistration = awaitUserRegistration,
+        sdkStore = sdkStore,
         dispatchers = appScope.dispatchers,
     )
 
@@ -221,4 +239,22 @@ internal class SessionComponent(
             userRepository = userRepository,
         )
     }
+
+    val sdkEffectHandler: SdkEffectHandler by lazy {
+        SdkEffectHandler(
+            registrationUseCase = registrationUseCase,
+            userRepository = userRepository,
+            analyticsTracker = analyticsTracker,
+            userPropertiesManager = userPropertiesManager,
+            fetchNativePurchasesUseCase = fetchNativePurchasesUseCase,
+            storage = appScope.storage,
+            coroutineScope = coroutineScope,
+            registrationState = registrationState,
+        )
+    }
+
+    val awaitRegistrationUseCase: AwaitRegistrationUseCase = AwaitRegistrationUseCase(
+        sdkStore = sdkStore,
+        userRepository = userRepository,
+    )
 }

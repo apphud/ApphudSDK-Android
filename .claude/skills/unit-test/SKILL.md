@@ -1,6 +1,13 @@
-Before writing or modifying unit tests, read the testing guide:
+---
+name: unit-test
+description: >
+  Writes or modifies unit tests following the project testing guide. Before writing tests, reads
+  agentdocs/unitTest.md for patterns and conventions. Use when the user says "write tests",
+  "add unit tests", "cover with tests", "create test class", "fix tests", "update tests".
+  NOT for UI/instrumentation tests. NOT for integration tests.
+---
 
-$ARGUMENTS
+Before writing or modifying unit tests, read the testing guide: `agentdocs/unitTest.md`
 
 ## Checklist
 

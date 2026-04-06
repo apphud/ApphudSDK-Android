@@ -76,8 +76,11 @@ class CustomerFragment : Fragment() {
         }
 
         binding.swipeRefresh.setOnRefreshListener {
-            updateData()
-            binding.swipeRefresh.isRefreshing = false
+            Apphud.refreshUserData { user ->
+                Log.d("ApphudDemo", "refreshUserData completed: ${user?.userId}")
+                updateData()
+                binding.swipeRefresh.isRefreshing = false
+            }
         }
 
         val listener =

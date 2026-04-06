@@ -6,6 +6,7 @@ import com.android.billingclient.api.Purchase
 import com.apphud.sdk.domain.ApphudProduct
 import com.apphud.sdk.domain.PurchaseRecordDetails
 import com.apphud.sdk.internal.callback_status.PurchaseRestoredCallbackStatus
+import com.apphud.sdk.internal.ServiceLocator
 import com.apphud.sdk.internal.util.runCatchingCancellable
 import com.apphud.sdk.managers.RequestManager
 import kotlinx.coroutines.sync.Mutex
@@ -25,7 +26,7 @@ internal suspend fun ApphudInternal.syncPurchases(
     observerMode: Boolean = true,
     unvalidatedPurchs: List<Purchase>? = null,
 ): ApphudPurchasesRestoreResult {
-    runCatchingCancellable { awaitUserRegistration() }
+    runCatchingCancellable { ServiceLocator.instance.awaitRegistrationUseCase() }
         .onFailure { error ->
             ApphudLog.log("SyncPurchases: awaitUserRegistration fail")
             return ApphudPurchasesRestoreResult.Error(error.toApphudError())
@@ -44,7 +45,7 @@ internal suspend fun ApphudInternal.syncPurchases(
         if (purchases.isEmpty()) {
             ApphudLog.log(message = "SyncPurchases: Nothing to restore")
             storage.isNeedSync = false
-            refreshEntitlements(true)
+            refreshEntitlements()
             val user = userRepository.getCurrentUser()
             return if (user != null) {
                 ApphudPurchasesRestoreResult.Success(user.subscriptions.toList(), user.purchases.toList())
@@ -89,7 +90,7 @@ internal suspend fun ApphudInternal.syncPurchases(
             if (prevPurchases.containsAll(restoredPurchases)) {
                 ApphudLog.log("SyncPurchases: Don't send equal purchases from prev state")
                 storage.isNeedSync = false
-                refreshEntitlements(true)
+                refreshEntitlements()
                 val user = userRepository.getCurrentUser()
                 return if (user != null) {
                     ApphudPurchasesRestoreResult.Success(user.subscriptions.toList(), user.purchases.toList())
