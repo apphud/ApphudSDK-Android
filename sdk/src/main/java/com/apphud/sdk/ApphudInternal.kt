@@ -72,6 +72,8 @@ internal object ApphudInternal {
         get() = ServiceLocator.instance.storage
     private val sdkStore
         get() = ServiceLocator.instance.sdkStore
+    private val awaitRegistrationUseCase
+        get() = ServiceLocator.instance.awaitRegistrationUseCase
     internal val registrationState
         get() = ServiceLocator.instance.registrationState
     internal val prevPurchases = CopyOnWriteArraySet<PurchaseRecordDetails>()
@@ -177,7 +179,6 @@ internal object ApphudInternal {
         ServiceLocator.initSessionScope(
             apiKey = ApiKeyModel(apiKey),
             ruleCallback = ruleCallback,
-            awaitUserRegistration = { awaitUserRegistration() },
             observerMode = observerMode,
         )
 
@@ -502,7 +503,7 @@ internal object ApphudInternal {
         }
         ApphudLog.log("Start updateUserId userId=$userId")
 
-        runCatchingCancellable { awaitUserRegistration() }
+        runCatchingCancellable { awaitRegistrationUseCase() }
             .onFailure { error ->
                 ApphudLog.logE(error.message.orEmpty())
                 return userRepository.getCurrentUser()
@@ -671,7 +672,7 @@ internal object ApphudInternal {
         productId: String?,
         permissionGroup: ApphudGroup?,
     ): Boolean {
-        awaitUserRegistration()
+        awaitRegistrationUseCase()
 
         return RequestManager.grantPromotional(daysCount, productId, permissionGroup)
             .onSuccess { user ->
@@ -685,7 +686,7 @@ internal object ApphudInternal {
     }
 
     private suspend fun paywallShownSuspend(paywall: ApphudPaywall) {
-        awaitUserRegistration()
+        awaitRegistrationUseCase()
         RequestManager.paywallShown(paywall)
     }
 
@@ -695,7 +696,7 @@ internal object ApphudInternal {
         productId: String?,
         screenId: String?,
     ) {
-        awaitUserRegistration()
+        awaitRegistrationUseCase()
         RequestManager.paywallCheckoutInitiated(paywallId, placementId, productId, screenId)
     }
 
@@ -705,7 +706,7 @@ internal object ApphudInternal {
         productId: String?,
         errorCode: Int,
     ) {
-        awaitUserRegistration()
+        awaitRegistrationUseCase()
         if (errorCode == BillingClient.BillingResponseCode.USER_CANCELED) {
             RequestManager.paywallPaymentCancelled(paywallId, placementId, productId)
         } else {
@@ -713,28 +714,6 @@ internal object ApphudInternal {
             RequestManager.paywallPaymentError(paywallId, placementId, productId, errorMessage)
         }
     }
-
-    internal suspend fun awaitUserRegistration() {
-        if (!isInitialized()) {
-            throw ApphudError(MUST_REGISTER_ERROR)
-        }
-
-        val mCurrentUser = userRepository.getCurrentUser()
-        when {
-            mCurrentUser == null -> {
-                sdkStore.state.first { it is SdkState.Ready || it is SdkState.Degraded }
-                if (userRepository.getCurrentUser() == null) {
-                    throw ApphudError("Registration failed")
-                }
-            }
-            mCurrentUser.isTemporary != false -> {
-                refreshPaywallsIfNeeded()
-                throw ApphudError("Fallback mode")
-            }
-            else -> Unit
-        }
-    }
-
 
     fun getProductDetails(): List<ProductDetails> =
         productDetails.toList()
@@ -772,17 +751,18 @@ internal object ApphudInternal {
 
     @Synchronized
     fun collectDeviceIdentifiers() {
-        if (!isInitialized()) {
+        val state = runCatching { sdkStore.state.value }.getOrNull()
+        if (state == null || state is SdkState.NotInitialized) {
             ApphudLog.logE("collectDeviceIdentifiers: $MUST_REGISTER_ERROR")
             return
         }
         coroutineScope.launch {
             runCatchingCancellable {
-                val needPP =
+                val needPlacementsPaywalls =
                     !registrationState.didRegisterCustomerAtThisLaunch && !registrationState.deferPlacements && !registrationState.observerMode
                 val user = ServiceLocator.instance.deviceIdentifiersInteractor(
                     scope = this,
-                    needPlacementsPaywalls = needPP,
+                    needPlacementsPaywalls = needPlacementsPaywalls,
                     isNew = isNew,
                 )
                 user?.let { coroutineScope.launch(dispatchers.main) { notifyLoadingCompleted(customerLoaded = it) } }
@@ -793,13 +773,6 @@ internal object ApphudInternal {
     //endregion//region === Secondary methods ===
     internal fun getPackageName(): String {
         return context.packageName
-    }
-
-    private fun isInitialized(): Boolean {
-        return ::context.isInitialized &&
-            runCatching { userRepository.getUserId() }.getOrNull() != null &&
-            runCatching { userRepository.getDeviceId() }.getOrNull() != null &&
-            ::apiKey.isInitialized
     }
 
     internal fun logout() = synchronized(this) {

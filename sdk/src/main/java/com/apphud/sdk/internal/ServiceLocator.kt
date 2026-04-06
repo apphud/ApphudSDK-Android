@@ -28,7 +28,7 @@ internal class ServiceLocator private constructor() {
     val billingWrapper get() = appScope.billingWrapper
     val dispatchers get() = appScope.dispatchers
 
-    val sdkStore get() = appScope.sdkStore
+    val sdkStore get() = session.sdkStore
 
     // Session-scoped passthrough properties
     val coroutineScope get() = session.coroutineScope
@@ -54,6 +54,7 @@ internal class ServiceLocator private constructor() {
     val collectDeviceIdentifiersUseCase get() = session.collectDeviceIdentifiersUseCase
     val deviceIdentifiersInteractor get() = session.deviceIdentifiersInteractor
     val fetchNativePurchasesUseCase get() = session.fetchNativePurchasesUseCase
+    val awaitRegistrationUseCase get() = session.awaitRegistrationUseCase
     val registrationState get() = session.registrationState
     val sdkEffectHandler get() = session.sdkEffectHandler
 
@@ -79,7 +80,6 @@ internal class ServiceLocator private constructor() {
         fun initSessionScope(
             apiKey: ApiKey,
             ruleCallback: ApphudRuleCallback,
-            awaitUserRegistration: suspend () -> Unit,
             observerMode: Boolean,
         ) {
             val locator = instance
@@ -88,17 +88,12 @@ internal class ServiceLocator private constructor() {
                 appScope = locator.appScope,
                 apiKey = apiKey,
                 ruleCallback = ruleCallback,
-                awaitUserRegistration = awaitUserRegistration,
                 observerMode = observerMode,
             )
-            locator.appScope.effectHandlerDelegate = { effect, dispatch ->
-                locator._session?.sdkEffectHandler?.handle(effect, dispatch)
-            }
         }
 
         @Synchronized
         fun clearSession() {
-            _instance?.appScope?.effectHandlerDelegate = null
             _instance?._session?.cancel()
             _instance?._session = null
         }

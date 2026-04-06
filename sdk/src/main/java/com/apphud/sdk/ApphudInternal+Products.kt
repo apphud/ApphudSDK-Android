@@ -5,6 +5,7 @@ import com.android.billingclient.api.BillingClient.BillingResponseCode
 import com.android.billingclient.api.ProductDetails
 import com.apphud.sdk.domain.ApphudGroup
 import com.apphud.sdk.domain.ApphudPlacement
+import com.apphud.sdk.internal.ServiceLocator
 import com.apphud.sdk.internal.data.ProductLoadingState
 import com.apphud.sdk.internal.util.runCatchingCancellable
 import kotlinx.coroutines.async
@@ -100,7 +101,7 @@ internal suspend fun ApphudInternal.fetchProducts(): Int {
     if (userPlacements.isEmpty()) {
         if (user == null) {
             ApphudLog.log("Awaiting for user registration before proceeding to products load")
-            awaitUserRegistration()
+            ServiceLocator.instance.awaitRegistrationUseCase()
             ApphudLog.log("User registered, continue to fetch ProductDetails")
         }
     }

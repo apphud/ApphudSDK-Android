@@ -6,6 +6,10 @@ import com.apphud.sdk.ApphudUserProperty
 import com.apphud.sdk.ApphudUserPropertyKey
 import com.apphud.sdk.body.UserPropertiesBody
 import com.apphud.sdk.internal.ApphudDispatchers
+import com.apphud.sdk.internal.store.SdkEvent
+import com.apphud.sdk.internal.store.SdkEffect
+import com.apphud.sdk.internal.store.SdkState
+import com.apphud.sdk.internal.store.Store
 import com.apphud.sdk.internal.util.runCatchingCancellable
 import com.apphud.sdk.managers.RequestManager
 import com.apphud.sdk.storage.SharedPreferencesStorage
@@ -13,6 +17,7 @@ import com.apphud.sdk.storage.SharedPreferencesStorage
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.util.concurrent.ConcurrentHashMap
@@ -21,7 +26,7 @@ internal class UserPropertiesManager(
     private val coroutineScope: CoroutineScope,
     private val userRepository: UserRepository,
     private val storage: SharedPreferencesStorage,
-    private val awaitUserRegistration: suspend () -> Unit,
+    private val sdkStore: Store<SdkState, SdkEvent, SdkEffect>,
     private val dispatchers: ApphudDispatchers,
 ) {
     private val pendingUserProperties = ConcurrentHashMap<String, ApphudUserProperty>()
@@ -108,11 +113,11 @@ internal class UserPropertiesManager(
         _isUpdatingProperties = true
 
         try {
-            runCatchingCancellable { awaitUserRegistration() }
-                .onFailure { error ->
-                    ApphudLog.logE("Failed to update user properties: ${error.message}")
-                    return false
-                }
+            val state = sdkStore.state.first { it is SdkState.Ready || it is SdkState.Degraded }
+            if (state !is SdkState.Ready) {
+                ApphudLog.logE("Cannot update user properties: SDK not ready")
+                return false
+            }
 
             val properties = mutableListOf<Map<String, Any?>>()
             val sentPropertiesForSave = mutableListOf<ApphudUserProperty>()

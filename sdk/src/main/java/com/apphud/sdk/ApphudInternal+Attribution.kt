@@ -14,6 +14,7 @@ import com.apphud.sdk.domain.AdjustInfo
 import com.apphud.sdk.domain.ApphudUser
 import com.apphud.sdk.domain.AppsflyerInfo
 import com.apphud.sdk.domain.FacebookInfo
+import com.apphud.sdk.internal.ServiceLocator
 import com.apphud.sdk.internal.data.dto.AttributionRequestDto
 import com.apphud.sdk.internal.util.runCatchingCancellable
 import com.apphud.sdk.managers.RequestManager
@@ -80,7 +81,7 @@ internal fun ApphudInternal.setAttribution(
 
     coroutineScope.launch {
         runCatchingCancellable {
-            awaitUserRegistration()
+            ServiceLocator.instance.awaitRegistrationUseCase()
 
             val mergedRawData = apphudAttributionData.rawData.toMutableMap().apply {
                 providerIdPair?.let { (key, value) -> put(key, value) }
@@ -160,7 +161,7 @@ internal suspend fun ApphudInternal.tryWebAttribution(
         return false to userRepository.getCurrentUser()
     }
 
-    runCatchingCancellable { awaitUserRegistration() }
+    runCatchingCancellable { ServiceLocator.instance.awaitRegistrationUseCase() }
 
     val user = userRepository.getCurrentUser() ?: return false to null
     val currentUserId = userRepository.getUserId() ?: return false to null

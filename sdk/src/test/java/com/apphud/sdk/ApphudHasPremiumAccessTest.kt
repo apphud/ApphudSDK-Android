@@ -149,7 +149,6 @@ class ApphudHasPremiumAccessTest {
         ServiceLocator.initSessionScope(
             apiKey = ApiKey("test_api_key"),
             ruleCallback = object : ApphudRuleCallback {},
-            awaitUserRegistration = {},
             observerMode = false,
         )
     }
