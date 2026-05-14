@@ -166,9 +166,16 @@ internal class OfferingsCallbackManager(
     }
 
     fun clear() {
-        customProductsFetchedBlock = null
+        val pending = offeringsPreparedCallbacks.toList()
         offeringsPreparedCallbacks.clear()
+        customProductsFetchedBlock = null
         notifiedAboutPaywallsDidFullyLoaded = false
         latestCustomerLoadError = null
+
+        if (pending.isNotEmpty()) {
+            ApphudLog.log("Notifying ${pending.size} pending offerings callback(s) about logout")
+            val error = ApphudError("Apphud SDK was logged out before offerings finished loading")
+            pending.forEach { runCatching { it.invoke(error) } }
+        }
     }
 }

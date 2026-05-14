@@ -28,7 +28,10 @@ import com.apphud.sdk.internal.util.runCatchingCancellable
 import com.apphud.sdk.managers.RequestManager
 import com.apphud.sdk.storage.SharedPreferencesStorage
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.TimeoutCancellationException
+import kotlinx.coroutines.cancel
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -43,8 +46,16 @@ import kotlin.math.max
 @SuppressLint("StaticFieldLeak")
 internal object ApphudInternal {
     //region === Variables ===
+    // Pre-cancelled fallback scope used when the session has been torn down (e.g. between
+    // Apphud.logout() and the next Apphud.start()). Any leftover async source (BillingClient
+    // listener, lifecycle observer, etc.) that still references ApphudInternal.coroutineScope
+    // will get a cancelled scope and its launch becomes a no-op instead of throwing.
+    private val terminatedScope: CoroutineScope by lazy {
+        CoroutineScope(SupervisorJob() + Dispatchers.IO).also { it.cancel() }
+    }
+
     internal val coroutineScope: CoroutineScope
-        get() = ServiceLocator.instance.coroutineScope
+        get() = runCatching { ServiceLocator.instance.coroutineScope }.getOrElse { terminatedScope }
     internal val dispatchers: ApphudDispatchers
         get() = ServiceLocator.instance.dispatchers
 
@@ -269,13 +280,13 @@ internal object ApphudInternal {
         }.getOrNull()
     }
 
-    @Synchronized
     private fun shouldTrackObserverAnalytics(productDetailsLoaded: List<ProductDetails>?): Boolean =
         observerMode &&
             (productDetails.isNotEmpty() || productDetailsLoaded != null) &&
             (analyticsTracker.isFirstCustomerLoaded || offeringsCallbackManager.getCustomerLoadError() != null) &&
             !analyticsTracker.trackedAnalytics
 
+    @Synchronized
     internal fun notifyLoadingCompleted(
         customerLoaded: ApphudUser? = null,
         productDetailsLoaded: List<ProductDetails>? = null,
@@ -857,6 +868,30 @@ internal object ApphudInternal {
     }
 
     private fun clear() {
+        // Detach the process lifecycle observer before cancelling the session scope so that
+        // ON_START/ON_STOP callbacks don't fire against a torn-down session.
+        // ProcessLifecycleOwner.removeObserver requires the main thread.
+        runCatching {
+            handler.post {
+                ProcessLifecycleOwner.get().lifecycle.removeObserver(lifecycleEventObserver)
+            }
+        }
+
+        // Notify any in-flight offerings callbacks before we drop them, then clear pending
+        // user-property work. Must happen before clearSession() since these accessors go
+        // through the session.
+        runCatching { offeringsCallbackManager.clear() }
+            .onFailure { ApphudLog.log("Skip offeringsCallbackManager.clear(): ${it.message}") }
+        runCatching { userPropertiesManager.clear() }
+            .onFailure { ApphudLog.log("Skip userPropertiesManager.clear(): ${it.message}") }
+
+        // Wipe persisted user-scoped data (apphudUser, userId, deviceId, isNeedSync, attribution
+        // info, product/properties caches). deviceIdentifiers are intentionally preserved.
+        if (isInitialized()) {
+            runCatching { storage.clean() }
+                .onFailure { ApphudLog.log("Skip storage.clean(): ${it.message}") }
+        }
+
         ServiceLocator.clearSession()
         RequestManager.cleanRegistration()
         purchaseCallbacks.clear()

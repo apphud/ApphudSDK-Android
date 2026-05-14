@@ -207,7 +207,7 @@ internal class SharedPreferencesStorage(
         productDetails = null
         properties = null
         adjust = null
-        deviceIdentifiers = arrayOf("", "", "")
+        // deviceIdentifiers describe the device, not the session — preserved across logout/login.
     }
 
     fun validateCaches(): Boolean {
