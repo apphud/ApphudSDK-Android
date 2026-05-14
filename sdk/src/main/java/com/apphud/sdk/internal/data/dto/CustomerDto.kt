@@ -17,6 +17,8 @@ internal data class CustomerDto(
 
 internal data class SchemeDto(
     val name: String?,
+    @SerializedName("variation_name")
+    val variationName: String?,
     val experiment: ExperimentDto?,
     @SerializedName("remote_config")
     val remoteConfig: String?,

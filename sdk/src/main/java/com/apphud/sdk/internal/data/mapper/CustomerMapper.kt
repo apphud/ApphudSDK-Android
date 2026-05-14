@@ -18,7 +18,8 @@ internal class CustomerMapper(
         val scheme = customer.scheme
 
         val experimentName = scheme?.experiment?.name ?: previousUser?.experimentName
-        val variationName = scheme?.name ?: previousUser?.variationName
+        val variationName = scheme?.variationName ?: previousUser?.variationName
+        val targetingName = scheme?.name ?: previousUser?.targetingName
         val remoteConfigString = scheme?.remoteConfig ?: previousUser?.remoteConfigString
 
         return ApphudUser(
@@ -46,6 +47,7 @@ internal class CustomerMapper(
             internalId = customer.internalId.orEmpty(),
             experimentName = experimentName,
             variationName = variationName,
+            targetingName = targetingName,
             remoteConfigString = remoteConfigString,
         )
     }

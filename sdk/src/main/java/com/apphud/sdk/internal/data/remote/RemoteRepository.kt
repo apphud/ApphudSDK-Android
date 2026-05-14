@@ -164,6 +164,12 @@ internal class RemoteRepository(
                 val message = e.message ?: "Failed to fetch deeplink attribution"
                 throw ApphudError(message, originalCause = e)
             }
+            .mapCatching { response ->
+                @Suppress("UNCHECKED_CAST")
+                val data = response?.get("data") as? Map<String, Any>
+                @Suppress("UNCHECKED_CAST")
+                data?.get("results") as? Map<String, Any>
+            }
 
     suspend fun grantPromotional(
         grantPromotionalDto: GrantPromotionalDto,

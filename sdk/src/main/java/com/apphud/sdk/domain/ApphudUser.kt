@@ -68,6 +68,13 @@ data class ApphudUser(
     val variationName: String? = null,
 
     /**
+     * Name of the targeting (audience) the user matches into.
+     *
+     * `null` when no targeting is assigned.
+     */
+    val targetingName: String? = null,
+
+    /**
      * The raw JSON string for the app-level remote configuration assigned to this user.
      *
      * This value is the unmodified payload received from the backend. Use it when you need
