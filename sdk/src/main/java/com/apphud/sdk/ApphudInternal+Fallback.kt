@@ -26,7 +26,13 @@ internal fun ApphudInternal.processFallbackData(callback: PaywallCallback) {
     try {
         if (userRepository.getCurrentUser() == null) {
             val temporaryUser = ApphudUser(
-                userRepository.getUserId() ?: UUID.randomUUID().toString(), "", "", listOf(), listOf(), listOf(), true,
+                userId = userRepository.getUserId() ?: UUID.randomUUID().toString(),
+                currencyCode = "",
+                countryCode = "",
+                subscriptions = listOf(),
+                purchases = listOf(),
+                placements = listOf(),
+                isTemporary = true,
             )
             userRepository.setCurrentUser(temporaryUser)
             ApphudLog.log("Fallback: user created: ${userRepository.getUserId()}")

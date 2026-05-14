@@ -150,6 +150,14 @@ internal fun ApphudInternal.setAttribution(
     }
 }
 
+internal suspend fun ApphudInternal.tryDeeplinkAttribution(): Map<String, Any>? {
+    return runCatchingCancellable {
+        RequestManager.deeplinkAttribution()
+    }.onFailure { error ->
+        ApphudLog.logE("Error in deeplink attribution: ${error.message}")
+    }.getOrNull()
+}
+
 internal suspend fun ApphudInternal.tryWebAttribution(
     data: Map<String, Any>,
 ): Pair<Boolean, ApphudUser?> {

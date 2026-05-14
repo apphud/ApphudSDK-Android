@@ -31,7 +31,13 @@ internal class BillingWrapper(context: Context) : Closeable {
                     .enableOneTimeProducts()
                     .build()
             )
-            .enableAutoServiceReconnection()
+            .apply {
+                // Auto-reconnect spams "Max retries reached" / "Service not registered" warnings
+                // on emulators where Google Play Billing is unavailable (BILLING_UNAVAILABLE = 3).
+                if (!ApphudUtils.isEmulator()) {
+                    enableAutoServiceReconnection()
+                }
+            }
     private val purchases = PurchasesUpdated(builder)
 
     var obfuscatedAccountId: String? = null
@@ -43,11 +49,19 @@ internal class BillingWrapper(context: Context) : Closeable {
 
     private var connectionResponse: Int = BillingClient.BillingResponseCode.OK
 
+    @Volatile
+    private var billingUnavailable: Boolean = false
+
     private suspend fun connectIfNeeded(): Boolean {
         var result: Boolean
         mutex.withLock {
             if (billing.isReady) {
                 result = true
+            } else if (billingUnavailable) {
+                // Once Google Play Billing reports BILLING_UNAVAILABLE (typical on emulators
+                // without Play Services), further connect attempts only produce internal
+                // "Reconnection failed" / "Service not registered" warnings from BillingClient.
+                result = false
             } else {
                 try {
                     // Skip retries on emulators to avoid excessive warnings
@@ -66,6 +80,11 @@ internal class BillingWrapper(context: Context) : Closeable {
                             ApphudLog.log("Connect to Billing failed after $MAX_RETRIES attempts")
                             break
                         }
+                    }
+                    if (!connected &&
+                        connectionResponse == BillingClient.BillingResponseCode.BILLING_UNAVAILABLE
+                    ) {
+                        billingUnavailable = true
                     }
                     result = connected
                 } catch (ex: java.lang.Exception) {

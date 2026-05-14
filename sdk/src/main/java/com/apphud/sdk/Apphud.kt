@@ -151,6 +151,14 @@ object Apphud {
     fun userId(): UserId? = runCatching { ServiceLocator.instance.userRepository.getUserId() }.getOrNull()
 
     /**
+     * Returns an instance of the current user.
+     *
+     * @return An object representing the current user. Returns `null` if the user is not yet registered.
+     */
+    fun currentUser(): ApphudUser? =
+        runCatching { ServiceLocator.instance.userRepository.getCurrentUser() }.getOrNull()
+
+    /**
      * Retrieves the current device ID. This method is useful if you want to implement
      * a custom logout/login flow by saving the User ID and Device ID pair for each app user.
      *
@@ -165,7 +173,7 @@ object Apphud {
 
     /**
      * Suspends the current coroutine until the placements from
-     * Product Hub > Placements are available, potentially altered based on the
+     * Mission control > Targetings are available, potentially altered based on the
      * user's involvement in A/B testing, if applicable.
      * Method suspends until the inner `ProductDetails` are loaded from Google Play.
      *
@@ -210,7 +218,7 @@ object Apphud {
         placements().firstOrNull { it.identifier == identifier }
 
     /**
-     * Returns the placements from Product Hub > Placements, potentially altered
+     * Returns the placements from Mission control > Targetings, potentially altered
      * based on the user's involvement in A/B testing, if applicable.
      *
      * __Note:__ Method waits until the inner `ProductDetails` are loaded from Google Play.
@@ -280,7 +288,7 @@ object Apphud {
     fun rawPlacements(): List<ApphudPlacement> = ServiceLocator.instance.userRepository.getCurrentUser()?.placements.orEmpty()
 
     /**
-     * Disables automatic paywall and placement requests during the SDK's initial setup.
+     * Disables automatic app remote config, paywall and placement requests during the SDK's initial setup.
      * Developers must explicitly call `fetchPlacements` or `placements()` methods
      * at a later point in the app's lifecycle to fetch placements with inner paywalls.
      * Example:
@@ -356,7 +364,7 @@ object Apphud {
     }
 
     /**
-     * Asynchronously fetches permission groups configured in the Apphud > Product Hub.
+     * Asynchronously fetches permission groups configured in the Apphud > Product hub.
      * Groups are cached on the device.
      *
      * @return A list of `ApphudGroup` objects representing permission groups.
@@ -366,7 +374,7 @@ object Apphud {
     }
 
     /**
-     * Returns an array of `ProductDetails` objects, whose identifiers you added in Apphud > Product Hub > Products.
+     * Returns an array of `ProductDetails` objects, whose identifiers you added in Apphud > Product hub.
      * Note that this method will return empty array if products are not yet fetched.
      * To get notified when `products` are ready to use, implement `ApphudListener`'s
      * `apphudFetchProductsDetails` or `placementsDidFullyLoad` methods, or use `productsFetchCallback`.
@@ -386,7 +394,7 @@ object Apphud {
 
     /**
      * This callback is triggered when `ProductDetails` are fetched from Google Play Billing.
-     * Ensure that all product identifiers are added in Apphud > Product Hub > Products.
+     * Ensure that all product identifiers are added in Apphud > Product hub.
      * You can use this callback or implement `ApphudListener`'s `apphudFetchProductsDetails`
      * method, based on your preference.
      *
@@ -406,7 +414,7 @@ object Apphud {
 
     /**
      * Returns the `ProductDetails` object for a specific product identifier.
-     * Ensure the product identifier is added in Apphud > Product Hub > Products.
+     * Ensure the product identifier is added in Apphud > Product hub.
      * The method will return `null` if the product is not yet fetched from Google Play.
      *
      * @param productIdentifier The identifier of the product.
@@ -643,8 +651,8 @@ object Apphud {
     }
 
     /**
-     * Refreshes current user data, which includes:
-     * paywalls, placements, subscriptions, non-renewing purchases, or promotionals.
+     * Refreshes current user data including app remote config, paywalls, placements,
+     * subscriptions, non-renewing purchases, and promotionals.
      *
      * To be notified about updates, listen for `ApphudListener`'s `apphudSubscriptionsUpdated` and
      * `apphudNonRenewingPurchasesUpdated` methods.
@@ -758,6 +766,29 @@ object Apphud {
                 withContext(dispatchers.main) {
                     callback(false, null)
                 }
+            }
+        }
+    }
+
+    /**
+     * Attempts to attribute the user using a recently opened deep link, if available.
+     *
+     * If a matching deep link click is found, the callback returns the associated attribution data.
+     * Otherwise, the callback returns `null`.
+     *
+     * @param callback A callback that returns the attribution data as a map, or `null` if no
+     * deep link attribution is available.
+     */
+    fun attributeFromDeeplink(callback: (Map<String, Any>?) -> Unit) {
+        coroutineScope.launch {
+            val response = runCatchingCancellable {
+                ApphudInternal.tryDeeplinkAttribution()
+            }.getOrElse { error ->
+                ApphudLog.logE("Error in attributeFromDeeplink: ${error.message}")
+                null
+            }
+            withContext(dispatchers.main) {
+                callback(response)
             }
         }
     }

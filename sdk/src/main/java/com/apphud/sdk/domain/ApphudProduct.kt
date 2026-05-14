@@ -37,7 +37,7 @@ data class ApphudProduct(
      */
     var productId: String,
     /**
-    Product name from Apphud Dashboard
+    Product name from Apphud Mission control.
      */
     var name: String?,
     /**

@@ -13,6 +13,7 @@ import com.apphud.sdk.internal.data.dto.ApphudGroupDto
 import com.apphud.sdk.internal.data.dto.AttributionDto
 import com.apphud.sdk.internal.data.dto.AttributionRequestDto
 import com.apphud.sdk.internal.data.dto.CustomerDto
+import com.apphud.sdk.internal.data.dto.DeeplinkAttributionRequestDto
 import com.apphud.sdk.internal.data.dto.GrantPromotionalDto
 import com.apphud.sdk.internal.data.dto.NotificationDto
 import com.apphud.sdk.internal.data.dto.PaywallEventDto
@@ -46,6 +47,11 @@ internal class RemoteRepository(
     private val dispatchers: ApphudDispatchers,
 ) {
 
+    private val previousUser: ApphudUser?
+        get() = runCatching {
+            com.apphud.sdk.internal.ServiceLocator.instance.userRepository.getCurrentUser()
+        }.getOrNull()
+
     suspend fun getCustomers(
         needPlacements: Boolean,
         isNew: Boolean,
@@ -63,7 +69,7 @@ internal class RemoteRepository(
             }
             .mapCatchingCancellable { response ->
                 response.data.results?.let { customerDto ->
-                    customerMapper.map(customerDto)
+                    customerMapper.map(customerDto, previousUser)
                 } ?: throw ApphudError("Registration failed")
             }
 
@@ -79,7 +85,7 @@ internal class RemoteRepository(
             }
             .mapCatching { response ->
                 response.data.results?.let { customerDto ->
-                    customerMapper.map(customerDto)
+                    customerMapper.map(customerDto, previousUser)
                 } ?: throw ApphudError("Purchase failed")
             }
 
@@ -102,7 +108,7 @@ internal class RemoteRepository(
             }
             .mapCatching { response ->
                 response.data.results?.let { customerDto ->
-                    customerMapper.map(customerDto)
+                    customerMapper.map(customerDto, previousUser)
                 } ?: throw ApphudError("Restore purchase failed")
             }
 
@@ -143,6 +149,28 @@ internal class RemoteRepository(
                 } ?: throw ApphudError("Failed to send attribution")
             }
 
+    suspend fun deeplinkAttribution(
+        deviceId: String,
+        bundleId: String,
+    ): Result<Map<String, Any>?> =
+        runCatchingCancellable {
+            val request = buildPostRequest(
+                urlProvider.deeplinkAttributionUrl,
+                DeeplinkAttributionRequestDto(deviceId = deviceId, bundleId = bundleId),
+            )
+            executeForRawMap(okHttpClient, gson, request, dispatchers.io)
+        }
+            .recoverCatching { e ->
+                val message = e.message ?: "Failed to fetch deeplink attribution"
+                throw ApphudError(message, originalCause = e)
+            }
+            .mapCatching { response ->
+                @Suppress("UNCHECKED_CAST")
+                val data = response?.get("data") as? Map<String, Any>
+                @Suppress("UNCHECKED_CAST")
+                data?.get("results") as? Map<String, Any>
+            }
+
     suspend fun grantPromotional(
         grantPromotionalDto: GrantPromotionalDto,
     ): Result<ApphudUser> =
@@ -156,7 +184,7 @@ internal class RemoteRepository(
             }
             .mapCatching { response ->
                 response.data.results?.let { customerDto ->
-                    customerMapper.map(customerDto)
+                    customerMapper.map(customerDto, previousUser)
                 } ?: throw ApphudError("Promotional grant failed")
             }
 

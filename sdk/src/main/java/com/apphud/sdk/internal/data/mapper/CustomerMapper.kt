@@ -8,8 +8,21 @@ internal class CustomerMapper(
     private val mapper: SubscriptionMapper,
     private var placementsMapper: PlacementsMapper,
 ) {
-    fun map(customer: CustomerDto) =
-        ApphudUser(
+    /**
+     * @param previousUser used to preserve fields that may be omitted from the server
+     * response (e.g. `scheme`) so that values like `experimentName`, `variationName`
+     * and `remoteConfigString` are not clobbered with `null`. `scheme` is only returned
+     * by the backend when `need_placements=true` was sent.
+     */
+    fun map(customer: CustomerDto, previousUser: ApphudUser? = null): ApphudUser {
+        val scheme = customer.scheme
+
+        val experimentName = scheme?.experiment?.name ?: previousUser?.experimentName
+        val variationName = scheme?.variationName ?: previousUser?.variationName
+        val targetingName = scheme?.name ?: previousUser?.targetingName
+        val remoteConfigString = scheme?.remoteConfig ?: previousUser?.remoteConfigString
+
+        return ApphudUser(
             userId = customer.userId,
             currencyCode = customer.currency?.code,
             countryCode = customer.currency?.countryCode,
@@ -30,5 +43,12 @@ internal class CustomerMapper(
                 listOf()
             },
             isTemporary = false,
+            totalDevicesCount = customer.totalDevicesCount ?: 0,
+            internalId = customer.internalId.orEmpty(),
+            experimentName = experimentName,
+            variationName = variationName,
+            targetingName = targetingName,
+            remoteConfigString = remoteConfigString,
         )
+    }
 }
