@@ -166,6 +166,22 @@ internal object RequestManager {
         }
     }
 
+    internal suspend fun deeplinkAttribution(): Map<String, Any>? {
+        if (!canPerformRequest()) {
+            ApphudLog.logE(::deeplinkAttribution.name + MUST_REGISTER_ERROR)
+            throw ApphudError("SDK not initialized")
+        }
+
+        val deviceId = ServiceLocator.instance.userRepository.getDeviceId()
+            ?: throw ApphudError("SDK not initialized")
+        val repository = ServiceLocator.instance.remoteRepository
+
+        return repository.deeplinkAttribution(
+            deviceId = deviceId,
+            bundleId = applicationContext.packageName,
+        ).getOrThrow()
+    }
+
     internal suspend fun postUserProperties(
         userPropertiesBody: UserPropertiesBody,
     ): Attribution {

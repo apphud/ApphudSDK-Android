@@ -71,3 +71,27 @@ internal suspend inline fun <reified T> executeForResponse(
             gson.fromJson(json, type)
         }
     }
+
+internal suspend fun executeForRawMap(
+    okHttpClient: OkHttpClient,
+    gson: Gson,
+    request: Request,
+    dispatcher: CoroutineDispatcher,
+): Map<String, Any>? =
+    withContext(dispatcher) {
+        okHttpClient.newCall(request).execute().use { response ->
+            val responseBody = response.body?.string()
+
+            if (!response.isSuccessful) {
+                val message =
+                    "finish ${request.method} request ${request.url} " +
+                            "failed with code: ${response.code} response: $responseBody"
+                ApphudLog.logE(message)
+                throw HttpException(response.code, responseBody, message)
+            }
+
+            val json = responseBody ?: return@use null
+            val type = object : TypeToken<Map<String, Any>>() {}.type
+            gson.fromJson<Map<String, Any>>(json, type)
+        }
+    }

@@ -29,13 +29,13 @@ data class ApphudPaywall(
      */
     val screen: ApphudPaywallScreen?,
     /**
-    A/B test experiment name, if user is included in the experiment.
+    A/B test name, if this paywall and its parent placement are part of an A/B test.
     You can use it for additional analytics.
      */
     val experimentName: String?,
 
     /**
-    A/B Experiment Variation Name
+    A/B test variation name, if this paywall and its parent placement are part of an A/B test.
      */
     val variationName: String?,
 

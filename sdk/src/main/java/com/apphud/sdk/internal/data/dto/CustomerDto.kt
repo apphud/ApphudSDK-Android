@@ -8,4 +8,20 @@ internal data class CustomerDto(
     val subscriptions: List<SubscriptionDto>,
     val currency: CurrencyDto?,
     val placements: List<ApphudPlacementDto>?,
+    @SerializedName("id")
+    val internalId: String?,
+    @SerializedName("total_devices_count")
+    val totalDevicesCount: Int?,
+    val scheme: SchemeDto?,
+)
+
+internal data class SchemeDto(
+    val name: String?,
+    val experiment: ExperimentDto?,
+    @SerializedName("remote_config")
+    val remoteConfig: String?,
+)
+
+internal data class ExperimentDto(
+    val name: String?,
 )

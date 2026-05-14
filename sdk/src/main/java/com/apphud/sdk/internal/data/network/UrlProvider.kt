@@ -21,6 +21,9 @@ internal class UrlProvider {
     val attributionUrl: HttpUrl
         get() = "${baseUrl.get()}/v2/customers/attribution".toHttpUrl()
 
+    val deeplinkAttributionUrl: HttpUrl
+        get() = "${baseUrl.get()}/v2/customers/deeplink_attribution".toHttpUrl()
+
     val promotionsUrl: HttpUrl
         get() = "${baseUrl.get()}/v1/promotions".toHttpUrl()
 
