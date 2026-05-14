@@ -2,6 +2,8 @@ package com.apphud.sdk.internal.domain
 
 import com.apphud.sdk.ApphudLog
 import com.apphud.sdk.domain.ApphudUser
+import com.apphud.sdk.internal.data.DeviceIdentifiersRepository
+import com.apphud.sdk.internal.domain.model.DeviceIdentifiers
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.async
 import kotlinx.coroutines.withTimeoutOrNull
@@ -9,6 +11,7 @@ import kotlinx.coroutines.withTimeoutOrNull
 internal class DeviceIdentifiersInteractor(
     private val collectUseCase: CollectDeviceIdentifiersUseCase,
     private val registrationUseCase: RegistrationUseCase,
+    private val deviceIdentifiersRepository: DeviceIdentifiersRepository,
 ) {
 
     suspend operator fun invoke(
@@ -23,7 +26,10 @@ internal class DeviceIdentifiersInteractor(
         val fetchedInTime = withTimeoutOrNull(FETCH_TIMEOUT_MS) { fetchDeferred.await() } != null
         ApphudLog.logI("$TAG: collectUseCase fetchedInTime=$fetchedInTime [${elapsed(startTime)}]")
 
-        if (!fetchedInTime) {
+        // Skip early registration when there's nothing useful to send yet (first install / cleared cache).
+        // It would just be a wasted /customers POST with empty IDs that the late call will replace anyway.
+        val haveCachedIds = deviceIdentifiersRepository.getIdentifiers() != DeviceIdentifiers.EMPTY
+        if (!fetchedInTime && haveCachedIds) {
             ApphudLog.logI("$TAG: Timeout, calling early registrationUseCase [${elapsed(startTime)}]")
             registrationUseCase(
                 needPlacementsPaywalls = needPlacementsPaywalls,
@@ -31,6 +37,8 @@ internal class DeviceIdentifiersInteractor(
                 forceRegistration = true,
             )
             ApphudLog.logI("$TAG: Early registrationUseCase completed [${elapsed(startTime)}]")
+        } else if (!fetchedInTime) {
+            ApphudLog.logI("$TAG: Timeout, but no cached IDs to send, skipping early registrationUseCase [${elapsed(startTime)}]")
         }
 
         val changed = fetchDeferred.await()

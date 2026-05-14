@@ -823,6 +823,10 @@ internal object ApphudInternal {
             ApphudLog.logE("collectDeviceIdentifiers: $MUST_REGISTER_ERROR")
             return
         }
+        if (ApphudUtils.optOutOfTracking) {
+            ApphudLog.logE("Unable to collect device identifiers because optOutOfTracking() is called.")
+            return
+        }
         coroutineScope.launch {
             runCatchingCancellable {
                 val needPP = !didRegisterCustomerAtThisLaunch && !deferPlacements && !observerMode
