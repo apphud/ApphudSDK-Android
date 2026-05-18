@@ -317,6 +317,7 @@ internal object ApphudInternal {
 
         productDetailsLoaded?.let {
             updateProductState(it)
+            updatePaywallsAndPlacements(it)
 
             // notify that productDetails are loaded
             if (productDetails.isNotEmpty()) {
@@ -911,15 +912,18 @@ internal object ApphudInternal {
         storage.productGroups = groups
     }
 
-    private fun updateGroupsWithProductDetails(productGroups: List<ApphudGroup>) {
+    private fun updateGroupsWithProductDetails(
+        productGroups: List<ApphudGroup>,
+        products: List<ProductDetails> = productDetails,
+    ) {
         productGroups.forEach { group ->
             group.products?.forEach { product ->
-                product.productDetails = getProductDetailsByProductId(product.productId)
+                product.productDetails = getProductDetailsByProductId(product.productId, products)
             }
         }
     }
 
-    private fun updatePaywallsAndPlacements() {
+    private fun updatePaywallsAndPlacements(products: List<ProductDetails> = productDetails) {
         val user = userRepository.getCurrentUser()
         val userPlacements = user?.placements.orEmpty()
 
@@ -932,14 +936,21 @@ internal object ApphudInternal {
                 product.paywallIdentifier = paywall.identifier
                 product.placementId = placement.id
                 product.placementIdentifier = placement.identifier
-                product.productDetails = getProductDetailsByProductId(product.productId)
+                product.productDetails = getProductDetailsByProductId(product.productId, products)
             }
         }
     }
 
     // Find ProductDetails  ======================================
     internal fun getProductDetailsByProductId(productIdentifier: String): ProductDetails? {
-        return productDetails.firstOrNull { it.productId == productIdentifier }
+        return getProductDetailsByProductId(productIdentifier, productDetails)
+    }
+
+    private fun getProductDetailsByProductId(
+        productIdentifier: String,
+        products: List<ProductDetails>,
+    ): ProductDetails? {
+        return products.firstOrNull { it.productId == productIdentifier }
     }
 //endregion
 
@@ -968,7 +979,8 @@ internal object ApphudInternal {
 
     private fun updateProductState(productsLoaded: List<ProductDetails>) {
         productGroups.set(storage.productGroups.orEmpty())
-        updateGroupsWithProductDetails(productGroups.get())
+        val availableProducts = (productsLoaded + productDetails).distinctBy { it.productId }
+        updateGroupsWithProductDetails(productGroups.get(), availableProducts)
     }
     //endregion
 }
