@@ -20,6 +20,8 @@ internal data class PurchaseItemBody(
     val paywallId: String?,
     @SerializedName("placement_id")
     val placementId: String?,
+    @SerializedName("variation_identifier")
+    val variationIdentifier: String?,
     @SerializedName("product_bundle_id")
     val productBundleId: String?,
     @SerializedName("observer_mode")
@@ -36,5 +38,5 @@ internal data class PurchaseItemBody(
     @SerializedName("extra_message")
     val extraMessage: String?,
     @SerializedName("screen_id")
-    val screenId: String? = null
+    val screenId: String? = null,
 )

@@ -309,6 +309,7 @@ class RegistrationUseCaseTest {
             screen = null,
             experimentName = null,
             variationName = null,
+            variationIdentifier = null,
             parentPaywallIdentifier = null,
             placementIdentifier = "test_placement",
             placementId = "placement-1"

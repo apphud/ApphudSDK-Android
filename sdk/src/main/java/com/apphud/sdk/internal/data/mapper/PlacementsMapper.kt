@@ -1,5 +1,6 @@
 package com.apphud.sdk.internal.data.mapper
 
+import com.apphud.sdk.ApphudLog
 import com.apphud.sdk.internal.data.dto.ApphudPlacementDto
 import com.apphud.sdk.domain.ApphudPlacement
 
@@ -17,6 +18,8 @@ internal class PlacementsMapper(
             } else {
                 null
             }
+
+        ApphudLog.logI("Placement: ${placementDto.identifier}, Paywall: ${paywallDto?.identifier}, paywallObject: $paywallObject")
 
         return ApphudPlacement(
             id = placementDto.id,

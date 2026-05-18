@@ -46,6 +46,7 @@ internal class PaywallsMapperLegacy(
             placementId = null,
             placementIdentifier = null,
             parentPaywallIdentifier = paywallDto.fromPaywall,
-            variationName = paywallDto.variationName
+            variationName = paywallDto.variationName,
+            variationIdentifier = paywallDto.variationIdentifier,
         )
 }

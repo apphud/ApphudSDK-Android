@@ -31,6 +31,7 @@ internal class PurchaseBodyFactory(
                         subscriptionPeriod = productDetails?.subscriptionPeriod(),
                         paywallId = paywallId,
                         placementId = placementId,
+                        variationIdentifier = variationIdentifier(placementId),
                         screenId = screenId,
                         productBundleId = productBundleId,
                         observerMode = false,
@@ -54,6 +55,14 @@ internal class PurchaseBodyFactory(
             deviceId = userRepository.getDeviceId() ?: throw ApphudError("SDK not initialized"),
             purchases =
                 purchases.map { item ->
+                    val matchesApphudProduct =
+                        apphudProduct?.productDetails?.productId == item.details.productId
+                    val placementId =
+                        if (matchesApphudProduct) {
+                            apphudProduct.placementId
+                        } else {
+                            null
+                        }
                     PurchaseItemBody(
                         orderId = null,
                         productId = item.details.productId,
@@ -67,17 +76,14 @@ internal class PurchaseBodyFactory(
                             },
                         subscriptionPeriod = item.details.subscriptionPeriod(),
                         screenId = null,
-                        paywallId = if (apphudProduct?.productDetails?.productId == item.details.productId) {
+                        paywallId = if (matchesApphudProduct) {
                             apphudProduct.paywallId
                         } else {
                             null
                         },
-                        placementId = if (apphudProduct?.productDetails?.productId == item.details.productId) {
-                            apphudProduct.placementId
-                        } else {
-                            null
-                        },
-                        productBundleId = if (apphudProduct?.productDetails?.productId == item.details.productId) {
+                        placementId = placementId,
+                        variationIdentifier = variationIdentifier(placementId),
+                        productBundleId = if (matchesApphudProduct) {
                             apphudProduct.id
                         } else {
                             null
@@ -92,6 +98,15 @@ internal class PurchaseBodyFactory(
                     )
                 }.sortedByDescending { it.purchaseTime },
         )
+
+    private fun variationIdentifier(placementId: String?): String? {
+        if (placementId == null) return null
+        return userRepository.getCurrentUser()
+            ?.placements
+            ?.firstOrNull { it.id == placementId }
+            ?.paywall
+            ?.variationIdentifier
+    }
 
     private companion object {
         const val ONE_HOUR = 3600_000L

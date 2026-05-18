@@ -13,6 +13,8 @@ internal data class ApphudPaywallDto(
     val experimentName: String?,
     @SerializedName("variation_name")
     val variationName: String?,
+    @SerializedName("variation_identifier")
+    val variationIdentifier: String?,
     @SerializedName("from_paywall")
     val fromPaywall: String?,
     val screen: ApphudPaywallScreenDto?,

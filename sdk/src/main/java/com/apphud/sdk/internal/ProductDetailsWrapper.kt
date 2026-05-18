@@ -51,6 +51,8 @@ internal class ProductDetailsWrapper(
                         if (unfetched.isNotEmpty()) {
                             ApphudLog.log("Unfetched products for $type: ${unfetched.map { "${it.productId}(statusCode=${it.statusCode})" }}")
                         }
+                        ApphudLog.log("Fetched products for $type: ${details.map { it.productId }}")
+
                         when (result.isSuccess()) {
                             true -> {
                                 val restored = mutableListOf<PurchaseRecordDetails>()
@@ -176,6 +178,8 @@ internal class ProductDetailsWrapper(
                         if (unfetched.isNotEmpty()) {
                             ApphudLog.log("Unfetched products for $type: ${unfetched.map { "${it.productId}(statusCode=${it.statusCode})" }}")
                         }
+                        ApphudLog.log("Fetched products for $type: ${details.map { it.productId }}")
+
                         when (result.isSuccess()) {
                             true -> {
                                 if (continuation.isActive && !continuation.isCompleted) {
