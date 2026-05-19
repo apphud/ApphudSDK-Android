@@ -25,6 +25,7 @@
     <string name="experiment">Experiment: </string>
     <string name="variation">Variation: </string>
     <string name="json">Json</string>
+    <string name="show_paywall_screen">Show screen</string>
     <string name="restore_success">Success: restored purchases count %s</string>
     <string name="select_offer">Select Offer</string>
     <string name="use_apphud_purchases">Use Apphud purchases</string>

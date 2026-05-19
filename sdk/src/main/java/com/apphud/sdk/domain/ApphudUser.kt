@@ -34,13 +34,6 @@ data class ApphudUser(
     var purchases: List<ApphudNonRenewingPurchase>,
 
     /**
-     * There properties are for internal usage, to get placements
-     * use placements() function below
-     */
-    internal val placements: List<ApphudPlacement>,
-    internal val isTemporary: Boolean?,
-
-    /**
      * Number of devices associated with the same `userId`.
      *
      * You can use this value to detect suspicious account sharing and decide whether to limit premium access.
@@ -81,6 +74,13 @@ data class ApphudUser(
      * the exact server response, or call `remoteConfig()` to get a parsed `Map<String, Any>` representation.
      */
     val remoteConfigString: String? = null,
+
+    /**
+     * There properties are for internal usage, to get placements
+     * use placements() function below
+     */
+    internal val placements: List<ApphudPlacement>,
+    internal val isTemporary: Boolean?,
 ) {
     /**
      * Returns true if user has any subscriptions or non-renewing purchases.

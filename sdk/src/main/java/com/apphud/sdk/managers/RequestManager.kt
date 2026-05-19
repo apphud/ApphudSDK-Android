@@ -234,6 +234,7 @@ internal object RequestManager {
                 name = "paywall_shown",
                 paywallId = paywall.id,
                 placementId = paywall.placementId,
+                variationIdentifier = paywall.variationIdentifier,
             ),
         )
     }
@@ -277,6 +278,7 @@ internal object RequestManager {
                 name = "paywall_checkout_initiated",
                 paywallId = paywallId,
                 placementId = placementId,
+                variationIdentifier = variationIdentifierForPlacement(placementId),
                 productId = productId,
                 screenId = screenId
             ),
@@ -336,10 +338,20 @@ internal object RequestManager {
         }
     }
 
+    private fun variationIdentifierForPlacement(placementId: String?): String? {
+        if (placementId == null) return null
+        return ServiceLocator.instance.userRepository.getCurrentUser()
+            ?.placements
+            ?.firstOrNull { it.id == placementId }
+            ?.paywall
+            ?.variationIdentifier
+    }
+
     private fun makePaywallEventBody(
         name: String,
         paywallId: String?,
         placementId: String?,
+        variationIdentifier: String? = null,
         productId: String? = null,
         screenId: String? = null,
         errorMessage: String? = null,
@@ -356,6 +368,7 @@ internal object RequestManager {
         paywallId?.let { properties.put("paywall_id", it) }
         productId?.let { properties.put("product_id", it) }
         placementId?.let { properties.put("placement_id", it) }
+        variationIdentifier?.let { properties.put("variation_identifier", it) }
         errorMessage?.let { properties.put("error_message", it) }
         screenId?.let { properties.put("screen_id", it) }
 
