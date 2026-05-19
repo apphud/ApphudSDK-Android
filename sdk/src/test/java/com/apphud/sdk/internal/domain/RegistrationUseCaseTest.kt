@@ -25,6 +25,7 @@ class RegistrationUseCaseTest {
     private lateinit var userRepository: UserRepository
     private lateinit var userDataSource: UserDataSource
     private lateinit var requestManager: RequestManager
+    private lateinit var enrichPlacementProductsUseCase: EnrichPlacementProductsUseCase
     private lateinit var registrationUseCase: RegistrationUseCase
 
     private val mockUser: ApphudUser = mockk(relaxed = true)
@@ -35,7 +36,13 @@ class RegistrationUseCaseTest {
         userRepository = mockk(relaxed = true)
         userDataSource = mockk(relaxed = true)
         requestManager = mockk(relaxed = true)
-        registrationUseCase = RegistrationUseCase(userRepository, userDataSource, requestManager)
+        enrichPlacementProductsUseCase = mockk(relaxed = true)
+        registrationUseCase = RegistrationUseCase(
+            userRepository,
+            userDataSource,
+            requestManager,
+            enrichPlacementProductsUseCase,
+        )
 
         every { mockUser.userId } returns "user-id-1"
         every { mockUser.isTemporary } returns false

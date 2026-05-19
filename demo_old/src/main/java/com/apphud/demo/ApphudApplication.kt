@@ -33,6 +33,9 @@ internal class ApphudApplication : Application() {
     override fun onCreate() {
         super.onCreate()
         ApphudUtils.enableAllLogs()
+        if (BuildConfig.APPHUD_BASE_URL.isNotEmpty()) {
+            ApphudUtils.overrideBaseUrl(BuildConfig.APPHUD_BASE_URL)
+        }
         Apphud.start(this, BuildConfig.APPHUD_API_KEY, observerMode = false)
         Apphud.collectDeviceIdentifiers()
         fetchPlacements()

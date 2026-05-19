@@ -18,6 +18,7 @@ internal class RegistrationUseCase(
     private val userRepository: UserRepository,
     private val userDataSource: UserDataSource,
     private val requestManager: RequestManager,
+    private val enrichPlacementProductsUseCase: EnrichPlacementProductsUseCase,
 ) {
     private val mutex = Mutex()
 
@@ -41,6 +42,7 @@ internal class RegistrationUseCase(
                 val currentUser = userRepository.getCurrentUser()
                 if (currentUser != null && currentUser.isTemporary == false) {
                     ApphudLog.log("Registration: User already loaded, returning cached user")
+                    enrichPlacementProductsUseCase()
                     return@withLock currentUser
                 }
             }
@@ -83,9 +85,9 @@ internal class RegistrationUseCase(
         }
 
         val finalUser = mergePaywallsAndPlacements(newUser, cachedUser)
-
         userRepository.setCurrentUser(finalUser)
         userDataSource.updateLastRegistrationTime(System.currentTimeMillis())
+        enrichPlacementProductsUseCase()
 
         ApphudLog.log("$registrationType successful: userId=${finalUser.userId}")
 
