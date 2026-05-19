@@ -96,7 +96,7 @@ class PurchaseBodyFactoryTest {
             every { purchaseToken } returns "token"
             every { purchaseTime } returns System.currentTimeMillis()
         }
-        val details: ProductDetails = mockk {
+        val details: ProductDetails = mockk(relaxed = true) {
             every { productId } returns "play-product-id"
             every { productType } returns "subs"
         }

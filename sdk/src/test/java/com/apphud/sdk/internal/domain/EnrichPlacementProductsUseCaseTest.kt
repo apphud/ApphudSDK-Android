@@ -10,6 +10,7 @@ import com.apphud.sdk.internal.data.ProductRepository
 import com.apphud.sdk.internal.data.UserRepository
 import io.mockk.every
 import io.mockk.mockk
+import io.mockk.verify
 import kotlinx.coroutines.flow.MutableStateFlow
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotNull
@@ -68,6 +69,14 @@ class EnrichPlacementProductsUseCaseTest {
 
     @Before
     fun setup() {
+        product.productDetails = null
+        product.placementIdentifier = null
+        product.placementId = null
+        product.paywallIdentifier = null
+        product.paywallId = null
+        paywall.placementIdentifier = null
+        paywall.placementId = null
+
         val productDetails: ProductDetails = mockk {
             every { productId } returns "com.apphud.sub5"
         }
@@ -96,6 +105,14 @@ class EnrichPlacementProductsUseCaseTest {
         assertEquals("main", product.paywallIdentifier)
         assertEquals("pl-1", paywall.placementId)
         assertEquals("qatest", paywall.placementIdentifier)
+    }
+
+    @Test
+    fun `GIVEN explicit user EXPECT current user is not read`() {
+        useCase(user)
+
+        verify(exactly = 0) { userRepository.getCurrentUser() }
+        assertNotNull(product.productDetails)
     }
 
     @Test

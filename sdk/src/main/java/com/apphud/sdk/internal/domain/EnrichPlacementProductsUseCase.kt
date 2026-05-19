@@ -1,5 +1,6 @@
 package com.apphud.sdk.internal.domain
 
+import com.apphud.sdk.domain.ApphudUser
 import com.apphud.sdk.internal.data.ProductRepository
 import com.apphud.sdk.internal.data.UserRepository
 
@@ -11,8 +12,8 @@ internal class EnrichPlacementProductsUseCase(
     private val userRepository: UserRepository,
     private val productRepository: ProductRepository,
 ) {
-    operator fun invoke() {
-        val user = userRepository.getCurrentUser() ?: return
+    operator fun invoke(user: ApphudUser? = userRepository.getCurrentUser()) {
+        user ?: return
         val productDetailsById = productRepository.state.value.products.associateBy { it.productId }
 
         user.placements.forEach { placement ->

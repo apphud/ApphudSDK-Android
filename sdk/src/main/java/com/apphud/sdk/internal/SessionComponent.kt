@@ -25,7 +25,8 @@ import com.apphud.sdk.internal.domain.FetchMostActualRuleScreenUseCase
 import com.apphud.sdk.internal.domain.FetchNativePurchasesUseCase
 import com.apphud.sdk.internal.domain.FetchRulesScreenUseCase
 import com.apphud.sdk.internal.domain.EnrichPlacementProductsUseCase
-import com.apphud.sdk.internal.domain.RegistrationUseCase
+import com.apphud.sdk.internal.domain.RegisterUserUseCase
+import com.apphud.sdk.internal.domain.RegistrationInteractor
 import com.apphud.sdk.internal.domain.RenderPaywallPropertiesUseCase
 import com.apphud.sdk.internal.domain.ResolveCredentialsUseCase
 import com.apphud.sdk.internal.domain.mapper.DateTimeMapper
@@ -209,11 +210,17 @@ internal class SessionComponent(
             productRepository = productRepository,
         )
 
-    val registrationUseCase: RegistrationUseCase =
-        RegistrationUseCase(
+    val registerUserUseCase: RegisterUserUseCase =
+        RegisterUserUseCase(
             userRepository = userRepository,
             userDataSource = userDataSource,
             requestManager = RequestManager,
+        )
+
+    val registrationInteractor: RegistrationInteractor =
+        RegistrationInteractor(
+            userRepository = userRepository,
+            registerUserUseCase = registerUserUseCase,
             enrichPlacementProductsUseCase = enrichPlacementProductsUseCase,
         )
 
@@ -223,7 +230,7 @@ internal class SessionComponent(
     val deviceIdentifiersInteractor: DeviceIdentifiersInteractor =
         DeviceIdentifiersInteractor(
             collectUseCase = collectDeviceIdentifiersUseCase,
-            registrationUseCase = registrationUseCase,
+            registrationInteractor = registrationInteractor,
             deviceIdentifiersRepository = appScope.deviceIdentifiersRepository,
         )
 

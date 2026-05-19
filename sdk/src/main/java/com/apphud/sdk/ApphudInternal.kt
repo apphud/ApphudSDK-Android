@@ -417,7 +417,7 @@ internal object ApphudInternal {
         val needPlacementsPaywalls = !didRegisterCustomerAtThisLaunch && !deferPlacements && !observerMode
 
         return runCatchingCancellable {
-            val newUser = ServiceLocator.instance.registrationUseCase(
+            val newUser = ServiceLocator.instance.registrationInteractor(
                 needPlacementsPaywalls = needPlacementsPaywalls,
                 isNew = isNew,
                 forceRegistration = forceRegistration,
@@ -578,7 +578,7 @@ internal object ApphudInternal {
         }
         val needPlacementsPaywalls = !didRegisterCustomerAtThisLaunch && !deferPlacements && !observerMode
         val customer: ApphudUser? = runCatchingCancellable {
-            ServiceLocator.instance.registrationUseCase(
+            ServiceLocator.instance.registrationInteractor(
                 needPlacementsPaywalls = needPlacementsPaywalls,
                 isNew = isNew,
                 forceRegistration = true,

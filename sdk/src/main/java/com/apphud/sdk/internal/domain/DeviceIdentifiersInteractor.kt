@@ -10,7 +10,7 @@ import kotlinx.coroutines.withTimeoutOrNull
 
 internal class DeviceIdentifiersInteractor(
     private val collectUseCase: CollectDeviceIdentifiersUseCase,
-    private val registrationUseCase: RegistrationUseCase,
+    private val registrationInteractor: RegistrationInteractor,
     private val deviceIdentifiersRepository: DeviceIdentifiersRepository,
 ) {
 
@@ -30,15 +30,15 @@ internal class DeviceIdentifiersInteractor(
         // It would just be a wasted /customers POST with empty IDs that the late call will replace anyway.
         val haveCachedIds = deviceIdentifiersRepository.getIdentifiers() != DeviceIdentifiers.EMPTY
         if (!fetchedInTime && haveCachedIds) {
-            ApphudLog.logI("$TAG: Timeout, calling early registrationUseCase [${elapsed(startTime)}]")
-            registrationUseCase(
+            ApphudLog.logI("$TAG: Timeout, calling early registrationInteractor [${elapsed(startTime)}]")
+            registrationInteractor(
                 needPlacementsPaywalls = needPlacementsPaywalls,
                 isNew = isNew,
                 forceRegistration = true,
             )
-            ApphudLog.logI("$TAG: Early registrationUseCase completed [${elapsed(startTime)}]")
+            ApphudLog.logI("$TAG: Early registrationInteractor completed [${elapsed(startTime)}]")
         } else if (!fetchedInTime) {
-            ApphudLog.logI("$TAG: Timeout, but no cached IDs to send, skipping early registrationUseCase [${elapsed(startTime)}]")
+            ApphudLog.logI("$TAG: Timeout, but no cached IDs to send, skipping early registrationInteractor [${elapsed(startTime)}]")
         }
 
         val changed = fetchDeferred.await()
@@ -48,13 +48,13 @@ internal class DeviceIdentifiersInteractor(
             return null
         }
 
-        ApphudLog.logI("$TAG: Changes detected, calling final registrationUseCase [${elapsed(startTime)}]")
-        val user = registrationUseCase(
+        ApphudLog.logI("$TAG: Changes detected, calling final registrationInteractor [${elapsed(startTime)}]")
+        val user = registrationInteractor(
             needPlacementsPaywalls = needPlacementsPaywalls,
             isNew = isNew,
             forceRegistration = true,
         )
-        ApphudLog.logI("$TAG: Final registrationUseCase completed [${elapsed(startTime)}]")
+        ApphudLog.logI("$TAG: Final registrationInteractor completed [${elapsed(startTime)}]")
         return user
     }
 
