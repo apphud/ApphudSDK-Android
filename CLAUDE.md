@@ -35,6 +35,10 @@ This is **ApphudSDK-Android** - an open-source SDK for managing auto-renewable s
 ./gradlew :sdk:testDebugUnitTest --rerun-tasks
 ```
 
+### Merge Requirements
+
+Do not merge a merge request while the GitHub pipeline is red or failing. Fix the pipeline or wait for it to pass before merging.
+
 ### Publishing
 ```bash
 # Publish to local Maven (for testing)
