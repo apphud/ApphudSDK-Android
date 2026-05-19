@@ -17,11 +17,11 @@ import org.junit.Test
 class DeviceIdentifiersInteractorTest {
 
     private val collectUseCase: CollectDeviceIdentifiersUseCase = mockk()
-    private val registrationUseCase: RegistrationUseCase = mockk()
+    private val registrationInteractor: RegistrationInteractor = mockk()
     private val deviceIdentifiersRepository: DeviceIdentifiersRepository = mockk()
     private val interactor = DeviceIdentifiersInteractor(
         collectUseCase = collectUseCase,
-        registrationUseCase = registrationUseCase,
+        registrationInteractor = registrationInteractor,
         deviceIdentifiersRepository = deviceIdentifiersRepository,
     )
 
@@ -51,19 +51,19 @@ class DeviceIdentifiersInteractorTest {
     // region fetch completes in time
 
     @Test
-    fun `GIVEN fetch in time and identifiers changed EXPECT registrationUseCase called once`() = runTest {
+    fun `GIVEN fetch in time and identifiers changed EXPECT registrationInteractor called once`() = runTest {
         coEvery { collectUseCase() } returns true
-        coEvery { registrationUseCase(any(), any(), any(), any(), any()) } returns testUser
+        coEvery { registrationInteractor(any(), any(), any(), any(), any()) } returns testUser
 
         interactor(this, needPlacementsPaywalls = false, isNew = false)
 
-        coVerify(exactly = 1) { registrationUseCase(any(), any(), any(), any(), any()) }
+        coVerify(exactly = 1) { registrationInteractor(any(), any(), any(), any(), any()) }
     }
 
     @Test
     fun `GIVEN fetch in time and identifiers changed EXPECT returns ApphudUser`() = runTest {
         coEvery { collectUseCase() } returns true
-        coEvery { registrationUseCase(any(), any(), any(), any(), any()) } returns testUser
+        coEvery { registrationInteractor(any(), any(), any(), any(), any()) } returns testUser
 
         val result = interactor(this, needPlacementsPaywalls = false, isNew = false)
 
@@ -71,12 +71,12 @@ class DeviceIdentifiersInteractorTest {
     }
 
     @Test
-    fun `GIVEN fetch in time and identifiers not changed EXPECT registrationUseCase not called`() = runTest {
+    fun `GIVEN fetch in time and identifiers not changed EXPECT registrationInteractor not called`() = runTest {
         coEvery { collectUseCase() } returns false
 
         interactor(this, needPlacementsPaywalls = false, isNew = false)
 
-        coVerify(exactly = 0) { registrationUseCase(any(), any(), any(), any(), any()) }
+        coVerify(exactly = 0) { registrationInteractor(any(), any(), any(), any(), any()) }
     }
 
     @Test
@@ -93,19 +93,19 @@ class DeviceIdentifiersInteractorTest {
     // region fetch timeout — cache populated (returning user)
 
     @Test
-    fun `GIVEN fetch timeout, cached IDs and identifiers changed EXPECT registrationUseCase called twice`() = runTest {
+    fun `GIVEN fetch timeout, cached IDs and identifiers changed EXPECT registrationInteractor called twice`() = runTest {
         coEvery { collectUseCase() } coAnswers { delay(2000); true }
-        coEvery { registrationUseCase(any(), any(), any(), any(), any()) } returns testUser
+        coEvery { registrationInteractor(any(), any(), any(), any(), any()) } returns testUser
 
         interactor(this, needPlacementsPaywalls = false, isNew = false)
 
-        coVerify(exactly = 2) { registrationUseCase(any(), any(), any(), any(), any()) }
+        coVerify(exactly = 2) { registrationInteractor(any(), any(), any(), any(), any()) }
     }
 
     @Test
     fun `GIVEN fetch timeout, cached IDs and identifiers changed EXPECT returns ApphudUser`() = runTest {
         coEvery { collectUseCase() } coAnswers { delay(2000); true }
-        coEvery { registrationUseCase(any(), any(), any(), any(), any()) } returns testUser
+        coEvery { registrationInteractor(any(), any(), any(), any(), any()) } returns testUser
 
         val result = interactor(this, needPlacementsPaywalls = false, isNew = false)
 
@@ -113,19 +113,19 @@ class DeviceIdentifiersInteractorTest {
     }
 
     @Test
-    fun `GIVEN fetch timeout, cached IDs and identifiers not changed EXPECT registrationUseCase called once`() = runTest {
+    fun `GIVEN fetch timeout, cached IDs and identifiers not changed EXPECT registrationInteractor called once`() = runTest {
         coEvery { collectUseCase() } coAnswers { delay(2000); false }
-        coEvery { registrationUseCase(any(), any(), any(), any(), any()) } returns testUser
+        coEvery { registrationInteractor(any(), any(), any(), any(), any()) } returns testUser
 
         interactor(this, needPlacementsPaywalls = false, isNew = false)
 
-        coVerify(exactly = 1) { registrationUseCase(any(), any(), any(), any(), any()) }
+        coVerify(exactly = 1) { registrationInteractor(any(), any(), any(), any(), any()) }
     }
 
     @Test
     fun `GIVEN fetch timeout, cached IDs and identifiers not changed EXPECT returns null`() = runTest {
         coEvery { collectUseCase() } coAnswers { delay(2000); false }
-        coEvery { registrationUseCase(any(), any(), any(), any(), any()) } returns testUser
+        coEvery { registrationInteractor(any(), any(), any(), any(), any()) } returns testUser
 
         val result = interactor(this, needPlacementsPaywalls = false, isNew = false)
 
@@ -137,24 +137,24 @@ class DeviceIdentifiersInteractorTest {
     // region fetch timeout — empty cache (first install)
 
     @Test
-    fun `GIVEN fetch timeout, no cached IDs and identifiers changed EXPECT registrationUseCase called once`() = runTest {
+    fun `GIVEN fetch timeout, no cached IDs and identifiers changed EXPECT registrationInteractor called once`() = runTest {
         every { deviceIdentifiersRepository.getIdentifiers() } returns DeviceIdentifiers.EMPTY
         coEvery { collectUseCase() } coAnswers { delay(2000); true }
-        coEvery { registrationUseCase(any(), any(), any(), any(), any()) } returns testUser
+        coEvery { registrationInteractor(any(), any(), any(), any(), any()) } returns testUser
 
         interactor(this, needPlacementsPaywalls = false, isNew = false)
 
-        coVerify(exactly = 1) { registrationUseCase(any(), any(), any(), any(), any()) }
+        coVerify(exactly = 1) { registrationInteractor(any(), any(), any(), any(), any()) }
     }
 
     @Test
-    fun `GIVEN fetch timeout, no cached IDs and identifiers not changed EXPECT registrationUseCase not called`() = runTest {
+    fun `GIVEN fetch timeout, no cached IDs and identifiers not changed EXPECT registrationInteractor not called`() = runTest {
         every { deviceIdentifiersRepository.getIdentifiers() } returns DeviceIdentifiers.EMPTY
         coEvery { collectUseCase() } coAnswers { delay(2000); false }
 
         interactor(this, needPlacementsPaywalls = false, isNew = false)
 
-        coVerify(exactly = 0) { registrationUseCase(any(), any(), any(), any(), any()) }
+        coVerify(exactly = 0) { registrationInteractor(any(), any(), any(), any(), any()) }
     }
 
     @Test

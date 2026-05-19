@@ -351,7 +351,7 @@ internal object ApphudInternal {
             // disableFallback() is now called in updateUserState
         }
 
-        updatePaywallsAndPlacements()
+        ServiceLocator.instance.enrichPlacementProductsUseCase()
         offeringsCallbackManager.handlePaywallsAndProductsLoaded(
             customerError = customerError,
             isRegisteringUser = isRegisteringUser,
@@ -417,7 +417,7 @@ internal object ApphudInternal {
         val needPlacementsPaywalls = !didRegisterCustomerAtThisLaunch && !deferPlacements && !observerMode
 
         return runCatchingCancellable {
-            val newUser = ServiceLocator.instance.registrationUseCase(
+            val newUser = ServiceLocator.instance.registrationInteractor(
                 needPlacementsPaywalls = needPlacementsPaywalls,
                 isNew = isNew,
                 forceRegistration = forceRegistration,
@@ -578,7 +578,7 @@ internal object ApphudInternal {
         }
         val needPlacementsPaywalls = !didRegisterCustomerAtThisLaunch && !deferPlacements && !observerMode
         val customer: ApphudUser? = runCatchingCancellable {
-            ServiceLocator.instance.registrationUseCase(
+            ServiceLocator.instance.registrationInteractor(
                 needPlacementsPaywalls = needPlacementsPaywalls,
                 isNew = isNew,
                 forceRegistration = true,
@@ -917,30 +917,6 @@ internal object ApphudInternal {
                 product.productDetails = getProductDetailsByProductId(product.productId)
             }
         }
-    }
-
-    private fun updatePaywallsAndPlacements() {
-
-        val user = userRepository.getCurrentUser()
-        val userPlacements = user?.placements.orEmpty()
-
-        ApphudLog.logI("Updating paywalls and placements: ${userPlacements.size}, productDetails: ${productDetails.size}")
-
-        userPlacements.forEach { placement ->
-            val paywall = placement.paywall ?: return@forEach
-            paywall.placementId = placement.id
-            paywall.placementIdentifier = placement.identifier
-            paywall.products?.forEach { product ->
-                product.paywallId = paywall.id
-                product.paywallIdentifier = paywall.identifier
-                product.placementId = placement.id
-                product.placementIdentifier = placement.identifier
-                product.productDetails = getProductDetailsByProductId(product.productId)
-            }
-        }
-
-        ApphudLog.logI("Updated paywalls and placements, ${userPlacements}")
-        ApphudLog.logI("qatest placement products, ${userPlacements.find { it.identifier == "qatest" }?.paywall?.products?.find { it.productId == "com.apphud.sub5" }?.productDetails}")
     }
 
     // Find ProductDetails  ======================================

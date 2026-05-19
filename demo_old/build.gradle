@@ -26,6 +26,16 @@ android {
             }
         }
         buildConfigField("String", "APPHUD_API_KEY", "\"${apphudApiKey}\"")
+
+        def apphudBaseUrl = ""
+        if (envFile.exists()) {
+            envFile.readLines().each { line ->
+                if (line.startsWith('APPHUD_BASE_URL=')) {
+                    apphudBaseUrl = line.substring('APPHUD_BASE_URL='.length())
+                }
+            }
+        }
+        buildConfigField("String", "APPHUD_BASE_URL", "\"${apphudBaseUrl}\"")
     }
 
     buildTypes {

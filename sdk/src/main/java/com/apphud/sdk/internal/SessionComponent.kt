@@ -24,7 +24,9 @@ import com.apphud.sdk.internal.domain.DeviceIdentifiersInteractor
 import com.apphud.sdk.internal.domain.FetchMostActualRuleScreenUseCase
 import com.apphud.sdk.internal.domain.FetchNativePurchasesUseCase
 import com.apphud.sdk.internal.domain.FetchRulesScreenUseCase
-import com.apphud.sdk.internal.domain.RegistrationUseCase
+import com.apphud.sdk.internal.domain.EnrichPlacementProductsUseCase
+import com.apphud.sdk.internal.domain.RegisterUserUseCase
+import com.apphud.sdk.internal.domain.RegistrationInteractor
 import com.apphud.sdk.internal.domain.RenderPaywallPropertiesUseCase
 import com.apphud.sdk.internal.domain.ResolveCredentialsUseCase
 import com.apphud.sdk.internal.domain.mapper.DateTimeMapper
@@ -202,11 +204,24 @@ internal class SessionComponent(
     val resolveCredentialsUseCase: ResolveCredentialsUseCase =
         ResolveCredentialsUseCase(userRepository = userRepository)
 
-    val registrationUseCase: RegistrationUseCase =
-        RegistrationUseCase(
+    val enrichPlacementProductsUseCase: EnrichPlacementProductsUseCase =
+        EnrichPlacementProductsUseCase(
+            userRepository = userRepository,
+            productRepository = productRepository,
+        )
+
+    val registerUserUseCase: RegisterUserUseCase =
+        RegisterUserUseCase(
             userRepository = userRepository,
             userDataSource = userDataSource,
-            requestManager = RequestManager
+            requestManager = RequestManager,
+        )
+
+    val registrationInteractor: RegistrationInteractor =
+        RegistrationInteractor(
+            userRepository = userRepository,
+            registerUserUseCase = registerUserUseCase,
+            enrichPlacementProductsUseCase = enrichPlacementProductsUseCase,
         )
 
     val collectDeviceIdentifiersUseCase: CollectDeviceIdentifiersUseCase =
@@ -215,7 +230,7 @@ internal class SessionComponent(
     val deviceIdentifiersInteractor: DeviceIdentifiersInteractor =
         DeviceIdentifiersInteractor(
             collectUseCase = collectDeviceIdentifiersUseCase,
-            registrationUseCase = registrationUseCase,
+            registrationInteractor = registrationInteractor,
             deviceIdentifiersRepository = appScope.deviceIdentifiersRepository,
         )
 

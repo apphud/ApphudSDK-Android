@@ -77,7 +77,7 @@ data class ApphudUser(
 
     /**
      * There properties are for internal usage, to get placements
-     * use placements() function below
+     * use rawPlacements() function below
      */
     internal val placements: List<ApphudPlacement>,
     internal val isTemporary: Boolean?,
@@ -87,6 +87,19 @@ data class ApphudUser(
      */
     fun hasPurchases(): Boolean {
         return subscriptions.isNotEmpty() || purchases.isNotEmpty()
+    }
+
+    /**
+     * A list of paywall placements, potentially altered based on the user's
+     * involvement in A/B testing, if any. A placement is a specific location
+     * within a user's journey (such as onboarding, settings, etc.) where its internal paywall
+     * is intended to be displayed.
+     *
+     * __Important__: This function may return placement objects that do not yet
+     * have ProductDetails attached.
+     */
+    fun rawPlacements(): List<ApphudPlacement> {
+        return placements
     }
 
     /**
