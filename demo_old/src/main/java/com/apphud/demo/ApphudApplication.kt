@@ -33,8 +33,7 @@ internal class ApphudApplication : Application() {
     override fun onCreate() {
         super.onCreate()
         ApphudUtils.enableAllLogs()
-        ApphudUtils.overrideBaseUrl("https://api.apphuddev.com")
-        Apphud.start(this, "play_nwpk5ACtwcppKS4rB9qL9ymA4PfjCN77uQa", observerMode = false)
+        Apphud.start(this, BuildConfig.APPHUD_API_KEY, observerMode = false)
         Apphud.collectDeviceIdentifiers()
         fetchPlacements()
     }
