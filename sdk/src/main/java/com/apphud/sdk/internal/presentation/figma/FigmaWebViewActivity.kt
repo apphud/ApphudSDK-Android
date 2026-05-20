@@ -7,6 +7,8 @@ import android.content.Intent
 import android.net.Uri
 import android.os.Build
 import android.os.Bundle
+import android.os.Handler
+import android.os.Looper
 import android.view.View
 import android.view.WindowInsets
 import android.view.WindowInsetsController
@@ -89,6 +91,9 @@ internal class FigmaWebViewActivity : AppCompatActivity() {
     private lateinit var webView: WebView
     private lateinit var webViewWrapper: WebViewWrapper
     private lateinit var purchaseLoaderOverlay: FrameLayout
+    private var isPaywallWebViewRevealed = false
+    private val mainHandler = Handler(Looper.getMainLooper())
+    private var pendingRevealRunnable: Runnable? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -152,6 +157,7 @@ internal class FigmaWebViewActivity : AppCompatActivity() {
     override fun onDestroy() {
         super.onDestroy()
         ApphudLog.log("[FigmaWebViewActivity] onDestroy")
+        cancelPendingReveal()
         webViewWrapper.reset()
     }
 
@@ -185,6 +191,7 @@ internal class FigmaWebViewActivity : AppCompatActivity() {
         }
 
         webView.setInitialScale(100)
+        webView.visibility = View.INVISIBLE
 
         webView.webChromeClient = object : WebChromeClient() {
             override fun onConsoleMessage(consoleMessage: ConsoleMessage?): Boolean {
@@ -211,6 +218,9 @@ internal class FigmaWebViewActivity : AppCompatActivity() {
                 super.onPageStarted(view, url, favicon)
                 ApphudLog.log("[WebViewClient] onPageStarted: $url")
                 webViewWrapper.onPageStarted(url)
+                isPaywallWebViewRevealed = false
+                cancelPendingReveal()
+                showPaywallLoadingOverlay()
             }
 
 
@@ -231,20 +241,7 @@ internal class FigmaWebViewActivity : AppCompatActivity() {
                 ApphudLog.log("[WebViewClient] onPageFinished: $url")
                 webViewWrapper.onPageFinished(url)
 
-                val renderItemsJson = viewModel.getCurrentRenderItemsJson()
-                renderItemsJson?.let { renderJson ->
-                    try {
-                        ServiceLocator.instance.renderItemsSerializer
-                            .logFinalPropertiesForFigmaPaywall(renderJson)
-                        val jsCode = "PaywallSDK.shared().processDomMacros($renderJson)"
-                        ApphudLog.log("[WebViewClient] Executing processDomMacros")
-                        view?.evaluateJavascript(jsCode) { result ->
-                            ApphudLog.log("[WebViewClient] JS execution result: $result")
-                        }
-                    } catch (e: Exception) {
-                        ApphudLog.logE("[WebViewClient] Error executing JS: ${e.message}")
-                    }
-                }
+                applyDomMacrosAndReveal(view)
             }
 
             override fun onReceivedHttpError(
@@ -272,12 +269,16 @@ internal class FigmaWebViewActivity : AppCompatActivity() {
                     when (state) {
                         is WebViewState.Loading -> {
                             ApphudLog.log("[RuleWebViewActivity] Loading state")
-                            hidePurchaseLoader()
+                            showPaywallLoadingOverlay()
                         }
                         is WebViewState.Content -> {
                             ApphudLog.log("[RuleWebViewActivity] Content loaded for paywall: ${state.paywall.name}")
+                            if (isPaywallWebViewRevealed) {
+                                hidePurchaseLoader()
+                            } else {
+                                showPaywallLoadingOverlay()
+                            }
                             displayPaywallUrl(state.url)
-                            hidePurchaseLoader()
                         }
                         is WebViewState.ContentWithPurchaseLoading -> {
                             ApphudLog.log("[RuleWebViewActivity] Content with purchase loading")
@@ -334,9 +335,69 @@ internal class FigmaWebViewActivity : AppCompatActivity() {
         )
     }
 
+    private fun showPaywallLoadingOverlay() {
+        purchaseLoaderOverlay.visibility = View.VISIBLE
+        webView.isEnabled = false
+        if (!isPaywallWebViewRevealed) {
+            webView.visibility = View.INVISIBLE
+        }
+    }
+
+    private fun revealPaywallWebView() {
+        if (isPaywallWebViewRevealed) return
+        isPaywallWebViewRevealed = true
+        purchaseLoaderOverlay.visibility = View.GONE
+        webView.isEnabled = true
+        webView.visibility = View.VISIBLE
+        ApphudLog.log("[FigmaWebViewActivity] Paywall WebView revealed after macro processing")
+    }
+
+    /**
+     * [evaluateJavascript] returns when the JS call is dispatched, not when the DOM has repainted.
+     * Delay reveal so [processDomMacros] DOM updates are visible before showing the WebView.
+     */
+    private fun scheduleRevealPaywallWebView() {
+        cancelPendingReveal()
+        val runnable = Runnable {
+            pendingRevealRunnable = null
+            revealPaywallWebView()
+        }
+        pendingRevealRunnable = runnable
+        mainHandler.postDelayed(runnable, MACRO_REVEAL_DELAY_MS)
+        ApphudLog.log("[FigmaWebViewActivity] Scheduled paywall reveal in ${MACRO_REVEAL_DELAY_MS}ms")
+    }
+
+    private fun cancelPendingReveal() {
+        pendingRevealRunnable?.let { mainHandler.removeCallbacks(it) }
+        pendingRevealRunnable = null
+    }
+
+    private fun applyDomMacrosAndReveal(view: WebView?) {
+        val renderItemsJson = viewModel.getCurrentRenderItemsJson()
+        if (renderItemsJson == null) {
+            revealPaywallWebView()
+            return
+        }
+
+        try {
+            ServiceLocator.instance.renderItemsSerializer
+                .logFinalPropertiesForFigmaPaywall(renderItemsJson)
+            val jsCode = "PaywallSDK.shared().processDomMacros($renderItemsJson)"
+            ApphudLog.log("[WebViewClient] Executing processDomMacros")
+            view?.evaluateJavascript(jsCode) { result ->
+                ApphudLog.log("[WebViewClient] processDomMacros JS callback: $result")
+                runOnUiThread { scheduleRevealPaywallWebView() }
+            } ?: revealPaywallWebView()
+        } catch (e: Exception) {
+            ApphudLog.logE("[WebViewClient] Error executing processDomMacros: ${e.message}")
+            revealPaywallWebView()
+        }
+    }
+
     private fun showPurchaseLoader() {
         purchaseLoaderOverlay.visibility = View.VISIBLE
         webView.isEnabled = false
+        webView.visibility = View.VISIBLE
     }
 
     private fun hidePurchaseLoader() {
@@ -426,6 +487,7 @@ internal class FigmaWebViewActivity : AppCompatActivity() {
     internal companion object {
         private const val EXTRA_PAYWALL_ID = "EXTRA_PAYWALL_ID"
         private const val EXTRA_RENDER_ITEMS = "EXTRA_RENDER_ITEMS"
+        private const val MACRO_REVEAL_DELAY_MS = 500L
 
 
         internal fun getIntent(

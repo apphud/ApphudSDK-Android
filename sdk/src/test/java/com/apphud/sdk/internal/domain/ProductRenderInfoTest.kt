@@ -94,4 +94,28 @@ class ProductRenderInfoTest {
         assertEquals("Rendered", merged[0]["title"])
         assertEquals("Other", merged[1]["title"])
     }
+
+    @Test
+    fun `GIVEN backend paywall_item_id EXPECT merges rendered liquid macros`() {
+        val local = listOf(
+            mapOf(
+                "item_id" to "08a67150-70c5-474d-afc4-98e7d71107fd",
+                "full-price" to "{{ product.formatted_price }}",
+                "custom-1" to "{{ product.formatted_price }}custom1",
+            )
+        )
+        val backend = listOf(
+            mapOf(
+                "paywall_item_id" to "08a67150-70c5-474d-afc4-98e7d71107fd",
+                "full-price" to "8,49 \$",
+                "custom-1" to "8,49 \$custom1",
+            )
+        )
+
+        val merged = mergeRenderResults(local, backend)
+
+        assertEquals("8,49 \$", merged[0]["full-price"])
+        assertEquals("8,49 \$custom1", merged[0]["custom-1"])
+        assertEquals("08a67150-70c5-474d-afc4-98e7d71107fd", merged[0]["item_id"])
+    }
 }
