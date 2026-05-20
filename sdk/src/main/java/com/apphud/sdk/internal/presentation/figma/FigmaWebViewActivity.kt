@@ -9,6 +9,7 @@ import android.os.Build
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
+import android.os.SystemClock
 import android.view.View
 import android.view.WindowInsets
 import android.view.WindowInsetsController
@@ -94,6 +95,10 @@ internal class FigmaWebViewActivity : AppCompatActivity() {
     private var isPaywallWebViewRevealed = false
     private val mainHandler = Handler(Looper.getMainLooper())
     private var pendingRevealRunnable: Runnable? = null
+    private var pendingSdkReadyRunnable: Runnable? = null
+    private var pageLoadId = 0
+    private var sdkReadyWaitStartedForLoadId = -1
+    private var macrosAppliedForCurrentLoad = false
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -157,7 +162,7 @@ internal class FigmaWebViewActivity : AppCompatActivity() {
     override fun onDestroy() {
         super.onDestroy()
         ApphudLog.log("[FigmaWebViewActivity] onDestroy")
-        cancelPendingReveal()
+        cancelPendingPageReadyWork()
         webViewWrapper.reset()
     }
 
@@ -218,8 +223,11 @@ internal class FigmaWebViewActivity : AppCompatActivity() {
                 super.onPageStarted(view, url, favicon)
                 ApphudLog.log("[WebViewClient] onPageStarted: $url")
                 webViewWrapper.onPageStarted(url)
+                pageLoadId++
+                sdkReadyWaitStartedForLoadId = -1
+                macrosAppliedForCurrentLoad = false
                 isPaywallWebViewRevealed = false
-                cancelPendingReveal()
+                cancelPendingPageReadyWork()
                 showPaywallLoadingOverlay()
             }
 
@@ -241,7 +249,10 @@ internal class FigmaWebViewActivity : AppCompatActivity() {
                 ApphudLog.log("[WebViewClient] onPageFinished: $url")
                 webViewWrapper.onPageFinished(url)
 
-                applyDomMacrosAndReveal(view)
+                if (sdkReadyWaitStartedForLoadId != pageLoadId) {
+                    sdkReadyWaitStartedForLoadId = pageLoadId
+                    waitForPaywallSdkReadyThenApplyMacrosAndReveal(view)
+                }
             }
 
             override fun onReceivedHttpError(
@@ -372,10 +383,65 @@ internal class FigmaWebViewActivity : AppCompatActivity() {
         pendingRevealRunnable = null
     }
 
-    private fun applyDomMacrosAndReveal(view: WebView?) {
+    private fun cancelPendingSdkReadyPoll() {
+        pendingSdkReadyRunnable?.let { mainHandler.removeCallbacks(it) }
+        pendingSdkReadyRunnable = null
+    }
+
+    private fun cancelPendingPageReadyWork() {
+        cancelPendingReveal()
+        cancelPendingSdkReadyPoll()
+    }
+
+    private fun waitForPaywallSdkReadyThenApplyMacrosAndReveal(view: WebView?) {
+        val loadId = pageLoadId
+        val deadline = SystemClock.elapsedRealtime() + PAYWALL_SDK_READY_TIMEOUT_MS
+        cancelPendingSdkReadyPoll()
+        ApphudLog.log("[WebViewClient] Waiting for PaywallSDK before applying macros")
+
+        fun poll() {
+            if (loadId != pageLoadId || macrosAppliedForCurrentLoad) return
+
+            if (view == null) {
+                applyDomMacrosAndReveal(null, loadId)
+                return
+            }
+
+            view.evaluateJavascript(PAYWALL_SDK_READY_CHECK_JS) { result ->
+                if (loadId != pageLoadId || macrosAppliedForCurrentLoad) return@evaluateJavascript
+
+                val sdkReady = result == "true"
+                val timedOut = SystemClock.elapsedRealtime() >= deadline
+
+                when {
+                    sdkReady -> {
+                        ApphudLog.log("[WebViewClient] PaywallSDK is ready")
+                        applyDomMacrosAndReveal(view, loadId)
+                    }
+                    timedOut -> {
+                        ApphudLog.log("[WebViewClient] PaywallSDK ready timeout, revealing without macros")
+                        applyDomMacrosAndReveal(view, loadId)
+                    }
+                    else -> {
+                        val runnable = Runnable { poll() }
+                        pendingSdkReadyRunnable = runnable
+                        mainHandler.postDelayed(runnable, PAYWALL_SDK_POLL_INTERVAL_MS)
+                    }
+                }
+            }
+        }
+
+        poll()
+    }
+
+    private fun applyDomMacrosAndReveal(view: WebView?, loadId: Int) {
+        if (loadId != pageLoadId || macrosAppliedForCurrentLoad) return
+        macrosAppliedForCurrentLoad = true
+        cancelPendingSdkReadyPoll()
+
         val renderItemsJson = viewModel.getCurrentRenderItemsJson()
         if (renderItemsJson == null) {
-            revealPaywallWebView()
+            scheduleRevealPaywallWebView()
             return
         }
 
@@ -387,10 +453,10 @@ internal class FigmaWebViewActivity : AppCompatActivity() {
             view?.evaluateJavascript(jsCode) { result ->
                 ApphudLog.log("[WebViewClient] processDomMacros JS callback: $result")
                 runOnUiThread { scheduleRevealPaywallWebView() }
-            } ?: revealPaywallWebView()
+            } ?: scheduleRevealPaywallWebView()
         } catch (e: Exception) {
             ApphudLog.logE("[WebViewClient] Error executing processDomMacros: ${e.message}")
-            revealPaywallWebView()
+            scheduleRevealPaywallWebView()
         }
     }
 
@@ -488,6 +554,10 @@ internal class FigmaWebViewActivity : AppCompatActivity() {
         private const val EXTRA_PAYWALL_ID = "EXTRA_PAYWALL_ID"
         private const val EXTRA_RENDER_ITEMS = "EXTRA_RENDER_ITEMS"
         private const val MACRO_REVEAL_DELAY_MS = 500L
+        private const val PAYWALL_SDK_POLL_INTERVAL_MS = 100L
+        private const val PAYWALL_SDK_READY_TIMEOUT_MS = 15_000L
+        private const val PAYWALL_SDK_READY_CHECK_JS =
+            "(function(){try{return typeof PaywallSDK!=='undefined'&&typeof PaywallSDK.shared==='function';}catch(e){return false;}})();"
 
 
         internal fun getIntent(
