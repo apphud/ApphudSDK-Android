@@ -6,15 +6,16 @@ import com.apphud.sdk.domain.RenderResult
 import com.apphud.sdk.internal.data.mapper.RenderResultMapper
 import com.apphud.sdk.internal.domain.model.RenderItem
 import com.apphud.sdk.internal.ApphudDispatchers
+import com.apphud.sdk.internal.data.network.UrlProvider
 import com.apphud.sdk.internal.util.runCatchingCancellable
 import com.google.gson.Gson
-import okhttp3.HttpUrl.Companion.toHttpUrl
 import okhttp3.OkHttpClient
 
 internal class RenderRemoteRepository(
     private val okHttpClient: OkHttpClient,
     private val gson: Gson,
     private val renderResultMapper: RenderResultMapper,
+    private val urlProvider: UrlProvider,
     private val dispatchers: ApphudDispatchers,
 ) {
 
@@ -23,7 +24,7 @@ internal class RenderRemoteRepository(
     ): Result<RenderResult> =
         runCatchingCancellable {
             val requestBody = RenderPropertiesRequest(items)
-            val request = buildPostRequest(RENDER_PROPERTIES_URL, requestBody)
+            val request = buildPostRequest(urlProvider.renderPropertiesUrl, requestBody)
             executeForResponse<List<Map<String, Any>>>(okHttpClient, gson, request, dispatchers.io)
         }
             .recoverCatching { e ->
@@ -38,9 +39,5 @@ internal class RenderRemoteRepository(
     private data class RenderPropertiesRequest(
         val items: List<RenderItem>,
     )
-
-    private companion object {
-        val RENDER_PROPERTIES_URL = "https://gateway.apphud.com/v2/paywall_configs/items/render_properties".toHttpUrl()
-    }
 }
 
