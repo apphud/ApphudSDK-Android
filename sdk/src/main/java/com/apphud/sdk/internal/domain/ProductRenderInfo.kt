@@ -66,6 +66,9 @@ internal fun RenderItemProductInfo.toRenderMap(): Map<String, Any> =
         "formatted_intro_price" to formattedIntroPrice,
     )
 
+internal fun resolveRenderItemId(item: Map<String, Any>): String? =
+    item["item_id"]?.toString() ?: item["paywall_item_id"]?.toString()
+
 /**
  * Merges locally built product info with backend-rendered properties.
  *
@@ -77,9 +80,12 @@ internal fun mergeRenderResults(
     local: RenderResult,
     backend: RenderResult,
 ): RenderResult {
-    val backendByItemId = backend.associateBy { it["item_id"]?.toString() }
+    val backendByItemId = backend.mapNotNull { item ->
+        resolveRenderItemId(item)?.let { id -> id to item }
+    }.toMap()
+
     return local.map { localItem ->
-        val itemId = localItem["item_id"]?.toString()
+        val itemId = resolveRenderItemId(localItem)
         val backendItem = itemId?.let { backendByItemId[it] }
         if (backendItem != null) {
             mergeRenderItem(localItem, backendItem)
@@ -96,7 +102,7 @@ internal fun mergeRenderItem(
     val merged = linkedMapOf<String, Any>()
     merged.putAll(local)
     flattenRenderItem(backend).forEach { (key, value) ->
-        if (key != "item_id") {
+        if (key != "item_id" && key != "paywall_item_id") {
             merged[key] = value
         }
     }
