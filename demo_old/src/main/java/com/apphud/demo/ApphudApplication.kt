@@ -33,7 +33,6 @@ internal class ApphudApplication : Application() {
     override fun onCreate() {
         super.onCreate()
         ApphudUtils.enableAllLogs()
-        Apphud.logout()
         if (BuildConfig.APPHUD_BASE_URL.isNotEmpty()) {
             ApphudUtils.overrideBaseUrl(BuildConfig.APPHUD_BASE_URL)
         }
