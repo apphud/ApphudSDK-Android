@@ -12,6 +12,9 @@ internal class UrlProvider {
     val customersUrl: HttpUrl
         get() = "${baseUrl.get()}/v1/customers".toHttpUrl()
 
+    val customerPropertiesUrl: HttpUrl
+        get() = "${baseUrl.get()}/v1/customers/properties".toHttpUrl()
+
     val subscriptionsUrl: HttpUrl
         get() = "${baseUrl.get()}/v1/subscriptions".toHttpUrl()
 
@@ -35,6 +38,12 @@ internal class UrlProvider {
 
     val notificationsUrl: HttpUrl
         get() = "${baseUrl.get()}/v2/notifications".toHttpUrl()
+
+    val renderPropertiesUrl: HttpUrl
+        get() = "${baseUrl.get()}/v2/paywall_configs/items/render_properties".toHttpUrl()
+
+    val previewScreenUrl: HttpUrl
+        get() = "${baseUrl.get()}/preview_screen".toHttpUrl()
 
     fun updateBaseUrl(newUrl: String) {
         baseUrl.set(newUrl)

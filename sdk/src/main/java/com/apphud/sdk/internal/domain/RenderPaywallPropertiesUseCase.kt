@@ -1,14 +1,10 @@
 package com.apphud.sdk.internal.domain
 
-import com.apphud.sdk.ApphudError
 import com.apphud.sdk.ApphudLog
 import com.apphud.sdk.domain.ApphudPaywall
 import com.apphud.sdk.domain.RenderResult
 import com.apphud.sdk.internal.data.remote.RenderRemoteRepository
 import com.apphud.sdk.internal.domain.model.RenderItem
-import com.apphud.sdk.internal.domain.model.RenderItemProductInfo
-import com.apphud.sdk.managers.priceCurrencyCode
-import java.util.Currency
 
 /**
  * Use case responsible for rendering paywall product properties.
@@ -23,91 +19,44 @@ internal class RenderPaywallPropertiesUseCase(
     /**
      * Renders paywall properties if needed.
      *
+     * Store [product_info] is always merged with dashboard [properties] locally (iOS parity).
+     * Backend rendering runs only when Liquid macros are present.
+     *
      * @param paywall The paywall whose properties need to be rendered
      */
     suspend operator fun invoke(paywall: ApphudPaywall): Result<RenderResult> {
+        val localResult = paywall.buildLocalRenderResult()
         val items = itemsToRender(paywall)
+
         if (items.isEmpty()) {
-            ApphudLog.log("No products to render")
-            return Result.failure(ApphudError("No products to render"))
+            ApphudLog.log("No products macros to render, skipping")
+            return Result.success(localResult)
         }
 
         ApphudLog.log("renderPropertiesIfNeeded: sending ${items.size} items to backend")
 
         return renderRemoteRepository.renderPaywallProperties(items)
+            .map { backendResult -> mergeRenderResults(localResult, backendResult) }
     }
 
     /**
-     * Returns list of items that should be rendered on backend to replace macros.
-     * Currently returns an empty list – implementation will be added in future release.
+     * Returns list of items that should be rendered on backend to replace Liquid macros.
+     * Simple `{macro}` placeholders are resolved locally and do not require a backend call.
      */
     private fun itemsToRender(paywall: ApphudPaywall): List<RenderItem> {
         val items = mutableListOf<RenderItem>()
         paywall.products?.forEach { product ->
-            val productDetails = product.productDetails
-
-            ApphudLog.log("ProductDetails ${product.productDetails}")
-            val hasMacros = true
-            if (!hasMacros) {
+            if (!product.hasLiquidMacros()) {
                 return@forEach
             }
 
-            val productDetailsData = productDetails?.let { details ->
-                val subscriptionOffers = details.subscriptionOfferDetails
-
-                if (!subscriptionOffers.isNullOrEmpty()) {
-                    val currencyCode = details.priceCurrencyCode() ?: ""
-                    val currencySymbol = getCurrencySymbol(currencyCode) ?: ""
-
-                    val lastOffer = subscriptionOffers.last()
-                    val lastPhase = lastOffer.pricingPhases.pricingPhaseList.lastOrNull()
-                    val formattedPrice = lastPhase?.formattedPrice ?: ""
-                    val price = lastPhase?.let { it.priceAmountMicros / 1_000_000.0 } ?: 0.0
-
-                    val firstOffer = subscriptionOffers.first()
-                    val firstPhase = firstOffer.pricingPhases.pricingPhaseList.firstOrNull()
-                    val (introPrice, formattedIntroPrice) = firstPhase?.let { phase ->
-                        val isTrial = phase.priceAmountMicros == 0L
-                        if (isTrial) {
-                            (phase.formattedPrice ?: "0") to 0.0
-                        } else {
-                            (phase.formattedPrice ?: "") to (phase.priceAmountMicros / 1_000_000.0)
-                        }
-                    } ?: ("" to 0.0)
-
-                    RenderItemProductInfo(
-                        currencyCode = currencyCode,
-                        currencySymbol = currencySymbol,
-                        formattedPrice = formattedPrice,
-                        price = price,
-                        introPrice = introPrice,
-                        formattedIntroPrice = formattedIntroPrice
-                    )
-                } else {
-                    RenderItemProductInfo.empty()
-                }
-            } ?: RenderItemProductInfo.empty()
-
-            val renderItem = RenderItem(
-                itemId = product.itemId ?: "",
-                productDetails = productDetailsData
+            items.add(
+                RenderItem(
+                    itemId = product.itemId ?: "",
+                    productDetails = product.buildProductDetailsData(),
+                )
             )
-
-            items.add(renderItem)
         }
         return items
-    }
-
-    /**
-     * Gets currency symbol by currency code
-     */
-    private fun getCurrencySymbol(currencyCode: String): String? {
-        return try {
-            val currency = Currency.getInstance(currencyCode)
-            currency.symbol
-        } catch (e: Exception) {
-            ApphudLog.logE("Error getting currency symbol for $currencyCode: ${e.message}")
-            null
-        }
     }
 }

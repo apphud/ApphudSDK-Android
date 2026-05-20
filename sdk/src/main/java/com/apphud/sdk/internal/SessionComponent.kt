@@ -128,6 +128,7 @@ internal class SessionComponent(
             okHttpClient = okHttpClientWithoutHeaders,
             gson = appScope.gson,
             apiKey = apiKey,
+            urlProvider = appScope.urlProvider,
             dispatchers = appScope.dispatchers,
         )
 
@@ -136,6 +137,7 @@ internal class SessionComponent(
             okHttpClient = okHttpClient,
             gson = appScope.gson,
             attributionMapper = AttributionMapper(),
+            urlProvider = appScope.urlProvider,
             dispatchers = appScope.dispatchers,
         )
 
@@ -146,6 +148,7 @@ internal class SessionComponent(
             okHttpClient = okHttpClient,
             gson = appScope.gson,
             renderResultMapper = renderResultMapper,
+            urlProvider = appScope.urlProvider,
             dispatchers = appScope.dispatchers,
         )
 

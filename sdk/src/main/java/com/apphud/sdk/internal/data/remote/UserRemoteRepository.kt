@@ -7,16 +7,17 @@ import com.apphud.sdk.domain.Attribution
 import com.apphud.sdk.internal.data.dto.AttributionDto
 import com.apphud.sdk.internal.data.dto.ResponseDto
 import com.apphud.sdk.internal.ApphudDispatchers
+import com.apphud.sdk.internal.data.network.UrlProvider
 import com.apphud.sdk.internal.util.runCatchingCancellable
 import com.apphud.sdk.mappers.AttributionMapper
 import com.google.gson.Gson
-import okhttp3.HttpUrl.Companion.toHttpUrl
 import okhttp3.OkHttpClient
 
 internal class UserRemoteRepository(
     private val okHttpClient: OkHttpClient,
     private val gson: Gson,
     private val attributionMapper: AttributionMapper,
+    private val urlProvider: UrlProvider,
     private val dispatchers: ApphudDispatchers,
 ) {
 
@@ -24,7 +25,7 @@ internal class UserRemoteRepository(
         userPropertiesBody: UserPropertiesBody,
     ): Result<Attribution> =
         runCatchingCancellable {
-            val request = buildPostRequest(PROPERTIES_URL, userPropertiesBody)
+            val request = buildPostRequest(urlProvider.customerPropertiesUrl, userPropertiesBody)
             executeForResponse<AttributionDto>(okHttpClient, gson, request, dispatchers.io)
         }
             .recoverCatching { e ->
@@ -36,9 +37,4 @@ internal class UserRemoteRepository(
                     attributionMapper.map(it)
                 } ?: throw ApphudError("Failed to send properties")
             }
-
-
-    private companion object {
-        val PROPERTIES_URL = "https://gateway.apphud.com/v1/customers/properties".toHttpUrl()
-    }
 }

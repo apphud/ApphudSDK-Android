@@ -1,6 +1,6 @@
 <resources xmlns:tools="http://schemas.android.com/tools">
     <!-- Base application theme. -->
-    <style name="Theme.DemoApp" parent="Theme.AppCompat.Light.NoActionBar">
+    <style name="Theme.DemoApp" parent="Theme.MaterialComponents.Light.NoActionBar">
         <!-- Primary brand color. -->
         <item name="colorPrimary">@color/branding_blue_1</item>
         <item name="colorPrimaryVariant">@color/branding_blue_1</item>
@@ -70,6 +70,25 @@
         <!-- Error message appearance here -->
         <item name="android:textColor">#ff0000</item>
         <item name="android:textSize">15sp</item>
+    </style>
+
+    <style name="CustomerInfoSectionTitle">
+        <item name="android:textColor">@color/black</item>
+        <item name="android:textSize">15sp</item>
+        <item name="android:textStyle">bold</item>
+        <item name="android:fontFamily">sans-serif-medium</item>
+    </style>
+
+    <style name="CustomerInfoLabel">
+        <item name="android:textColor">@color/text_secondary</item>
+        <item name="android:textSize">13sp</item>
+    </style>
+
+    <style name="CustomerInfoValue">
+        <item name="android:lineSpacingExtra">2dp</item>
+        <item name="android:maxLines">3</item>
+        <item name="android:textColor">@color/gray</item>
+        <item name="android:textSize">13sp</item>
     </style>
 
     <style name="SCBSwitch" parent="Theme.AppCompat.Light">

@@ -1,16 +1,64 @@
 package com.apphud.sdk.internal.data.serializer
 
+import android.util.Log
 import com.apphud.sdk.ApphudLog
+import com.apphud.sdk.ApphudUtils
 import com.apphud.sdk.domain.RenderResult
 import com.google.gson.Gson
+import com.google.gson.GsonBuilder
 import com.google.gson.reflect.TypeToken
 
 /**
  * Serializer for render items
  */
 internal class RenderItemsSerializer(
-    private val gson: Gson
+    private val gson: Gson,
 ) {
+
+    private val prettyGson: Gson by lazy { GsonBuilder().setPrettyPrinting().create() }
+
+    /**
+     * Logs final paywall properties passed to Figma Paywall View (processDomMacros payload).
+     */
+    fun logFinalPropertiesForFigmaPaywall(renderItems: RenderResult?) {
+        logPrettyPaywallProperties(toPrettyJson(renderItems) ?: "[]")
+    }
+
+    fun logFinalPropertiesForFigmaPaywall(json: String?) {
+        if (json.isNullOrBlank()) {
+            logPrettyPaywallProperties("[]")
+            return
+        }
+        logPrettyPaywallProperties(prettyPrintJson(json))
+    }
+
+    private fun toPrettyJson(renderItems: RenderResult?): String? {
+        if (renderItems.isNullOrEmpty()) return null
+        return try {
+            prettyGson.toJson(renderItems)
+        } catch (e: Exception) {
+            ApphudLog.logE("[RenderItemsSerializer] Failed to pretty-print render items: ${e.message}")
+            null
+        }
+    }
+
+    private fun prettyPrintJson(json: String): String {
+        return try {
+            val element = gson.fromJson(json, com.google.gson.JsonElement::class.java)
+            prettyGson.toJson(element)
+        } catch (e: Exception) {
+            json
+        }
+    }
+
+    private fun logPrettyPaywallProperties(prettyJson: String) {
+        if (!ApphudUtils.logging) return
+        val header = "Rendering Paywall with final properties:"
+        Log.i(LOG_TAG, header)
+        prettyJson.chunked(LOG_CHUNK_SIZE).forEach { chunk ->
+            Log.i(LOG_TAG, chunk)
+        }
+    }
 
     /**
      * Serializes render items to JSON string
@@ -70,5 +118,10 @@ internal class RenderItemsSerializer(
             ApphudLog.logE("[RenderItemsSerializer] Invalid JSON: ${e.message}")
             false
         }
+    }
+
+    private companion object {
+        private const val LOG_TAG = "ApphudLogs"
+        private const val LOG_CHUNK_SIZE = 3000
     }
 }
