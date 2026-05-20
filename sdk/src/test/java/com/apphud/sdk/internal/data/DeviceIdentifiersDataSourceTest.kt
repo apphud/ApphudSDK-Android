@@ -84,4 +84,53 @@ class DeviceIdentifiersDataSourceTest {
     }
 
     // endregion
+
+    // region synced state
+
+    @Test
+    fun `GIVEN synced state in storage EXPECT loadSyncedState returns identifiers`() {
+        every { storage.syncedDeviceIdentifiersUserId } returns "user-1"
+        every { storage.syncedDeviceIdentifiers } returns arrayOf("adId123", "appSetId456", "androidId789")
+
+        val result = dataSource.loadSyncedState()
+
+        assertEquals("user-1", result?.userId)
+        assertEquals(DeviceIdentifiers(advertisingId = "adId123", appSetId = "appSetId456", androidId = "androidId789"), result?.identifiers)
+    }
+
+    @Test
+    fun `GIVEN no synced user id EXPECT loadSyncedState returns null`() {
+        every { storage.syncedDeviceIdentifiersUserId } returns null
+
+        assertNull(dataSource.loadSyncedState())
+    }
+
+    @Test
+    fun `GIVEN saveSyncedState EXPECT writes user id and identifiers to storage`() {
+        val userIdSlot = slot<String>()
+        val idsSlot = slot<Array<String>>()
+        every { storage.syncedDeviceIdentifiersUserId = capture(userIdSlot) } returns Unit
+        every { storage.syncedDeviceIdentifiers = capture(idsSlot) } returns Unit
+
+        dataSource.saveSyncedState(
+            "user-1",
+            DeviceIdentifiers(advertisingId = "adId123", appSetId = "appSetId456", androidId = "androidId789"),
+        )
+
+        assertEquals("user-1", userIdSlot.captured)
+        assertArrayEquals(arrayOf("adId123", "appSetId456", "androidId789"), idsSlot.captured)
+    }
+
+    @Test
+    fun `GIVEN clearSyncedState EXPECT clears storage fields`() {
+        every { storage.syncedDeviceIdentifiersUserId = null } returns Unit
+        every { storage.syncedDeviceIdentifiers = null } returns Unit
+
+        dataSource.clearSyncedState()
+
+        verify { storage.syncedDeviceIdentifiersUserId = null }
+        verify { storage.syncedDeviceIdentifiers = null }
+    }
+
+    // endregion
 }

@@ -8,6 +8,7 @@ import android.provider.Settings
 import com.apphud.sdk.ApphudLog
 import com.apphud.sdk.ApphudUtils
 import com.apphud.sdk.internal.domain.model.DeviceIdentifiers
+import com.apphud.sdk.internal.domain.model.SyncedDeviceIdentifiers
 import com.apphud.sdk.managers.AdvertisingIdManager
 import com.apphud.sdk.storage.SharedPreferencesStorage
 import com.google.android.gms.appset.AppSet
@@ -38,6 +39,33 @@ internal class DeviceIdentifiersDataSource(
             identifiers.appSetId.orEmpty(),
             identifiers.androidId.orEmpty(),
         )
+    }
+
+    fun loadSyncedState(): SyncedDeviceIdentifiers? {
+        val userId = storage.syncedDeviceIdentifiersUserId ?: return null
+        val ids = storage.syncedDeviceIdentifiers ?: return null
+        return SyncedDeviceIdentifiers(
+            userId = userId,
+            identifiers = DeviceIdentifiers(
+                advertisingId = ids[0].ifEmpty { null },
+                appSetId = ids[1].ifEmpty { null },
+                androidId = ids[2].ifEmpty { null },
+            ),
+        )
+    }
+
+    fun saveSyncedState(userId: String, identifiers: DeviceIdentifiers) {
+        storage.syncedDeviceIdentifiersUserId = userId
+        storage.syncedDeviceIdentifiers = arrayOf(
+            identifiers.advertisingId.orEmpty(),
+            identifiers.appSetId.orEmpty(),
+            identifiers.androidId.orEmpty(),
+        )
+    }
+
+    fun clearSyncedState() {
+        storage.syncedDeviceIdentifiersUserId = null
+        storage.syncedDeviceIdentifiers = null
     }
 
     suspend fun fetchIdentifiers(): DeviceIdentifiers = coroutineScope {

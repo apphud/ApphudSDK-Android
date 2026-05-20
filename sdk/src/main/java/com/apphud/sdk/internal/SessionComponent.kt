@@ -235,6 +235,7 @@ internal class SessionComponent(
             collectUseCase = collectDeviceIdentifiersUseCase,
             registrationInteractor = registrationInteractor,
             deviceIdentifiersRepository = appScope.deviceIdentifiersRepository,
+            userRepository = userRepository,
         )
 
     val fetchNativePurchasesUseCase: FetchNativePurchasesUseCase by lazy {

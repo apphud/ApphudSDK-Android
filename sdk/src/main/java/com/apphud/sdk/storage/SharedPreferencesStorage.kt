@@ -25,7 +25,7 @@ internal class SharedPreferencesStorage(
     applicationContext: Context,
 ) : Storage {
 
-    private val cacheTimeout: Long = if (applicationContext.isDebuggable()) 6L else 90000L // 25 hours
+    private val cacheTimeout: Long = if (applicationContext.isDebuggable()) 30L else 3600L // 1 hour
 
     private val preferences: SharedPreferences =
         applicationContext.getSharedPreferences(NAME, Context.MODE_PRIVATE)
@@ -207,6 +207,8 @@ internal class SharedPreferencesStorage(
         productDetails = null
         properties = null
         adjust = null
+        syncedDeviceIdentifiersUserId = null
+        syncedDeviceIdentifiers = null
         // deviceIdentifiers describe the device, not the session — preserved across logout/login.
     }
 
@@ -322,6 +324,34 @@ internal class SharedPreferencesStorage(
             }
         }
 
+    override var syncedDeviceIdentifiersUserId: String?
+        get() = preferences.getString(SYNCED_DEVICE_IDENTIFIERS_USER_ID_KEY, null)
+        set(value) {
+            preferences.edit {
+                if (value == null) {
+                    remove(SYNCED_DEVICE_IDENTIFIERS_USER_ID_KEY)
+                } else {
+                    putString(SYNCED_DEVICE_IDENTIFIERS_USER_ID_KEY, value)
+                }
+            }
+        }
+
+    override var syncedDeviceIdentifiers: Array<String>?
+        get() {
+            val string = preferences.getString(SYNCED_DEVICE_IDENTIFIERS_KEY, null) ?: return null
+            val ids = string.split("|")
+            return if (ids.size == 3) ids.toTypedArray() else null
+        }
+        set(value) {
+            preferences.edit {
+                if (value == null) {
+                    remove(SYNCED_DEVICE_IDENTIFIERS_KEY)
+                } else {
+                    putString(SYNCED_DEVICE_IDENTIFIERS_KEY, value.joinToString("|"))
+                }
+            }
+        }
+
     fun needSendProperty(property: ApphudUserProperty): Boolean {
         val currentProperties = properties ?: hashMapOf()
         val existingProperty = currentProperties[property.key]
@@ -392,6 +422,8 @@ internal class SharedPreferencesStorage(
         private const val SKU_TIMESTAMP_KEY = "skuTimestampKey"
         private const val LAST_REGISTRATION_KEY = "lastRegistrationKey"
         private const val DEVICE_IDENTIFIERS_KEY = "DEVICE_IDENTIFIERS_KEY"
+        private const val SYNCED_DEVICE_IDENTIFIERS_USER_ID_KEY = "SYNCED_DEVICE_IDENTIFIERS_USER_ID_KEY"
+        private const val SYNCED_DEVICE_IDENTIFIERS_KEY = "SYNCED_DEVICE_IDENTIFIERS_KEY"
         private const val CURRENT_CACHE_VERSION = "3"
     }
 }

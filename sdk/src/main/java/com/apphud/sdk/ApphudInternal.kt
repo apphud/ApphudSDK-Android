@@ -381,12 +381,12 @@ internal object ApphudInternal {
 
     /**
      * Normal user registration
-     * Uses cache if user already loaded
+     * Do not use cache
      *
      * @throws ApphudError if registration fails
      */
     private suspend fun registration(): ApphudUser {
-        return performRegistration(forceRegistration = false)
+        return performRegistration(forceRegistration = true)
     }
 
     /**

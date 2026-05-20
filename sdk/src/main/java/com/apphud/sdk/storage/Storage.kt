@@ -21,5 +21,7 @@ internal interface Storage {
     var productDetails: List<String>?
     var properties: HashMap<String, ApphudUserProperty>?
     var deviceIdentifiers: Array<String>
+    var syncedDeviceIdentifiersUserId: String?
+    var syncedDeviceIdentifiers: Array<String>?
     var cacheVersion: String?
 }

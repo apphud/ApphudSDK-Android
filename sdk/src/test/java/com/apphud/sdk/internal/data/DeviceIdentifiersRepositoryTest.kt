@@ -1,6 +1,7 @@
 package com.apphud.sdk.internal.data
 
 import com.apphud.sdk.internal.domain.model.DeviceIdentifiers
+import com.apphud.sdk.internal.domain.model.SyncedDeviceIdentifiers
 import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.every
@@ -87,6 +88,38 @@ class DeviceIdentifiersRepositoryTest {
         repository.clear()
 
         verify { dataSource.save(DeviceIdentifiers.EMPTY) }
+        verify { dataSource.clearSyncedState() }
+    }
+
+    // endregion
+
+    // region sync state
+
+    @Test
+    fun `GIVEN synced state matches user and identifiers EXPECT isSyncedForUser true`() {
+        every { dataSource.loadSyncedState() } returns SyncedDeviceIdentifiers(
+            userId = "user-1",
+            identifiers = defaultIdentifiers,
+        )
+
+        assertEquals(true, repository.isSyncedForUser("user-1", defaultIdentifiers))
+    }
+
+    @Test
+    fun `GIVEN synced state for different user EXPECT isSyncedForUser false`() {
+        every { dataSource.loadSyncedState() } returns SyncedDeviceIdentifiers(
+            userId = "user-1",
+            identifiers = defaultIdentifiers,
+        )
+
+        assertEquals(false, repository.isSyncedForUser("user-2", defaultIdentifiers))
+    }
+
+    @Test
+    fun `GIVEN markSynced called EXPECT saves synced state to dataSource`() {
+        repository.markSynced("user-1", defaultIdentifiers)
+
+        verify { dataSource.saveSyncedState("user-1", defaultIdentifiers) }
     }
 
     // endregion

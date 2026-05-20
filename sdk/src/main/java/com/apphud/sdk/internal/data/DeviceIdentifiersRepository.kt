@@ -18,5 +18,16 @@ internal class DeviceIdentifiersRepository(
 
     fun clear() {
         dataSource.save(DeviceIdentifiers.EMPTY)
+        dataSource.clearSyncedState()
+    }
+
+    fun isSyncedForUser(userId: String?, identifiers: DeviceIdentifiers): Boolean {
+        if (userId.isNullOrEmpty() || identifiers == DeviceIdentifiers.EMPTY) return false
+        val synced = dataSource.loadSyncedState() ?: return false
+        return synced.userId == userId && synced.identifiers == identifiers
+    }
+
+    fun markSynced(userId: String, identifiers: DeviceIdentifiers) {
+        dataSource.saveSyncedState(userId, identifiers)
     }
 }
