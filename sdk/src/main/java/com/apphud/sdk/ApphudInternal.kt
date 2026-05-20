@@ -668,8 +668,10 @@ internal object ApphudInternal {
                 withTimeout(maxTimeout) {
                     val renderResult = ServiceLocator.instance.renderPaywallPropertiesUseCase(paywall).getOrThrow()
 
+                    ServiceLocator.instance.renderItemsSerializer
+                        .logFinalPropertiesForFigmaPaywall(renderResult)
+
                     val renderItemsJson = ServiceLocator.instance.renderResultMapperWithSerializer.toJson(renderResult)
-                    ApphudLog.logI("Serialized render items: $renderItemsJson")
 
                     val intent = FigmaWebViewActivity.getIntent(context, paywall.id, renderItemsJson)
                     context.startActivity(intent)
@@ -887,10 +889,11 @@ internal object ApphudInternal {
 
         // Wipe persisted user-scoped data (apphudUser, userId, deviceId, isNeedSync, attribution
         // info, product/properties caches). deviceIdentifiers are intentionally preserved.
-        if (isInitialized()) {
-            runCatching { storage.clean() }
-                .onFailure { ApphudLog.log("Skip storage.clean(): ${it.message}") }
-        }
+        // Must run even when logout() is called before Apphud.start() — storage is app-scoped.
+        runCatching { userRepository.clearUser() }
+            .onFailure { ApphudLog.log("Skip userRepository.clearUser(): ${it.message}") }
+        runCatching { ServiceLocator.instance.storage.clean() }
+            .onFailure { ApphudLog.log("Skip storage.clean(): ${it.message}") }
 
         ServiceLocator.clearSession()
         RequestManager.cleanRegistration()

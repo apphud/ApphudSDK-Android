@@ -71,7 +71,9 @@ data class ApphudProduct(
      */
     internal var paywallId: String?,
 
-    internal val itemId: String?
+    internal val itemId: String?,
+
+    internal val properties: Map<String, Any>? = null,
 ) {
 
     fun type(): ApphudProductType? {
@@ -167,7 +169,7 @@ data class ApphudProduct(
 
     companion object {
         fun apphudProduct(id: String): ApphudProduct {
-            return ApphudProduct(id, id, id, "play_store", null, null, null, null, null, null, "")
+            return ApphudProduct(id, id, id, "play_store", null, null, null, null, null, null, "", null)
         }
     }
 

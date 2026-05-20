@@ -28,6 +28,7 @@ import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.repeatOnLifecycle
 import com.apphud.sdk.ApphudInternal
 import com.apphud.sdk.ApphudLog
+import com.apphud.sdk.internal.ServiceLocator
 import com.apphud.sdk.R
 import com.apphud.sdk.domain.ApphudProduct
 import com.apphud.sdk.purchase
@@ -233,8 +234,10 @@ internal class FigmaWebViewActivity : AppCompatActivity() {
                 val renderItemsJson = viewModel.getCurrentRenderItemsJson()
                 renderItemsJson?.let { renderJson ->
                     try {
+                        ServiceLocator.instance.renderItemsSerializer
+                            .logFinalPropertiesForFigmaPaywall(renderJson)
                         val jsCode = "PaywallSDK.shared().processDomMacros($renderJson)"
-                        ApphudLog.log("[WebViewClient] Executing JS with escaped JSON")
+                        ApphudLog.log("[WebViewClient] Executing processDomMacros")
                         view?.evaluateJavascript(jsCode) { result ->
                             ApphudLog.log("[WebViewClient] JS execution result: $result")
                         }

@@ -12,5 +12,7 @@
     <color name="gray_1">#FFDDDDDD</color>
     <color name="red">#FFFF0000</color>
     <color name="green">#FF00FF00</color>
+    <color name="green_dark">#FF2E7D32</color>
+    <color name="text_secondary">#FF757575</color>
     <color name="transparent">#00FFFFFF</color>
 </resources>

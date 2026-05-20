@@ -32,6 +32,7 @@ internal class PaywallsMapper(
                         placementId = null,
                         placementIdentifier = null,
                         itemId = item.itemId,
+                        properties = item.properties,
                     )
                 },
             screen = paywallDto.screen?.let {

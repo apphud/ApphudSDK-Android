@@ -24,6 +24,15 @@
     <string name="is_default">Is default: </string>
     <string name="experiment">Experiment: </string>
     <string name="variation">Variation: </string>
+    <string name="customer_section_account">Account</string>
+    <string name="customer_section_ab_test">Subscription &amp; A/B test</string>
+    <string name="premium_status">Premium status</string>
+    <string name="targeting_label">Targeting</string>
+    <string name="experiment_label">Experiment</string>
+    <string name="variation_label">Variation</string>
+    <string name="premium_active">Active</string>
+    <string name="premium_inactive">Not active</string>
+    <string name="value_not_set">Not set</string>
     <string name="json">Json</string>
     <string name="show_paywall_screen">Show screen</string>
     <string name="restore_success">Success: restored purchases count %s</string>

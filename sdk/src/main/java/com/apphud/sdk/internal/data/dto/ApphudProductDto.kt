@@ -12,4 +12,5 @@ internal data class ApphudProductDto(
     val basePlanId: String?,
     @SerializedName("item_id")
     val itemId: String,
+    val properties: Map<String, Any>? = null,
 )
