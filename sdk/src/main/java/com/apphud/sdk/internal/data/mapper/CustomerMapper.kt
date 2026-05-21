@@ -9,18 +9,18 @@ internal class CustomerMapper(
     private var placementsMapper: PlacementsMapper,
 ) {
     /**
-     * @param previousUser used to preserve fields that may be omitted from the server
-     * response (e.g. `scheme`) so that values like `experimentName`, `variationName`
-     * and `remoteConfigString` are not clobbered with `null`. `scheme` is only returned
-     * by the backend when `need_placements=true` was sent.
+     * @param previousUser used to preserve fields when the server omits `scheme` entirely.
+     * If `scheme` is present, all scheme-based fields are fully replaced with its payload
+     * (including nulls). `scheme` is only returned by the backend when
+     * `need_placements=true` was sent.
      */
     fun map(customer: CustomerDto, previousUser: ApphudUser? = null): ApphudUser {
         val scheme = customer.scheme
 
-        val experimentName = scheme?.experiment?.name ?: previousUser?.experimentName
-        val variationName = scheme?.variationName ?: previousUser?.variationName
-        val targetingName = scheme?.name ?: previousUser?.targetingName
-        val remoteConfigString = scheme?.remoteConfig ?: previousUser?.remoteConfigString
+        val experimentName = if (scheme != null) scheme.experiment?.name else previousUser?.experimentName
+        val variationName = if (scheme != null) scheme.variationName else previousUser?.variationName
+        val targetingName = if (scheme != null) scheme.name else previousUser?.targetingName
+        val remoteConfigString = if (scheme != null) scheme.remoteConfig else previousUser?.remoteConfigString
 
         return ApphudUser(
             userId = customer.userId,
