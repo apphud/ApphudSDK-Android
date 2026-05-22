@@ -53,6 +53,23 @@ internal class DeviceIdentifiersInteractor(
         val currentIds = deviceIdentifiersRepository.getIdentifiers()
         ApphudLog.logI("$TAG: collectUseCase completed, changed=$changed, ids=$currentIds [${elapsed(startTime)}]")
 
+        if (!changed && currentIds == DeviceIdentifiers.EMPTY) {
+            ApphudLog.logI("$TAG: Identifiers are empty and unchanged, returning null [${elapsed(startTime)}]")
+            return null
+        }
+
+        if (changed) {
+            ApphudLog.logI("$TAG: Identifiers changed, calling final registrationInteractor [${elapsed(startTime)}]")
+            return registerAndMarkSynced(
+                userId = userId,
+                identifiers = currentIds,
+                needPlacementsPaywalls = needPlacementsPaywalls,
+                isNew = isNew,
+                startTime = startTime,
+                phase = "Final",
+            )
+        }
+
         if (!needsRegistration(userId, currentIds)) {
             ApphudLog.logI("$TAG: Identifiers already synced for user, returning null [${elapsed(startTime)}]")
             return null

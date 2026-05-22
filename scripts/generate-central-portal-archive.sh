@@ -106,6 +106,17 @@ build_artifacts() {
     log_success "Artifacts built and published to local Maven repository"
 }
 
+run_unit_tests() {
+    log_info "Running unit tests before build..."
+
+    if ./gradlew :sdk:testDebugUnitTest; then
+        log_success "Unit tests passed"
+    else
+        log_error "Unit tests failed. Build aborted."
+        exit 1
+    fi
+}
+
 create_archive_structure() {
     log_info "Creating archive structure..."
     
@@ -350,6 +361,7 @@ main() {
     echo ""
     
     check_prerequisites
+    run_unit_tests
     build_artifacts
     create_archive_structure
     generate_checksums_and_signatures
