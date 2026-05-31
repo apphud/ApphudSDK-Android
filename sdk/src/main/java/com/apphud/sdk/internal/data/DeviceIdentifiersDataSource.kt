@@ -1,5 +1,6 @@
 package com.apphud.sdk.internal.data
 
+import android.annotation.SuppressLint
 import android.content.Context
 import android.content.pm.PackageManager
 import android.content.pm.PackageManager.PackageInfoFlags
@@ -147,6 +148,7 @@ internal class DeviceIdentifiersDataSource(
             }
         }
 
+    @SuppressLint("WrongConstant")
     private fun hasAdIdPermission(): Boolean {
         try {
             val pInfo =
