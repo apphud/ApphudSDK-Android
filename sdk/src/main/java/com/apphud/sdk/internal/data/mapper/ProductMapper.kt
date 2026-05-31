@@ -24,8 +24,9 @@ internal class ProductMapper {
                             placementId = null,
                             placementIdentifier = null,
                             itemId = item.itemId,
-                            properties = item.properties,
-                        )
+                        ).also { product ->
+                            product.properties = item.properties
+                        }
                     },
             )
         }

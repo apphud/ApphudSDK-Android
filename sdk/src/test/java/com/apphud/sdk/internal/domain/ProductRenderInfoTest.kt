@@ -20,8 +20,9 @@ class ProductRenderInfoTest {
             placementId = null,
             paywallId = null,
             itemId = "item-id",
-            properties = mapOf("en" to mapOf("title" to "Pro", "subtitle" to "{price}")),
-        )
+        ).also { product ->
+            product.properties = mapOf("en" to mapOf("title" to "Pro", "subtitle" to "{price}"))
+        }
 
         val merged = product.buildMergedRenderInfo()
 
