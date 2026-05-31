@@ -5,7 +5,6 @@ import com.apphud.sdk.domain.ApphudPaywall
 import com.apphud.sdk.domain.ApphudProduct
 import com.apphud.sdk.domain.RenderResult
 import com.apphud.sdk.internal.domain.model.RenderItemProductInfo
-import com.apphud.sdk.managers.priceCurrencyCode
 import java.util.Currency
 
 internal fun ApphudPaywall.buildLocalRenderResult(): RenderResult =
@@ -24,10 +23,24 @@ internal fun ApphudProduct.buildProductDetailsData(): RenderItemProductInfo {
     val subscriptionOffers = details.subscriptionOfferDetails
 
     if (subscriptionOffers.isNullOrEmpty()) {
-        return RenderItemProductInfo.empty()
+        val oneTimeOffer = details.oneTimePurchaseOfferDetails ?: return RenderItemProductInfo.empty()
+        val currencyCode = oneTimeOffer.priceCurrencyCode ?: ""
+        return RenderItemProductInfo(
+            currencyCode = currencyCode,
+            currencySymbol = getCurrencySymbol(currencyCode) ?: "",
+            formattedPrice = oneTimeOffer.formattedPrice ?: "",
+            price = oneTimeOffer.priceAmountMicros / 1_000_000.0,
+            introPrice = "",
+            formattedIntroPrice = 0.0,
+        )
     }
 
-    val currencyCode = details.priceCurrencyCode() ?: ""
+    val currencyCode = subscriptionOffers.firstOrNull()
+        ?.pricingPhases
+        ?.pricingPhaseList
+        ?.firstOrNull()
+        ?.priceCurrencyCode
+        ?: ""
     val currencySymbol = getCurrencySymbol(currencyCode) ?: ""
 
     val lastOffer = subscriptionOffers.last()
