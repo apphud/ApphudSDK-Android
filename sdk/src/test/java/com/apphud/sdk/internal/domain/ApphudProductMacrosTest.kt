@@ -19,8 +19,9 @@ class ApphudProductMacrosTest {
         placementId = null,
         paywallId = null,
         itemId = "item-id",
-        properties = properties,
-    )
+    ).also { product ->
+        product.properties = properties
+    }
 
     @Test
     fun `GIVEN simple macro placeholder EXPECT hasMacros true`() {

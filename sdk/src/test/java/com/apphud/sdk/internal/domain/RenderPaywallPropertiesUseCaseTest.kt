@@ -36,8 +36,9 @@ class RenderPaywallPropertiesUseCaseTest {
                 placementId = null,
                 paywallId = null,
                 itemId = "item-id",
-                properties = properties,
-            )
+            ).also { product ->
+                product.properties = properties
+            }
         ),
         screen = null,
         experimentName = null,

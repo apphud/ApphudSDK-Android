@@ -1,6 +1,9 @@
 package com.apphud.sdk.internal.domain
 
+import com.android.billingclient.api.ProductDetails
 import com.apphud.sdk.domain.ApphudProduct
+import io.mockk.every
+import io.mockk.mockk
 import org.junit.Assert.assertEquals
 import org.junit.Test
 
@@ -20,8 +23,9 @@ class ProductRenderInfoTest {
             placementId = null,
             paywallId = null,
             itemId = "item-id",
-            properties = mapOf("en" to mapOf("title" to "Pro", "subtitle" to "{price}")),
-        )
+        ).also { product ->
+            product.properties = mapOf("en" to mapOf("title" to "Pro", "subtitle" to "{price}"))
+        }
 
         val merged = product.buildMergedRenderInfo()
 
@@ -117,5 +121,40 @@ class ProductRenderInfoTest {
         assertEquals("8,49 \$", merged[0]["full-price"])
         assertEquals("8,49 \$custom1", merged[0]["custom-1"])
         assertEquals("08a67150-70c5-474d-afc4-98e7d71107fd", merged[0]["item_id"])
+    }
+
+    @Test
+    fun `GIVEN in-app product details EXPECT one-time price render info`() {
+        val oneTimeOffer: ProductDetails.OneTimePurchaseOfferDetails = mockk {
+            every { priceCurrencyCode } returns "USD"
+            every { formattedPrice } returns "$4.99"
+            every { priceAmountMicros } returns 4_990_000L
+        }
+        val details: ProductDetails = mockk {
+            every { subscriptionOfferDetails } returns null
+            every { oneTimePurchaseOfferDetails } returns oneTimeOffer
+        }
+        val product = ApphudProduct(
+            id = "id",
+            productId = "product",
+            name = "name",
+            store = "play_store",
+            basePlanId = null,
+            productDetails = details,
+            placementIdentifier = null,
+            paywallIdentifier = null,
+            placementId = null,
+            paywallId = null,
+            itemId = "item-id",
+        )
+
+        val info = product.buildProductDetailsData()
+
+        assertEquals("USD", info.currencyCode)
+        assertEquals("$", info.currencySymbol)
+        assertEquals("$4.99", info.formattedPrice)
+        assertEquals(4.99, info.price, 0.0)
+        assertEquals("", info.introPrice)
+        assertEquals(0.0, info.formattedIntroPrice, 0.0)
     }
 }
