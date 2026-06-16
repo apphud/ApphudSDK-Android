@@ -6,15 +6,17 @@ import com.apphud.sdk.internal.data.UserRepository
 import com.apphud.sdk.internal.data.UserPropertiesManager
 import com.apphud.sdk.internal.data.AnalyticsTracker
 import com.apphud.sdk.internal.domain.FetchNativePurchasesUseCase
-import com.apphud.sdk.internal.domain.RegistrationUseCase
+import com.apphud.sdk.internal.domain.RegistrationInteractor
 import com.apphud.sdk.internal.util.runCatchingCancellable
 import com.apphud.sdk.storage.SharedPreferencesStorage
 import com.apphud.sdk.toApphudError
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 
 internal class SdkEffectHandler(
-    private val registrationUseCase: RegistrationUseCase,
+    private val registrationInteractor: RegistrationInteractor,
     private val userRepository: UserRepository,
     private val analyticsTracker: AnalyticsTracker,
     private val userPropertiesManager: UserPropertiesManager,
@@ -23,21 +25,24 @@ internal class SdkEffectHandler(
     private val coroutineScope: CoroutineScope,
     private val registrationState: SdkRegistrationState,
 ) {
+    private val registrationMutex = Mutex()
+
     suspend fun handle(effect: SdkEffect, dispatch: (SdkEvent) -> Unit) {
         when (effect) {
-            is SdkEffect.PerformRegistration -> performRegistration(effect, dispatch)
+            is SdkEffect.PerformRegistration -> registrationMutex.withLock {
+                performRegistration(effect, dispatch)
+            }
         }
     }
 
     private suspend fun performRegistration(effect: SdkEffect.PerformRegistration, dispatch: (SdkEvent) -> Unit) {
-        registrationState.isRegisteringUser = true
+        registrationState.markRegistrationStarted()
         val needPlacementsPaywalls = !registrationState.observerMode &&
-            (effect.isForce ||
-                (!registrationState.didRegisterCustomerAtThisLaunch &&
-                    !registrationState.deferPlacements))
+            !registrationState.didRegisterCustomerAtThisLaunch &&
+            !registrationState.deferPlacements
 
         runCatchingCancellable {
-            registrationUseCase(
+            registrationInteractor(
                 needPlacementsPaywalls = needPlacementsPaywalls,
                 isNew = effect.isNew,
                 forceRegistration = effect.isForce,
@@ -46,7 +51,7 @@ internal class SdkEffectHandler(
             )
         }.onSuccess { user ->
             analyticsTracker.recordFirstCustomerLoaded()
-            registrationState.hasRespondedToPaywallsRequest = needPlacementsPaywalls
+            registrationState.markPaywallsResponded(needPlacementsPaywalls)
 
             if (storage.isNeedSync) {
                 coroutineScope.launch {
@@ -55,12 +60,12 @@ internal class SdkEffectHandler(
                 }
             }
 
-            registrationState.isRegisteringUser = false
+            registrationState.markRegistrationFinished()
             dispatch(SdkEvent.RegistrationSucceeded(user))
 
             runCatchingCancellable { userPropertiesManager.flushIfNeeded() }
         }.onFailure { error ->
-            registrationState.isRegisteringUser = false
+            registrationState.markRegistrationFinished()
             val cachedUser = userRepository.getCurrentUser()
             dispatch(SdkEvent.RegistrationFailed(error.toApphudError(), cachedUser))
         }

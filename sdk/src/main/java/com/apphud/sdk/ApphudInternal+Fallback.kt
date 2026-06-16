@@ -77,8 +77,8 @@ internal fun ApphudInternal.processFallbackData(callback: PaywallCallback) {
         }
 
         fallbackMode = true
-        ServiceLocator.instance.registrationState.didRegisterCustomerAtThisLaunch = false
-        ServiceLocator.instance.registrationState.isRegisteringUser = false
+        ServiceLocator.instance.registrationState.markCustomerRegisteredAtThisLaunch(false)
+        ServiceLocator.instance.registrationState.markRegistrationFinished()
         ApphudLog.log("Fallback: ENABLED")
         coroutineScope.launch {
             val response = fetchDetails(ids, loadingAll = true)

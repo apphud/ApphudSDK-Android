@@ -43,7 +43,6 @@ class EnrichPlacementProductsUseCaseTest {
         screen = null,
         experimentName = null,
         variationName = null,
-        variationIdentifier = null,
         parentPaywallIdentifier = null,
         placementIdentifier = null,
         placementId = null,

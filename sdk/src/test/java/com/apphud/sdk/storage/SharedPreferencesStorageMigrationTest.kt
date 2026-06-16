@@ -301,7 +301,6 @@ class SharedPreferencesStorageMigrationTest {
             screen = null,
             experimentName = null,
             variationName = null,
-            variationIdentifier = null,
             parentPaywallIdentifier = null,
             products = null,
             placementIdentifier = null,

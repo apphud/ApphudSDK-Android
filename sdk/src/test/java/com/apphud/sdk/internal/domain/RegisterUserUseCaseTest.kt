@@ -144,7 +144,6 @@ class RegisterUserUseCaseTest {
                 screen = null,
                 experimentName = null,
                 variationName = null,
-                variationIdentifier = null,
                 parentPaywallIdentifier = null,
                 placementIdentifier = id,
                 placementId = id,

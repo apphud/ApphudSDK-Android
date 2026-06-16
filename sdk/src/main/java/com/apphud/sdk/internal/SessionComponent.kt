@@ -265,7 +265,7 @@ internal class SessionComponent(
 
     val sdkEffectHandler: SdkEffectHandler by lazy {
         SdkEffectHandler(
-            registrationUseCase = registrationUseCase,
+            registrationInteractor = registrationInteractor,
             userRepository = userRepository,
             analyticsTracker = analyticsTracker,
             userPropertiesManager = userPropertiesManager,

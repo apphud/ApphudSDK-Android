@@ -88,7 +88,23 @@ class SdkReducerTest {
     }
 
     @Test
-    fun `GIVEN NotInitialized and StartInitialization with needRegistration true EXPECT PerformRegistration isForce is false`() {
+    fun `GIVEN NotInitialized and StartInitialization with needRegistration true EXPECT Registering isForce is true`() {
+        val (newState, _) = sdkReducer(
+            SdkState.NotInitialized,
+            SdkEvent.StartInitialization(
+                apiKey = "api-key",
+                userId = "user-1",
+                needRegistration = true,
+                isNew = true,
+                cachedUser = null,
+            ),
+        )
+
+        assertEquals(true, (newState as SdkState.Registering).isForce)
+    }
+
+    @Test
+    fun `GIVEN NotInitialized and StartInitialization with needRegistration true EXPECT PerformRegistration isForce is true`() {
         val (_, effects) = sdkReducer(
             SdkState.NotInitialized,
             SdkEvent.StartInitialization(
@@ -101,7 +117,7 @@ class SdkReducerTest {
         )
 
         val effect = effects.filterIsInstance<SdkEffect.PerformRegistration>().single()
-        assertEquals(false, effect.isForce)
+        assertEquals(true, effect.isForce)
     }
 
     // endregion
@@ -179,17 +195,6 @@ class SdkReducerTest {
         val (newState, effects) = sdkReducer(
             SdkState.NotInitialized,
             SdkEvent.RetryRegistration,
-        )
-
-        assertTrue(newState is SdkState.NotInitialized)
-        assertTrue(effects.isEmpty())
-    }
-
-    @Test
-    fun `GIVEN NotInitialized and SessionCleared EXPECT state unchanged`() {
-        val (newState, effects) = sdkReducer(
-            SdkState.NotInitialized,
-            SdkEvent.SessionCleared,
         )
 
         assertTrue(newState is SdkState.NotInitialized)
@@ -328,7 +333,7 @@ class SdkReducerTest {
         val initial = SdkState.Registering(apiKey = "api-key", userId = "user-1")
         val (newState, effects) = sdkReducer(
             initial,
-            SdkEvent.ForceRegistrationRequested(apiKey = "api-key"),
+            SdkEvent.ForceRegistrationRequested(),
         )
 
         assertEquals(initial, newState)
@@ -347,14 +352,6 @@ class SdkReducerTest {
         assertTrue(effects.isEmpty())
     }
 
-    @Test
-    fun `GIVEN Registering and SessionCleared EXPECT state becomes NotInitialized`() {
-        val initial = SdkState.Registering(apiKey = "api-key", userId = "user-1")
-        val (newState, effects) = sdkReducer(initial, SdkEvent.SessionCleared)
-        assertTrue(newState is SdkState.NotInitialized)
-        assertTrue(effects.isEmpty())
-    }
-
     // endregion
 
     // region Ready + ForceRegistrationRequested
@@ -363,7 +360,7 @@ class SdkReducerTest {
     fun `GIVEN Ready and ForceRegistrationRequested EXPECT state becomes Registering`() {
         val (newState, _) = sdkReducer(
             SdkState.Ready(apiKey = "api-key", user = testUser()),
-            SdkEvent.ForceRegistrationRequested(apiKey = "api-key", userId = "new-user", email = "a@b.com"),
+            SdkEvent.ForceRegistrationRequested(userId = "new-user", email = "a@b.com"),
         )
 
         assertTrue(newState is SdkState.Registering)
@@ -373,17 +370,27 @@ class SdkReducerTest {
     fun `GIVEN Ready and ForceRegistrationRequested EXPECT Registering isForce is true`() {
         val (newState, _) = sdkReducer(
             SdkState.Ready(apiKey = "api-key", user = testUser()),
-            SdkEvent.ForceRegistrationRequested(apiKey = "api-key", userId = "new-user", email = "a@b.com"),
+            SdkEvent.ForceRegistrationRequested(userId = "new-user", email = "a@b.com"),
         )
 
         assertEquals(true, (newState as SdkState.Registering).isForce)
     }
 
     @Test
+    fun `GIVEN Ready and ForceRegistrationRequested EXPECT Registering carries apiKey from Ready`() {
+        val (newState, _) = sdkReducer(
+            SdkState.Ready(apiKey = "ready-api-key", user = testUser()),
+            SdkEvent.ForceRegistrationRequested(userId = "new-user", email = "a@b.com"),
+        )
+
+        assertEquals("ready-api-key", (newState as SdkState.Registering).apiKey)
+    }
+
+    @Test
     fun `GIVEN Ready and ForceRegistrationRequested EXPECT PerformRegistration isForce is true`() {
         val (_, effects) = sdkReducer(
             SdkState.Ready(apiKey = "api-key", user = testUser()),
-            SdkEvent.ForceRegistrationRequested(apiKey = "api-key", userId = "new-user", email = "a@b.com"),
+            SdkEvent.ForceRegistrationRequested(userId = "new-user", email = "a@b.com"),
         )
 
         val effect = effects.filterIsInstance<SdkEffect.PerformRegistration>().single()
@@ -394,7 +401,7 @@ class SdkReducerTest {
     fun `GIVEN Ready and ForceRegistrationRequested EXPECT PerformRegistration carries userId`() {
         val (_, effects) = sdkReducer(
             SdkState.Ready(apiKey = "api-key", user = testUser()),
-            SdkEvent.ForceRegistrationRequested(apiKey = "api-key", userId = "new-user", email = "a@b.com"),
+            SdkEvent.ForceRegistrationRequested(userId = "new-user", email = "a@b.com"),
         )
 
         val effect = effects.filterIsInstance<SdkEffect.PerformRegistration>().single()
@@ -405,7 +412,7 @@ class SdkReducerTest {
     fun `GIVEN Ready and ForceRegistrationRequested EXPECT PerformRegistration carries email`() {
         val (_, effects) = sdkReducer(
             SdkState.Ready(apiKey = "api-key", user = testUser()),
-            SdkEvent.ForceRegistrationRequested(apiKey = "api-key", userId = "new-user", email = "a@b.com"),
+            SdkEvent.ForceRegistrationRequested(userId = "new-user", email = "a@b.com"),
         )
 
         val effect = effects.filterIsInstance<SdkEffect.PerformRegistration>().single()
@@ -462,21 +469,6 @@ class SdkReducerTest {
         )
 
         assertEquals(realUser, (newState as SdkState.Ready).user)
-    }
-
-    // endregion
-
-    // region Ready + SessionCleared
-
-    @Test
-    fun `GIVEN Ready and SessionCleared EXPECT state becomes NotInitialized`() {
-        val (newState, effects) = sdkReducer(
-            SdkState.Ready(apiKey = "api-key", user = testUser()),
-            SdkEvent.SessionCleared,
-        )
-
-        assertTrue(newState is SdkState.NotInitialized)
-        assertTrue(effects.isEmpty())
     }
 
     // endregion
@@ -628,21 +620,6 @@ class SdkReducerTest {
 
     // endregion
 
-    // region Degraded + SessionCleared
-
-    @Test
-    fun `GIVEN Degraded and SessionCleared EXPECT state becomes NotInitialized`() {
-        val (newState, effects) = sdkReducer(
-            SdkState.Degraded(apiKey = "api-key", user = null, lastError = null),
-            SdkEvent.SessionCleared,
-        )
-
-        assertTrue(newState is SdkState.NotInitialized)
-        assertTrue(effects.isEmpty())
-    }
-
-    // endregion
-
     // region Degraded + ForceRegistrationRequested
 
     @Test
@@ -650,7 +627,7 @@ class SdkReducerTest {
         val initial = SdkState.Degraded(apiKey = "api-key", user = null, lastError = null)
         val (newState, _) = sdkReducer(
             initial,
-            SdkEvent.ForceRegistrationRequested(apiKey = "api-key"),
+            SdkEvent.ForceRegistrationRequested(),
         )
 
         assertTrue(newState is SdkState.Registering)
@@ -661,10 +638,21 @@ class SdkReducerTest {
         val initial = SdkState.Degraded(apiKey = "api-key", user = null, lastError = null)
         val (newState, _) = sdkReducer(
             initial,
-            SdkEvent.ForceRegistrationRequested(apiKey = "api-key"),
+            SdkEvent.ForceRegistrationRequested(),
         )
 
         assertEquals(true, (newState as SdkState.Registering).isForce)
+    }
+
+    @Test
+    fun `GIVEN Degraded and ForceRegistrationRequested EXPECT Registering carries apiKey from Degraded`() {
+        val initial = SdkState.Degraded(apiKey = "degraded-api-key", user = null, lastError = null)
+        val (newState, _) = sdkReducer(
+            initial,
+            SdkEvent.ForceRegistrationRequested(),
+        )
+
+        assertEquals("degraded-api-key", (newState as SdkState.Registering).apiKey)
     }
 
     @Test
@@ -672,7 +660,7 @@ class SdkReducerTest {
         val initial = SdkState.Degraded(apiKey = "api-key", user = null, lastError = null)
         val (_, effects) = sdkReducer(
             initial,
-            SdkEvent.ForceRegistrationRequested(apiKey = "api-key"),
+            SdkEvent.ForceRegistrationRequested(),
         )
 
         assertTrue(effects.any { it is SdkEffect.PerformRegistration })
@@ -719,4 +707,15 @@ class SdkReducerTest {
     }
 
     // endregion
+
+    @Test
+    fun `GIVEN any state and SessionCleared EXPECT state becomes NotInitialized`() {
+        val (newState, effects) = sdkReducer(
+            SdkState.Ready(apiKey = "api-key", user = testUser()),
+            SdkEvent.SessionCleared,
+        )
+
+        assertTrue(newState is SdkState.NotInitialized)
+        assertTrue(effects.isEmpty())
+    }
 }

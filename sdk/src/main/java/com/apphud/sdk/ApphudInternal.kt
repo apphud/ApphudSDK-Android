@@ -30,6 +30,7 @@ import com.apphud.sdk.internal.util.runCatchingCancellable
 import com.apphud.sdk.managers.RequestManager
 import com.apphud.sdk.storage.SharedPreferencesStorage
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.TimeoutCancellationException
@@ -253,13 +254,18 @@ internal object ApphudInternal {
             postInitSetup()
         }
 
+        val cachedUser = userRepository.getCurrentUser()
+        if (!needRegistration && cachedUser != null) {
+            registrationState.markPaywallsRespondedForUser(cachedUser)
+        }
+
         sdkStore.dispatch(
             SdkEvent.StartInitialization(
                 apiKey = apiKey,
                 userId = inputUserId,
                 needRegistration = needRegistration,
                 isNew = isNew,
-                cachedUser = userRepository.getCurrentUser(),
+                cachedUser = cachedUser,
             )
         )
     }
@@ -291,17 +297,17 @@ internal object ApphudInternal {
     internal suspend fun refreshEntitlements(
         wasDeferred: Boolean = false,
     ): ApphudUser? {
-        registrationState.didRegisterCustomerAtThisLaunch = false
+        registrationState.markCustomerRegisteredAtThisLaunch(false)
 
         ApphudLog.log("RefreshEntitlements: wasDeferred: $wasDeferred isDeferred: ${registrationState.deferPlacements}")
 
         return coroutineScope {
-            val nextState = async {
+            val nextState = async(start = CoroutineStart.UNDISPATCHED) {
                 sdkStore.state
                     .drop(1)
                     .first { it is SdkState.Ready || it is SdkState.Degraded }
             }
-            sdkStore.dispatch(SdkEvent.ForceRegistrationRequested(apiKey = apiKey))
+            sdkStore.dispatch(SdkEvent.ForceRegistrationRequested())
             when (val state = nextState.await()) {
                 is SdkState.Ready -> {
                     if (wasDeferred) {
@@ -379,7 +385,7 @@ internal object ApphudInternal {
                 this.userRegisteredBlock?.invoke(it)
                 this.userRegisteredBlock = null
                 if (it.isTemporary == false && !fallbackMode) {
-                    registrationState.didRegisterCustomerAtThisLaunch = true
+                    registrationState.markCustomerRegisteredAtThisLaunch(true)
                 }
             }
 
@@ -453,14 +459,14 @@ internal object ApphudInternal {
         coroutineScope.launch(dispatchers.main) {
 
             if (registrationState.observerMode) {
-                registrationState.observerMode = false
+                registrationState.setObserverMode(false)
                 ApphudLog.logE("Trying to access Placements or Paywalls while being in Observer Mode. This is a developer error. Disabling Observer Mode as a fallback...")
             }
 
             if (registrationState.deferPlacements) {
                 ApphudLog.log("Placements were deferred, force refresh them")
                 offeringsCallbackManager.addOfferingsCallback(callback)
-                registrationState.deferPlacements = false
+                registrationState.setDeferPlacements(false)
                 refreshEntitlements(wasDeferred = true)
             } else {
                 val willRefresh = refreshPaywallsIfNeeded()
@@ -484,9 +490,9 @@ internal object ApphudInternal {
             isLoading = true
         } else if (user == null || fallbackMode || user.isTemporary == true || ((user.placements.isEmpty()) && !registrationState.observerMode) || offeringsCallbackManager.getCustomerLoadError() != null) {
             ApphudLog.logI("Refreshing User")
-            registrationState.didRegisterCustomerAtThisLaunch = false
+            registrationState.markCustomerRegisteredAtThisLaunch(false)
             ApphudLog.log("RefreshEntitlements: force=true from refreshPaywallsIfNeeded")
-            sdkStore.dispatch(SdkEvent.ForceRegistrationRequested(apiKey = apiKey))
+            sdkStore.dispatch(SdkEvent.ForceRegistrationRequested())
             isLoading = true
         }
 
@@ -797,7 +803,8 @@ internal object ApphudInternal {
     }
 
     private fun clear() {
-        sdkStore.dispatch(SdkEvent.SessionCleared)
+        runCatching { sdkStore.dispatch(SdkEvent.SessionCleared) }
+            .onFailure { ApphudLog.log("Skip sdkStore SessionCleared: ${it.message}") }
 
         // Detach the process lifecycle observer before cancelling the session scope so that
         // ON_START/ON_STOP callbacks don't fire against a torn-down session.
@@ -870,8 +877,7 @@ internal object ApphudInternal {
             }
         }
 
-        registrationState.hasRespondedToPaywallsRequest =
-            registrationState.hasRespondedToPaywallsRequest || user.placements.isNotEmpty() || registrationState.observerMode
+        registrationState.markPaywallsRespondedForUser(user)
 
         // Disable fallback mode if needed
         if (user.isTemporary != true && fallbackMode) {

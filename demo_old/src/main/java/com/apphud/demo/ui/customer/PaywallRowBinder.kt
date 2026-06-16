@@ -36,7 +36,7 @@ internal object PaywallRowBinder {
                 paywall?.name
             }
 
-        val isExperimentedPaywall = paywall?.experimentName != null || paywall?.variationIdentifier != null
+        val isExperimentedPaywall = paywall?.experimentName != null || paywall?.variationName != null
         val experimentName = paywall?.experimentName ?: if (isExperimentedPaywall) Apphud.currentUser()?.experimentName else ""
         val variationName = paywall?.variationName ?: if (isExperimentedPaywall) Apphud.currentUser()?.variationName else ""
 

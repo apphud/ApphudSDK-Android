@@ -5,6 +5,10 @@ import com.apphud.sdk.internal.data.UserRepository
 import com.apphud.sdk.internal.store.SdkEvent
 import com.apphud.sdk.internal.store.SdkState
 import com.apphud.sdk.internal.store.Store
+import kotlinx.coroutines.CoroutineStart
+import kotlinx.coroutines.async
+import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.flow.drop
 import kotlinx.coroutines.flow.first
 
 internal class AwaitRegistrationUseCase(
@@ -21,16 +25,25 @@ internal class AwaitRegistrationUseCase(
         if (user != null && user.isTemporary == false) return
 
         if (user?.isTemporary == true) {
-            currentState.apiKey?.let {
-                sdkStore.dispatch(SdkEvent.ForceRegistrationRequested(apiKey = it))
+            coroutineScope {
+                val nextTerminalState = async(start = CoroutineStart.UNDISPATCHED) {
+                    sdkStore.state.drop(1).first { it.isTerminal() }
+                }
+                currentState.apiKey ?: throw ApphudError(MUST_REGISTER_ERROR)
+                sdkStore.dispatch(SdkEvent.ForceRegistrationRequested())
+                nextTerminalState.await()
             }
+        } else {
+            sdkStore.state.first { it.isTerminal() }
         }
 
-        sdkStore.state.first { it is SdkState.Ready || it is SdkState.Degraded }
         if (userRepository.getCurrentUser()?.isTemporary != false) {
             throw ApphudError("Registration failed")
         }
     }
+
+    private fun SdkState.isTerminal(): Boolean =
+        this is SdkState.Ready || this is SdkState.Degraded
 
     companion object {
         private const val MUST_REGISTER_ERROR =

@@ -9,15 +9,22 @@ import com.apphud.sdk.internal.store.SdkState
 import com.apphud.sdk.internal.store.Store
 import io.mockk.every
 import io.mockk.mockk
-import io.mockk.verify
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.cancel
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.test.StandardTestDispatcher
+import kotlinx.coroutines.test.advanceUntilIdle
+import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
+@OptIn(ExperimentalCoroutinesApi::class)
 class AwaitRegistrationUseCaseTest {
 
     private fun testUser(isTemporary: Boolean? = false) = ApphudUser(
@@ -196,7 +203,7 @@ class AwaitRegistrationUseCaseTest {
     }
 
     @Test
-    fun `GIVEN temporary user EXPECT ForceRegistrationRequested carries apiKey from current state`() = runTest {
+    fun `GIVEN temporary user EXPECT ForceRegistrationRequested has no user overrides`() = runTest {
         val registeredUser = testUser(isTemporary = false)
         val capturedEvents = mutableListOf<SdkEvent>()
         val store = Store<SdkState, SdkEvent, SdkEffect>(
@@ -216,7 +223,8 @@ class AwaitRegistrationUseCaseTest {
         useCase()
 
         val event = capturedEvents.filterIsInstance<SdkEvent.ForceRegistrationRequested>().single()
-        assertEquals("api-key", event.apiKey)
+        assertEquals(null, event.userId)
+        assertEquals(null, event.email)
     }
 
     @Test
@@ -239,22 +247,120 @@ class AwaitRegistrationUseCaseTest {
     }
 
     @Test
+    fun `GIVEN temporary user and current state is Ready EXPECT waits for next terminal state`() = runTest {
+        val temporaryUser = testUser(isTemporary = true)
+        val registeredUser = testUser(isTemporary = false)
+        var currentUser = temporaryUser
+        var completed = false
+        val capturedEvents = mutableListOf<SdkEvent>()
+        val storeScope = CoroutineScope(SupervisorJob() + StandardTestDispatcher(testScheduler))
+        val store = Store<SdkState, SdkEvent, SdkEffect>(
+            initialState = SdkState.Ready(apiKey = "api-key", user = temporaryUser, fromFallback = true),
+            reducer = { state, event ->
+                capturedEvents.add(event)
+                when (event) {
+                    is SdkEvent.ForceRegistrationRequested -> SdkState.Registering(apiKey = "api-key", userId = null, isForce = true) to emptyList()
+                    is SdkEvent.RegistrationSucceeded -> SdkState.Ready(apiKey = "api-key", user = registeredUser) to emptyList()
+                    else -> state to emptyList()
+                }
+            },
+            effectHandler = { _, _ -> },
+            scope = storeScope,
+        )
+        val userRepository: UserRepository = mockk {
+            every { getCurrentUser() } answers { currentUser }
+        }
+        val useCase = AwaitRegistrationUseCase(store, userRepository)
+
+        try {
+            val job = launch {
+                useCase()
+                completed = true
+            }
+            runCurrent()
+
+            assertTrue(capturedEvents.any { it is SdkEvent.ForceRegistrationRequested })
+            assertFalse(completed)
+
+            currentUser = registeredUser
+            store.dispatch(SdkEvent.RegistrationSucceeded(registeredUser))
+            runCurrent()
+
+            assertTrue(completed)
+            job.cancel()
+        } finally {
+            storeScope.cancel()
+        }
+    }
+
+    @Test
     fun `GIVEN temporary user and registration fails EXPECT throws`() = runTest {
         val temporaryUser = testUser(isTemporary = true)
+        var exception: Throwable? = null
+        val storeScope = CoroutineScope(SupervisorJob() + StandardTestDispatcher(testScheduler))
         val store = Store<SdkState, SdkEvent, SdkEffect>(
             initialState = SdkState.Ready(apiKey = "test", user = temporaryUser),
-            reducer = { state, _ -> SdkState.Ready(apiKey = "test", user = temporaryUser) to emptyList() },
+            reducer = { state, event ->
+                when (event) {
+                    is SdkEvent.ForceRegistrationRequested -> {
+                        SdkState.Degraded(apiKey = "test", user = temporaryUser, lastError = null, fromFallback = true) to emptyList()
+                    }
+                    else -> state to emptyList()
+                }
+            },
             effectHandler = { _, _ -> },
-            scope = testScope(),
+            scope = storeScope,
         )
         val userRepository: UserRepository = mockk {
             every { getCurrentUser() } returns temporaryUser
         }
         val useCase = AwaitRegistrationUseCase(store, userRepository)
 
-        val exception = runCatching { useCase() }.exceptionOrNull()
+        try {
+            launch {
+                exception = runCatching { useCase() }.exceptionOrNull()
+            }
+            advanceUntilIdle()
+        } finally {
+            storeScope.cancel()
+        }
 
         assertTrue(exception is ApphudError)
+    }
+
+    @Test
+    fun `GIVEN temporary user after next terminal state EXPECT throws Registration failed`() = runTest {
+        val temporaryUser = testUser(isTemporary = true)
+        var exception: Throwable? = null
+        val storeScope = CoroutineScope(SupervisorJob() + StandardTestDispatcher(testScheduler))
+        val store = Store<SdkState, SdkEvent, SdkEffect>(
+            initialState = SdkState.Ready(apiKey = "test", user = temporaryUser),
+            reducer = { state, event ->
+                when (event) {
+                    is SdkEvent.ForceRegistrationRequested -> {
+                        SdkState.Degraded(apiKey = "test", user = temporaryUser, lastError = null, fromFallback = true) to emptyList()
+                    }
+                    else -> state to emptyList()
+                }
+            },
+            effectHandler = { _, _ -> },
+            scope = storeScope,
+        )
+        val userRepository: UserRepository = mockk {
+            every { getCurrentUser() } returns temporaryUser
+        }
+        val useCase = AwaitRegistrationUseCase(store, userRepository)
+
+        try {
+            launch {
+                exception = runCatching { useCase() }.exceptionOrNull()
+            }
+            advanceUntilIdle()
+        } finally {
+            storeScope.cancel()
+        }
+
+        assertEquals("Registration failed", exception?.message)
     }
 
     // endregion
@@ -271,7 +377,7 @@ class AwaitRegistrationUseCaseTest {
             scope = testScope(),
         )
         val userRepository: UserRepository = mockk {
-            every { getCurrentUser() } returns temporaryUser
+            every { getCurrentUser() } returnsMany listOf(null, temporaryUser)
         }
         val useCase = AwaitRegistrationUseCase(store, userRepository)
 

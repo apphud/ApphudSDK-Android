@@ -124,11 +124,12 @@ class PurchaseBodyFactoryTest {
             screen = null,
             experimentName = null,
             variationName = null,
-            variationIdentifier = variationIdentifier,
             parentPaywallIdentifier = null,
             placementIdentifier = null,
             placementId = null,
-        )
+        ).also {
+            it.variationIdentifier = variationIdentifier
+        }
         return ApphudPlacement(
             identifier = "onboarding",
             paywall = paywall,

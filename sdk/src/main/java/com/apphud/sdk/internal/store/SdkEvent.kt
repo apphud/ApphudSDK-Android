@@ -16,7 +16,6 @@ internal sealed class SdkEvent {
     data class RegistrationFailed(val error: ApphudError, val cachedUser: ApphudUser?) : SdkEvent()
 
     data class ForceRegistrationRequested(
-        val apiKey: String,
         val userId: String? = null,
         val email: String? = null,
     ) : SdkEvent()
@@ -25,6 +24,5 @@ internal sealed class SdkEvent {
     object FallbackDisabled : SdkEvent()
 
     object RetryRegistration : SdkEvent()
-
     object SessionCleared : SdkEvent()
 }
