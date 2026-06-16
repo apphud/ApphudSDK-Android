@@ -31,13 +31,14 @@ internal class SdkEffectHandler(
 
     private suspend fun performRegistration(effect: SdkEffect.PerformRegistration, dispatch: (SdkEvent) -> Unit) {
         registrationState.isRegisteringUser = true
-        val needPP = !registrationState.didRegisterCustomerAtThisLaunch &&
-            !registrationState.deferPlacements &&
-            !registrationState.observerMode
+        val needPlacementsPaywalls = !registrationState.observerMode &&
+            (effect.isForce ||
+                (!registrationState.didRegisterCustomerAtThisLaunch &&
+                    !registrationState.deferPlacements))
 
         runCatchingCancellable {
             registrationUseCase(
-                needPlacementsPaywalls = needPP,
+                needPlacementsPaywalls = needPlacementsPaywalls,
                 isNew = effect.isNew,
                 forceRegistration = effect.isForce,
                 userId = effect.userId,
@@ -45,7 +46,7 @@ internal class SdkEffectHandler(
             )
         }.onSuccess { user ->
             analyticsTracker.recordFirstCustomerLoaded()
-            registrationState.hasRespondedToPaywallsRequest = needPP
+            registrationState.hasRespondedToPaywallsRequest = needPlacementsPaywalls
 
             if (storage.isNeedSync) {
                 coroutineScope.launch {

@@ -2,14 +2,18 @@ package com.apphud.sdk.internal.data
 
 import com.apphud.sdk.ApphudUserPropertyKey
 import com.apphud.sdk.internal.ApphudDispatchers
+import com.apphud.sdk.internal.store.SdkEffect
+import com.apphud.sdk.internal.store.SdkEvent
+import com.apphud.sdk.internal.store.SdkState
+import com.apphud.sdk.internal.store.Store
 import com.apphud.sdk.storage.SharedPreferencesStorage
 import io.mockk.every
 import io.mockk.mockk
 import io.mockk.verify
-import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.cancel
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.advanceUntilIdle
@@ -28,13 +32,18 @@ class UserPropertiesManagerTest {
         every { needSendProperty(any()) } returns true
     }
 
-    private val awaitUserRegistration: suspend () -> Unit = {}
+    private val readySdkStore: Store<SdkState, SdkEvent, SdkEffect> = Store(
+        initialState = SdkState.Ready(apiKey = "test", user = mockk()),
+        reducer = { state, _ -> state to emptyList() },
+        effectHandler = { _, _ -> },
+        scope = CoroutineScope(SupervisorJob() + Dispatchers.Unconfined),
+    )
 
     private val manager = UserPropertiesManager(
         coroutineScope = CoroutineScope(SupervisorJob() + Dispatchers.Unconfined),
         userRepository = userRepository,
         storage = storage,
-        awaitUserRegistration = awaitUserRegistration,
+        sdkStore = readySdkStore,
         dispatchers = ApphudDispatchers(),
     )
 
@@ -81,25 +90,30 @@ class UserPropertiesManagerTest {
     @Test
     fun `GIVEN isUpdatingProperties and not force EXPECT forceFlush returns false`() = runTest {
         val testDispatcher = StandardTestDispatcher(testScheduler)
-        val gate = CompletableDeferred<Unit>()
+        val externalScope = CoroutineScope(SupervisorJob() + testDispatcher)
+        val notInitializedStore: Store<SdkState, SdkEvent, SdkEffect> = Store(
+            initialState = SdkState.NotInitialized,
+            reducer = { state, _ -> state to emptyList() },
+            effectHandler = { _, _ -> },
+            scope = externalScope,
+        )
         val blockedManager = UserPropertiesManager(
-            coroutineScope = CoroutineScope(SupervisorJob() + testDispatcher),
+            coroutineScope = externalScope,
             userRepository = userRepository,
             storage = storage,
-            awaitUserRegistration = { gate.await() },
+            sdkStore = notInitializedStore,
             dispatchers = ApphudDispatchers(),
         )
         every { userRepository.getCurrentUser() } returns mockk()
         val key = ApphudUserPropertyKey.CustomProperty("test_key")
         blockedManager.setUserProperty(key = key, value = "value", setOnce = false, increment = false)
-        launch(testDispatcher) { blockedManager.forceFlushUserProperties(true) }
+        externalScope.launch { blockedManager.forceFlushUserProperties(true) }
         advanceUntilIdle()
 
         val result = blockedManager.forceFlushUserProperties(false)
 
         assertFalse(result)
-        gate.complete(Unit)
-        advanceUntilIdle()
+        externalScope.cancel()
     }
 
     // endregion

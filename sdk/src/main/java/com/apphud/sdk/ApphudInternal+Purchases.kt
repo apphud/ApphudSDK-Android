@@ -630,7 +630,7 @@ internal suspend fun ApphudInternal.trackPurchase(
     paywallIdentifier: String? = null,
     placementIdentifier: String? = null,
 ) {
-    runCatchingCancellable { awaitUserRegistration() }
+    runCatchingCancellable { ServiceLocator.instance.awaitRegistrationUseCase() }
         .onFailure { error ->
             ApphudLog.logE(error.message.orEmpty())
             return
