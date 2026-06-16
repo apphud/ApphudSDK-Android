@@ -44,8 +44,11 @@ class CustomerFragment : Fragment() {
         setupUserInfoSection()
 
         binding.swipeRefresh.setOnRefreshListener {
-            refreshUi()
-            binding.swipeRefresh.isRefreshing = false
+            Apphud.refreshUserData { user ->
+                Log.d("ApphudDemo", "refreshUserData completed: ${user?.userId}")
+                refreshUi()
+                binding.swipeRefresh.isRefreshing = false
+            }
         }
 
         Apphud.setListener(createListener())
