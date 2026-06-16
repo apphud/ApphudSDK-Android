@@ -9,6 +9,7 @@ import com.apphud.sdk.BuildConfig
 import com.apphud.sdk.buildAppVersion
 import com.apphud.sdk.internal.data.AnalyticsTracker
 import com.apphud.sdk.internal.data.DeviceIdentifiersRepository
+import com.apphud.sdk.internal.data.SdkRegistrationState
 import com.apphud.sdk.internal.data.UserRepository
 import com.apphud.sdk.isDebuggable
 import java.util.Locale
@@ -20,6 +21,7 @@ internal class RegistrationProvider(
     private val deviceIdentifiersRepository: DeviceIdentifiersRepository,
     private val userRepository: UserRepository,
     private val analyticsTracker: AnalyticsTracker,
+    private val registrationState: SdkRegistrationState,
 ) {
 
     fun getLocale(): String = Locale.getDefault().toString()
@@ -78,7 +80,7 @@ internal class RegistrationProvider(
     fun getInstallSource(): String =
         ApphudUtils.getInstallerPackageName(applicationContext) ?: "unknown"
 
-    fun getObserverMode(): Boolean = ApphudInternal.observerMode
+    fun getObserverMode(): Boolean = registrationState.observerMode
 
     fun getFromWeb2Web(): Boolean = ApphudInternal.fromWeb2Web
 

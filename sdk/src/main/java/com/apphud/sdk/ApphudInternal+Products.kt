@@ -20,7 +20,7 @@ internal fun ApphudInternal.finishedLoadingProducts(): Boolean {
 
 internal fun ApphudInternal.shouldLoadProducts(): Boolean {
 
-    if (!hasRespondedToPaywallsRequest || deferPlacements) {
+    if (!registrationState.hasRespondedToPaywallsRequest || registrationState.deferPlacements) {
         return false
     }
 

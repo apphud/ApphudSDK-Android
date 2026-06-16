@@ -305,7 +305,8 @@ object Apphud {
      * real-time user segmentation based on custom user properties.
      */
     fun deferPlacements() {
-        ApphudInternal.deferPlacements = true
+        runCatching { ServiceLocator.instance.registrationState.deferPlacements = true }
+            .onFailure { ApphudLog.logE("deferPlacements: SDK not initialized. Call Apphud.start() first.") }
     }
 
     /**
@@ -664,7 +665,7 @@ object Apphud {
     fun refreshUserData(callback: ((ApphudUser?) -> Unit)? = null) {
         coroutineScope.launch {
             runCatchingCancellable {
-                ApphudInternal.refreshEntitlements(forceRefresh = true)
+                ApphudInternal.refreshEntitlements()
             }.onSuccess { result ->
                 withContext(dispatchers.main) {
                     callback?.invoke(result)
