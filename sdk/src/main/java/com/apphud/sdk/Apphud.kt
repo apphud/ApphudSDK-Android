@@ -305,8 +305,7 @@ object Apphud {
      * real-time user segmentation based on custom user properties.
      */
     fun deferPlacements() {
-        runCatching { ServiceLocator.instance.registrationState.setDeferPlacements(true) }
-            .onFailure { ApphudLog.logE("deferPlacements: SDK not initialized. Call Apphud.start() first.") }
+        ApphudInternal.setDeferPlacements(true)
     }
 
     /**

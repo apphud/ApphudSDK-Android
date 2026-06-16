@@ -4,9 +4,11 @@ import android.content.Context
 import android.content.SharedPreferences
 import com.apphud.sdk.domain.ApphudUser
 import com.apphud.sdk.internal.ServiceLocator
+import com.apphud.sdk.internal.domain.model.ApiKey
 import io.mockk.every
 import io.mockk.mockk
 import org.junit.After
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
 import org.junit.Before
 import org.junit.Test
@@ -78,6 +80,20 @@ class ApphudLogoutTest {
         assertNull(storage.apphudUser)
         assertNull(storage.userId)
         assertNull(storage.deviceId)
+    }
+
+    @Test
+    fun `GIVEN deferred placements before logout WHEN new session starts EXPECT defer flag reset`() {
+        ApphudInternal.setDeferPlacements(true)
+
+        ApphudInternal.logout()
+        ServiceLocator.initSessionScope(
+            apiKey = ApiKey("test_api_key"),
+            ruleCallback = object : ApphudRuleCallback {},
+            observerMode = false,
+        )
+
+        assertFalse(ServiceLocator.instance.registrationState.deferPlacements)
     }
 
     private fun cachedUser() = ApphudUser(

@@ -58,9 +58,31 @@ class CustomerMapperTest {
         assertEquals("""{"old":"config"}""", result.remoteConfigString)
     }
 
-    private fun createCustomer(scheme: SchemeDto?): CustomerDto =
+    @Test
+    fun `GIVEN scheme missing for different user EXPECT previous scheme-related values not preserved`() {
+        val previousUser = createUser(
+            userId = "old-user-id",
+            experimentName = "Old experiment",
+            variationName = "Old variation",
+            targetingName = "Old audience",
+            remoteConfigString = """{"old":"config"}""",
+        )
+        val customer = createCustomer(userId = "new-user-id", scheme = null)
+
+        val result = mapper.map(customer, previousUser)
+
+        assertNull(result.experimentName)
+        assertNull(result.variationName)
+        assertNull(result.targetingName)
+        assertNull(result.remoteConfigString)
+    }
+
+    private fun createCustomer(
+        userId: String = "user-id",
+        scheme: SchemeDto?,
+    ): CustomerDto =
         CustomerDto(
-            userId = "user-id",
+            userId = userId,
             subscriptions = emptyList(),
             currency = null,
             placements = null,
@@ -70,13 +92,14 @@ class CustomerMapperTest {
         )
 
     private fun createUser(
+        userId: String = "user-id",
         experimentName: String?,
         variationName: String?,
         targetingName: String?,
         remoteConfigString: String?,
     ): ApphudUser =
         ApphudUser(
-            userId = "user-id",
+            userId = userId,
             currencyCode = "USD",
             countryCode = "US",
             subscriptions = emptyList(),

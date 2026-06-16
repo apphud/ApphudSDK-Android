@@ -97,6 +97,8 @@ internal object ApphudInternal {
     internal var refreshUserPending = false
     internal val observedOrders = ConcurrentHashMap.newKeySet<String>()
     private val handler: Handler = Handler(Looper.getMainLooper())
+    @Volatile
+    private var deferPlacementsRequested = false
 
     private const val MUST_REGISTER_ERROR = " :You must call `Apphud.start` method before calling any other methods."
     internal val productGroups = AtomicReference<List<ApphudGroup>>(emptyList())
@@ -193,6 +195,7 @@ internal object ApphudInternal {
             ruleCallback = ruleCallback,
             observerMode = observerMode,
         )
+        registrationState.setDeferPlacements(deferPlacementsRequested)
 
         coroutineScope.launch(dispatchers.main) {
             ProcessLifecycleOwner.get().lifecycle.addObserver(lifecycleEventObserver)
@@ -466,7 +469,7 @@ internal object ApphudInternal {
             if (registrationState.deferPlacements) {
                 ApphudLog.log("Placements were deferred, force refresh them")
                 offeringsCallbackManager.addOfferingsCallback(callback)
-                registrationState.setDeferPlacements(false)
+                setDeferPlacements(false)
                 refreshEntitlements(wasDeferred = true)
             } else {
                 val willRefresh = refreshPaywallsIfNeeded()
@@ -838,6 +841,7 @@ internal object ApphudInternal {
         prevPurchases.clear()
         productGroups.set(emptyList())
         allowIdentifyUser = true
+        deferPlacementsRequested = false
         ApphudLog.log("SDK did logout")
     }
 
@@ -888,6 +892,16 @@ internal object ApphudInternal {
     private fun updateProductState(productsLoaded: List<ProductDetails>) {
         productGroups.set(storage.productGroups.orEmpty())
         updateGroupsWithProductDetails(productGroups.get())
+    }
+
+    internal fun setDeferPlacements(value: Boolean) {
+        deferPlacementsRequested = value
+        runCatching { registrationState.setDeferPlacements(value) }
+            .onFailure {
+                if (value) {
+                    ApphudLog.log("deferPlacements: SDK session is not initialized yet, deferring initial placements request.")
+                }
+            }
     }
 
 }

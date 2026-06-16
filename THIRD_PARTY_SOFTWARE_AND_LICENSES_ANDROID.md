@@ -94,4 +94,3 @@ Total unique resolved artifacts: 66
 | `org.jetbrains.kotlinx:kotlinx-coroutines-bom` | `1.7.3` | `The Apache Software License, Version 2.0` | `Permissive` | [link](https://github.com/Kotlin/kotlinx.coroutines) | `https://repo1.maven.org/maven2` |
 | `org.jetbrains.kotlinx:kotlinx-coroutines-core` | `1.7.3` | `The Apache Software License, Version 2.0` | `Permissive` | [link](https://github.com/Kotlin/kotlinx.coroutines) | `https://repo1.maven.org/maven2` |
 | `org.jetbrains.kotlinx:kotlinx-coroutines-core-jvm` | `1.7.3` | `The Apache Software License, Version 2.0` | `Permissive` | [link](https://github.com/Kotlin/kotlinx.coroutines) | `https://repo1.maven.org/maven2` |
-

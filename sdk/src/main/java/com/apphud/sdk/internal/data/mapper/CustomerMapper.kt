@@ -17,10 +17,11 @@ internal class CustomerMapper(
     fun map(customer: CustomerDto, previousUser: ApphudUser? = null): ApphudUser {
         val scheme = customer.scheme
 
-        val experimentName = if (scheme != null) scheme.experiment?.name else previousUser?.experimentName
-        val variationName = if (scheme != null) scheme.variationName else previousUser?.variationName
-        val targetingName = if (scheme != null) scheme.name else previousUser?.targetingName
-        val remoteConfigString = if (scheme != null) scheme.remoteConfig else previousUser?.remoteConfigString
+        val previousSchemeUser = previousUser?.takeIf { it.userId == customer.userId }
+        val experimentName = if (scheme != null) scheme.experiment?.name else previousSchemeUser?.experimentName
+        val variationName = if (scheme != null) scheme.variationName else previousSchemeUser?.variationName
+        val targetingName = if (scheme != null) scheme.name else previousSchemeUser?.targetingName
+        val remoteConfigString = if (scheme != null) scheme.remoteConfig else previousSchemeUser?.remoteConfigString
 
         return ApphudUser(
             userId = customer.userId,
