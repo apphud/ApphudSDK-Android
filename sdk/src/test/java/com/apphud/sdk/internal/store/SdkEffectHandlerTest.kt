@@ -98,7 +98,7 @@ class SdkEffectHandlerTest {
     }
 
     @Test
-    fun `GIVEN already registered customer force registration EXPECT needPlacementsPaywalls is false`() = runTest {
+    fun `GIVEN already registered customer force registration EXPECT needPlacementsPaywalls is true`() = runTest {
         val registrationInteractor: RegistrationInteractor = mockk {
             coEvery { this@mockk.invoke(any(), any(), any(), any(), any()) } returns testUser()
         }
@@ -114,7 +114,7 @@ class SdkEffectHandlerTest {
 
         coVerify {
             registrationInteractor.invoke(
-                needPlacementsPaywalls = false,
+                needPlacementsPaywalls = true,
                 isNew = false,
                 forceRegistration = true,
                 userId = null,

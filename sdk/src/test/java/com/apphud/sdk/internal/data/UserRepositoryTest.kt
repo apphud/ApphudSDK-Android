@@ -157,6 +157,25 @@ class UserRepositoryTest {
     }
 
     @Test
+    fun `setCurrentUser should not preserve placements when userId changed`() {
+        val userWithPlacements = createTestUser(
+            userId = "old-id",
+            placements = listOf(createTestPlacement())
+        )
+        val userWithEmptyPlacements = createTestUser(
+            userId = "new-id",
+            placements = emptyList()
+        )
+
+        repository.setCurrentUser(userWithPlacements)
+        repository.setCurrentUser(userWithEmptyPlacements)
+        val result = repository.getCurrentUser()
+
+        assertEquals("new-id", result?.userId)
+        assertTrue("Placements should remain empty for new user", result?.placements?.isEmpty() == true)
+    }
+
+    @Test
     fun `setCurrentUser should replace placements when new user has non-empty placements`() {
         val oldPlacement = createTestPlacement(id = "old-placement")
         val newPlacement = createTestPlacement(id = "new-placement")

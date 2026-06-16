@@ -56,7 +56,9 @@ internal class RegisterUserUseCase(
     ): ApphudUser {
         if (cachedUser == null) return newUser
 
-        val shouldPreservePlacements = newUser.placements.isEmpty() && cachedUser.placements.isNotEmpty()
+        val shouldPreservePlacements = newUser.placements.isEmpty() &&
+            cachedUser.placements.isNotEmpty() &&
+            cachedUser.userId == newUser.userId
 
         return if (shouldPreservePlacements) {
             newUser.copy(

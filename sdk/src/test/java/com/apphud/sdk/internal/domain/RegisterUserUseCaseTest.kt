@@ -83,6 +83,24 @@ class RegisterUserUseCaseTest {
     }
 
     @Test
+    fun `GIVEN backend returns different user with empty placements EXPECT cached placements not preserved`() = runTest {
+        val cachedUser = user(id = "old-id", placements = listOf(placement(id = "cached-placement")))
+        val backendUser = user(id = "new-id", placements = emptyList())
+        coEvery { requestManager.registration(any(), any(), any(), any(), any()) } returns backendUser
+        coEvery { userRepository.setCurrentUser(any()) } returns true
+
+        val result = useCase(
+            needPlacementsPaywalls = true,
+            isNew = false,
+            forceRegistration = true,
+            cachedUser = cachedUser,
+        )
+
+        assertTrue(result.placements.isEmpty())
+        coVerify { userRepository.setCurrentUser(match { it.userId == "new-id" && it.placements.isEmpty() }) }
+    }
+
+    @Test
     fun `GIVEN backend returns placements EXPECT backend placements replace cached`() = runTest {
         val cachedUser = user(id = "user-1", placements = listOf(placement(id = "cached-placement")))
         val backendPlacement = placement(id = "backend-placement")

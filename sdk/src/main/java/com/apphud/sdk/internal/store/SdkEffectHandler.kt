@@ -38,8 +38,8 @@ internal class SdkEffectHandler(
     private suspend fun performRegistration(effect: SdkEffect.PerformRegistration, dispatch: (SdkEvent) -> Unit) {
         registrationState.markRegistrationStarted()
         val needPlacementsPaywalls = !registrationState.observerMode &&
-            !registrationState.didRegisterCustomerAtThisLaunch &&
-            !registrationState.deferPlacements
+            !registrationState.deferPlacements &&
+            (effect.isForce || !registrationState.didRegisterCustomerAtThisLaunch)
 
         runCatchingCancellable {
             registrationInteractor(

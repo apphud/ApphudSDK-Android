@@ -533,7 +533,7 @@ internal object ApphudInternal {
             fromWeb2Web = true
         }
         val needPlacementsPaywalls =
-            !registrationState.didRegisterCustomerAtThisLaunch && !registrationState.deferPlacements && !registrationState.observerMode
+            !registrationState.deferPlacements && !registrationState.observerMode
         val customer: ApphudUser? = runCatchingCancellable {
             ServiceLocator.instance.registrationInteractor(
                 needPlacementsPaywalls = needPlacementsPaywalls,

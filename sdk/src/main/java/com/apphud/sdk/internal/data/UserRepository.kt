@@ -41,7 +41,11 @@ internal class UserRepository(
         // This happens when /subscriptions endpoint is called (purchase verification)
         // which doesn't return placements, only subscription data.
         val existing = currentUser
-        val mergedUser = if (user.placements.isEmpty() && existing?.placements?.isNotEmpty() == true) {
+        val mergedUser = if (
+            user.placements.isEmpty() &&
+            existing?.placements?.isNotEmpty() == true &&
+            existing.userId == user.userId
+        ) {
             user.copy(placements = existing.placements)
         } else {
             user
