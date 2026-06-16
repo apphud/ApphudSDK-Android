@@ -64,8 +64,6 @@ class DeviceIdentifiersInteractorTest {
         coEvery { registrationInteractor(any(), any(), any(), any(), any()) } returns testUser
     }
 
-    // region fetch completes in time
-
     @Test
     fun `GIVEN fetch in time and identifiers not synced EXPECT registrationInteractor called once`() = runTest {
         coEvery { collectUseCase() } returns true
@@ -104,10 +102,6 @@ class DeviceIdentifiersInteractorTest {
 
         assertNull(result)
     }
-
-    // endregion
-
-    // region fetch timeout — cache populated (returning user)
 
     @Test
     fun `GIVEN fetch timeout, cached IDs not synced and identifiers changed EXPECT registrationInteractor called twice`() = runTest {
@@ -155,18 +149,13 @@ class DeviceIdentifiersInteractorTest {
         coVerify(exactly = 0) { registrationInteractor(any(), any(), any(), any(), any()) }
     }
 
-    // endregion
-
-    // region fetch timeout — empty cache (first install)
-
     @Test
     fun `GIVEN fetch timeout, no cached IDs and identifiers changed EXPECT registrationInteractor called once`() = runTest {
-        every { deviceIdentifiersRepository.getIdentifiers() } returns DeviceIdentifiers.EMPTY
-        coEvery { collectUseCase() } coAnswers { delay(2000); true }
         every { deviceIdentifiersRepository.getIdentifiers() } returnsMany listOf(
             DeviceIdentifiers.EMPTY,
             cachedIdentifiers,
         )
+        coEvery { collectUseCase() } coAnswers { delay(2000); true }
 
         interactor(this, needPlacementsPaywalls = false, isNew = false)
 
@@ -192,6 +181,4 @@ class DeviceIdentifiersInteractorTest {
 
         assertNull(result)
     }
-
-    // endregion
 }

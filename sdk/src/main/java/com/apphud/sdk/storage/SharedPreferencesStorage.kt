@@ -207,8 +207,6 @@ internal class SharedPreferencesStorage(
         productDetails = null
         properties = null
         adjust = null
-        syncedDeviceIdentifiersUserId = null
-        syncedDeviceIdentifiers = null
         // deviceIdentifiers describe the device, not the session — preserved across logout/login.
     }
 

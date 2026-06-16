@@ -29,8 +29,6 @@ internal class DeviceIdentifiersInteractor(
         val fetchedInTime = withTimeoutOrNull(FETCH_TIMEOUT_MS) { fetchDeferred.await() } != null
         ApphudLog.logI("$TAG: collectUseCase fetchedInTime=$fetchedInTime [${elapsed(startTime)}]")
 
-        // Skip early registration when there's nothing useful to send yet (first install / cleared cache).
-        // It would just be a wasted /customers POST with empty IDs that the late call will replace anyway.
         val cachedIds = deviceIdentifiersRepository.getIdentifiers()
         val haveCachedIds = cachedIds != DeviceIdentifiers.EMPTY
         if (!fetchedInTime && haveCachedIds && needsRegistration(userId, cachedIds)) {
