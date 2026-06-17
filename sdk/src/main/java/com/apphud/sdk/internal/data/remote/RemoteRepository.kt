@@ -152,11 +152,18 @@ internal class RemoteRepository(
     suspend fun deeplinkAttribution(
         deviceId: String,
         bundleId: String,
+        url: String? = null,
+        visitorId: String? = null,
     ): Result<Map<String, Any>?> =
         runCatchingCancellable {
             val request = buildPostRequest(
                 urlProvider.deeplinkAttributionUrl,
-                DeeplinkAttributionRequestDto(deviceId = deviceId, bundleId = bundleId),
+                DeeplinkAttributionRequestDto(
+                    deviceId = deviceId,
+                    bundleId = bundleId,
+                    url = url,
+                    visitorId = visitorId,
+                ),
             )
             executeForRawMap(okHttpClient, gson, request, dispatchers.io)
         }

@@ -94,7 +94,9 @@ object ApphudSdkManager {
             ApphudUtils.enableDebugLogs()
         }
         Apphud.setListener(listener)
-        Apphud.start(application, API_KEY)
+        Apphud.start(application, API_KEY) { attribution, kind, uri ->
+            Log.d("ColorGenerator", "deeplinkHandler: kind=$kind, uri=$uri, attribution=$attribution")
+        }
         Apphud.collectDeviceIdentifiers()
     }
 

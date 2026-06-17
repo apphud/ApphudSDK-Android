@@ -100,6 +100,28 @@ internal object ApphudInternal {
     internal lateinit var context: Context
 
     internal var apphudListener: ApphudListener? = null
+
+    @Volatile
+    private var deeplinkAttributionHandler: ApphudDeeplinkHandler? = null
+
+    internal fun setDeeplinkAttributionHandler(handler: ApphudDeeplinkHandler?) {
+        deeplinkAttributionHandler = handler
+    }
+
+    internal fun notifyDeeplinkAttribution(
+        attribution: Map<String, Any>,
+        kind: ApphudDeeplinkAttributionKind,
+        uri: android.net.Uri?,
+    ) {
+        val handler = deeplinkAttributionHandler ?: return
+        coroutineScope.launch(dispatchers.main) {
+            handler(attribution, kind, uri)
+        }
+    }
+
+    internal val currentApiKey: String?
+        get() = if (::apiKey.isInitialized) apiKey else null
+
     internal var userLoadRetryCount: Int = 1
     internal var purchasingProduct: ApphudProduct? = null
     internal var preferredTimeout: Double = 999_999.0
@@ -164,6 +186,7 @@ internal object ApphudInternal {
         observerMode: Boolean,
         callback: ((ApphudUser) -> Unit)?,
         ruleCallback: ApphudRuleCallback,
+        deeplinkHandler: ApphudDeeplinkHandler? = null,
     ) = synchronized(this) {
         if (!allowIdentifyUser) {
             ApphudLog.logE(
@@ -178,6 +201,7 @@ internal object ApphudInternal {
         }
         allowIdentifyUser = false
         this.observerMode = observerMode
+        deeplinkHandler?.let { setDeeplinkAttributionHandler(it) }
 
         this.context = context.applicationContext
         this.apiKey = apiKey

@@ -63,6 +63,19 @@
         app:layout_constraintTop_toBottomOf="@+id/buttonGenerate"/>
 
     <Button
+        android:id="@+id/buttonRequestDeeplinkAttribution"
+        style="@style/button_blue_2"
+        android:layout_width="wrap_content"
+        android:layout_height="48dp"
+        android:layout_marginStart="16dp"
+        android:layout_marginEnd="16dp"
+        android:layout_marginTop="16dp"
+        android:text="@string/request_deeplink_attribution"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@+id/labelCounter"/>
+
+    <Button
         android:id="@+id/buttonCopy"
         style="@style/button_brown"
         android:layout_width="wrap_content"

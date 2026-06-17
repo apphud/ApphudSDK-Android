@@ -2,6 +2,8 @@ package com.apphud.sdk
 
 import android.app.Activity
 import android.content.Context
+import android.content.Intent
+import android.net.Uri
 import com.android.billingclient.api.ProductDetails
 import com.android.billingclient.api.Purchase
 import com.apphud.sdk.internal.util.runCatchingCancellable
@@ -37,6 +39,8 @@ object Apphud {
      *                 object after the SDK initialization is complete. __Note__: Do not store
      *                 `ApphudUser`
      *                 instance in your own code, since it may change at runtime.
+     * @param deeplinkHandler (Optional) A callback that receives deep link attribution updates.
+     *                 It may be called multiple times for both direct and deferred attribution flows.
      */
     fun start(
         context: Context,
@@ -44,7 +48,8 @@ object Apphud {
         observerMode: Boolean = false,
         ruleCallback: ApphudRuleCallback = object : ApphudRuleCallback {},
         callback: ((ApphudUser) -> Unit)? = null,
-    ) = start(context, apiKey, null, null, observerMode, ruleCallback, callback)
+        deeplinkHandler: ApphudDeeplinkHandler? = null,
+    ) = start(context, apiKey, null, null, observerMode, ruleCallback, callback, deeplinkHandler)
 
     /**
      * Initializes Apphud SDK. You should call it during app launch.
@@ -58,6 +63,8 @@ object Apphud {
      *                 object after the SDK initialization is complete. __Note__: Do not store
      *                 `ApphudUser`
      *                 instance in your own code, since it may change at runtime.
+     * @param deeplinkHandler (Optional) A callback that receives deep link attribution updates.
+     *                 It may be called multiple times for both direct and deferred attribution flows.
      */
     fun start(
         context: Context,
@@ -66,7 +73,8 @@ object Apphud {
         observerMode: Boolean = false,
         ruleCallback: ApphudRuleCallback = object : ApphudRuleCallback {},
         callback: ((ApphudUser) -> Unit)? = null,
-    ) = start(context, apiKey, userId, null, observerMode, ruleCallback, callback)
+        deeplinkHandler: ApphudDeeplinkHandler? = null,
+    ) = start(context, apiKey, userId, null, observerMode, ruleCallback, callback, deeplinkHandler)
 
     /**
      * Initializes the Apphud SDK. This method should be called during the app launch.
@@ -85,6 +93,8 @@ object Apphud {
      *                 object after the SDK initialization is complete. __Note__: Do not store
      *                 `ApphudUser`
      *                 instance in your own code, since it may change at runtime.
+     * @param deeplinkHandler (Optional) A callback that receives deep link attribution updates.
+     *                 It may be called multiple times for both direct and deferred attribution flows.
      */
     fun start(
         context: Context,
@@ -94,9 +104,10 @@ object Apphud {
         observerMode: Boolean = false,
         ruleCallback: ApphudRuleCallback = object : ApphudRuleCallback {},
         callback: ((ApphudUser) -> Unit)? = null,
+        deeplinkHandler: ApphudDeeplinkHandler? = null,
     ) {
         ApphudUtils.setPackageName(context.packageName)
-        ApphudInternal.initialize(context, apiKey, userId, deviceId, observerMode, callback, ruleCallback)
+        ApphudInternal.initialize(context, apiKey, userId, deviceId, observerMode, callback, ruleCallback, deeplinkHandler)
     }
 
     /**
@@ -771,26 +782,60 @@ object Apphud {
     }
 
     /**
-     * Attempts to attribute the user using a recently opened deep link, if available.
+     * Sets or updates the deep link attribution handler after SDK initialization.
      *
-     * If a matching deep link click is found, the callback returns the associated attribution data.
-     * Otherwise, the callback returns `null`.
+     * The handler may be invoked multiple times for both direct (link open) and deferred
+     * (install) attribution flows. Pass `null` to remove the current handler.
      *
-     * @param callback A callback that returns the attribution data as a map, or `null` if no
-     * deep link attribution is available.
+     * @param handler A callback that receives deep link attribution updates, or `null`.
      */
-    fun attributeFromDeeplink(callback: (Map<String, Any>?) -> Unit) {
-        coroutineScope.launch {
-            val response = runCatchingCancellable {
-                ApphudInternal.tryDeeplinkAttribution()
-            }.getOrElse { error ->
-                ApphudLog.logE("Error in attributeFromDeeplink: ${error.message}")
-                null
-            }
-            withContext(dispatchers.main) {
-                callback(response)
-            }
-        }
+    fun setDeeplinkHandler(handler: ApphudDeeplinkHandler?) {
+        ApphudInternal.setDeeplinkAttributionHandler(handler)
+    }
+
+    /**
+     * Handles a deep link [Uri] opened by the user (App Link or custom scheme URL).
+     *
+     * The SDK submits the link to Apphud and delivers the resulting attribution data through the
+     * `deeplinkHandler` (set in `start(...)` or via [setDeeplinkHandler]) with kind
+     * `ApphudDeeplinkAttributionKind.DIRECT`. May be called multiple times during the app lifecycle.
+     *
+     * Forward incoming links from your Activity's `onCreate` and `onNewIntent`.
+     *
+     * @param uri The deep link URI received by your Activity.
+     */
+    fun handleUri(uri: Uri) {
+        ApphudInternal.handleOpenUri(uri)
+    }
+
+    /**
+     * Convenience wrapper around [handleUri] that extracts the deep link [Uri] from an [Intent].
+     *
+     * Only `ACTION_VIEW` intents carrying data are processed; other intents are ignored.
+     * Forward your Activity's intent from `onCreate` and `onNewIntent`.
+     *
+     * @param intent The intent received by your Activity, or `null`.
+     */
+    fun handleIntent(intent: Intent?) {
+        val uri = intent?.takeIf { it.action == Intent.ACTION_VIEW }?.data ?: return
+        handleUri(uri)
+    }
+
+    /**
+     * Requests deferred deep link attribution for the current app installation.
+     *
+     * The SDK loads a hidden web page using a 1x1 WebView attached to the provided [activity] to
+     * resolve a visitor identifier, then submits it to Apphud. The result is delivered through the
+     * `deeplinkHandler` (set in `start(...)` or via [setDeeplinkHandler]) with kind
+     * `ApphudDeeplinkAttributionKind.DEFERRED`. When no match is found, the handler receives an
+     * empty map.
+     *
+     * Call this from a visible Activity after SDK initialization, typically once on first launch.
+     *
+     * @param activity A started Activity used to host the temporary WebView.
+     */
+    fun requestDeferredDeeplinkAttribution(activity: Activity) {
+        ApphudInternal.requestDeferredDeeplinkAttribution(activity)
     }
 
     //endregion

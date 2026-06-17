@@ -4,16 +4,23 @@ import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
 import android.graphics.Typeface
+import android.net.Uri
 import android.os.Bundle
 import android.util.Log
 import android.view.LayoutInflater
+import android.view.Menu
+import android.view.MenuInflater
+import android.view.MenuItem
 import android.view.View
 import android.view.ViewGroup
 import android.widget.LinearLayout
 import android.widget.TextView
 import android.widget.Toast
+import androidx.appcompat.app.AlertDialog
 import androidx.core.content.ContextCompat
+import androidx.core.view.MenuProvider
 import androidx.fragment.app.Fragment
+import androidx.lifecycle.Lifecycle
 import androidx.navigation.fragment.findNavController
 import com.android.billingclient.api.ProductDetails
 import com.android.billingclient.api.Purchase
@@ -23,6 +30,7 @@ import com.apphud.demo.databinding.CustomerUserInfoSectionBinding
 import com.apphud.demo.databinding.FragmentCustomerBinding
 import com.apphud.demo.databinding.ViewCustomerInfoRowBinding
 import com.apphud.sdk.Apphud
+import com.apphud.sdk.ApphudDeeplinkAttributionKind
 import com.apphud.sdk.ApphudListener
 import com.apphud.sdk.domain.ApphudNonRenewingPurchase
 import com.apphud.sdk.domain.ApphudPlacement
@@ -48,10 +56,60 @@ class CustomerFragment : Fragment() {
             binding.swipeRefresh.isRefreshing = false
         }
 
+        Apphud.setDeeplinkHandler { attribution, kind, uri ->
+            showDeeplinkDialog(attribution, kind, uri)
+        }
+
         Apphud.setListener(createListener())
         binding.root.post { refreshUi() }
 
         return binding.root
+    }
+
+    override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
+        super.onViewCreated(view, savedInstanceState)
+        requireActivity().addMenuProvider(
+            object : MenuProvider {
+                override fun onCreateMenu(menu: Menu, menuInflater: MenuInflater) {
+                    menuInflater.inflate(R.menu.menu_customer, menu)
+                }
+
+                override fun onMenuItemSelected(menuItem: MenuItem): Boolean {
+                    if (menuItem.itemId != R.id.action_request_deeplink) return false
+                    Apphud.requestDeferredDeeplinkAttribution(requireActivity())
+                    return true
+                }
+            },
+            viewLifecycleOwner,
+            Lifecycle.State.RESUMED,
+        )
+    }
+
+    private fun showDeeplinkDialog(
+        attribution: Map<String, Any>,
+        kind: ApphudDeeplinkAttributionKind,
+        uri: Uri?,
+    ) {
+        if (!isAdded) return
+
+        val message = buildString {
+            appendLine("Kind: $kind")
+            appendLine("URI: ${uri ?: "—"}")
+            appendLine()
+            if (attribution.isEmpty()) {
+                append("No attribution data")
+            } else {
+                attribution.entries.forEach { (key, value) ->
+                    appendLine("$key: $value")
+                }
+            }
+        }.trim()
+
+        AlertDialog.Builder(requireContext())
+            .setTitle(R.string.deeplink_attribution_title)
+            .setMessage(message)
+            .setPositiveButton(android.R.string.ok, null)
+            .show()
     }
 
     private fun createListener(): ApphudListener =
@@ -221,6 +279,7 @@ class CustomerFragment : Fragment() {
 
     override fun onDestroyView() {
         super.onDestroyView()
+        Apphud.setDeeplinkHandler(null)
         _binding = null
     }
 }
