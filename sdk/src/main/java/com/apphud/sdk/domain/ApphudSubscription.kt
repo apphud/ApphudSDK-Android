@@ -1,5 +1,6 @@
 package com.apphud.sdk.domain
 
+import com.google.gson.annotations.SerializedName
 
 data class ApphudSubscription(
     /**
@@ -35,7 +36,8 @@ data class ApphudSubscription(
     /**
      * Purchase Token
      */
-    val purchaseToken: String,
+    @SerializedName("purchaseToken")
+    private val _purchaseToken: String? = null,
 
     /**
      Whether or not subscription is in billing issue state.
@@ -59,7 +61,8 @@ data class ApphudSubscription(
      * Platform, where subscription was purchased on.
      * Available values: ios, android, web.
      */
-    val platform: String,
+    @SerializedName("platform")
+    private val _platform: String? = null,
 
     /**
      For internal use
@@ -68,6 +71,21 @@ data class ApphudSubscription(
     val kind: ApphudKind,
     val isTemporary: Boolean = false,
 ) {
+    /**
+     * Platform, where subscription was purchased on.
+     * Available values: ios, android, web.
+     *
+     * Falls back to `android` for legacy cached data saved before this field existed.
+     */
+    val platform: String get() = _platform ?: "android"
+
+    /**
+     * Purchase Token.
+     *
+     * Falls back to an empty string for legacy cached data saved before this field existed.
+     */
+    val purchaseToken: String get() = _purchaseToken ?: ""
+
     companion object {
         fun createTemporary(productId: String): ApphudSubscription {
             val time = System.currentTimeMillis()
@@ -77,14 +95,14 @@ data class ApphudSubscription(
                 startedAt = time,
                 expiresAt = time + 3_600_000L,
                 cancelledAt = null,
-                purchaseToken = "",
+                _purchaseToken = "",
                 isInRetryBilling = false,
                 isAutoRenewEnabled = false,
                 isIntroductoryActivated = false,
                 kind = ApphudKind.AUTORENEWABLE,
                 groupId = "",
                 basePlanId = "",
-                platform = "android",
+                _platform = "android",
                 isTemporary = true,
             )
         }

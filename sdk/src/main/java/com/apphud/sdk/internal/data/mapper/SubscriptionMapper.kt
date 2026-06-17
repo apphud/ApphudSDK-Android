@@ -28,12 +28,12 @@ internal class SubscriptionMapper {
                     expiresAt = expires,
                     startedAt = buildDate(dto.startedAt) ?: Date().time,
                     cancelledAt = buildDate(dto.cancelledAt),
-                    purchaseToken = dto.originalTransactionId,
+                    _purchaseToken = dto.originalTransactionId,
                     isInRetryBilling = dto.inRetryBilling,
                     isIntroductoryActivated = dto.introductoryActivated,
                     isAutoRenewEnabled = dto.autorenewEnabled,
                     groupId = "",
-                    platform = dto.platform,
+                    _platform = dto.platform,
                     basePlanId = dto.basePlanId
                 )
         }
@@ -46,9 +46,9 @@ internal class SubscriptionMapper {
                     productId = dto.productId,
                     purchasedAt = purchase,
                     canceledAt = buildDate(dto.cancelledAt),
-                    purchaseToken = dto.originalTransactionId,
+                    _purchaseToken = dto.originalTransactionId,
                     isConsumable = dto.isConsumable ?: false,
-                    platform = dto.platform
+                    _platform = dto.platform
                 )
         }
     }

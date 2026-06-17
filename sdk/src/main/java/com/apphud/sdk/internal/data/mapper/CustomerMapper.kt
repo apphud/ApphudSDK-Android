@@ -44,7 +44,7 @@ internal class CustomerMapper(
             },
             isTemporary = false,
             totalDevicesCount = customer.totalDevicesCount ?: 0,
-            internalId = customer.internalId.orEmpty(),
+            internalId = customer.internalId,
             experimentName = experimentName,
             variationName = variationName,
             targetingName = targetingName,

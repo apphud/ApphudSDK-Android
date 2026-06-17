@@ -1,6 +1,7 @@
 package com.apphud.sdk.domain
 
 import com.apphud.sdk.ProductId
+import com.google.gson.annotations.SerializedName
 
 data class ApphudNonRenewingPurchase(
     /**
@@ -18,7 +19,8 @@ data class ApphudNonRenewingPurchase(
     /**
      * Purchase Token
      */
-    val purchaseToken: String,
+    @SerializedName("purchaseToken")
+    private val _purchaseToken: String? = null,
     /**
      For internal usage
      */
@@ -32,8 +34,24 @@ data class ApphudNonRenewingPurchase(
      * Platform, where subscription was purchased on.
      * Available values: ios, android, web.
      */
-    val platform: String
+    @SerializedName("platform")
+    private val _platform: String? = null
 ) {
+    /**
+     * Platform, where subscription was purchased on.
+     * Available values: ios, android, web.
+     *
+     * Falls back to `android` for legacy cached data saved before this field existed.
+     */
+    val platform: String get() = _platform ?: "android"
+
+    /**
+     * Purchase Token.
+     *
+     * Falls back to an empty string for legacy cached data saved before this field existed.
+     */
+    val purchaseToken: String get() = _purchaseToken ?: ""
+
     companion object {
         fun createTemporary(productId: String): ApphudNonRenewingPurchase {
             val time = System.currentTimeMillis()
@@ -42,8 +60,8 @@ data class ApphudNonRenewingPurchase(
                 purchasedAt = time,
                 canceledAt = time + 3_600_000L,
                 isTemporary = true,
-                purchaseToken = "",
-                platform = "android"
+                _purchaseToken = "",
+                _platform = "android"
             )
         }
     }

@@ -88,12 +88,12 @@ class ApphudHasPremiumAccessTest {
             expiresAt = System.currentTimeMillis() + 86400000,
             startedAt = System.currentTimeMillis() - 86400000,
             cancelledAt = null,
-            purchaseToken = "test-token",
+            _purchaseToken = "test-token",
             isInRetryBilling = false,
             isAutoRenewEnabled = true,
             isIntroductoryActivated = false,
             basePlanId = null,
-            platform = "android",
+            _platform = "android",
             groupId = "group_1",
             kind = ApphudKind.AUTORENEWABLE
         )
@@ -104,9 +104,9 @@ class ApphudHasPremiumAccessTest {
             productId = "lifetime_access",
             purchasedAt = System.currentTimeMillis() - 86400000,
             canceledAt = null,
-            purchaseToken = "test-token",
+            _purchaseToken = "test-token",
             isConsumable = false,
-            platform = "android"
+            _platform = "android"
         )
     }
 

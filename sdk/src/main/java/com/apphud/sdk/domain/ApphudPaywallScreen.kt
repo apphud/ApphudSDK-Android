@@ -1,5 +1,7 @@
 package com.apphud.sdk.domain
 
+import com.google.gson.annotations.SerializedName
+
 /**
  * Paywall screen configuration. Contains a Web-URL used to display the paywall
  * and a set of localized URLs.
@@ -13,5 +15,13 @@ data class ApphudPaywallScreen(
     /**
      * Dictionary of localized URLs where key is a locale code ("en", "fr", etc.).
      */
-    val urls: Map<String, String>,
-)
+    @SerializedName("urls")
+    private val _urls: Map<String, String>? = null,
+) {
+    /**
+     * Dictionary of localized URLs where key is a locale code ("en", "fr", etc.).
+     *
+     * Falls back to an empty map for legacy cached data saved before this field existed.
+     */
+    val urls: Map<String, String> get() = _urls ?: emptyMap()
+}

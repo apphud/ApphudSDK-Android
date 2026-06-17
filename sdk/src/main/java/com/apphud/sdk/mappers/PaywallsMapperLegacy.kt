@@ -41,7 +41,7 @@ internal class PaywallsMapperLegacy(
                 ApphudPaywallScreen(
                     id = it.id,
                     defaultUrl = it.defaultURL,
-                    urls = it.urls
+                    _urls = it.urls
                 )
             },
             experimentName = paywallDto.experimentName,

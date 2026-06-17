@@ -44,7 +44,7 @@ data class ApphudUser(
     /**
      * Internal database id of the user. Should not be used in analytics.
      */
-    val internalId: String = "",
+    val internalId: String? = null,
 
     /**
      * Name of the active A/B test experiment assigned to this user.
