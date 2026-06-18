@@ -47,9 +47,9 @@ object Apphud {
         apiKey: ApiKey,
         observerMode: Boolean = false,
         ruleCallback: ApphudRuleCallback = object : ApphudRuleCallback {},
-        callback: ((ApphudUser) -> Unit)? = null,
         deeplinkHandler: ApphudDeeplinkHandler? = null,
-    ) = start(context, apiKey, null, null, observerMode, ruleCallback, callback, deeplinkHandler)
+        callback: ((ApphudUser) -> Unit)? = null,
+    ) = start(context, apiKey, null, null, observerMode, ruleCallback, deeplinkHandler, callback)
 
     /**
      * Initializes Apphud SDK. You should call it during app launch.
@@ -72,9 +72,9 @@ object Apphud {
         userId: UserId? = null,
         observerMode: Boolean = false,
         ruleCallback: ApphudRuleCallback = object : ApphudRuleCallback {},
-        callback: ((ApphudUser) -> Unit)? = null,
         deeplinkHandler: ApphudDeeplinkHandler? = null,
-    ) = start(context, apiKey, userId, null, observerMode, ruleCallback, callback, deeplinkHandler)
+        callback: ((ApphudUser) -> Unit)? = null,
+    ) = start(context, apiKey, userId, null, observerMode, ruleCallback, deeplinkHandler, callback)
 
     /**
      * Initializes the Apphud SDK. This method should be called during the app launch.
@@ -103,8 +103,8 @@ object Apphud {
         deviceId: DeviceId? = null,
         observerMode: Boolean = false,
         ruleCallback: ApphudRuleCallback = object : ApphudRuleCallback {},
-        callback: ((ApphudUser) -> Unit)? = null,
         deeplinkHandler: ApphudDeeplinkHandler? = null,
+        callback: ((ApphudUser) -> Unit)? = null,
     ) {
         ApphudUtils.setPackageName(context.packageName)
         ApphudInternal.initialize(context, apiKey, userId, deviceId, observerMode, callback, ruleCallback, deeplinkHandler)

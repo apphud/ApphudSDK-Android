@@ -34,5 +34,7 @@ internal data class SubscriptionDto(
     @SerializedName("base_plan_id")
     val basePlanId: String?,
     @SerializedName("platform")
-    val platform: String
+    val platform: String,
+    @SerializedName("obfuscated_device_id")
+    val obfuscatedDeviceId: String? = null,
 )

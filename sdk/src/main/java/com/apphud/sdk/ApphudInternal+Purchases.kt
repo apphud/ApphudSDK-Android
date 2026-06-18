@@ -134,6 +134,41 @@ private suspend fun ApphudInternal.fetchDetailsAndPurchase(
 }
 
 var purchaseStartedAt: Long = 0
+
+private fun ApphudInternal.resolveObfuscatedAccountId(oldToken: String?): String? {
+    return if (oldToken != null) {
+        userRepository.getCurrentUser()
+            ?.subscriptions
+            ?.firstOrNull { it.purchaseToken == oldToken }
+            ?.obfuscatedDeviceId
+    } else {
+        userRepository.getDeviceId()
+    }
+}
+
+private fun ApphudInternal.logSubscriptionUpgrade(
+    oldToken: String,
+    apphudProduct: ApphudProduct,
+    productDetails: ProductDetails,
+    offerToken: String?,
+    obfuscatedAccountId: String?,
+) {
+    val previousSubscription = userRepository.getCurrentUser()
+        ?.subscriptions
+        ?.firstOrNull { it.purchaseToken == oldToken }
+    val toBasePlanId = apphudProduct.basePlanId
+        ?: offerToken?.let { token ->
+            productDetails.subscriptionOfferDetails
+                ?.firstOrNull { it.offerToken == token }
+                ?.basePlanId
+        }
+    ApphudLog.log(
+        "Subscription upgrade from ${previousSubscription?.productId ?: "unknown"} : ${previousSubscription?.basePlanId ?: "unknown"} " +
+            "to ${apphudProduct.productId} : ${toBasePlanId ?: "unknown"}, " +
+            "set obfuscated account id to ${obfuscatedAccountId ?: "null"}",
+    )
+}
+
 private fun ApphudInternal.purchaseInternal(
     activity: Activity,
     apphudProduct: ApphudProduct,
@@ -276,7 +311,18 @@ private fun ApphudInternal.purchaseInternal(
                     billing.purchasesCallback = null
                 }
             }
-            val error = billing.purchase(activity, it, token, oldToken, replacementMode, userRepository.getDeviceId())
+            val obfuscatedAccountId = resolveObfuscatedAccountId(oldToken)
+            if (oldToken != null) {
+                logSubscriptionUpgrade(oldToken, apphudProduct, it, token, obfuscatedAccountId)
+            }
+            val error = billing.purchase(
+                activity,
+                it,
+                token,
+                oldToken,
+                replacementMode,
+                obfuscatedAccountId,
+            )
             if (error != null) {
                 billing.purchasesCallback = null
                 purchasingProduct = null

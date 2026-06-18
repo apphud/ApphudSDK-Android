@@ -36,9 +36,14 @@ internal class ApphudApplication : Application() {
         if (BuildConfig.APPHUD_BASE_URL.isNotEmpty()) {
             ApphudUtils.overrideBaseUrl(BuildConfig.APPHUD_BASE_URL)
         }
-        Apphud.start(this, BuildConfig.APPHUD_API_KEY, observerMode = false) { attribution, kind, uri ->
-            Log.d("ApphudLogsDemo", "deeplinkHandler: kind=$kind, uri=$uri, attribution=$attribution")
-        }
+        Apphud.start(
+            this,
+            BuildConfig.APPHUD_API_KEY,
+            observerMode = false,
+            deeplinkHandler = { attribution, kind, uri ->
+                Log.d("ApphudLogsDemo", "deeplinkHandler: kind=$kind, uri=$uri, attribution=$attribution")
+            },
+        )
         Apphud.collectDeviceIdentifiers()
         fetchPlacements()
     }
