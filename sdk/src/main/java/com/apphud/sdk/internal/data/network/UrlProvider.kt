@@ -1,11 +1,15 @@
 package com.apphud.sdk.internal.data.network
 
-import com.apphud.sdk.ApphudUtils
+import com.apphud.sdk.ApphudLog
+import com.apphud.sdk.internal.data.dto.MetaDto
+import com.apphud.sdk.storage.Storage
 import okhttp3.HttpUrl
 import okhttp3.HttpUrl.Companion.toHttpUrl
 import java.util.concurrent.atomic.AtomicReference
 
-internal class UrlProvider {
+internal class UrlProvider(
+    private val storage: Storage,
+) {
 
     private val baseUrl = AtomicReference("https://gateway.apphud.com")
 
@@ -34,6 +38,16 @@ internal class UrlProvider {
             .removePrefix("gateway.")
             .removePrefix("api.")
 
+    val connectDomainUrl: String
+        get() = storage.connectDomainUrl ?: DEFAULT_CONNECT_DOMAIN_URL
+
+    fun updateConnectDomainUrl(meta: MetaDto?) {
+        val connectUrl = meta?.connectUrl
+        if (connectUrl.isNullOrEmpty()) return
+        storage.connectDomainUrl = connectUrl
+        ApphudLog.log("Updated Connect URL to : $connectUrl")
+    }
+
     val promotionsUrl: HttpUrl
         get() = "${baseUrl.get()}/v1/promotions".toHttpUrl()
 
@@ -54,5 +68,9 @@ internal class UrlProvider {
 
     fun updateBaseUrl(newUrl: String) {
         baseUrl.set(newUrl)
+    }
+
+    private companion object {
+        private const val DEFAULT_CONNECT_DOMAIN_URL = "https://connect.aphd.cc"
     }
 }

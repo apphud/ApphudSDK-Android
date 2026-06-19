@@ -38,7 +38,7 @@ internal class AppScopeComponent(val applicationContext: Context) {
     val deviceIdentifiersRepository: DeviceIdentifiersRepository =
         DeviceIdentifiersRepository(deviceIdentifiersDataSource)
 
-    val urlProvider = UrlProvider()
+    val urlProvider = UrlProvider(storage)
 
     val hostSwitcherInterceptor = HostSwitcherInterceptor(OkHttpClient(), urlProvider)
     val hostSwitcherInterceptorWithoutHeaders = HostSwitcherInterceptor(OkHttpClient(), urlProvider)

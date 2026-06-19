@@ -1,0 +1,16 @@
+---
+description: Verify SDK changes are safe when users upgrade from older SDK versions
+globs: sdk/**/*
+alwaysApply: false
+---
+
+# SDK upgrade safety
+
+Users upgrade the SDK without clearing app data. Before finishing changes to persistence, Storage, SharedPreferences, Gson models, or DTOs:
+
+1. **Persisted models** — new fields must be nullable or have defaults; never add non-nullable fields to cached Gson types (`ApphudUser`, etc.).
+2. **New prefs** — missing keys after upgrade must read as `null` and fall back safely.
+3. **Network DTOs** — optional nullable fields; verify JSON **without** new fields still parses.
+4. **Breaking cache shapes** — use `cacheVersion` migration in `SharedPreferencesStorage`, not silent breakage.
+
+Read `agentdocs/sdkUpgrade.md` for checklist and examples. Add tests for legacy JSON / missing keys when non-trivial.

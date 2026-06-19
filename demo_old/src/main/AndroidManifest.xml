@@ -27,7 +27,7 @@
                 <category android:name="android.intent.category.BROWSABLE" />
 
                 <data
-                    android:host="ddd.aphd.cc"
+                    android:host="apphudtestapp.aphd.cc"
                     android:scheme="apphudtestapp" />
             </intent-filter>
         </activity>

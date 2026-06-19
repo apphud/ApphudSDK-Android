@@ -334,3 +334,9 @@ private fun registration(callback: (ApphudUser?, ApphudError?) -> Unit) {
 
 Detailed guides are located in `agentdocs/`:
 - [Testing Guide](agentdocs/unitTest.md) — how to write unit tests
+- [SDK Upgrade Safety](agentdocs/sdkUpgrade.md) — avoid crashes when users upgrade from older SDK versions
+
+When changing persisted models, Storage, or Gson DTOs, always verify upgrade safety (see guide above).
+- [SDK Upgrade Safety](agentdocs/sdkUpgrade.md) — avoid crashes when users upgrade from older SDK versions
+
+When changing persisted models, Storage, or Gson DTOs, always verify upgrade safety (see guide above).

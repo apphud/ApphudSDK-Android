@@ -170,9 +170,14 @@ internal fun ApphudInternal.requestDeferredDeeplinkAttribution(activity: Activit
 
     coroutineScope.launch(dispatchers.main) {
         val deviceId = userRepository.getDeviceId().orEmpty()
-        val connectHost = ServiceLocator.instance.urlProvider.connectHost
-
-        ApphudWebController().present(activity, apiKey, deviceId, connectHost) { visitorId ->
+        val urlProvider = ServiceLocator.instance.urlProvider
+        ApphudWebController().present(
+            activity,
+            apiKey,
+            deviceId,
+            urlProvider.connectDomainUrl,
+            urlProvider.connectHost,
+        ) { visitorId ->
             coroutineScope.launch {
                 val attribution = startDeeplinkAttributionRequest(url = null, visitorId = visitorId)
                 notifyDeeplinkAttribution(attribution, ApphudDeeplinkAttributionKind.DEFERRED, null)

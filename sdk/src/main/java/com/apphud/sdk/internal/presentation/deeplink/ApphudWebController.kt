@@ -38,6 +38,7 @@ internal class ApphudWebController {
         activity: Activity,
         apiKey: String,
         deviceId: String,
+        connectDomainUrl: String,
         connectHost: String,
         callback: (String?) -> Unit,
     ) {
@@ -56,7 +57,7 @@ internal class ApphudWebController {
             return
         }
 
-        val url = Uri.parse("https://connect.aphd.cc")
+        val url = Uri.parse(connectDomainUrl)
             .buildUpon()
             .appendQueryParameter("api_key", apiKey)
             .appendQueryParameter("device_id", deviceId)

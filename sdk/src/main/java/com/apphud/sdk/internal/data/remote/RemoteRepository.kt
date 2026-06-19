@@ -68,6 +68,7 @@ internal class RemoteRepository(
                 throw ApphudError.from(message, originalCause = e)
             }
             .mapCatchingCancellable { response ->
+                urlProvider.updateConnectDomainUrl(response.data.meta)
                 response.data.results?.let { customerDto ->
                     customerMapper.map(customerDto, previousUser)
                 } ?: throw ApphudError("Registration failed")
@@ -84,6 +85,7 @@ internal class RemoteRepository(
                 throw ApphudError(message, originalCause = e)
             }
             .mapCatching { response ->
+                urlProvider.updateConnectDomainUrl(response.data.meta)
                 response.data.results?.let { customerDto ->
                     customerMapper.map(customerDto, previousUser)
                 } ?: throw ApphudError("Purchase failed")
@@ -107,6 +109,7 @@ internal class RemoteRepository(
                 throw ApphudError(message, originalCause = e)
             }
             .mapCatching { response ->
+                urlProvider.updateConnectDomainUrl(response.data.meta)
                 response.data.results?.let { customerDto ->
                     customerMapper.map(customerDto, previousUser)
                 } ?: throw ApphudError("Restore purchase failed")
@@ -190,6 +193,7 @@ internal class RemoteRepository(
                 throw ApphudError(message, originalCause = e)
             }
             .mapCatching { response ->
+                urlProvider.updateConnectDomainUrl(response.data.meta)
                 response.data.results?.let { customerDto ->
                     customerMapper.map(customerDto, previousUser)
                 } ?: throw ApphudError("Promotional grant failed")
