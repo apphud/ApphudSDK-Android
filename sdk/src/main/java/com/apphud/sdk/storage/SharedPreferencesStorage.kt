@@ -285,6 +285,18 @@ internal class SharedPreferencesStorage(
             }
         }
 
+    override var connectDomainUrl: String?
+        get() = preferences.getString(CONNECT_DOMAIN_URL_KEY, null)
+        set(value) {
+            preferences.edit {
+                if (value == null) {
+                    remove(CONNECT_DOMAIN_URL_KEY)
+                } else {
+                    putString(CONNECT_DOMAIN_URL_KEY, value)
+                }
+            }
+        }
+
     fun cacheExpired(): Boolean {
         val expirationTime = lastRegistration + (cacheTimeout * 1000)
         val currentTime = System.currentTimeMillis()
@@ -425,5 +437,6 @@ internal class SharedPreferencesStorage(
         private const val SYNCED_DEVICE_IDENTIFIERS_USER_ID_KEY = "SYNCED_DEVICE_IDENTIFIERS_USER_ID_KEY"
         private const val SYNCED_DEVICE_IDENTIFIERS_KEY = "SYNCED_DEVICE_IDENTIFIERS_KEY"
         private const val CURRENT_CACHE_VERSION = "3"
+        private const val CONNECT_DOMAIN_URL_KEY = "ApphudConnectDomainUrl"
     }
 }

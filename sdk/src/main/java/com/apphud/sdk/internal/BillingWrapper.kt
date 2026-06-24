@@ -162,7 +162,7 @@ internal class BillingWrapper(context: Context) : Closeable {
         offerToken: String?,
         oldToken: String?,
         replacementMode: Int?,
-        deviceId: String? = null,
+        obfuscatedAccountId: String? = null,
     ): ApphudError? {
         val connectIfNeeded = connectIfNeeded()
         if (!connectIfNeeded) {
@@ -170,15 +170,7 @@ internal class BillingWrapper(context: Context) : Closeable {
             ApphudLog.logE("Google Billing connection problem: ${error.message}")
             return error
         }
-        obfuscatedAccountId =
-            deviceId?.let {
-                val regex = Regex("[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}")
-                if (regex.matches(input = it)) {
-                    it
-                } else {
-                    null
-                }
-            }
+        this.obfuscatedAccountId = normalizeObfuscatedAccountId(obfuscatedAccountId)
 
         try {
             val params: BillingFlowParams =
@@ -258,6 +250,12 @@ internal class BillingWrapper(context: Context) : Closeable {
                 },
             )
         }
+    }
+
+    private fun normalizeObfuscatedAccountId(value: String?): String? {
+        value ?: return null
+        val regex = Regex("[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}")
+        return if (regex.matches(value)) value else null
     }
 
     private fun upDowngradeBillingFlowParamsBuilder(

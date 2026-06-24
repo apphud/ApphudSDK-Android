@@ -64,6 +64,9 @@ data class ApphudSubscription(
     @SerializedName("platform")
     private val _platform: String? = null,
 
+    @SerializedName("obfuscatedDeviceId")
+    private val _obfuscatedDeviceId: String? = null,
+
     /**
      For internal use
      */
@@ -85,6 +88,13 @@ data class ApphudSubscription(
      * Falls back to an empty string for legacy cached data saved before this field existed.
      */
     val purchaseToken: String get() = _purchaseToken ?: ""
+
+    /**
+     * Obfuscated account identifier used when this subscription was originally purchased.
+     *
+     * Falls back to `null` for legacy cached data saved before this field existed.
+     */
+    internal val obfuscatedDeviceId: String? get() = _obfuscatedDeviceId
 
     companion object {
         fun createTemporary(productId: String): ApphudSubscription {

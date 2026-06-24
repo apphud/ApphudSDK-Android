@@ -68,6 +68,7 @@ internal class RemoteRepository(
                 throw ApphudError.from(message, originalCause = e)
             }
             .mapCatchingCancellable { response ->
+                urlProvider.updateConnectDomainUrl(response.data.meta)
                 response.data.results?.let { customerDto ->
                     customerMapper.map(customerDto, previousUser)
                 } ?: throw ApphudError("Registration failed")
@@ -84,6 +85,7 @@ internal class RemoteRepository(
                 throw ApphudError(message, originalCause = e)
             }
             .mapCatching { response ->
+                urlProvider.updateConnectDomainUrl(response.data.meta)
                 response.data.results?.let { customerDto ->
                     customerMapper.map(customerDto, previousUser)
                 } ?: throw ApphudError("Purchase failed")
@@ -107,6 +109,7 @@ internal class RemoteRepository(
                 throw ApphudError(message, originalCause = e)
             }
             .mapCatching { response ->
+                urlProvider.updateConnectDomainUrl(response.data.meta)
                 response.data.results?.let { customerDto ->
                     customerMapper.map(customerDto, previousUser)
                 } ?: throw ApphudError("Restore purchase failed")
@@ -152,11 +155,18 @@ internal class RemoteRepository(
     suspend fun deeplinkAttribution(
         deviceId: String,
         bundleId: String,
+        url: String? = null,
+        visitorId: String? = null,
     ): Result<Map<String, Any>?> =
         runCatchingCancellable {
             val request = buildPostRequest(
                 urlProvider.deeplinkAttributionUrl,
-                DeeplinkAttributionRequestDto(deviceId = deviceId, bundleId = bundleId),
+                DeeplinkAttributionRequestDto(
+                    deviceId = deviceId,
+                    bundleId = bundleId,
+                    url = url,
+                    visitorId = visitorId,
+                ),
             )
             executeForRawMap(okHttpClient, gson, request, dispatchers.io)
         }
@@ -183,6 +193,7 @@ internal class RemoteRepository(
                 throw ApphudError(message, originalCause = e)
             }
             .mapCatching { response ->
+                urlProvider.updateConnectDomainUrl(response.data.meta)
                 response.data.results?.let { customerDto ->
                     customerMapper.map(customerDto, previousUser)
                 } ?: throw ApphudError("Promotional grant failed")

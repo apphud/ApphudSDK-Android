@@ -1,5 +1,6 @@
 package com.apphud.demo
 
+import android.content.Intent
 import android.os.Bundle
 import android.util.Log
 import android.widget.Toast
@@ -55,6 +56,14 @@ class MainActivity : AppCompatActivity() {
             drawerLayout.closeDrawer(GravityCompat.START)
             true
         }
+
+        Apphud.handleIntent(intent)
+    }
+
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        setIntent(intent)
+        Apphud.handleIntent(intent)
     }
 
     override fun onSupportNavigateUp(): Boolean {

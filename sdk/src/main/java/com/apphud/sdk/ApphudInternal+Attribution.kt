@@ -10,11 +10,15 @@ import com.apphud.sdk.ApphudAttributionProvider.SINGULAR
 import com.apphud.sdk.ApphudAttributionProvider.TENJIN
 import com.apphud.sdk.ApphudAttributionProvider.TIKTOK
 import com.apphud.sdk.ApphudAttributionProvider.VOLUUM
+import android.app.Activity
+import android.net.Uri
 import com.apphud.sdk.domain.AdjustInfo
 import com.apphud.sdk.domain.ApphudUser
 import com.apphud.sdk.domain.AppsflyerInfo
 import com.apphud.sdk.domain.FacebookInfo
+import com.apphud.sdk.internal.ServiceLocator
 import com.apphud.sdk.internal.data.dto.AttributionRequestDto
+import com.apphud.sdk.internal.presentation.deeplink.ApphudWebController
 import com.apphud.sdk.internal.util.runCatchingCancellable
 import com.apphud.sdk.managers.RequestManager
 import kotlinx.coroutines.launch
@@ -150,12 +154,49 @@ internal fun ApphudInternal.setAttribution(
     }
 }
 
-internal suspend fun ApphudInternal.tryDeeplinkAttribution(): Map<String, Any>? {
+internal fun ApphudInternal.handleOpenUri(uri: Uri) {
+    coroutineScope.launch {
+        val attribution = startDeeplinkAttributionRequest(url = uri.toString(), visitorId = null)
+        notifyDeeplinkAttribution(attribution, ApphudDeeplinkAttributionKind.DIRECT, uri)
+    }
+}
+
+internal fun ApphudInternal.requestDeferredDeeplinkAttribution(activity: Activity) {
+    val apiKey = currentApiKey
+    if (apiKey == null) {
+        ApphudLog.logE("requestDeferredDeeplinkAttribution called before Apphud.start")
+        return
+    }
+
+    coroutineScope.launch(dispatchers.main) {
+        val deviceId = userRepository.getDeviceId().orEmpty()
+        val urlProvider = ServiceLocator.instance.urlProvider
+        ApphudWebController().present(
+            activity,
+            apiKey,
+            deviceId,
+            urlProvider.connectDomainUrl,
+            urlProvider.connectHost,
+        ) { visitorId ->
+            coroutineScope.launch {
+                val attribution = startDeeplinkAttributionRequest(url = null, visitorId = visitorId)
+                notifyDeeplinkAttribution(attribution, ApphudDeeplinkAttributionKind.DEFERRED, null)
+            }
+        }
+    }
+}
+
+private suspend fun ApphudInternal.startDeeplinkAttributionRequest(
+    url: String?,
+    visitorId: String?,
+): Map<String, Any> {
     return runCatchingCancellable {
-        RequestManager.deeplinkAttribution()
-    }.onFailure { error ->
+        awaitUserRegistration()
+        RequestManager.deeplinkAttribution(url = url, visitorId = visitorId)
+    }.getOrElse { error ->
         ApphudLog.logE("Error in deeplink attribution: ${error.message}")
-    }.getOrNull()
+        null
+    } ?: emptyMap()
 }
 
 internal suspend fun ApphudInternal.tryWebAttribution(

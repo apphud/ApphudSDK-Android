@@ -24,6 +24,8 @@
     <string name="segment_placements">Placements</string>
     <string name="segment_paywalls">Paywalls</string>
     <string name="placements_section_title">Placements</string>
+    <string name="request_deeplink_attribution">Request Deeplink Attribution</string>
+    <string name="deeplink_attribution_title">Deeplink Attribution</string>
     <string name="customer_list_empty">No items yet. Pull to refresh or wait for placements to load.</string>
     <string name="is_default">Is default: </string>
     <string name="experiment">Experiment: </string>

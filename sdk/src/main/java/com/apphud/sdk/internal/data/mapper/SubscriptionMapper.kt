@@ -34,7 +34,8 @@ internal class SubscriptionMapper {
                     isAutoRenewEnabled = dto.autorenewEnabled,
                     groupId = "",
                     _platform = dto.platform,
-                    basePlanId = dto.basePlanId
+                    basePlanId = dto.basePlanId,
+                    _obfuscatedDeviceId = dto.obfuscatedDeviceId,
                 )
         }
 

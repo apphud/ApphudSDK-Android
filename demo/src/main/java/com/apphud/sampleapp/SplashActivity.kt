@@ -13,6 +13,7 @@ import com.apphud.sampleapp.ui.paywall.PaywallActivity
 import com.apphud.sampleapp.ui.utils.Placement
 import com.apphud.sampleapp.ui.utils.PreferencesManager
 import com.apphud.sampleapp.ui.utils.ApphudSdkManager
+import com.apphud.sdk.Apphud
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.MainScope
@@ -33,6 +34,12 @@ class SplashActivity : BaseActivity() {
         }
 
         setContentView(R.layout.activity_splash)
+
+        Apphud.handleIntent(intent)
+        if (PreferencesManager.firstStart) {
+            Apphud.requestDeferredDeeplinkAttribution(this)
+        }
+
         CoroutineScope(Dispatchers.IO).launch {
             delay(1000L)
             MainScope().launch {
@@ -52,5 +59,11 @@ class SplashActivity : BaseActivity() {
                 finish()
             }
         }
+    }
+
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        setIntent(intent)
+        Apphud.handleIntent(intent)
     }
 }

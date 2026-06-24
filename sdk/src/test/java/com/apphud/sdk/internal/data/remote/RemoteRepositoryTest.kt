@@ -9,7 +9,9 @@ import com.apphud.sdk.internal.data.dto.ResponseDto
 import com.apphud.sdk.internal.data.mapper.CustomerMapper
 import com.apphud.sdk.internal.data.network.UrlProvider
 import com.google.gson.Gson
+import io.mockk.Runs
 import io.mockk.every
+import io.mockk.just
 import io.mockk.mockk
 import kotlinx.coroutines.test.runTest
 import okhttp3.Call
@@ -46,6 +48,7 @@ class RemoteRepositoryTest {
 
     private val urlProvider: UrlProvider = mockk {
         every { customersUrl } returns "https://api.apphud.com/v1/customers".toHttpUrl()
+        every { updateConnectDomainUrl(any()) } just Runs
     }
 
     private val okHttpClient: OkHttpClient = mockk()
@@ -65,7 +68,7 @@ class RemoteRepositoryTest {
 
     private fun createSuccessResponse(): String {
         val response = ResponseDto(
-            data = DataDto(results = mockCustomerDto),
+            data = DataDto(results = mockCustomerDto, meta = null),
             errors = null
         )
         return gson.toJson(response)

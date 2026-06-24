@@ -166,7 +166,10 @@ internal object RequestManager {
         }
     }
 
-    internal suspend fun deeplinkAttribution(): Map<String, Any>? {
+    internal suspend fun deeplinkAttribution(
+        url: String? = null,
+        visitorId: String? = null,
+    ): Map<String, Any>? {
         if (!canPerformRequest()) {
             ApphudLog.logE(::deeplinkAttribution.name + MUST_REGISTER_ERROR)
             throw ApphudError("SDK not initialized")
@@ -179,6 +182,8 @@ internal object RequestManager {
         return repository.deeplinkAttribution(
             deviceId = deviceId,
             bundleId = applicationContext.packageName,
+            url = url,
+            visitorId = visitorId,
         ).getOrThrow()
     }
 

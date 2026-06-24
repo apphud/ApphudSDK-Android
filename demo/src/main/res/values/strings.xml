@@ -13,6 +13,7 @@
     <string name="continue_text">Continue</string>
     <string name="get_started">Get Started</string>
     <string name="generate_more">Generate more</string>
+    <string name="request_deeplink_attribution">Request Deeplink Attribution</string>
     <string name="you_have_text">You have {{count}} generations left</string>
     <string name="copy_color">Copy Color</string>
     <string name="your_color_is">Your color is: </string>
