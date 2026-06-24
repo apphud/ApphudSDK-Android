@@ -82,6 +82,10 @@ internal class ApphudWebController {
                 request: WebResourceRequest?,
                 error: WebResourceError?,
             ) {
+                if (!shouldFailOnReceivedError(request)) {
+                    ApphudLog.log("ApphudWebController ignored subresource error: ${error?.description}")
+                    return
+                }
                 ApphudLog.logE("ApphudWebController did fail: ${error?.description}")
                 complete(null)
             }
@@ -99,6 +103,10 @@ internal class ApphudWebController {
         val web = webView ?: return
         ApphudLog.log("ApphudWebController getConnectId called")
         web.evaluateJavascript(GET_CONNECT_ID_JS, null)
+    }
+
+    internal fun shouldFailOnReceivedError(request: WebResourceRequest?): Boolean {
+        return request?.isForMainFrame == true
     }
 
     private fun complete(visitorId: String?) {
