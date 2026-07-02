@@ -10,5 +10,6 @@ enum class ApphudAttributionProvider(val value: String) {
     SINGULAR("singular"),
     TENJIN("tenjin"),
     TIKTOK("tiktok"),
-    VOLUUM("voluum");
+    VOLUUM("voluum"),
+    GOOGLE("google");
 }

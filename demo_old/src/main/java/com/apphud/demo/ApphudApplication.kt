@@ -5,6 +5,8 @@ import android.content.Context
 import android.os.Build
 import android.util.Log
 import com.apphud.sdk.Apphud
+import com.apphud.sdk.ApphudAttributionData
+import com.apphud.sdk.ApphudAttributionProvider
 import com.apphud.sdk.ApphudUtils
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -44,6 +46,7 @@ internal class ApphudApplication : Application() {
                 Log.d("ApphudLogsDemo", "deeplinkHandler: kind=$kind, uri=$uri, attribution=$attribution")
             },
         )
+        Apphud.setAttribution(ApphudAttributionData(rawData = mapOf("odm_info" to "123445")), provider = ApphudAttributionProvider.GOOGLE)
         Apphud.collectDeviceIdentifiers()
         fetchPlacements()
     }
