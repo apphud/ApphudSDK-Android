@@ -64,7 +64,7 @@ internal class UrlProvider(
         get() = "${baseUrl.get()}/v2/paywall_configs/items/render_properties".toHttpUrl()
 
     fun paywallConfigUrl(identifier: String): HttpUrl =
-        "${baseUrl.get()}/v2/paywall_configs".toHttpUrl()
+        "${baseUrl.get()}/v3/paywall_configs".toHttpUrl()
             .newBuilder()
             .addPathSegment(identifier)
             .build()

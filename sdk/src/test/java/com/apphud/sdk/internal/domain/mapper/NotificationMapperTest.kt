@@ -27,6 +27,58 @@ class NotificationMapperTest {
         screenName = "screen-name",
     )
 
+    // region metadata sourced from properties (real API shape)
+
+    @Test
+    fun `GIVEN rule with only id and metadata in properties EXPECT screenId from properties`() {
+        val dto = notificationDto(
+            rule = RuleDto(id = "rule-id"),
+            properties = mapOf(
+                "rule_id" to "rule-id",
+                "screen_id" to "screen-from-props",
+                "rule_name" to "name-from-props",
+                "screen_name" to "screen-name-from-props",
+                "paywall_identifier" to "New_iOS_Paywall_3",
+            ),
+        )
+
+        val result = mapper.map(listOf(dto))
+
+        assertEquals("screen-from-props", result.single().rule?.screenId)
+    }
+
+    @Test
+    fun `GIVEN rule without screen_id anywhere EXPECT screenId is empty string`() {
+        val dto = notificationDto(rule = RuleDto(id = "rule-id"), properties = null)
+
+        val result = mapper.map(listOf(dto))
+
+        assertEquals("", result.single().rule?.screenId)
+    }
+
+    @Test
+    fun `GIVEN rule without id but rule_id in properties EXPECT rule id from properties`() {
+        val dto = notificationDto(
+            rule = RuleDto(id = null),
+            properties = mapOf("rule_id" to "rule-from-props"),
+        )
+
+        val result = mapper.map(listOf(dto))
+
+        assertEquals("rule-from-props", result.single().rule?.id)
+    }
+
+    @Test
+    fun `GIVEN rule with no id and no rule_id EXPECT rule is null`() {
+        val dto = notificationDto(rule = RuleDto(id = null), properties = null)
+
+        val result = mapper.map(listOf(dto))
+
+        assertNull(result.single().rule)
+    }
+
+    // endregion
+
     // region paywall_identifier
 
     @Test

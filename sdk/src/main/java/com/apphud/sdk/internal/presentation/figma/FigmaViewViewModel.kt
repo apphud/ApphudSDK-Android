@@ -57,15 +57,11 @@ internal class FigmaViewViewModel(
             }
             return
         }
+        // renderItemsJson may legitimately be null when a paywall has no product macros to
+        // render (e.g. a paywall with no products configured for this platform). In that case
+        // the screen is still shown; macro processing is simply skipped.
         if (renderItemsJson == null) {
-            ApphudLog.logE("[WebViewViewModel] renderItemsJson is null")
-            _state.value = WebViewState.Error
-            val error = ApphudError("renderItemsJson is null")
-            emitPaywallEvent(PaywallEvent.ScreenError(error))
-            viewModelScope.launch {
-                _events.send(WebViewEvent.CloseScreen)
-            }
-            return
+            ApphudLog.log("[WebViewViewModel] renderItemsJson is null, showing screen without product macros")
         }
 
         val currentState = _state.value
@@ -313,7 +309,7 @@ internal class FigmaViewViewModel(
         }
     }
 
-    private fun loadContent(paywall: ApphudPaywall, renderItemsJson: String) {
+    private fun loadContent(paywall: ApphudPaywall, renderItemsJson: String?) {
         ApphudLog.log("[WebViewViewModel] Loading content for paywall: ${paywall.name}")
 
         val url = getUrlForPaywall(paywall)
