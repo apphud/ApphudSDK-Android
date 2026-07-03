@@ -5,11 +5,13 @@ import com.apphud.sdk.APPHUD_ERROR_NO_INTERNET
 import com.apphud.sdk.ApphudError
 import com.apphud.sdk.UserId
 import com.apphud.sdk.domain.ApphudGroup
+import com.apphud.sdk.domain.ApphudPaywall
 import com.apphud.sdk.domain.ApphudProduct
 import com.apphud.sdk.domain.ApphudUser
 import com.apphud.sdk.domain.Attribution
 import com.apphud.sdk.domain.PurchaseRecordDetails
 import com.apphud.sdk.internal.data.dto.ApphudGroupDto
+import com.apphud.sdk.internal.data.dto.ApphudPaywallDto
 import com.apphud.sdk.internal.data.dto.AttributionDto
 import com.apphud.sdk.internal.data.dto.AttributionRequestDto
 import com.apphud.sdk.internal.data.dto.CustomerDto
@@ -19,6 +21,7 @@ import com.apphud.sdk.internal.data.dto.NotificationDto
 import com.apphud.sdk.internal.data.dto.PaywallEventDto
 import com.apphud.sdk.internal.data.dto.ReadNotificationsRequestDto
 import com.apphud.sdk.internal.data.mapper.CustomerMapper
+import com.apphud.sdk.internal.data.mapper.PaywallsMapper
 import com.apphud.sdk.internal.data.mapper.ProductMapper
 import com.apphud.sdk.internal.domain.mapper.NotificationMapper
 import com.apphud.sdk.internal.domain.model.GetProductsParams
@@ -43,6 +46,7 @@ internal class RemoteRepository(
     private val productMapper: ProductMapper,
     private val attributionMapper: AttributionMapper,
     private val notificationMapper: NotificationMapper,
+    private val paywallsMapper: PaywallsMapper,
     private val urlProvider: UrlProvider,
     private val dispatchers: ApphudDispatchers,
 ) {
@@ -226,6 +230,24 @@ internal class RemoteRepository(
                 response.data.results?.let { notificationsDto ->
                     notificationMapper.map(notificationsDto)
                 } ?: throw ApphudError("Failed to get notifications")
+            }
+
+    suspend fun getPaywall(identifier: String, deviceId: String): Result<ApphudPaywall> =
+        runCatchingCancellable {
+            val request = buildGetRequest(
+                urlProvider.paywallConfigUrl(identifier),
+                mapOf("device_id" to deviceId),
+            )
+            executeForResponse<ApphudPaywallDto>(okHttpClient, gson, request, dispatchers.io)
+        }
+            .recoverCatchingCancellable { e ->
+                val message = e.message ?: "Failed to fetch paywall config"
+                throw ApphudError(message, originalCause = e)
+            }
+            .mapCatchingCancellable { response ->
+                response.data.results?.let { paywallDto ->
+                    paywallsMapper.map(paywallDto)
+                } ?: throw ApphudError("Failed to fetch paywall config")
             }
 
     suspend fun readAllNotifications(ruleId: String, deviceId: String): Result<Unit> =

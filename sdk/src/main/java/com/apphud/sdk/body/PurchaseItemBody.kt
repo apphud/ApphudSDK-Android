@@ -39,4 +39,6 @@ internal data class PurchaseItemBody(
     val extraMessage: String?,
     @SerializedName("screen_id")
     val screenId: String? = null,
+    @SerializedName("rule_id")
+    val ruleId: String? = null,
 )

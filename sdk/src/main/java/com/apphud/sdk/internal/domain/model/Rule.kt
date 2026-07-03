@@ -5,4 +5,5 @@ data class Rule internal constructor(
     val screenId: String,
     val ruleName: String?,
     val screenName: String?,
+    val paywallIdentifier: String? = null,
 )

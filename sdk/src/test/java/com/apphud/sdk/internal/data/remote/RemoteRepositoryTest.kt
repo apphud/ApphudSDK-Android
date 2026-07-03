@@ -62,6 +62,7 @@ class RemoteRepositoryTest {
         productMapper = mockk(),
         attributionMapper = mockk(),
         notificationMapper = mockk(),
+        paywallsMapper = mockk(),
         urlProvider = urlProvider,
         dispatchers = ApphudDispatchers(),
     )

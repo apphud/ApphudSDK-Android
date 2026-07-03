@@ -494,6 +494,11 @@ private suspend fun ApphudInternal.sendCheckToApphud(
     callback: ((ApphudPurchaseResult) -> Unit)?,
 ) {
     val currentPaywallScreenId = if (fromScreen) findPaywallScreenId(paywallId) else null
+    val currentRuleId = if (fromScreen) {
+        runCatching { ServiceLocator.instance.ruleController.activeRuleId() }.getOrNull()
+    } else {
+        null
+    }
 
     val localCurrentUser = userRepository.getCurrentUser()
     when {
@@ -510,7 +515,8 @@ private suspend fun ApphudInternal.sendCheckToApphud(
                         offerIdToken,
                         oldToken,
                         "fallback_mode",
-                        screenId = currentPaywallScreenId
+                        screenId = currentPaywallScreenId,
+                        ruleId = currentRuleId,
                     )
                 )
             }.onFailure { error ->
@@ -546,6 +552,7 @@ private suspend fun ApphudInternal.sendCheckToApphud(
                         oldToken,
                         null,
                         currentPaywallScreenId,
+                        currentRuleId,
                     )
                 )
             }

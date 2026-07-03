@@ -35,12 +35,19 @@ internal class FetchRulesScreenUseCase(
             val ruleScreenList = notifications
                 .mapNotNull { notification ->
                     val createdTimeStamp = dateTimeMapper.toTimestamp(notification.createdAt)
-                    if (notification.rule != null && createdTimeStamp != null) {
-                        val screenHtml = screenRemoteRepository.loadScreenHtmlData(
-                            notification.rule.screenId, deviceId
-                        ).getOrThrow()
+                    val rule = notification.rule
+                    if (rule != null && createdTimeStamp != null) {
+                        // Rules carrying a paywall_identifier are presented as visual (Figma)
+                        // paywall screens and have no HTML screen to preload.
+                        val screenHtml = if (rule.paywallIdentifier != null) {
+                            ""
+                        } else {
+                            screenRemoteRepository.loadScreenHtmlData(
+                                rule.screenId, deviceId
+                            ).getOrThrow()
+                        }
 
-                        RuleScreen(createdTimeStamp, notification.rule, screenHtml)
+                        RuleScreen(createdTimeStamp, rule, screenHtml)
                     } else {
                         null
                     }

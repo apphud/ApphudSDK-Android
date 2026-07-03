@@ -7,6 +7,7 @@ import com.apphud.sdk.internal.data.UserDataSource
 import com.apphud.sdk.internal.data.UserPropertiesManager
 import com.apphud.sdk.internal.data.UserRepository
 import com.apphud.sdk.internal.data.local.PaywallRepository
+import com.apphud.sdk.internal.data.mapper.PaywallsMapper
 import com.apphud.sdk.internal.data.mapper.ProductMapper
 import com.apphud.sdk.internal.data.mapper.RenderResultMapper
 import com.apphud.sdk.internal.data.network.HeadersInterceptor
@@ -24,6 +25,7 @@ import com.apphud.sdk.internal.domain.DeviceIdentifiersInteractor
 import com.apphud.sdk.internal.domain.FetchMostActualRuleScreenUseCase
 import com.apphud.sdk.internal.domain.FetchNativePurchasesUseCase
 import com.apphud.sdk.internal.domain.FetchRulesScreenUseCase
+import com.apphud.sdk.internal.domain.GetPaywallByIdentifierUseCase
 import com.apphud.sdk.internal.domain.EnrichPlacementProductsUseCase
 import com.apphud.sdk.internal.domain.RegisterUserUseCase
 import com.apphud.sdk.internal.domain.RegistrationInteractor
@@ -119,6 +121,7 @@ internal class SessionComponent(
             productMapper = ProductMapper(),
             attributionMapper = AttributionMapper(),
             notificationMapper = NotificationMapper(),
+            paywallsMapper = PaywallsMapper(appScope.gson),
             urlProvider = appScope.urlProvider,
             dispatchers = appScope.dispatchers,
         )
@@ -165,6 +168,12 @@ internal class SessionComponent(
             localRulesScreenRepository = appScope.localRulesScreenRepository,
         )
 
+    val getPaywallByIdentifierUseCase: GetPaywallByIdentifierUseCase =
+        GetPaywallByIdentifierUseCase(
+            userRepository = userRepository,
+            remoteRepository = remoteRepository,
+        )
+
     val renderPaywallPropertiesUseCase: RenderPaywallPropertiesUseCase =
         RenderPaywallPropertiesUseCase(renderRemoteRepository)
 
@@ -179,9 +188,11 @@ internal class SessionComponent(
             context = appScope.applicationContext,
             fetchRulesScreenUseCase = fetchRulesScreenUseCase,
             fetchMostActualRuleScreenUseCase = fetchMostActualRuleScreenUseCase,
+            getPaywallByIdentifierUseCase = getPaywallByIdentifierUseCase,
             coroutineScope = coroutineScope,
             lifecycleRepository = appScope.lifecycleRepository,
             localRulesScreenRepository = appScope.localRulesScreenRepository,
+            paywallRepository = paywallRepository,
             ruleCallback = ruleCallback,
             dispatchers = appScope.dispatchers,
         )

@@ -33,6 +33,7 @@ internal class PurchaseBodyFactory(
                         placementId = placementId,
                         variationIdentifier = variationIdentifier(placementId),
                         screenId = screenId,
+                        ruleId = ruleId,
                         productBundleId = productBundleId,
                         observerMode = false,
                         billingVersion = BILLING_VERSION,

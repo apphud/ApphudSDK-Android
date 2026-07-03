@@ -3,11 +3,26 @@ package com.apphud.sdk.internal.data.local
 import com.apphud.sdk.ApphudInternal
 import com.apphud.sdk.ApphudLog
 import com.apphud.sdk.domain.ApphudPaywall
+import java.util.concurrent.ConcurrentHashMap
 
 /**
  * Repository for working with paywalls
  */
 internal class PaywallRepository {
+
+    /**
+     * Paywalls that are not part of the cached user placements (for example, rule-triggered
+     * paywalls resolved remotely by identifier) but still need to be resolvable by the screen UI.
+     */
+    private val transientPaywalls = ConcurrentHashMap<String, ApphudPaywall>()
+
+    /**
+     * Registers a paywall so it can be resolved by [getPaywallById] even when it is not present
+     * in the cached user placements.
+     */
+    fun register(paywall: ApphudPaywall) {
+        transientPaywalls[paywall.id] = paywall
+    }
 
     /**
      * Gets paywall by ID from Apphud
@@ -20,6 +35,7 @@ internal class PaywallRepository {
 
             val paywall = ApphudInternal.userRepository.getCurrentUser()
                 ?.placements?.firstNotNullOfOrNull { it.paywall?.takeIf { pw -> pw.id == paywallId } }
+                ?: transientPaywalls[paywallId]
 
             if (paywall != null) {
                 ApphudLog.log("[PaywallRepository] Found paywall: ${paywall.name} (${paywall.identifier})")

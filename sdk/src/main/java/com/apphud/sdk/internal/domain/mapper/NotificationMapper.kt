@@ -15,7 +15,9 @@ internal class NotificationMapper {
                         id = ruleDto.id,
                         screenId = ruleDto.screenId,
                         ruleName = ruleDto.ruleName,
-                        screenName = ruleDto.screenName
+                        screenName = ruleDto.screenName,
+                        paywallIdentifier = notificationDto.properties
+                            ?.get("paywall_identifier") as? String,
                     )
                 },
                 properties = notificationDto.properties
