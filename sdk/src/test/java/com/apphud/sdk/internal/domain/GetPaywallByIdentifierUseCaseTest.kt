@@ -64,6 +64,26 @@ class GetPaywallByIdentifierUseCaseTest {
         coVerify(exactly = 0) { remoteRepository.getPaywall(any(), any()) }
     }
 
+    @Test
+    fun `GIVEN cached paywall with id EXPECT returns cached paywall`() = runTest {
+        val cached = paywall("main", id = "pw-internal-id")
+        every { userRepository.getCurrentUser() } returns userWithPaywall(cached)
+
+        val result = useCase("pw-internal-id", "device-id")
+
+        assertEquals(cached, result)
+    }
+
+    @Test
+    fun `GIVEN cached paywall with id EXPECT does not call remote`() = runTest {
+        val cached = paywall("main", id = "pw-internal-id")
+        every { userRepository.getCurrentUser() } returns userWithPaywall(cached)
+
+        useCase("pw-internal-id", "device-id")
+
+        coVerify(exactly = 0) { remoteRepository.getPaywall(any(), any()) }
+    }
+
     // endregion
 
     // region cache miss -- remote fallback

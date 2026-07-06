@@ -2,7 +2,7 @@ package com.apphud.sdk
 
 import android.app.Activity
 import com.apphud.sdk.domain.ApphudProduct
-import com.apphud.sdk.internal.domain.model.Rule
+import com.apphud.sdk.domain.Rule
 
 interface ApphudRuleCallback {
     /**

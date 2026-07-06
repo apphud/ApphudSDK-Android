@@ -119,6 +119,37 @@ class NotificationMapperTest {
 
     // endregion
 
+    // region paywall_id
+
+    @Test
+    fun `GIVEN properties with paywall_id EXPECT rule paywallId is set`() {
+        val dto = notificationDto(properties = mapOf("paywall_id" to "pw-internal-id"))
+
+        val result = mapper.map(listOf(dto))
+
+        assertEquals("pw-internal-id", result.single().rule?.paywallId)
+    }
+
+    @Test
+    fun `GIVEN properties without paywall_id EXPECT rule paywallId is null`() {
+        val dto = notificationDto(properties = mapOf("other_key" to "value"))
+
+        val result = mapper.map(listOf(dto))
+
+        assertNull(result.single().rule?.paywallId)
+    }
+
+    @Test
+    fun `GIVEN non-string paywall_id EXPECT rule paywallId is null`() {
+        val dto = notificationDto(properties = mapOf("paywall_id" to 123))
+
+        val result = mapper.map(listOf(dto))
+
+        assertNull(result.single().rule?.paywallId)
+    }
+
+    // endregion
+
     // region no rule
 
     @Test

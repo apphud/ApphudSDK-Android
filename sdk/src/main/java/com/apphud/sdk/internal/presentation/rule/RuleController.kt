@@ -25,7 +25,8 @@ import com.apphud.sdk.internal.domain.GetPaywallByIdentifierUseCase
 import com.apphud.sdk.internal.domain.RuleScreenResult
 import com.apphud.sdk.internal.domain.model.FetchRulesScreenResult
 import com.apphud.sdk.internal.domain.model.LifecycleEvent
-import com.apphud.sdk.internal.domain.model.Rule
+import com.apphud.sdk.domain.Rule
+import com.apphud.sdk.internal.presentation.rule.RuleWebViewActivity
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.DelicateCoroutinesApi
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -179,20 +180,25 @@ internal class RuleController(
         }
         if (!shouldShowScreen) return
 
-        val paywallIdentifier = pendingRule.paywallIdentifier
-        if (paywallIdentifier != null) {
-            presentPaywallScreen(pendingRule, paywallIdentifier)
-        } else {
+        if (pendingRule.paywallIdentifier != null) {
+            val paywallConfigId = pendingRule.paywallId ?: pendingRule.paywallIdentifier
+            presentPaywallScreen(pendingRule, paywallConfigId)
+        } else if (ApphudInternal.legacyRuleScreensEnabled) {
             val intent = RuleWebViewActivity.getIntent(context, pendingRule.id)
             context.startActivity(intent)
             state.value = RuleState.RuleActivityAlreadyOpen(pendingRule)
+        } else {
+            ApphudLog.log("RuleController: skipping legacy HTML rule ${pendingRule.ruleName}")
+            localRulesScreenRepository.deleteById(pendingRule.id)
+            state.value = RuleState.Idle
         }
     }
 
-    private suspend fun presentPaywallScreen(pendingRule: Rule, paywallIdentifier: String) {
-        val paywall = getPaywallByIdentifierUseCase(paywallIdentifier, currentDeviceId)
+    private suspend fun presentPaywallScreen(pendingRule: Rule, paywallConfigId: String) {
+        val paywall = getPaywallByIdentifierUseCase(paywallConfigId, currentDeviceId)
         if (paywall == null) {
-            ApphudLog.logE("RuleController: no paywall found for identifier: $paywallIdentifier")
+            ApphudLog.logE("RuleController: no paywall found for id: $paywallConfigId")
+            localRulesScreenRepository.deleteById(pendingRule.id)
             state.value = RuleState.Idle
             return
         }

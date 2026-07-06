@@ -56,6 +56,9 @@ internal fun ApphudInternal.purchase(
 
     productToPurchase?.let { product ->
         details?.let {
+            if (product.productDetails == null) {
+                product.productDetails = it
+            }
             purchaseInternal(
                 activity,
                 product,

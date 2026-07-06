@@ -18,10 +18,12 @@ internal class GetPaywallByIdentifierUseCase(
         return remoteRepository.getPaywall(identifier, deviceId).getOrNull()
     }
 
-    private fun cachedPaywall(identifier: String): ApphudPaywall? =
+    private fun cachedPaywall(paywallConfigId: String): ApphudPaywall? =
         userRepository.getCurrentUser()
             ?.placements
             ?.firstNotNullOfOrNull { placement ->
-                placement.paywall?.takeIf { it.identifier == identifier }
+                placement.paywall?.takeIf {
+                    it.id == paywallConfigId || it.identifier == paywallConfigId
+                }
             }
 }

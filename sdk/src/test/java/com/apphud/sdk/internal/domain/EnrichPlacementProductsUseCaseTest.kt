@@ -133,4 +133,14 @@ class EnrichPlacementProductsUseCaseTest {
 
         assertNull(product.productDetails)
     }
+
+    @Test
+    fun `GIVEN standalone paywall EXPECT enrichPaywall sets productDetails`() {
+        useCase.enrichPaywall(paywall)
+
+        assertNotNull(product.productDetails)
+        assertEquals("com.apphud.sub5", product.productDetails?.productId)
+        assertEquals("pw-1", product.paywallId)
+        assertEquals("main", product.paywallIdentifier)
+    }
 }

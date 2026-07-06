@@ -2,7 +2,7 @@ package com.apphud.sdk.internal.domain.mapper
 
 import com.apphud.sdk.internal.data.dto.NotificationDto
 import com.apphud.sdk.internal.domain.model.Notification
-import com.apphud.sdk.internal.domain.model.Rule
+import com.apphud.sdk.domain.Rule
 
 internal class NotificationMapper {
     fun map(dto: List<NotificationDto>): List<Notification> =
@@ -17,7 +17,8 @@ internal class NotificationMapper {
 
     /**
      * The backend delivers rule metadata (`screen_id`, `rule_name`, `screen_name`,
-     * `paywall_identifier`) inside `properties`, while the `rule` object only carries its id.
+     * `paywall_identifier`, `paywall_id`) inside `properties`, while the `rule` object only
+     * carries its id.
      * Mirror iOS, which merges `rule` + `properties`, preferring `properties` and falling back
      * to any values present on the `rule` object.
      */
@@ -31,6 +32,7 @@ internal class NotificationMapper {
             ruleName = (properties?.get("rule_name") as? String) ?: ruleDto.ruleName,
             screenName = (properties?.get("screen_name") as? String) ?: ruleDto.screenName,
             paywallIdentifier = properties?.get("paywall_identifier") as? String,
+            paywallId = properties?.get("paywall_id") as? String,
         )
     }
 }

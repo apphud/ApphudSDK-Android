@@ -1,6 +1,6 @@
 package com.apphud.sdk.internal.presentation.rule
 
-import com.apphud.sdk.internal.domain.model.Rule
+import com.apphud.sdk.domain.Rule
 
 internal sealed class RuleState {
     object Idle : RuleState()

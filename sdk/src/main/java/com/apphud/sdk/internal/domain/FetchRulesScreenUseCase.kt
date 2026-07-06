@@ -1,5 +1,6 @@
 package com.apphud.sdk.internal.domain
 
+import com.apphud.sdk.ApphudInternal
 import com.apphud.sdk.internal.data.local.LocalRulesScreenRepository
 import com.apphud.sdk.internal.data.remote.RemoteRepository
 import com.apphud.sdk.internal.data.remote.ScreenRemoteRepository
@@ -31,18 +32,17 @@ internal class FetchRulesScreenUseCase(
     suspend operator fun invoke(deviceId: String): FetchRulesScreenResult =
         runCatchingCancellable {
             val notifications = remoteRepository.getNotifications(deviceId).getOrThrow()
+            val legacyRuleScreensEnabled = ApphudInternal.legacyRuleScreensEnabled
 
             val ruleScreenList = notifications
                 .mapNotNull { notification ->
                     val createdTimeStamp = dateTimeMapper.toTimestamp(notification.createdAt)
                     val rule = notification.rule
                     if (rule != null && createdTimeStamp != null) {
-                        // Rules carrying a paywall_identifier are presented as visual (Figma)
-                        // paywall screens and have no HTML screen to preload.
-                        val screenHtml = if (rule.paywallIdentifier != null) {
-                            ""
-                        } else {
-                            screenRemoteRepository.loadScreenHtmlData(
+                        val screenHtml = when {
+                            rule.paywallIdentifier != null -> ""
+                            !legacyRuleScreensEnabled -> return@mapNotNull null
+                            else -> screenRemoteRepository.loadScreenHtmlData(
                                 rule.screenId, deviceId
                             ).getOrThrow()
                         }
@@ -57,8 +57,17 @@ internal class FetchRulesScreenUseCase(
                 localRulesScreenRepository.save(ruleScreen)
             }
 
-            ruleScreenList.forEach { ruleScreen ->
-                remoteRepository.readAllNotifications(ruleScreen.rule.id, deviceId)
+            if (legacyRuleScreensEnabled) {
+                ruleScreenList.forEach { ruleScreen ->
+                    remoteRepository.readAllNotifications(ruleScreen.rule.id, deviceId)
+                }
+            } else {
+                notifications
+                    .mapNotNull { it.rule?.id }
+                    .distinct()
+                    .forEach { ruleId ->
+                        remoteRepository.readAllNotifications(ruleId, deviceId)
+                    }
             }
 
             FetchRulesScreenResult.Success
