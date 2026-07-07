@@ -15,6 +15,7 @@ import com.apphud.sdk.domain.ApphudPlacement
 import com.apphud.sdk.domain.ApphudProduct
 import com.apphud.sdk.domain.ApphudSubscription
 import com.apphud.sdk.domain.ApphudUser
+import com.apphud.sdk.domain.Rule
 import com.apphud.sdk.internal.ServiceLocator
 import com.apphud.sdk.internal.domain.model.ApiKey as ApiKeyModel
 import kotlinx.coroutines.launch
@@ -153,6 +154,73 @@ object Apphud {
     fun showPendingScreen(callback: (Boolean) -> Unit) {
         ServiceLocator.instance.ruleController.showPendingScreen(callback)
     }
+
+    /**
+     * Submits the device push token to Apphud. This is required for Apphud to deliver push
+     * notifications (including Rules-triggered screens) to the device.
+     *
+     * Mirrors iOS `Apphud.submitPushNotificationsToken`.
+     *
+     * @param token The FCM registration token.
+     * @param callback (Optional) Invoked with `true` if the token was successfully submitted.
+     */
+    fun submitPushNotificationsToken(token: String, callback: ((Boolean) -> Unit)? = null) {
+        coroutineScope.launch {
+            val result = runCatchingCancellable {
+                ServiceLocator.instance.submitPushTokenUseCase(token)
+            }.getOrElse { error ->
+                ApphudLog.logE("submitPushNotificationsToken: ${error.message}")
+                false
+            }
+            withContext(dispatchers.main) {
+                callback?.invoke(result)
+            }
+        }
+    }
+
+    /**
+     * Handles an incoming push notification data payload. Use this to let Apphud process
+     * Rules-related notifications. Pass the data payload (for example, `RemoteMessage.data`).
+     *
+     * Mirrors iOS `Apphud.handlePushNotification`.
+     *
+     * @param data The push notification data payload.
+     * @return `true` if the payload contained an Apphud rule and was handled by the SDK.
+     */
+    fun handlePushNotification(data: Map<String, Any>): Boolean =
+        runCatching {
+            ServiceLocator.instance.ruleController.handlePushNotification(data)
+        }.getOrElse {
+            ApphudLog.logE("handlePushNotification: SDK not initialized. Call Apphud.start() first.")
+            false
+        }
+
+    /**
+     * Manually triggers a check for unread Rules notifications, without waiting for the next app
+     * foreground event.
+     *
+     * Mirrors iOS `ApphudUtils.checkRules()`.
+     */
+    fun checkRules() {
+        runCatching {
+            ServiceLocator.instance.ruleController.checkRules()
+        }.onFailure {
+            ApphudLog.logE("checkRules: SDK not initialized. Call Apphud.start() first.")
+        }
+    }
+
+    /**
+     * Returns the Apphud rule whose screen is currently pending or displayed, if any. Useful for
+     * attaching rule context to your own logic.
+     *
+     * Mirrors iOS `Apphud.pendingRule()`.
+     *
+     * @return the pending/active [Rule], or `null` if there is none.
+     */
+    fun pendingRule(): Rule? =
+        runCatching {
+            ServiceLocator.instance.ruleController.pendingRule()
+        }.getOrNull()
 
     /**
      * Retrieves the current user ID that identifies the user across multiple devices.

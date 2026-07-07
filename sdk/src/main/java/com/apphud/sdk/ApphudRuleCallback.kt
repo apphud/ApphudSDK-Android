@@ -1,8 +1,33 @@
 package com.apphud.sdk
 
 import android.app.Activity
+import com.apphud.sdk.domain.ApphudPaywall
 import com.apphud.sdk.domain.ApphudProduct
 import com.apphud.sdk.domain.Rule
+
+/**
+ * Action performed after a survey option is selected or feedback is sent on a legacy HTML
+ * rule screen.
+ *
+ * Mirrors iOS `ApphudScreenDismissAction`.
+ */
+enum class ApphudScreenDismissAction {
+    /**
+     * Displays a "Thank you for feedback" ("Answer sent" / "Feedback sent") dialog and then
+     * dismisses the screen. This is the default behavior.
+     */
+    THANK_AND_CLOSE,
+
+    /**
+     * Dismisses the screen without showing any dialog.
+     */
+    CLOSE_ONLY,
+
+    /**
+     * Does nothing. The screen stays open so you can handle presentation yourself.
+     */
+    NONE,
+}
 
 interface ApphudRuleCallback {
     /**
@@ -81,4 +106,36 @@ interface ApphudRuleCallback {
      * @param rule Apphud rule whose screen was dismissed
      */
     fun onScreenDidDismiss(rule: Rule) = Unit
+
+    /**
+     * Called after a survey answer is selected on a legacy HTML rule screen.
+     *
+     * Mirrors iOS `ApphudUIDelegate.apphudDidSelectSurveyAnswer(question:answer:screenName:)`.
+     *
+     * @param rule Apphud rule whose screen the answer was selected on
+     * @param question the survey question
+     * @param answer the selected answer
+     */
+    fun onDidSelectSurveyAnswer(rule: Rule, question: String, answer: String) = Unit
+
+    /**
+     * Overrides the action performed after a survey option is selected or feedback is sent on a
+     * legacy HTML rule screen. Default is [ApphudScreenDismissAction.THANK_AND_CLOSE].
+     *
+     * Mirrors iOS `ApphudUIDelegate.apphudScreenDismissAction(screenName:controller:)`.
+     *
+     * @param rule Apphud rule whose screen is being dismissed
+     * @return the dismiss action to perform
+     */
+    fun onScreenDismissAction(rule: Rule): ApphudScreenDismissAction = ApphudScreenDismissAction.THANK_AND_CLOSE
+
+    /**
+     * Called for a Figma paywall rule whose resolved paywall has no screen payload. In this case
+     * the SDK cannot present a screen by itself, so you should present the paywall using your own
+     * UI.
+     *
+     * @param rule Apphud rule that was triggered
+     * @param paywall the resolved paywall associated with the rule
+     */
+    fun onRulePaywallWithoutScreen(rule: Rule, paywall: ApphudPaywall) = Unit
 }

@@ -162,4 +162,52 @@ class NotificationMapperTest {
     }
 
     // endregion
+
+    // region mapRuleFromPayload (push)
+
+    @Test
+    fun `GIVEN payload with rule_id EXPECT rule id set`() {
+        val rule = mapper.mapRuleFromPayload(mapOf("rule_id" to "push-rule"))
+
+        assertEquals("push-rule", rule?.id)
+    }
+
+    @Test
+    fun `GIVEN payload without rule_id EXPECT null`() {
+        val rule = mapper.mapRuleFromPayload(mapOf("screen_id" to "s"))
+
+        assertNull(rule)
+    }
+
+    @Test
+    fun `GIVEN payload with screen fields EXPECT screenId mapped`() {
+        val rule = mapper.mapRuleFromPayload(
+            mapOf("rule_id" to "r", "screen_id" to "screen-1", "screen_name" to "Feedback"),
+        )
+
+        assertEquals("screen-1", rule?.screenId)
+    }
+
+    @Test
+    fun `GIVEN payload without screen_id EXPECT screenId empty`() {
+        val rule = mapper.mapRuleFromPayload(mapOf("rule_id" to "r"))
+
+        assertEquals("", rule?.screenId)
+    }
+
+    @Test
+    fun `GIVEN payload with paywall_id EXPECT paywallId set`() {
+        val rule = mapper.mapRuleFromPayload(mapOf("rule_id" to "r", "paywall_id" to "pw-1"))
+
+        assertEquals("pw-1", rule?.paywallId)
+    }
+
+    @Test
+    fun `GIVEN legacy payload without paywall_id EXPECT paywallId null`() {
+        val rule = mapper.mapRuleFromPayload(mapOf("rule_id" to "r", "screen_id" to "s"))
+
+        assertNull(rule?.paywallId)
+    }
+
+    // endregion
 }

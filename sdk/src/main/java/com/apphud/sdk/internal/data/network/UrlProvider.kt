@@ -54,6 +54,12 @@ internal class UrlProvider(
     val eventsUrl: HttpUrl
         get() = "${baseUrl.get()}/v1/events".toHttpUrl()
 
+    val ruleEventsUrl: HttpUrl
+        get() = "${baseUrl.get()}/v2/events".toHttpUrl()
+
+    val pushTokenUrl: HttpUrl
+        get() = "${baseUrl.get()}/v1/customers/push_token".toHttpUrl()
+
     val notificationsReadUrl: HttpUrl
         get() = "${baseUrl.get()}/v2/notifications/read".toHttpUrl()
 

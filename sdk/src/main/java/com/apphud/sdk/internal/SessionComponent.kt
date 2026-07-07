@@ -31,6 +31,8 @@ import com.apphud.sdk.internal.domain.RegisterUserUseCase
 import com.apphud.sdk.internal.domain.RegistrationInteractor
 import com.apphud.sdk.internal.domain.RenderPaywallPropertiesUseCase
 import com.apphud.sdk.internal.domain.ResolveCredentialsUseCase
+import com.apphud.sdk.internal.domain.SubmitPushTokenUseCase
+import com.apphud.sdk.internal.domain.TrackRuleEventUseCase
 import com.apphud.sdk.internal.domain.mapper.DateTimeMapper
 import com.apphud.sdk.internal.domain.mapper.NotificationMapper
 import com.apphud.sdk.internal.domain.model.ApiKey
@@ -111,6 +113,8 @@ internal class SessionComponent(
             .addInterceptor(appScope.prettyLoggingInterceptor)
             .build()
 
+    private val notificationMapper: NotificationMapper = NotificationMapper()
+
     val remoteRepository: RemoteRepository =
         RemoteRepository(
             okHttpClient = okHttpClient,
@@ -120,7 +124,7 @@ internal class SessionComponent(
             registrationBodyFactory = RegistrationBodyFactory(registrationProvider),
             productMapper = ProductMapper(),
             attributionMapper = AttributionMapper(),
-            notificationMapper = NotificationMapper(),
+            notificationMapper = notificationMapper,
             paywallsMapper = PaywallsMapper(appScope.gson),
             urlProvider = appScope.urlProvider,
             dispatchers = appScope.dispatchers,
@@ -174,6 +178,19 @@ internal class SessionComponent(
             remoteRepository = remoteRepository,
         )
 
+    val trackRuleEventUseCase: TrackRuleEventUseCase =
+        TrackRuleEventUseCase(
+            remoteRepository = remoteRepository,
+            userRepository = userRepository,
+        )
+
+    val submitPushTokenUseCase: SubmitPushTokenUseCase =
+        SubmitPushTokenUseCase(
+            remoteRepository = remoteRepository,
+            userRepository = userRepository,
+            storage = appScope.storage,
+        )
+
     val renderPaywallPropertiesUseCase: RenderPaywallPropertiesUseCase =
         RenderPaywallPropertiesUseCase(renderRemoteRepository)
 
@@ -189,6 +206,10 @@ internal class SessionComponent(
             fetchRulesScreenUseCase = fetchRulesScreenUseCase,
             fetchMostActualRuleScreenUseCase = fetchMostActualRuleScreenUseCase,
             getPaywallByIdentifierUseCase = getPaywallByIdentifierUseCase,
+            trackRuleEventUseCase = trackRuleEventUseCase,
+            remoteRepository = remoteRepository,
+            screenRemoteRepository = screenRemoteRepository,
+            notificationMapper = notificationMapper,
             coroutineScope = coroutineScope,
             lifecycleRepository = appScope.lifecycleRepository,
             localRulesScreenRepository = appScope.localRulesScreenRepository,

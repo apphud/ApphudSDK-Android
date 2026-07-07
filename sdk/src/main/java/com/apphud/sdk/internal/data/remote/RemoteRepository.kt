@@ -19,7 +19,9 @@ import com.apphud.sdk.internal.data.dto.DeeplinkAttributionRequestDto
 import com.apphud.sdk.internal.data.dto.GrantPromotionalDto
 import com.apphud.sdk.internal.data.dto.NotificationDto
 import com.apphud.sdk.internal.data.dto.PaywallEventDto
+import com.apphud.sdk.internal.data.dto.PushTokenDto
 import com.apphud.sdk.internal.data.dto.ReadNotificationsRequestDto
+import com.apphud.sdk.internal.data.dto.RuleEventDto
 import com.apphud.sdk.internal.data.mapper.CustomerMapper
 import com.apphud.sdk.internal.data.mapper.PaywallsMapper
 import com.apphud.sdk.internal.data.mapper.ProductMapper
@@ -249,6 +251,31 @@ internal class RemoteRepository(
                     paywallsMapper.map(paywallDto)
                 } ?: throw ApphudError("Failed to fetch paywall config")
             }
+
+    suspend fun trackRuleEvent(event: RuleEventDto): Result<Unit> =
+        runCatchingCancellable {
+            val request = buildPostRequest(urlProvider.ruleEventsUrl, event)
+            executeForResponse<Unit>(okHttpClient, gson, request, dispatchers.io)
+        }
+            .recoverCatching { e ->
+                val message = e.message ?: "Failed to track rule event"
+                throw ApphudError(message, originalCause = e)
+            }
+            .map { }
+
+    suspend fun submitPushToken(deviceId: String, token: String): Result<Unit> =
+        runCatchingCancellable {
+            val request = buildPutRequest(
+                urlProvider.pushTokenUrl,
+                PushTokenDto(deviceId = deviceId, pushToken = token),
+            )
+            executeForResponse<Unit>(okHttpClient, gson, request, dispatchers.io)
+        }
+            .recoverCatching { e ->
+                val message = e.message ?: "Failed to submit push token"
+                throw ApphudError(message, originalCause = e)
+            }
+            .map { }
 
     suspend fun readAllNotifications(ruleId: String, deviceId: String): Result<Unit> =
         runCatchingCancellable {

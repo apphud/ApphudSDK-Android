@@ -2,6 +2,7 @@ apply plugin: 'com.android.application'
 apply plugin: 'kotlin-android'
 //apply plugin: 'kotlin-kapt'
 apply plugin: 'androidx.navigation.safeargs'
+apply plugin: 'com.google.gms.google-services'
 
 android {
 
@@ -74,6 +75,9 @@ dependencies {
 
 
     implementation project(path: ':sdk')
+
+    implementation platform('com.google.firebase:firebase-bom:33.5.1')
+    implementation 'com.google.firebase:firebase-messaging-ktx'
 
     //To use from maven central
     //implementation "com.apphud:ApphudSDK-Android:2.7.4"

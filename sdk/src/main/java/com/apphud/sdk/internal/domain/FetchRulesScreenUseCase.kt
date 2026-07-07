@@ -40,7 +40,7 @@ internal class FetchRulesScreenUseCase(
                     val rule = notification.rule
                     if (rule != null && createdTimeStamp != null) {
                         val screenHtml = when {
-                            rule.paywallIdentifier != null -> ""
+                            rule.paywallId != null -> ""
                             !legacyRuleScreensEnabled -> return@mapNotNull null
                             else -> screenRemoteRepository.loadScreenHtmlData(
                                 rule.screenId, deviceId

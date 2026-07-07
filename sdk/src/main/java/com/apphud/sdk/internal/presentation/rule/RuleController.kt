@@ -19,14 +19,18 @@ import com.apphud.sdk.internal.ApphudDispatchers
 import com.apphud.sdk.internal.data.local.LifecycleRepository
 import com.apphud.sdk.internal.data.local.LocalRulesScreenRepository
 import com.apphud.sdk.internal.data.local.PaywallRepository
+import com.apphud.sdk.internal.data.remote.RemoteRepository
+import com.apphud.sdk.internal.data.remote.ScreenRemoteRepository
 import com.apphud.sdk.internal.domain.FetchMostActualRuleScreenUseCase
 import com.apphud.sdk.internal.domain.FetchRulesScreenUseCase
 import com.apphud.sdk.internal.domain.GetPaywallByIdentifierUseCase
 import com.apphud.sdk.internal.domain.RuleScreenResult
+import com.apphud.sdk.internal.domain.TrackRuleEventUseCase
+import com.apphud.sdk.internal.domain.mapper.NotificationMapper
 import com.apphud.sdk.internal.domain.model.FetchRulesScreenResult
 import com.apphud.sdk.internal.domain.model.LifecycleEvent
+import com.apphud.sdk.internal.domain.model.RuleScreen
 import com.apphud.sdk.domain.Rule
-import com.apphud.sdk.internal.presentation.rule.RuleWebViewActivity
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.DelicateCoroutinesApi
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -44,6 +48,10 @@ internal class RuleController(
     private val fetchRulesScreenUseCase: FetchRulesScreenUseCase,
     private val fetchMostActualRuleScreenUseCase: FetchMostActualRuleScreenUseCase,
     private val getPaywallByIdentifierUseCase: GetPaywallByIdentifierUseCase,
+    private val trackRuleEventUseCase: TrackRuleEventUseCase,
+    private val remoteRepository: RemoteRepository,
+    private val screenRemoteRepository: ScreenRemoteRepository,
+    private val notificationMapper: NotificationMapper,
     private val lifecycleRepository: LifecycleRepository,
     private val localRulesScreenRepository: LocalRulesScreenRepository,
     private val paywallRepository: PaywallRepository,
@@ -60,6 +68,15 @@ internal class RuleController(
     @Volatile
     private lateinit var currentDeviceId: DeviceId
 
+    @Volatile
+    private var appInForeground: Boolean = false
+
+    @Volatile
+    private var pendingPushPayload: Map<String, Any>? = null
+
+    // rule_id -> timestamp of last handling; used to dedup pushes within a short window.
+    private val handledPushRuleIds = mutableMapOf<String, Long>()
+
     @OptIn(ExperimentalCoroutinesApi::class, DelicateCoroutinesApi::class)
     private val coroutineScope: CoroutineScope = CoroutineScope(
         coroutineScope.coroutineContext + newSingleThreadContext("RuleControllerThread")
@@ -74,9 +91,16 @@ internal class RuleController(
         fetchRuleScreenJob = lifecycleRepository.get()
             .onEach { lifecycleEvent ->
                 when (lifecycleEvent) {
-                    LifecycleEvent.Started -> processRuleStateMachine()
+                    LifecycleEvent.Started -> {
+                        appInForeground = true
+                        if (!processPendingPush()) {
+                            processRuleStateMachine()
+                        }
+                    }
 
-                    LifecycleEvent.Stopped -> Unit
+                    LifecycleEvent.Stopped -> {
+                        appInForeground = false
+                    }
                 }
             }
             .launchIn(coroutineScope)
@@ -97,6 +121,54 @@ internal class RuleController(
             RuleState.Idle -> null
             RuleState.Loading -> null
         }
+
+    /**
+     * Returns the rule that is currently pending or on screen, if any. Mirrors iOS
+     * `Apphud.pendingRule()`.
+     */
+    fun pendingRule(): Rule? =
+        when (val currentState = state.value) {
+            is RuleState.PendingRule -> currentState.rule
+            is RuleState.RuleActivityAlreadyOpen -> currentState.rule
+            is RuleState.RuleActivityClosed -> currentState.rule
+            RuleState.Idle -> null
+            RuleState.Loading -> null
+        }
+
+    /**
+     * Forces a rules fetch without waiting for the next app foreground event.
+     * Mirrors iOS `ApphudUtils.checkRules()`.
+     */
+    fun checkRules() {
+        if (!this::currentDeviceId.isInitialized) {
+            ApphudLog.logE("RuleController: checkRules called before start")
+            return
+        }
+        coroutineScope.launch {
+            if (state.value is RuleState.Idle) {
+                processRuleStateMachine()
+            }
+        }
+    }
+
+    /**
+     * Handles an incoming push notification data payload. Returns true if the payload contains an
+     * Apphud rule and was accepted for handling. Mirrors iOS `Apphud.handlePushNotification`.
+     */
+    fun handlePushNotification(data: Map<String, Any>): Boolean {
+        val ruleId = data["rule_id"] as? String ?: return false
+
+        if (!this::currentDeviceId.isInitialized) {
+            ApphudLog.logE("RuleController: handlePushNotification called before start")
+            return false
+        }
+
+        pendingPushPayload = data
+        coroutineScope.launch {
+            processPendingPush()
+        }
+        return true
+    }
 
     fun showPendingScreen(callback: (Boolean) -> Unit) {
         coroutineScope.launch {
@@ -129,7 +201,6 @@ internal class RuleController(
             override fun onReceive(context: Context, intent: Intent) {
                 when (intent.action) {
                     ACTION_RULE_SCREEN_RESULT -> {
-                        val resultCode = intent.getIntExtra(EXTRA_RESULT_CODE, -1)
                         state.update { currentState ->
                             when (currentState) {
                                 is RuleState.RuleActivityAlreadyOpen -> RuleState.RuleActivityClosed(currentState.rule)
@@ -158,6 +229,76 @@ internal class RuleController(
         }
     }
 
+    /**
+     * Processes a pending push payload if one is present and the app is in the foreground.
+     * Returns true if a push was handled (or is being handled), false otherwise.
+     */
+    private suspend fun processPendingPush(): Boolean {
+        val data = pendingPushPayload ?: return false
+
+        if (!appInForeground) {
+            ApphudLog.log("RuleController: got push payload but app is not active, will handle when foregrounded")
+            return false
+        }
+
+        // Only handle a push when no other rule screen is pending or on screen.
+        if (state.value !is RuleState.Idle) {
+            return false
+        }
+
+        val rule = notificationMapper.mapRuleFromPayload(data)
+        if (rule == null) {
+            ApphudLog.logE("RuleController: push payload has no rule_id")
+            pendingPushPayload = null
+            return false
+        }
+
+        val now = System.currentTimeMillis()
+        val lastHandledAt = handledPushRuleIds[rule.id]
+        if (lastHandledAt != null && now - lastHandledAt < PUSH_DEDUP_WINDOW_MS) {
+            ApphudLog.log("RuleController: push rule ${rule.id} already handled recently, skipping")
+            pendingPushPayload = null
+            return true
+        }
+        handledPushRuleIds[rule.id] = now
+
+        pendingPushPayload = null
+
+        trackRuleEventUseCase(rule.id, rule.screenId.ifEmpty { null }, EVENT_PUSH_OPENED)
+
+        handlePushRule(rule)
+        return true
+    }
+
+    private suspend fun handlePushRule(rule: Rule) {
+        val shouldPerformRule = withContext(dispatchers.main) {
+            ruleCallback.shouldPerformRule(rule)
+        }
+        if (!shouldPerformRule) {
+            remoteRepository.readAllNotifications(rule.id, currentDeviceId)
+            ApphudLog.log("RuleController: shouldPerformRule returned false for rule ${rule.ruleName}")
+            return
+        }
+
+        if (rule.paywallId != null) {
+            remoteRepository.readAllNotifications(rule.id, currentDeviceId)
+            state.value = RuleState.PendingRule(rule)
+            processPendingRule(rule)
+        } else if (ApphudInternal.legacyRuleScreensEnabled) {
+            val html = screenRemoteRepository.loadScreenHtmlData(rule.screenId, currentDeviceId).getOrNull()
+            if (html == null) {
+                ApphudLog.logE("RuleController: failed to load HTML for push rule ${rule.id}")
+                return
+            }
+            localRulesScreenRepository.save(RuleScreen(System.currentTimeMillis(), rule, html))
+            remoteRepository.readAllNotifications(rule.id, currentDeviceId)
+            state.value = RuleState.PendingRule(rule)
+            processPendingRule(rule)
+        } else {
+            ApphudLog.log("RuleController: skipping legacy HTML push rule ${rule.ruleName}")
+        }
+    }
+
     private suspend fun processRuleStateMachine() {
         when (val currentState = state.value) {
             is RuleState.RuleActivityAlreadyOpen -> Unit
@@ -180,8 +321,14 @@ internal class RuleController(
         }
         if (!shouldShowScreen) return
 
-        if (pendingRule.paywallIdentifier != null) {
+        if (pendingRule.paywallId != null) {
             val paywallConfigId = pendingRule.paywallId ?: pendingRule.paywallIdentifier
+            if (paywallConfigId == null) {
+                ApphudLog.logE("RuleController: paywall rule ${pendingRule.id} has no paywall id")
+                localRulesScreenRepository.deleteById(pendingRule.id)
+                state.value = RuleState.Idle
+                return
+            }
             presentPaywallScreen(pendingRule, paywallConfigId)
         } else if (ApphudInternal.legacyRuleScreensEnabled) {
             val intent = RuleWebViewActivity.getIntent(context, pendingRule.id)
@@ -198,6 +345,19 @@ internal class RuleController(
         val paywall = getPaywallByIdentifierUseCase(paywallConfigId, currentDeviceId)
         if (paywall == null) {
             ApphudLog.logE("RuleController: no paywall found for id: $paywallConfigId")
+            localRulesScreenRepository.deleteById(pendingRule.id)
+            state.value = RuleState.Idle
+            return
+        }
+
+        // A paywall rule without a screen payload cannot be presented by the SDK. Hand it off to
+        // the client so it can present the paywall with its own UI.
+        if (paywall.screen == null) {
+            ApphudLog.log("RuleController: paywall ${paywall.identifier} has no screen, delegating to client")
+            withContext(dispatchers.main) {
+                ruleCallback.onRulePaywallWithoutScreen(pendingRule, paywall)
+            }
+            remoteRepository.readAllNotifications(pendingRule.id, currentDeviceId)
             localRulesScreenRepository.deleteById(pendingRule.id)
             state.value = RuleState.Idle
             return
@@ -306,6 +466,7 @@ internal class RuleController(
                             state.value = RuleState.PendingRule(rule)
                             processPendingRule(rule)
                         } else {
+                            localRulesScreenRepository.deleteById(rule.id)
                             state.value = RuleState.Idle
                         }
                     }
@@ -328,5 +489,8 @@ internal class RuleController(
     internal companion object {
         const val ACTION_RULE_SCREEN_RESULT = "com.apphud.sdk.ACTION_RULE_SCREEN_RESULT"
         const val EXTRA_RESULT_CODE = "result_code"
+
+        private const val PUSH_DEDUP_WINDOW_MS = 5_000L
+        private const val EVENT_PUSH_OPENED = "\$push_opened"
     }
 }

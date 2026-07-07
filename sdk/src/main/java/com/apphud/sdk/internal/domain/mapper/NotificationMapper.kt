@@ -35,4 +35,23 @@ internal class NotificationMapper {
             paywallId = properties?.get("paywall_id") as? String,
         )
     }
+
+    /**
+     * Builds a [Rule] from a push notification data payload. The payload always contains
+     * `rule_id`, `screen_id` and `screen_name`; new (Figma) rules additionally carry
+     * `paywall_id` (and usually `paywall_identifier`).
+     *
+     * Mirrors iOS which merges `["id": rule_id]` with the notification payload.
+     */
+    fun mapRuleFromPayload(payload: Map<String, Any>): Rule? {
+        val id = payload["rule_id"] as? String ?: return null
+        return Rule(
+            id = id,
+            screenId = (payload["screen_id"] as? String) ?: "",
+            ruleName = payload["rule_name"] as? String,
+            screenName = payload["screen_name"] as? String,
+            paywallIdentifier = payload["paywall_identifier"] as? String,
+            paywallId = payload["paywall_id"] as? String,
+        )
+    }
 }
