@@ -86,9 +86,16 @@ class RuleActionParserTest {
         assertEquals(RuleAction.Unknown, action)
     }
 
+    @Test
+    fun `GIVEN unrelated path EXPECT unknown`() {
+        val action = RuleActionParser.parse("/foo", emptyMap())
+
+        assertEquals(RuleAction.Unknown, action)
+    }
+
     // endregion
 
-    // region link and screen
+    // region screen survey
 
     @Test
     fun `GIVEN link with url EXPECT external link`() {
@@ -105,17 +112,41 @@ class RuleActionParserTest {
     }
 
     @Test
-    fun `GIVEN screen EXPECT ignored`() {
+    fun `GIVEN screen with question and answer EXPECT survey`() {
+        val action = RuleActionParser.parse(
+            "/screen",
+            mapOf(
+                "id" to "next-screen",
+                "question" to "Why did you cancel?",
+                "answer" to "Too expensive",
+            ),
+        )
+
+        assertEquals(RuleAction.Survey("Why did you cancel?", "Too expensive"), action)
+    }
+
+    @Test
+    fun `GIVEN any path with survey params EXPECT survey`() {
+        val action = RuleActionParser.parse(
+            "/unknown",
+            mapOf("question" to "Q?", "answer" to "A"),
+        )
+
+        assertEquals(RuleAction.Survey("Q?", "A"), action)
+    }
+
+    @Test
+    fun `GIVEN screen without survey params EXPECT ignored`() {
         val action = RuleActionParser.parse("/screen", mapOf("id" to "screen-2"))
 
         assertEquals(RuleAction.IgnoreScreen, action)
     }
 
     @Test
-    fun `GIVEN unrelated path EXPECT unknown`() {
-        val action = RuleActionParser.parse("/foo", emptyMap())
+    fun `GIVEN dismiss path EXPECT dismiss`() {
+        val action = RuleActionParser.parse("/dismiss", emptyMap())
 
-        assertEquals(RuleAction.Unknown, action)
+        assertEquals(RuleAction.Dismiss, action)
     }
 
     // endregion

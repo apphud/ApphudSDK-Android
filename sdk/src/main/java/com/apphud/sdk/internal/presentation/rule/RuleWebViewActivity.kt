@@ -177,8 +177,10 @@ internal class RuleWebViewActivity : AppCompatActivity() {
             RuleAction.BillingIssue -> viewModel.processBillingIssue()
             is RuleAction.Purchase -> viewModel.processPurchase(action.productId, action.offerId)
             is RuleAction.ExternalLink -> handleExternalLink(action.url)
-            RuleAction.IgnoreScreen ->
-                ApphudLog.log("[RuleWebViewActivity] Ignoring /screen navigation")
+            RuleAction.IgnoreScreen -> {
+                ApphudLog.log("[RuleWebViewActivity] Linked screen is not supported on Android, closing")
+                viewModel.processDismiss()
+            }
             RuleAction.Unknown -> Unit
         }
     }

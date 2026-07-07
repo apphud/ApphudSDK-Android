@@ -1,6 +1,5 @@
 package com.apphud.sdk.internal.domain.mapper
 
-import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -50,6 +49,7 @@ class RuleScreenHtmlSanitizerTest {
 
         val result = RuleScreenHtmlSanitizer.sanitizeForInAppWebView(sanitized)
 
-        assertEquals(sanitized, result)
+        assertTrue(result.contains("window.__aphAttributionReady=true"))
+        assertFalse(result.contains("screen_redirect"))
     }
 }

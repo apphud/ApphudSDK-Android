@@ -90,7 +90,9 @@ internal class RuleViewModel(
     }
 
     /**
-     * Handles a survey answer selection (`/action?type=dismiss` with `question` and `answer`).
+     * Handles a survey answer selection from any intercepted URL with `question` and `answer`
+     * params. Always tracks `$survey_answer` on the backend, then closes the screen on Android
+     * (linked follow-up screens are not supported).
      */
     fun processSurveyAnswer(question: String, answer: String) {
         val rule = currentRule ?: return
