@@ -5,6 +5,7 @@ import com.apphud.sdk.ApphudError
 import com.apphud.sdk.ApphudLog
 import com.apphud.sdk.internal.ApphudDispatchers
 import com.apphud.sdk.internal.data.network.UrlProvider
+import com.apphud.sdk.internal.domain.mapper.RuleScreenHtmlSanitizer
 import com.apphud.sdk.internal.domain.model.ApiKey
 import com.apphud.sdk.internal.util.runCatchingCancellable
 import com.google.gson.Gson
@@ -46,9 +47,10 @@ internal class ScreenRemoteRepository(
                         error(message)
                     }
 
-                    response.body?.string() ?: error(
+                    val html = response.body?.string() ?: error(
                         "finish ${request.method} request ${request.url} with empty body"
                     )
+                    RuleScreenHtmlSanitizer.sanitizeForInAppWebView(html)
                 }
             }
         }

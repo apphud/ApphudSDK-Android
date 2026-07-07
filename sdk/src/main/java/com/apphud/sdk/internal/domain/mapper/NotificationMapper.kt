@@ -16,21 +16,23 @@ internal class NotificationMapper {
         }
 
     /**
-     * The backend delivers rule metadata (`screen_id`, `rule_name`, `screen_name`,
-     * `paywall_identifier`, `paywall_id`) inside `properties`, while the `rule` object only
-     * carries its id.
-     * Mirror iOS, which merges `rule` + `properties`, preferring `properties` and falling back
-     * to any values present on the `rule` object.
+     * The backend delivers rule metadata (`rule_name`, `screen_name`, `paywall_identifier`,
+     * `paywall_id`) inside `properties`, while the `rule` object carries its id and, when present,
+     * the authoritative `screen_id` for that rule.
+     *
+     * The `properties.screen_id` and `rule.screen_id` may differ; the `rule` object is the source
+     * of truth, so its `screen_id` takes precedence when available, falling back to
+     * `properties.screen_id` otherwise.
      */
     private fun mapRule(notificationDto: NotificationDto): Rule? {
-        val ruleDto = notificationDto.rule ?: return null
+        val ruleDto = notificationDto.rule
         val properties = notificationDto.properties
-        val id = ruleDto.id ?: (properties?.get("rule_id") as? String) ?: return null
+        val id = ruleDto?.id ?: (properties?.get("rule_id") as? String) ?: return null
         return Rule(
             id = id,
-            screenId = (properties?.get("screen_id") as? String) ?: ruleDto.screenId ?: "",
-            ruleName = (properties?.get("rule_name") as? String) ?: ruleDto.ruleName,
-            screenName = (properties?.get("screen_name") as? String) ?: ruleDto.screenName,
+            screenId = ruleDto?.screenId ?: (properties?.get("screen_id") as? String) ?: "",
+            ruleName = (properties?.get("rule_name") as? String) ?: ruleDto?.ruleName,
+            screenName = (properties?.get("screen_name") as? String) ?: ruleDto?.screenName,
             paywallIdentifier = properties?.get("paywall_identifier") as? String,
             paywallId = properties?.get("paywall_id") as? String,
         )

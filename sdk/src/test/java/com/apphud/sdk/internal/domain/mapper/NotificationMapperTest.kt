@@ -57,6 +57,18 @@ class NotificationMapperTest {
     }
 
     @Test
+    fun `GIVEN rule screen_id and properties screen_id differ EXPECT rule screen_id wins`() {
+        val dto = notificationDto(
+            rule = RuleDto(id = "rule-id", screenId = "screen-from-rule"),
+            properties = mapOf("rule_id" to "rule-id", "screen_id" to "screen-from-props"),
+        )
+
+        val result = mapper.map(listOf(dto))
+
+        assertEquals("screen-from-rule", result.single().rule?.screenId)
+    }
+
+    @Test
     fun `GIVEN rule without id but rule_id in properties EXPECT rule id from properties`() {
         val dto = notificationDto(
             rule = RuleDto(id = null),
@@ -159,6 +171,30 @@ class NotificationMapperTest {
         val result = mapper.map(listOf(dto))
 
         assertNull(result.single().rule)
+    }
+
+    @Test
+    fun `GIVEN no rule hash but rule_id in properties EXPECT rule id from properties`() {
+        val dto = notificationDto(
+            rule = null,
+            properties = mapOf("rule_id" to "rule-from-props", "screen_id" to "screen-from-props"),
+        )
+
+        val result = mapper.map(listOf(dto))
+
+        assertEquals("rule-from-props", result.single().rule?.id)
+    }
+
+    @Test
+    fun `GIVEN no rule hash but screen_id in properties EXPECT screenId from properties`() {
+        val dto = notificationDto(
+            rule = null,
+            properties = mapOf("rule_id" to "rule-from-props", "screen_id" to "screen-from-props"),
+        )
+
+        val result = mapper.map(listOf(dto))
+
+        assertEquals("screen-from-props", result.single().rule?.screenId)
     }
 
     // endregion
