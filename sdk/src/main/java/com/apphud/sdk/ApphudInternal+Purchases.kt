@@ -12,6 +12,7 @@ import com.apphud.sdk.internal.ServiceLocator
 import com.apphud.sdk.internal.callback_status.PurchaseCallbackStatus
 import com.apphud.sdk.internal.callback_status.PurchaseUpdatedCallbackStatus
 import com.apphud.sdk.internal.domain.model.PurchaseContext
+import com.apphud.sdk.internal.domain.preferredOfferId
 import com.apphud.sdk.internal.util.runCatchingCancellable
 import com.apphud.sdk.managers.RequestManager
 import kotlinx.coroutines.launch
@@ -196,8 +197,17 @@ private fun ApphudInternal.purchaseInternal(
 
         var token = offerIdToken
         if (it.productType == BillingClient.ProductType.SUBS && offerIdToken == null) {
-            token = it.subscriptionOfferDetails?.firstOrNull()?.offerToken
-            ApphudLog.logE("OfferToken not set. You are required to pass offer token in Apphud.purchase method when purchasing subscription. Passing first offerToken as a fallback.")
+            val preferredOfferId = apphudProduct.preferredOfferId()
+            val preferredOfferToken = preferredOfferId?.let { offerId ->
+                it.subscriptionOfferDetails?.firstOrNull { offer -> offer.offerId == offerId }?.offerToken
+            }
+            if (preferredOfferToken != null) {
+                token = preferredOfferToken
+                ApphudLog.log("Using preferred offer id \"$preferredOfferId\" from paywall configuration.")
+            } else {
+                token = it.subscriptionOfferDetails?.firstOrNull()?.offerToken
+                ApphudLog.logE("OfferToken not set. You are required to pass offer token in Apphud.purchase method when purchasing subscription. Passing first offerToken as a fallback.")
+            }
         }
 
         val currentPaywallScreenId = if (fromScreen) findPaywallScreenId(apphudProduct.paywallId) else null

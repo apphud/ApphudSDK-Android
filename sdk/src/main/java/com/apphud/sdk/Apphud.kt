@@ -603,9 +603,12 @@ object Apphud {
      *
      * @param activity The current Activity context.
      * @param apphudProduct The `ApphudProduct` object representing the product to be purchased.
-     * @param offerIdToken (Required for Subscriptions) The identifier of the offer for initiating the purchase.
+     * @param offerIdToken (Recommended for Subscriptions) The identifier of the offer for initiating the purchase.
      *                                                  Developer should retrieve it from SubscriptionOfferDetails array.
-     *                                                  If not passed, then SDK will try to use first one from the array.
+     *                                                  If not passed, the SDK selects the offer in the following order:
+     *                                                  1. The preferred offer whose `offerId` is set for this product
+     *                                                     in Apphud dashboard on the paywall configuration page.
+     *                                                  2. The first offer from SubscriptionOfferDetails array as a fallback.
      * @param oldToken (Optional) The Google Play Billing purchase token that the user is
      *                 upgrading or downgrading from.
      * @param replacementMode (Optional) The replacement mode for the subscription update.
@@ -647,7 +650,12 @@ object Apphud {
      *
      * @param activity The current Activity context.
      * @param productId The Google Play product ID of the item to purchase.
-     * @param offerIdToken (Required for Subscriptions) The identifier of the offer for initiating the purchase. Developer should retrieve it from SubscriptionOfferDetails object.
+     * @param offerIdToken (Recommended for Subscriptions) The identifier of the offer for initiating the purchase.
+     *                                                  Developer should retrieve it from SubscriptionOfferDetails object.
+     *                                                  If not passed, the SDK selects the offer in the following order:
+     *                                                  1. The preferred offer whose `offerId` is set for this product
+     *                                                     in Apphud dashboard on the paywall configuration page.
+     *                                                  2. The first offer from SubscriptionOfferDetails array as a fallback.
      * @param oldToken (Optional) The Google Play Billing purchase token that the user is
      *                 upgrading or downgrading from.
      * @param replacementMode (Optional) The replacement mode for the subscription update.
