@@ -77,6 +77,13 @@ internal class RuleController(
     // rule_id -> timestamp of last handling; used to dedup pushes within a short window.
     private val handledPushRuleIds = mutableMapOf<String, Long>()
 
+    // rule ids already auto-presented in this session. Prevents re-showing the same screen
+    // after it was dismissed: marking notifications as read on the server is eventually
+    // consistent, so a fetch right after dismiss can still return the just-shown rule and
+    // re-present it, producing an infinite presentation loop. Only mutated on the
+    // RuleController thread.
+    private val shownRuleIds = mutableSetOf<String>()
+
     @OptIn(ExperimentalCoroutinesApi::class, DelicateCoroutinesApi::class)
     private val coroutineScope: CoroutineScope = CoroutineScope(
         coroutineScope.coroutineContext + newSingleThreadContext("RuleControllerThread")
@@ -87,6 +94,7 @@ internal class RuleController(
     fun start(deviceId: DeviceId) {
         currentDeviceId = deviceId
         fetchRuleScreenJob?.cancel()
+        shownRuleIds.clear()
         state.value = RuleState.Idle
         fetchRuleScreenJob = lifecycleRepository.get()
             .onEach { lifecycleEvent ->
@@ -312,7 +320,11 @@ internal class RuleController(
     private suspend fun processRuleActivityClosed(ruleActivityClosedState: RuleState.RuleActivityClosed) {
         localRulesScreenRepository.deleteById(ruleActivityClosedState.rule.id)
         state.value = RuleState.Idle
-        processRuleStateMachine()
+        // Do NOT re-fetch from the network here. Marking notifications as read is eventually
+        // consistent on the server, so an immediate fetch could return the just-dismissed rule
+        // and re-present it, causing an infinite presentation loop. Only present the next rule
+        // already cached locally, if any.
+        selectAndProcessMostActualLocalRule()
     }
 
     private suspend fun processPendingRule(pendingRule: Rule) {
@@ -333,6 +345,7 @@ internal class RuleController(
         } else if (ApphudInternal.legacyRuleScreensEnabled) {
             val intent = RuleWebViewActivity.getIntent(context, pendingRule.id)
             context.startActivity(intent)
+            shownRuleIds.add(pendingRule.id)
             state.value = RuleState.RuleActivityAlreadyOpen(pendingRule)
         } else {
             ApphudLog.log("RuleController: skipping legacy HTML rule ${pendingRule.ruleName}")
@@ -371,6 +384,7 @@ internal class RuleController(
             ruleCallback.provideActivity()
         } ?: context
 
+        shownRuleIds.add(pendingRule.id)
         state.value = RuleState.RuleActivityAlreadyOpen(pendingRule)
 
         val callbacks = buildPaywallScreenCallbacks(pendingRule, paywall)
@@ -455,32 +469,48 @@ internal class RuleController(
         state.value = RuleState.Loading
 
         when (val fetchResult = fetchRulesScreenUseCase(deviceId)) {
-            is FetchRulesScreenResult.Success -> {
-                when (val ruleResult = fetchMostActualRuleScreenUseCase()) {
-                    is RuleScreenResult.Success -> {
-                        val rule = getRuleById(ruleResult.ruleId) ?: return
-                        val shouldPerformRule = withContext(dispatchers.main) {
-                            ruleCallback.shouldPerformRule(rule)
-                        }
-                        if (shouldPerformRule) {
-                            state.value = RuleState.PendingRule(rule)
-                            processPendingRule(rule)
-                        } else {
-                            localRulesScreenRepository.deleteById(rule.id)
-                            state.value = RuleState.Idle
-                        }
-                    }
-                    is RuleScreenResult.NoRules -> {
-                        state.value = RuleState.Idle
-                    }
-                    is RuleScreenResult.Error -> {
-                        ApphudLog.logE("Fetch ruleScreen failed: ${ruleResult.message}")
-                        state.value = RuleState.Idle
-                    }
-                }
-            }
+            is FetchRulesScreenResult.Success -> selectAndProcessMostActualLocalRule()
             is FetchRulesScreenResult.Error -> {
                 ApphudLog.logE("Fetch ruleScreen failed: ${fetchResult.exception.message}")
+                state.value = RuleState.Idle
+            }
+        }
+    }
+
+    /**
+     * Picks the most actual rule from the local cache and presents it if allowed. Rules already
+     * presented in this session are skipped and removed from the cache to break re-presentation
+     * loops caused by eventually-consistent server read-marking.
+     */
+    private suspend fun selectAndProcessMostActualLocalRule() {
+        when (val ruleResult = fetchMostActualRuleScreenUseCase()) {
+            is RuleScreenResult.Success -> {
+                val rule = getRuleById(ruleResult.ruleId)
+                if (rule == null) {
+                    state.value = RuleState.Idle
+                    return
+                }
+                if (rule.id in shownRuleIds) {
+                    localRulesScreenRepository.deleteById(rule.id)
+                    state.value = RuleState.Idle
+                    return
+                }
+                val shouldPerformRule = withContext(dispatchers.main) {
+                    ruleCallback.shouldPerformRule(rule)
+                }
+                if (shouldPerformRule) {
+                    state.value = RuleState.PendingRule(rule)
+                    processPendingRule(rule)
+                } else {
+                    localRulesScreenRepository.deleteById(rule.id)
+                    state.value = RuleState.Idle
+                }
+            }
+            is RuleScreenResult.NoRules -> {
+                state.value = RuleState.Idle
+            }
+            is RuleScreenResult.Error -> {
+                ApphudLog.logE("Fetch ruleScreen failed: ${ruleResult.message}")
                 state.value = RuleState.Idle
             }
         }
