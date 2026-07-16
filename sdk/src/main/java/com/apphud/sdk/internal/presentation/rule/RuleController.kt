@@ -164,6 +164,8 @@ internal class RuleController(
      * Apphud rule and was accepted for handling. Mirrors iOS `Apphud.handlePushNotification`.
      */
     fun handlePushNotification(data: Map<String, Any>): Boolean {
+        ApphudLog.log("RuleController: incoming push notification payload: $data")
+
         val ruleId = data["rule_id"] as? String ?: return false
 
         if (!this::currentDeviceId.isInitialized) {

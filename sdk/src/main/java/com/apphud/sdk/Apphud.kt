@@ -388,22 +388,6 @@ object Apphud {
     }
 
     /**
-     * Disables presentation of legacy HTML rule screens triggered by Apphud Rules.
-     * Only Figma paywall rules (with `paywall_identifier`) will be shown.
-     *
-     * Call before [start] if you want the flag applied from the first rules fetch.
-     *
-     * Example:
-     * ```
-     * Apphud.disableLegacyRuleScreens()
-     * Apphud.start(context, apiKey)
-     * ```
-     */
-    fun disableLegacyRuleScreens() {
-        ApphudInternal.legacyRuleScreensEnabled = false
-    }
-
-    /**
      * Call this method when your paywall screen is displayed to the user.
      * This is required for A/B testing analysis.
      *
