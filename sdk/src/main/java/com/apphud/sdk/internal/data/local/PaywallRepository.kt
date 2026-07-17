@@ -25,6 +25,15 @@ internal class PaywallRepository {
     }
 
     /**
+     * Looks up a paywall by ID in cached placements and [transientPaywalls].
+     * Returns null when nothing matches — use this for optional attribution lookups.
+     */
+    fun findById(paywallId: String): ApphudPaywall? =
+        ApphudInternal.userRepository.getCurrentUser()
+            ?.placements?.firstNotNullOfOrNull { it.paywall?.takeIf { pw -> pw.id == paywallId } }
+            ?: transientPaywalls[paywallId]
+
+    /**
      * Gets paywall by ID from Apphud
      * @param paywallId paywall ID to search for
      * @return Result containing paywall or error if not found
@@ -33,10 +42,7 @@ internal class PaywallRepository {
         runCatching {
             ApphudLog.log("[PaywallRepository] Searching for paywall with ID: $paywallId")
 
-            val paywall = ApphudInternal.userRepository.getCurrentUser()
-                ?.placements?.firstNotNullOfOrNull { it.paywall?.takeIf { pw -> pw.id == paywallId } }
-                ?: transientPaywalls[paywallId]
-
+            val paywall = findById(paywallId)
             if (paywall != null) {
                 ApphudLog.log("[PaywallRepository] Found paywall: ${paywall.name} (${paywall.identifier})")
                 paywall

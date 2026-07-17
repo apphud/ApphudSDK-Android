@@ -18,10 +18,21 @@ import com.apphud.sdk.managers.RequestManager
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
-private fun ApphudInternal.findPaywallScreenId(paywallId: String?): String? =
-    userRepository.getCurrentUser()?.placements
-        ?.firstNotNullOfOrNull { placement -> placement.paywall?.takeIf { it.id == paywallId } }
-        ?.screen?.id
+private fun ApphudInternal.findPaywallScreenId(paywallId: String?): String? {
+    // Prefer paywall.screen.id — covers placements and rule-triggered paywalls registered
+    // in PaywallRepository.transientPaywalls.
+    val fromPaywall = paywallId?.let { id ->
+        runCatching {
+            ServiceLocator.instance.paywallRepository.findById(id)?.screen?.id?.ifEmpty { null }
+        }.getOrNull()
+    }
+    if (fromPaywall != null) return fromPaywall
+
+    // Fallback for rule screens where paywall lookup is unavailable but rule carries screen_id.
+    return runCatching {
+        ServiceLocator.instance.ruleController.pendingRule()?.screenId?.ifEmpty { null }
+    }.getOrNull()
+}
 
 internal fun ApphudInternal.purchase(
     activity: Activity,
