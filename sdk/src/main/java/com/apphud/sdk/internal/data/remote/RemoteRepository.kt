@@ -254,7 +254,7 @@ internal class RemoteRepository(
 
     suspend fun trackRuleEvent(event: RuleEventDto): Result<Unit> =
         runCatchingCancellable {
-            val request = buildPostRequest(urlProvider.ruleEventsUrl, event)
+            val request = buildPostRequest(urlProvider.eventsUrl, event)
             executeForResponse<Unit>(okHttpClient, gson, request, dispatchers.io)
         }
             .recoverCatching { e ->

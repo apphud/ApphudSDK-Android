@@ -51,10 +51,8 @@ internal class UrlProvider(
     val promotionsUrl: HttpUrl
         get() = "${baseUrl.get()}/v1/promotions".toHttpUrl()
 
+    /** Shared endpoint for paywall analytics and rule `$` events (mirrors iOS APIv2). */
     val eventsUrl: HttpUrl
-        get() = "${baseUrl.get()}/v1/events".toHttpUrl()
-
-    val ruleEventsUrl: HttpUrl
         get() = "${baseUrl.get()}/v2/events".toHttpUrl()
 
     val pushTokenUrl: HttpUrl

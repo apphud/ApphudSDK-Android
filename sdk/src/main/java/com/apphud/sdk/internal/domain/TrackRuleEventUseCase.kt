@@ -7,7 +7,7 @@ import com.apphud.sdk.internal.data.remote.RemoteRepository
 import com.apphud.sdk.internal.util.runCatchingCancellable
 
 /**
- * Tracks a rule-related analytics event on the `v2/events` endpoint.
+ * Tracks a rule-related analytics event on the shared `v2/events` endpoint.
  *
  * Mirrors iOS `ApphudInternal.trackEvent(params:)`, used for `$screen_presented`,
  * `$purchase`, `$survey_answer`, `$feedback`, `$billing_issue` and `$push_opened`.
