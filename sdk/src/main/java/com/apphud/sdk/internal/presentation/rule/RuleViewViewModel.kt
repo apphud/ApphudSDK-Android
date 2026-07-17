@@ -73,7 +73,12 @@ internal class RuleViewModel(
         val rule = currentRule ?: return
         ruleCallback.onScreenAppeared(rule)
         viewModelScope.launch {
-            trackRuleEventUseCase(rule.id, rule.screenId.ifEmpty { null }, EVENT_SCREEN_PRESENTED)
+            trackRuleEventUseCase(
+                ruleId = rule.id,
+                screenId = rule.screenId.ifEmpty { null },
+                name = EVENT_SCREEN_PRESENTED,
+                paywallId = rule.paywallId,
+            )
         }
     }
 
@@ -261,6 +266,7 @@ internal class RuleViewModel(
                 hidePurchaseLoader()
                 ruleCallback.onPurchaseCompleted(rule, result)
             } else {
+                trackPurchaseEvent(rule, result)
                 ruleCallback.onPurchaseCompleted(rule, result)
                 _events.send(WebViewEvent.PurchaseCompleted)
             }
@@ -272,6 +278,23 @@ internal class RuleViewModel(
         if (currentState is WebViewState.ContentWithPurchaseLoading) {
             _state.value = WebViewState.Content(currentState.ruleScreen)
         }
+    }
+
+    private suspend fun trackPurchaseEvent(rule: Rule, result: ApphudPurchaseResult) {
+        val properties = mutableMapOf<String, Any>()
+        val productId = result.subscription?.productId
+            ?: result.nonRenewingPurchase?.productId
+            ?: result.purchase?.products?.firstOrNull()
+        productId?.let { properties["product_id"] = it }
+        result.purchase?.orderId?.let { properties["transaction_id"] = it }
+
+        trackRuleEventUseCase(
+            ruleId = rule.id,
+            screenId = rule.screenId.ifEmpty { null },
+            name = EVENT_PURCHASE,
+            properties = properties.ifEmpty { null },
+            paywallId = rule.paywallId,
+        )
     }
 
     private fun loadRuleScreen(ruleId: String) {
@@ -299,6 +322,7 @@ internal class RuleViewModel(
 
     companion object {
         private const val EVENT_SCREEN_PRESENTED = "\$screen_presented"
+        private const val EVENT_PURCHASE = "\$purchase"
         private const val EVENT_SURVEY_ANSWER = "\$survey_answer"
         private const val EVENT_FEEDBACK = "\$feedback"
         private const val EVENT_BILLING_ISSUE = "\$billing_issue"

@@ -411,6 +411,7 @@ internal class RuleController(
             onScreenShown = {
                 ApphudInternal.paywallShown(paywall)
                 ruleCallback.onScreenAppeared(pendingRule)
+                trackScreenPresented(pendingRule, paywall)
             },
             onTransactionStarted = { product ->
                 ruleCallback.onWillPurchase(pendingRule, product)
@@ -419,6 +420,7 @@ internal class RuleController(
                 val purchaseResult = result.toApphudPurchaseResult()
                 ruleCallback.onPurchaseCompleted(pendingRule, purchaseResult)
                 if (result !is ApphudPaywallScreenShowResult.TransactionError) {
+                    trackPurchase(pendingRule, paywall, purchaseResult)
                     onPaywallScreenClosed(pendingRule, error = null)
                 }
             },
@@ -430,6 +432,43 @@ internal class RuleController(
                 onPaywallScreenClosed(pendingRule, error = error)
             },
         )
+
+    private fun trackScreenPresented(rule: Rule, paywall: ApphudPaywall) {
+        coroutineScope.launch {
+            trackRuleEventUseCase(
+                ruleId = rule.id,
+                screenId = resolveRuleScreenId(rule, paywall),
+                name = EVENT_SCREEN_PRESENTED,
+                paywallId = paywall.id,
+            )
+        }
+    }
+
+    private fun trackPurchase(rule: Rule, paywall: ApphudPaywall, result: ApphudPurchaseResult) {
+        coroutineScope.launch {
+            trackRuleEventUseCase(
+                ruleId = rule.id,
+                screenId = resolveRuleScreenId(rule, paywall),
+                name = EVENT_PURCHASE,
+                properties = purchaseEventProperties(result),
+                paywallId = paywall.id,
+            )
+        }
+    }
+
+    /** Prefer rule.screenId, fall back to paywall.screen.id — mirrors iOS `ruleScreenID`. */
+    private fun resolveRuleScreenId(rule: Rule, paywall: ApphudPaywall): String? =
+        rule.screenId.ifEmpty { null } ?: paywall.screen?.id?.ifEmpty { null }
+
+    private fun purchaseEventProperties(result: ApphudPurchaseResult): Map<String, Any> {
+        val properties = mutableMapOf<String, Any>()
+        val productId = result.subscription?.productId
+            ?: result.nonRenewingPurchase?.productId
+            ?: result.purchase?.products?.firstOrNull()
+        productId?.let { properties["product_id"] = it }
+        result.purchase?.orderId?.let { properties["transaction_id"] = it }
+        return properties
+    }
 
     /**
      * Invoked on the main thread from the paywall screen callbacks when the screen is dismissed
@@ -524,5 +563,7 @@ internal class RuleController(
 
         private const val PUSH_DEDUP_WINDOW_MS = 5_000L
         private const val EVENT_PUSH_OPENED = "\$push_opened"
+        private const val EVENT_SCREEN_PRESENTED = "\$screen_presented"
+        private const val EVENT_PURCHASE = "\$purchase"
     }
 }

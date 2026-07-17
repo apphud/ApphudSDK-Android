@@ -9,6 +9,8 @@ internal data class RuleEventDto(
     val ruleId: String,
     @SerializedName("screen_id")
     val screenId: String?,
+    @SerializedName("paywall_id")
+    val paywallId: String? = null,
     val name: String,
     val properties: Map<String, Any>?,
 )

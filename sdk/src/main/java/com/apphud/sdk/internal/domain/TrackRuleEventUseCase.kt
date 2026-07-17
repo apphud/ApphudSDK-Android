@@ -10,7 +10,7 @@ import com.apphud.sdk.internal.util.runCatchingCancellable
  * Tracks a rule-related analytics event on the `v2/events` endpoint.
  *
  * Mirrors iOS `ApphudInternal.trackEvent(params:)`, used for `$screen_presented`,
- * `$survey_answer`, `$feedback`, `$billing_issue` and `$push_opened`.
+ * `$purchase`, `$survey_answer`, `$feedback`, `$billing_issue` and `$push_opened`.
  */
 internal class TrackRuleEventUseCase(
     private val remoteRepository: RemoteRepository,
@@ -22,6 +22,7 @@ internal class TrackRuleEventUseCase(
         screenId: String?,
         name: String,
         properties: Map<String, Any>? = null,
+        paywallId: String? = null,
     ) {
         val deviceId = userRepository.getDeviceId()
         if (deviceId == null) {
@@ -35,6 +36,7 @@ internal class TrackRuleEventUseCase(
                     deviceId = deviceId,
                     ruleId = ruleId,
                     screenId = screenId,
+                    paywallId = paywallId,
                     name = name,
                     properties = properties,
                 ),

@@ -64,6 +64,41 @@ class TrackRuleEventUseCaseTest {
     }
 
     @Test
+    fun `GIVEN paywall id EXPECT posts dto with paywall id`() = runTest {
+        val captured = slot<RuleEventDto>()
+        coEvery { remoteRepository.trackRuleEvent(capture(captured)) } returns Result.success(Unit)
+
+        useCase(
+            ruleId = "rule-1",
+            screenId = "screen-1",
+            name = "\$screen_presented",
+            paywallId = "paywall-1",
+        )
+
+        assertEquals("paywall-1", captured.captured.paywallId)
+        assertEquals("screen-1", captured.captured.screenId)
+        assertEquals("rule-1", captured.captured.ruleId)
+    }
+
+    @Test
+    fun `GIVEN purchase event EXPECT posts name and paywall id`() = runTest {
+        val captured = slot<RuleEventDto>()
+        coEvery { remoteRepository.trackRuleEvent(capture(captured)) } returns Result.success(Unit)
+
+        useCase(
+            ruleId = "rule-1",
+            screenId = "screen-1",
+            name = "\$purchase",
+            properties = mapOf("product_id" to "premium"),
+            paywallId = "paywall-1",
+        )
+
+        assertEquals("\$purchase", captured.captured.name)
+        assertEquals("paywall-1", captured.captured.paywallId)
+        assertEquals(mapOf("product_id" to "premium"), captured.captured.properties)
+    }
+
+    @Test
     fun `GIVEN no device id EXPECT does not call remote`() = runTest {
         every { userRepository.getDeviceId() } returns null
 
