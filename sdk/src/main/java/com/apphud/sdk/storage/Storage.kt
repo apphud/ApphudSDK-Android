@@ -25,4 +25,5 @@ internal interface Storage {
     var syncedDeviceIdentifiers: Array<String>?
     var cacheVersion: String?
     var connectDomainUrl: String?
+    var submittedPushToken: String?
 }

@@ -12,15 +12,30 @@ import com.apphud.sdk.internal.ServiceLocator
 import com.apphud.sdk.internal.callback_status.PurchaseCallbackStatus
 import com.apphud.sdk.internal.callback_status.PurchaseUpdatedCallbackStatus
 import com.apphud.sdk.internal.domain.model.PurchaseContext
+import com.apphud.sdk.internal.domain.preferredOfferId
 import com.apphud.sdk.internal.util.runCatchingCancellable
 import com.apphud.sdk.managers.RequestManager
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
-private fun ApphudInternal.findPaywallScreenId(paywallId: String?): String? =
-    userRepository.getCurrentUser()?.placements
-        ?.firstNotNullOfOrNull { placement -> placement.paywall?.takeIf { it.id == paywallId } }
-        ?.screen?.id
+private fun ApphudInternal.findPaywallScreenId(paywallId: String?): String? {
+    // Prefer paywall.screen.id — covers placements and rule-triggered paywalls registered
+    // in PaywallRepository.transientPaywalls.
+    val fromPaywall = paywallId?.let { id ->
+        runCatching {
+            ServiceLocator.instance.paywallRepository.findById(id)?.screen?.id?.ifEmpty { null }
+        }.getOrNull()
+    }
+    if (fromPaywall != null) return fromPaywall
+
+    // Fallback for rule screens where paywall lookup is unavailable but rule carries screen_id.
+    // TODO: pendingRule() also returns a rule in the PendingRule state (fetched but deferred and
+    //  never shown), so a purchase from an unrelated developer-presented screen can be tagged with
+    //  the deferred rule's screen_id. Restrict to the RuleActivityAlreadyOpen state.
+    return runCatching {
+        ServiceLocator.instance.ruleController.pendingRule()?.screenId?.ifEmpty { null }
+    }.getOrNull()
+}
 
 internal fun ApphudInternal.purchase(
     activity: Activity,
@@ -56,6 +71,9 @@ internal fun ApphudInternal.purchase(
 
     productToPurchase?.let { product ->
         details?.let {
+            if (product.productDetails == null) {
+                product.productDetails = it
+            }
             purchaseInternal(
                 activity,
                 product,
@@ -193,8 +211,17 @@ private fun ApphudInternal.purchaseInternal(
 
         var token = offerIdToken
         if (it.productType == BillingClient.ProductType.SUBS && offerIdToken == null) {
-            token = it.subscriptionOfferDetails?.firstOrNull()?.offerToken
-            ApphudLog.logE("OfferToken not set. You are required to pass offer token in Apphud.purchase method when purchasing subscription. Passing first offerToken as a fallback.")
+            val preferredOfferId = apphudProduct.preferredOfferId()
+            val preferredOfferToken = preferredOfferId?.let { offerId ->
+                it.subscriptionOfferDetails?.firstOrNull { offer -> offer.offerId == offerId }?.offerToken
+            }
+            if (preferredOfferToken != null) {
+                token = preferredOfferToken
+                ApphudLog.log("Using preferred offer id \"$preferredOfferId\" from paywall configuration.")
+            } else {
+                token = it.subscriptionOfferDetails?.firstOrNull()?.offerToken
+                ApphudLog.logE("OfferToken not set. You are required to pass offer token in Apphud.purchase method when purchasing subscription. Passing first offerToken as a fallback.")
+            }
         }
 
         val currentPaywallScreenId = if (fromScreen) findPaywallScreenId(apphudProduct.paywallId) else null
@@ -494,6 +521,14 @@ private suspend fun ApphudInternal.sendCheckToApphud(
     callback: ((ApphudPurchaseResult) -> Unit)?,
 ) {
     val currentPaywallScreenId = if (fromScreen) findPaywallScreenId(paywallId) else null
+    // TODO: activeRuleId() also returns a rule in the PendingRule state (fetched but deferred and
+    //  never shown), so a purchase from an unrelated developer-presented screen can be tagged with
+    //  the deferred rule's rule_id. Restrict to the RuleActivityAlreadyOpen state.
+    val currentRuleId = if (fromScreen) {
+        runCatching { ServiceLocator.instance.ruleController.activeRuleId() }.getOrNull()
+    } else {
+        null
+    }
 
     val localCurrentUser = userRepository.getCurrentUser()
     when {
@@ -510,7 +545,8 @@ private suspend fun ApphudInternal.sendCheckToApphud(
                         offerIdToken,
                         oldToken,
                         "fallback_mode",
-                        screenId = currentPaywallScreenId
+                        screenId = currentPaywallScreenId,
+                        ruleId = currentRuleId,
                     )
                 )
             }.onFailure { error ->
@@ -546,6 +582,7 @@ private suspend fun ApphudInternal.sendCheckToApphud(
                         oldToken,
                         null,
                         currentPaywallScreenId,
+                        currentRuleId,
                     )
                 )
             }

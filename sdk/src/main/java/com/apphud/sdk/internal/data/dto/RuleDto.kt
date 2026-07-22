@@ -4,14 +4,14 @@ import com.google.gson.annotations.SerializedName
 
 data class RuleDto(
     @SerializedName("id")
-    val id: String,
-    
+    val id: String? = null,
+
     @SerializedName("screen_id")
-    val screenId: String,
-    
+    val screenId: String? = null,
+
     @SerializedName("rule_name")
-    val ruleName: String?,
-    
+    val ruleName: String? = null,
+
     @SerializedName("screen_name")
-    val screenName: String?
+    val screenName: String? = null,
 )

@@ -7,8 +7,10 @@ import com.apphud.sdk.internal.data.UserDataSource
 import com.apphud.sdk.internal.data.UserPropertiesManager
 import com.apphud.sdk.internal.data.UserRepository
 import com.apphud.sdk.internal.data.local.PaywallRepository
+import com.apphud.sdk.internal.data.mapper.PaywallsMapper
 import com.apphud.sdk.internal.data.mapper.ProductMapper
 import com.apphud.sdk.internal.data.mapper.RenderResultMapper
+import com.apphud.sdk.internal.data.network.CustomerIdInterceptor
 import com.apphud.sdk.internal.data.network.HeadersInterceptor
 import com.apphud.sdk.internal.data.network.HttpRetryInterceptor
 import com.apphud.sdk.internal.data.network.TimeoutInterceptor
@@ -24,11 +26,14 @@ import com.apphud.sdk.internal.domain.DeviceIdentifiersInteractor
 import com.apphud.sdk.internal.domain.FetchMostActualRuleScreenUseCase
 import com.apphud.sdk.internal.domain.FetchNativePurchasesUseCase
 import com.apphud.sdk.internal.domain.FetchRulesScreenUseCase
+import com.apphud.sdk.internal.domain.GetPaywallByIdentifierUseCase
 import com.apphud.sdk.internal.domain.EnrichPlacementProductsUseCase
 import com.apphud.sdk.internal.domain.RegisterUserUseCase
 import com.apphud.sdk.internal.domain.RegistrationInteractor
 import com.apphud.sdk.internal.domain.RenderPaywallPropertiesUseCase
 import com.apphud.sdk.internal.domain.ResolveCredentialsUseCase
+import com.apphud.sdk.internal.domain.SubmitPushTokenUseCase
+import com.apphud.sdk.internal.domain.TrackRuleEventUseCase
 import com.apphud.sdk.internal.domain.mapper.DateTimeMapper
 import com.apphud.sdk.internal.domain.mapper.NotificationMapper
 import com.apphud.sdk.internal.domain.model.ApiKey
@@ -52,6 +57,9 @@ internal class SessionComponent(
     val coroutineScope: CoroutineScope = CoroutineScope(SupervisorJob() + appScope.dispatchers.io)
 
     fun cancel() {
+        // Unregister the rule screen broadcast receiver; otherwise each logout/start cycle
+        // would leak a receiver registered on the application context.
+        runCatching { ruleController.stop() }
         coroutineScope.cancel()
     }
 
@@ -85,6 +93,7 @@ internal class SessionComponent(
                 }
             )
             .addInterceptor(HeadersInterceptor(apiKey))
+            .addInterceptor(CustomerIdInterceptor { userRepository.getInternalId() })
             .addInterceptor(TimeoutInterceptor())
             .addInterceptor(appScope.hostSwitcherInterceptor)
             .addInterceptor(HttpRetryInterceptor())
@@ -103,11 +112,14 @@ internal class SessionComponent(
                         }
                 }
             )
+            .addInterceptor(CustomerIdInterceptor { userRepository.getInternalId() })
             .addInterceptor(TimeoutInterceptor())
             .addInterceptor(appScope.hostSwitcherInterceptorWithoutHeaders)
             .addInterceptor(HttpRetryInterceptor())
             .addInterceptor(appScope.prettyLoggingInterceptor)
             .build()
+
+    private val notificationMapper: NotificationMapper = NotificationMapper()
 
     val remoteRepository: RemoteRepository =
         RemoteRepository(
@@ -118,7 +130,8 @@ internal class SessionComponent(
             registrationBodyFactory = RegistrationBodyFactory(registrationProvider),
             productMapper = ProductMapper(),
             attributionMapper = AttributionMapper(),
-            notificationMapper = NotificationMapper(),
+            notificationMapper = notificationMapper,
+            paywallsMapper = PaywallsMapper(appScope.gson),
             urlProvider = appScope.urlProvider,
             dispatchers = appScope.dispatchers,
         )
@@ -165,6 +178,25 @@ internal class SessionComponent(
             localRulesScreenRepository = appScope.localRulesScreenRepository,
         )
 
+    val getPaywallByIdentifierUseCase: GetPaywallByIdentifierUseCase =
+        GetPaywallByIdentifierUseCase(
+            userRepository = userRepository,
+            remoteRepository = remoteRepository,
+        )
+
+    val trackRuleEventUseCase: TrackRuleEventUseCase =
+        TrackRuleEventUseCase(
+            remoteRepository = remoteRepository,
+            userRepository = userRepository,
+        )
+
+    val submitPushTokenUseCase: SubmitPushTokenUseCase =
+        SubmitPushTokenUseCase(
+            remoteRepository = remoteRepository,
+            userRepository = userRepository,
+            storage = appScope.storage,
+        )
+
     val renderPaywallPropertiesUseCase: RenderPaywallPropertiesUseCase =
         RenderPaywallPropertiesUseCase(renderRemoteRepository)
 
@@ -179,9 +211,15 @@ internal class SessionComponent(
             context = appScope.applicationContext,
             fetchRulesScreenUseCase = fetchRulesScreenUseCase,
             fetchMostActualRuleScreenUseCase = fetchMostActualRuleScreenUseCase,
-            coroutineScope = coroutineScope,
+            getPaywallByIdentifierUseCase = getPaywallByIdentifierUseCase,
+            trackRuleEventUseCase = trackRuleEventUseCase,
+            remoteRepository = remoteRepository,
+            screenRemoteRepository = screenRemoteRepository,
+            notificationMapper = notificationMapper,
+            sessionCoroutineScope = coroutineScope,
             lifecycleRepository = appScope.lifecycleRepository,
             localRulesScreenRepository = appScope.localRulesScreenRepository,
+            paywallRepository = paywallRepository,
             ruleCallback = ruleCallback,
             dispatchers = appScope.dispatchers,
         )

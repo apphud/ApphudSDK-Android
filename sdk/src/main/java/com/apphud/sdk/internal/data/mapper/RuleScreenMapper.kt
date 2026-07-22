@@ -2,6 +2,7 @@ package com.apphud.sdk.internal.data.mapper
 
 import android.util.Base64
 import com.apphud.sdk.internal.data.dto.RuleScreenDto
+import com.apphud.sdk.internal.domain.mapper.RuleScreenHtmlSanitizer
 import com.apphud.sdk.internal.domain.model.RuleScreen
 import java.nio.charset.StandardCharsets
 
@@ -26,7 +27,7 @@ internal class RuleScreenMapper {
         )
         return RuleScreen(
             rule = ruleScreenDto.rule,
-            htmlScreen = decodedHtml,
+            htmlScreen = RuleScreenHtmlSanitizer.sanitizeForInAppWebView(decodedHtml),
             createdAt = ruleScreenDto.createdAt,
         )
     }

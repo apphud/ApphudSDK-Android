@@ -145,6 +145,7 @@ internal object ApphudInternal {
 
     private var userRegisteredBlock: ((ApphudUser) -> Unit)? = null
     internal var deferPlacements = false
+    internal var legacyRuleScreensEnabled = true
     internal var isActive = false
     internal var observerMode = false
     private var lifecycleEventObserver =
@@ -638,6 +639,8 @@ internal object ApphudInternal {
         maxTimeout: Long,
     ) {
         ApphudLog.logI("Starting to show paywall screen for paywall: ${paywall.identifier}")
+
+        ServiceLocator.instance.enrichPlacementProductsUseCase.enrichPaywall(paywall)
 
         coroutineScope {
             val eventsJob = launch {

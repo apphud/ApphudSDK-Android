@@ -3,6 +3,7 @@ package com.apphud.sdk
 import com.apphud.sdk.ApphudAttributionProvider.ADJUST
 import com.apphud.sdk.ApphudAttributionProvider.APPSFLYER
 import com.apphud.sdk.ApphudAttributionProvider.BRANCH
+import com.apphud.sdk.ApphudAttributionProvider.GOOGLE
 import com.apphud.sdk.ApphudAttributionProvider.CUSTOM
 import com.apphud.sdk.ApphudAttributionProvider.FACEBOOK
 import com.apphud.sdk.ApphudAttributionProvider.FIREBASE
@@ -80,6 +81,7 @@ internal fun ApphudInternal.setAttribution(
         TENJIN -> identifier?.let { "identifier" to it }
         TIKTOK -> identifier?.let { "identifier" to it }
         BRANCH -> identifier?.let { "identifier" to it }
+        GOOGLE -> identifier?.let { "identifier" to it }
     }
 
     coroutineScope.launch {
@@ -141,6 +143,7 @@ internal fun ApphudInternal.setAttribution(
                             SINGULAR,
                             TENJIN,
                             TIKTOK,
+                            GOOGLE,
                             VOLUUM,
                                 -> Unit
                         }

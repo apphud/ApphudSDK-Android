@@ -17,6 +17,15 @@ internal fun ApphudProduct.jsonProperties(
     return innerProps
 }
 
+/**
+ * Offer id configured in the paywall via `properties -> introductory_offer -> preferred_offer_id`.
+ * Used as the default Google Play offer when the caller did not pass one explicitly.
+ */
+internal fun ApphudProduct.preferredOfferId(): String? {
+    val introductoryOffer = properties?.get("introductory_offer") as? Map<*, *> ?: return null
+    return (introductoryOffer["preferred_offer_id"] as? String)?.takeIf { it.isNotBlank() }
+}
+
 internal fun ApphudProduct.hasMacros(): Boolean {
     val jsonProps = jsonProperties() ?: return false
     return jsonProps.values.any { value ->

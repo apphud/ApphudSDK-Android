@@ -51,8 +51,12 @@ internal class UrlProvider(
     val promotionsUrl: HttpUrl
         get() = "${baseUrl.get()}/v1/promotions".toHttpUrl()
 
+    /** Shared endpoint for paywall analytics and rule `$` events (mirrors iOS APIv2). */
     val eventsUrl: HttpUrl
-        get() = "${baseUrl.get()}/v1/events".toHttpUrl()
+        get() = "${baseUrl.get()}/v2/events".toHttpUrl()
+
+    val pushTokenUrl: HttpUrl
+        get() = "${baseUrl.get()}/v1/customers/push_token".toHttpUrl()
 
     val notificationsReadUrl: HttpUrl
         get() = "${baseUrl.get()}/v2/notifications/read".toHttpUrl()
@@ -62,6 +66,12 @@ internal class UrlProvider(
 
     val renderPropertiesUrl: HttpUrl
         get() = "${baseUrl.get()}/v2/paywall_configs/items/render_properties".toHttpUrl()
+
+    fun paywallConfigUrl(identifier: String): HttpUrl =
+        "${baseUrl.get()}/v3/paywall_configs".toHttpUrl()
+            .newBuilder()
+            .addPathSegment(identifier)
+            .build()
 
     val previewScreenUrl: HttpUrl
         get() = "${baseUrl.get()}/preview_screen".toHttpUrl()

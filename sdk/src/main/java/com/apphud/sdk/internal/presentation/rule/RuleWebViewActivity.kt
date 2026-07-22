@@ -6,6 +6,8 @@ import android.content.Context
 import android.content.Intent
 import android.net.Uri
 import android.os.Bundle
+import android.os.Handler
+import android.os.Looper
 import android.view.View
 import android.webkit.ConsoleMessage
 import android.webkit.WebChromeClient
@@ -18,11 +20,13 @@ import android.webkit.WebViewClient
 import android.widget.FrameLayout
 import android.widget.Toast
 import androidx.activity.OnBackPressedCallback
+import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.repeatOnLifecycle
+import com.apphud.sdk.APPHUD_PAYWALL_SCREEN_LOAD_TIMEOUT
 import com.apphud.sdk.Apphud
 import com.apphud.sdk.ApphudLog
 import com.apphud.sdk.R
@@ -35,6 +39,16 @@ internal class RuleWebViewActivity : AppCompatActivity() {
     private lateinit var viewModel: RuleViewModel
     private lateinit var webView: WebView
     private lateinit var purchaseLoaderOverlay: FrameLayout
+
+    private val timeoutHandler = Handler(Looper.getMainLooper())
+    private val timeoutRunnable = Runnable {
+        ApphudLog.logE("[RuleWebViewActivity] Screen load timed out")
+        runCatching { webView.stopLoading() }
+        viewModel.onLoadTimeout()
+    }
+
+    @Volatile
+    private var hasLoadedOnce = false
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -66,6 +80,11 @@ internal class RuleWebViewActivity : AppCompatActivity() {
             setIntent(intent)
             processIntent(intent)
         }
+    }
+
+    override fun onDestroy() {
+        timeoutHandler.removeCallbacks(timeoutRunnable)
+        super.onDestroy()
     }
 
     private fun processIntent(intent: Intent) {
@@ -113,6 +132,11 @@ internal class RuleWebViewActivity : AppCompatActivity() {
             override fun onPageFinished(view: WebView?, url: String?) {
                 super.onPageFinished(view, url)
                 ApphudLog.log("[RuleWebViewActivity] Page loaded: $url")
+                cancelLoadTimeout()
+                if (!hasLoadedOnce) {
+                    hasLoadedOnce = true
+                    viewModel.onScreenAppeared()
+                }
             }
 
             override fun onReceivedHttpError(
@@ -127,16 +151,9 @@ internal class RuleWebViewActivity : AppCompatActivity() {
             override fun shouldOverrideUrlLoading(view: WebView?, request: WebResourceRequest?): Boolean {
                 request?.url?.let { uri ->
                     if (uri.scheme == "http" || uri.scheme == "https") {
-                        val path = uri.path ?: ""
-
-                        if (path == "/action") {
-                            handleAction(uri)
-                            return true
-                        } else if (path == "/link") {
-                            val externalUrl = uri.getQueryParameter("url")
-                            externalUrl?.let {
-                                ApphudLog.log("[RuleWebViewActivity] External link: $it")
-                            }
+                        val action = RuleActionParser.parse(uri.path, uri.toParamsMap())
+                        if (action != RuleAction.Unknown) {
+                            handleAction(action)
                             return true
                         }
                     }
@@ -146,22 +163,70 @@ internal class RuleWebViewActivity : AppCompatActivity() {
         }
     }
 
-    private fun handleAction(uri: Uri) {
-        val type = uri.getQueryParameter("type")
-        ApphudLog.log("[RuleWebViewActivity] Handling action: $type, URI: $uri")
+    private fun Uri.toParamsMap(): Map<String, String?> =
+        queryParameterNames.associateWith { getQueryParameter(it) }
 
-        when (type) {
-            "dismiss" -> {
+    private fun handleAction(action: RuleAction) {
+        ApphudLog.log("[RuleWebViewActivity] Handling action: $action")
+        when (action) {
+            is RuleAction.Survey -> viewModel.processSurveyAnswer(action.question, action.answer)
+            RuleAction.Dismiss -> viewModel.processDismiss()
+            is RuleAction.Feedback -> readFeedbackText { text ->
+                viewModel.processFeedback(action.question, text)
+            }
+            RuleAction.BillingIssue -> viewModel.processBillingIssue()
+            is RuleAction.Purchase -> viewModel.processPurchase(action.productId, action.offerId)
+            is RuleAction.ExternalLink -> handleExternalLink(action.url)
+            RuleAction.IgnoreScreen -> {
+                ApphudLog.log("[RuleWebViewActivity] Linked screen is not supported on Android, closing")
                 viewModel.processDismiss()
             }
-            "purchase" -> {
-                val productId: String? = uri.getQueryParameter("product_id")
-                val offerId: String? = uri.getQueryParameter("offer_id")
-                if (productId != null) {
-                    ApphudLog.log("[RuleWebViewActivity] Purchase action for product: $productId, offer: $offerId")
-                    viewModel.processPurchase(productId, offerId)
-                }
+            RuleAction.Unknown -> Unit
+        }
+    }
+
+    private fun readFeedbackText(callback: (String) -> Unit) {
+        runCatching {
+            webView.evaluateJavascript(
+                "(function(){var e=document.getElementById('text');return e?e.textContent:'';})()",
+            ) { result ->
+                val text = result
+                    ?.trim('"')
+                    ?.replace("\\n", "\n")
+                    ?.replace("\\\"", "\"")
+                    ?: ""
+                callback(if (text == "null") "" else text)
             }
+        }.onFailure {
+            ApphudLog.logE("[RuleWebViewActivity] Failed to read feedback text: ${it.message}")
+            callback("")
+        }
+    }
+
+    private fun handleExternalLink(externalUrl: String) {
+        ApphudLog.log("[RuleWebViewActivity] External link: $externalUrl")
+        runCatching {
+            val intent = Intent(Intent.ACTION_VIEW, Uri.parse(externalUrl)).apply {
+                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            }
+            startActivity(intent)
+        }.onFailure {
+            ApphudLog.logE("[RuleWebViewActivity] Failed to open external link: ${it.message}")
+        }
+    }
+
+    private fun openBillingSubscriptions() {
+        runCatching {
+            val uri = Uri.parse("https://play.google.com/store/account/subscriptions")
+                .buildUpon()
+                .appendQueryParameter("package", packageName)
+                .build()
+            val intent = Intent(Intent.ACTION_VIEW, uri).apply {
+                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            }
+            startActivity(intent)
+        }.onFailure {
+            ApphudLog.logE("[RuleWebViewActivity] Failed to open billing subscriptions: ${it.message}")
         }
     }
 
@@ -214,11 +279,33 @@ internal class RuleWebViewActivity : AppCompatActivity() {
                         sendResultBroadcast(RESULT_DISMISSED)
                         finishAndRemoveTask()
                     }
+                    WebViewEvent.StartLoader -> startLoader()
+                    WebViewEvent.StopLoader -> stopLoader()
+                    WebViewEvent.OpenBillingSubscriptions -> openBillingSubscriptions()
+                    is WebViewEvent.ShowThankYouDialog -> showThankYouDialog(event.isSurvey)
                     is WebViewEvent.StartPurchase -> {
                         startPurchase(event.product, event.offerToken)
                     }
                 }
             }
+        }
+    }
+
+    private fun showThankYouDialog(isSurvey: Boolean) {
+        val message = if (isSurvey) "Answer sent" else "Feedback sent"
+        runCatching {
+            AlertDialog.Builder(this)
+                .setTitle("Thank you for feedback!")
+                .setMessage(message)
+                .setCancelable(false)
+                .setPositiveButton("OK") { dialog, _ ->
+                    dialog.dismiss()
+                    viewModel.onThankYouDialogClosed()
+                }
+                .show()
+        }.onFailure {
+            ApphudLog.logE("[RuleWebViewActivity] Failed to show dialog: ${it.message}")
+            viewModel.onThankYouDialogClosed()
         }
     }
 
@@ -232,6 +319,38 @@ internal class RuleWebViewActivity : AppCompatActivity() {
         }
     }
 
+    /**
+     * Shows the loader via the screen's JS `startLoader()` function, falling back to the native
+     * overlay when the function is unavailable. Mirrors iOS `startLoading()`.
+     */
+    private fun startLoader() {
+        runCatching {
+            webView.evaluateJavascript(
+                "(function(){if(typeof startLoader==='function'){startLoader();return 'ok';}return 'nofn';})()",
+            ) { result ->
+                if (result == null || !result.contains("ok")) {
+                    showPurchaseLoader()
+                }
+            }
+        }.onFailure {
+            showPurchaseLoader()
+        }
+    }
+
+    /**
+     * Hides the loader via the screen's JS `stopLoader()` function and the native overlay.
+     * Mirrors iOS `stopLoading()`.
+     */
+    private fun stopLoader() {
+        runCatching {
+            webView.evaluateJavascript(
+                "(function(){if(typeof stopLoader==='function'){stopLoader();}})()",
+                null,
+            )
+        }
+        hidePurchaseLoader()
+    }
+
     private fun showPurchaseLoader() {
         purchaseLoaderOverlay.visibility = View.VISIBLE
         webView.isEnabled = false
@@ -242,9 +361,21 @@ internal class RuleWebViewActivity : AppCompatActivity() {
         webView.isEnabled = true
     }
 
+    private fun scheduleLoadTimeout() {
+        cancelLoadTimeout()
+        timeoutHandler.postDelayed(timeoutRunnable, APPHUD_PAYWALL_SCREEN_LOAD_TIMEOUT)
+    }
+
+    private fun cancelLoadTimeout() {
+        timeoutHandler.removeCallbacks(timeoutRunnable)
+    }
+
     @SuppressLint("SetJavaScriptEnabled")
     private fun displayContent(htmlContent: String) {
         try {
+            if (!hasLoadedOnce) {
+                scheduleLoadTimeout()
+            }
             webView.loadDataWithBaseURL(
                 "https://static.apphud.com/",
                 htmlContent,

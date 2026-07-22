@@ -209,6 +209,7 @@ internal class SharedPreferencesStorage(
         adjust = null
         syncedDeviceIdentifiersUserId = null
         syncedDeviceIdentifiers = null
+        submittedPushToken = null
         // deviceIdentifiers describe the device, not the session — preserved across logout/login.
     }
 
@@ -293,6 +294,18 @@ internal class SharedPreferencesStorage(
                     remove(CONNECT_DOMAIN_URL_KEY)
                 } else {
                     putString(CONNECT_DOMAIN_URL_KEY, value)
+                }
+            }
+        }
+
+    override var submittedPushToken: String?
+        get() = preferences.getString(SUBMITTED_PUSH_TOKEN_KEY, null)
+        set(value) {
+            preferences.edit {
+                if (value == null) {
+                    remove(SUBMITTED_PUSH_TOKEN_KEY)
+                } else {
+                    putString(SUBMITTED_PUSH_TOKEN_KEY, value)
                 }
             }
         }
@@ -438,5 +451,6 @@ internal class SharedPreferencesStorage(
         private const val SYNCED_DEVICE_IDENTIFIERS_KEY = "SYNCED_DEVICE_IDENTIFIERS_KEY"
         private const val CURRENT_CACHE_VERSION = "3"
         private const val CONNECT_DOMAIN_URL_KEY = "ApphudConnectDomainUrl"
+        private const val SUBMITTED_PUSH_TOKEN_KEY = "submittedPushTokenKey"
     }
 }

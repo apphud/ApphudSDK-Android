@@ -1,16 +1,10 @@
 package com.apphud.sdk.internal.data.network
 
-import com.apphud.sdk.APPHUD_ERROR_TIMEOUT
 import com.apphud.sdk.APPHUD_NO_TIME_TO_RETRY
 import okhttp3.Interceptor
 import okhttp3.Response
 import java.io.IOException
 import java.net.HttpURLConnection
-import java.net.HttpURLConnection.HTTP_BAD_GATEWAY
-import java.net.HttpURLConnection.HTTP_FORBIDDEN
-import java.net.HttpURLConnection.HTTP_INTERNAL_ERROR
-import java.net.HttpURLConnection.HTTP_NOT_FOUND
-import java.net.HttpURLConnection.HTTP_UNAVAILABLE
 import java.util.concurrent.TimeUnit
 
 internal class HttpRetryInterceptor : Interceptor {
@@ -57,14 +51,8 @@ internal class HttpRetryInterceptor : Interceptor {
     private companion object {
         const val RETRY_DELAY = 2_000L
         const val MAX_COUNT = 3
-        val FALLBACK_ERRORS = setOf(
-            APPHUD_ERROR_TIMEOUT,
-            HTTP_NOT_FOUND,
-            HTTP_INTERNAL_ERROR,
-            HTTP_BAD_GATEWAY,
-            HTTP_UNAVAILABLE
-        )
         const val TOO_MANY_REQUESTS = 429
-        val NO_RETRY_RANGE = HttpURLConnection.HTTP_OK..HTTP_FORBIDDEN
+        // Success, redirects, and client errors are final; only 5xx responses are retried.
+        val NO_RETRY_RANGE = HttpURLConnection.HTTP_OK..499
     }
 }

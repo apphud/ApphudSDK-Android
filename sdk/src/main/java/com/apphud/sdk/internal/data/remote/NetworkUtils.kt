@@ -33,6 +33,20 @@ internal fun buildPostRequest(
         .build()
 }
 
+internal fun buildPutRequest(
+    url: HttpUrl,
+    params: Any,
+): Request {
+    val json = parser.toJson(params)
+    val mediaType = "application/json; charset=utf-8".toMediaType()
+    val requestBody = json.toRequestBody(mediaType)
+
+    val request = Request.Builder()
+    return request.url(url)
+        .put(requestBody)
+        .build()
+}
+
 internal fun buildGetRequest(url: HttpUrl, params: Map<String, String>): Request {
     val httpUrl = url.newBuilder().apply {
         params.forEach { (key, value) ->

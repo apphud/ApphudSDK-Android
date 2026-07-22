@@ -38,6 +38,9 @@ internal class ServiceLocator private constructor() {
     val userRemoteRepository get() = session.userRemoteRepository
     val renderRemoteRepository get() = session.renderRemoteRepository
     val fetchRulesScreenUseCase get() = session.fetchRulesScreenUseCase
+    val getPaywallByIdentifierUseCase get() = session.getPaywallByIdentifierUseCase
+    val trackRuleEventUseCase get() = session.trackRuleEventUseCase
+    val submitPushTokenUseCase get() = session.submitPushTokenUseCase
     val renderPaywallPropertiesUseCase get() = session.renderPaywallPropertiesUseCase
     val paywallRepository get() = session.paywallRepository
     val renderItemsSerializer get() = session.renderItemsSerializer

@@ -26,9 +26,16 @@ internal class HostSwitcherInterceptor(
     }
 
     private fun tryFallbackHost(chain: Interceptor.Chain, originalException: Exception?): Response {
+        val chainHost = chain.request().url.host
+
+        if (!isProductionHost(chainHost)) {
+            Log.d("ApphudLogs", "Skipping fallback host switch for non-production host: $chainHost")
+            originalException?.let { throw it }
+            error("Request failed for non-production host: $chainHost")
+        }
+
         val newHost = getFallbackHost().trim()
         val newHostWithoutScheme = newHost.removePrefix("https://")
-        val chainHost = chain.request().url.host
 
         if (chainHost == newHostWithoutScheme) {
             // Already using fallback host, let the next interceptor handle it
@@ -67,5 +74,9 @@ internal class HostSwitcherInterceptor(
 
     private companion object {
         const val FALLBACK_HOST_URL = "https://apphud.blob.core.windows.net/apphud-gateway/fallback.txt"
+        private const val PRODUCTION_DOMAIN = "apphud.com"
+
+        private fun isProductionHost(host: String): Boolean =
+            host == PRODUCTION_DOMAIN || host.endsWith(".$PRODUCTION_DOMAIN")
     }
 }
