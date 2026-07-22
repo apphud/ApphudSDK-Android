@@ -346,5 +346,26 @@ class UserRepositoryTest {
         assertEquals("Should return new pendingUserId after clearUser", "new-pending-id", result)
     }
 
+    @Test
+    fun `GIVEN currentUser with internalId EXPECT getInternalId returns internalId`() {
+        every { dataSource.getCachedUser() } returns null
+        repository.setCurrentUser(
+            createTestUser(userId = "user-1").copy(internalId = "internal-123")
+        )
+
+        val result = repository.getInternalId()
+
+        assertEquals("internal-123", result)
+    }
+
+    @Test
+    fun `GIVEN no user EXPECT getInternalId returns null`() {
+        every { dataSource.getCachedUser() } returns null
+
+        val result = repository.getInternalId()
+
+        assertNull(result)
+    }
+
     // endregion
 }

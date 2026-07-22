@@ -10,6 +10,7 @@ import com.apphud.sdk.internal.data.local.PaywallRepository
 import com.apphud.sdk.internal.data.mapper.PaywallsMapper
 import com.apphud.sdk.internal.data.mapper.ProductMapper
 import com.apphud.sdk.internal.data.mapper.RenderResultMapper
+import com.apphud.sdk.internal.data.network.CustomerIdInterceptor
 import com.apphud.sdk.internal.data.network.HeadersInterceptor
 import com.apphud.sdk.internal.data.network.HttpRetryInterceptor
 import com.apphud.sdk.internal.data.network.TimeoutInterceptor
@@ -92,6 +93,7 @@ internal class SessionComponent(
                 }
             )
             .addInterceptor(HeadersInterceptor(apiKey))
+            .addInterceptor(CustomerIdInterceptor { userRepository.getInternalId() })
             .addInterceptor(TimeoutInterceptor())
             .addInterceptor(appScope.hostSwitcherInterceptor)
             .addInterceptor(HttpRetryInterceptor())
@@ -110,6 +112,7 @@ internal class SessionComponent(
                         }
                 }
             )
+            .addInterceptor(CustomerIdInterceptor { userRepository.getInternalId() })
             .addInterceptor(TimeoutInterceptor())
             .addInterceptor(appScope.hostSwitcherInterceptorWithoutHeaders)
             .addInterceptor(HttpRetryInterceptor())

@@ -30,6 +30,9 @@ internal class UserRepository(
         return currentUser ?: dataSource.getCachedUser()
     }
 
+    @Synchronized
+    fun getInternalId(): String? = getCurrentUser()?.internalId
+
     /**
      * @return true if userId changed
      */
