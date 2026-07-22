@@ -56,6 +56,9 @@ internal class SessionComponent(
     val coroutineScope: CoroutineScope = CoroutineScope(SupervisorJob() + appScope.dispatchers.io)
 
     fun cancel() {
+        // Unregister the rule screen broadcast receiver; otherwise each logout/start cycle
+        // would leak a receiver registered on the application context.
+        runCatching { ruleController.stop() }
         coroutineScope.cancel()
     }
 
@@ -210,7 +213,7 @@ internal class SessionComponent(
             remoteRepository = remoteRepository,
             screenRemoteRepository = screenRemoteRepository,
             notificationMapper = notificationMapper,
-            coroutineScope = coroutineScope,
+            sessionCoroutineScope = coroutineScope,
             lifecycleRepository = appScope.lifecycleRepository,
             localRulesScreenRepository = appScope.localRulesScreenRepository,
             paywallRepository = paywallRepository,

@@ -29,6 +29,9 @@ private fun ApphudInternal.findPaywallScreenId(paywallId: String?): String? {
     if (fromPaywall != null) return fromPaywall
 
     // Fallback for rule screens where paywall lookup is unavailable but rule carries screen_id.
+    // TODO: pendingRule() also returns a rule in the PendingRule state (fetched but deferred and
+    //  never shown), so a purchase from an unrelated developer-presented screen can be tagged with
+    //  the deferred rule's screen_id. Restrict to the RuleActivityAlreadyOpen state.
     return runCatching {
         ServiceLocator.instance.ruleController.pendingRule()?.screenId?.ifEmpty { null }
     }.getOrNull()
@@ -518,6 +521,9 @@ private suspend fun ApphudInternal.sendCheckToApphud(
     callback: ((ApphudPurchaseResult) -> Unit)?,
 ) {
     val currentPaywallScreenId = if (fromScreen) findPaywallScreenId(paywallId) else null
+    // TODO: activeRuleId() also returns a rule in the PendingRule state (fetched but deferred and
+    //  never shown), so a purchase from an unrelated developer-presented screen can be tagged with
+    //  the deferred rule's rule_id. Restrict to the RuleActivityAlreadyOpen state.
     val currentRuleId = if (fromScreen) {
         runCatching { ServiceLocator.instance.ruleController.activeRuleId() }.getOrNull()
     } else {

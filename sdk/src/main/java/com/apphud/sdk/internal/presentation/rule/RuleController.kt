@@ -55,7 +55,8 @@ internal class RuleController(
     private val lifecycleRepository: LifecycleRepository,
     private val localRulesScreenRepository: LocalRulesScreenRepository,
     private val paywallRepository: PaywallRepository,
-    coroutineScope: CoroutineScope,
+    // Session IO scope — used for network side-effects that must not wait on RuleControllerThread.
+    private val sessionCoroutineScope: CoroutineScope,
     private val ruleCallback: ApphudRuleCallback,
     private val dispatchers: ApphudDispatchers,
 ) {
@@ -86,7 +87,7 @@ internal class RuleController(
 
     @OptIn(ExperimentalCoroutinesApi::class, DelicateCoroutinesApi::class)
     private val coroutineScope: CoroutineScope = CoroutineScope(
-        coroutineScope.coroutineContext + newSingleThreadContext("RuleControllerThread")
+        sessionCoroutineScope.coroutineContext + newSingleThreadContext("RuleControllerThread")
     )
 
     private val state = MutableStateFlow<RuleState>(RuleState.Idle)
@@ -409,7 +410,8 @@ internal class RuleController(
     ): Apphud.ApphudPaywallScreenCallbacks =
         Apphud.ApphudPaywallScreenCallbacks(
             onScreenShown = {
-                ApphudInternal.paywallShown(paywall)
+                // Rule flow: track `$screen_presented` only. Do not send analytics
+                // `paywall_shown` — that is for developer-presented paywalls.
                 ruleCallback.onScreenAppeared(pendingRule)
                 trackScreenPresented(pendingRule, paywall)
             },
@@ -434,7 +436,9 @@ internal class RuleController(
         )
 
     private fun trackScreenPresented(rule: Rule, paywall: ApphudPaywall) {
-        coroutineScope.launch {
+        // Use session IO scope — not RuleControllerThread — so the event is not queued
+        // behind the long-lived showPaywallScreen collector on the single-thread dispatcher.
+        sessionCoroutineScope.launch {
             trackRuleEventUseCase(
                 ruleId = rule.id,
                 screenId = resolveRuleScreenId(rule, paywall),
@@ -445,7 +449,7 @@ internal class RuleController(
     }
 
     private fun trackPurchase(rule: Rule, paywall: ApphudPaywall, result: ApphudPurchaseResult) {
-        coroutineScope.launch {
+        sessionCoroutineScope.launch {
             trackRuleEventUseCase(
                 ruleId = rule.id,
                 screenId = resolveRuleScreenId(rule, paywall),
