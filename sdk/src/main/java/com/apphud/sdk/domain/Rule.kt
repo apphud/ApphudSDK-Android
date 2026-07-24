@@ -6,9 +6,9 @@ data class Rule internal constructor(
      */
     internal val id: String,
     /**
-     * For internal usage
+     * For internal usage. Made public for Flutter/RN SDKs.
      */
-    internal val screenId: String,
+    val screenId: String,
     /**
      * Rule name from Apphud Dashboard.
      */
