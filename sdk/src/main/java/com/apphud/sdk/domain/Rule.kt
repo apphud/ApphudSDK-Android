@@ -22,7 +22,7 @@ data class Rule internal constructor(
      */
     val paywallIdentifier: String? = null,
     /**
-     * For internal usage
+     * Internal Paywall ID associated with this rule, if any. Made public for Flutter/RN SDKs.
      */
-    internal val paywallId: String? = null,
+    val paywallId: String? = null,
 )
