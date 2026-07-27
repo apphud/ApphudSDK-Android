@@ -156,7 +156,7 @@ internal class RuleWebViewActivity : AppCompatActivity() {
                     if (uri.scheme == "http" || uri.scheme == "https") {
                         val action = RuleActionParser.parse(uri.path, uri.toParamsMap())
                         if (action != RuleAction.Unknown) {
-                            handleAction(action)
+                            handleAction(action, isUserGesture = request.hasGesture())
                             return true
                         }
                     }
@@ -169,8 +169,8 @@ internal class RuleWebViewActivity : AppCompatActivity() {
     private fun Uri.toParamsMap(): Map<String, String?> =
         queryParameterNames.associateWith { getQueryParameter(it) }
 
-    private fun handleAction(action: RuleAction) {
-        ApphudLog.log("[RuleWebViewActivity] Handling action: $action")
+    private fun handleAction(action: RuleAction, isUserGesture: Boolean) {
+        ApphudLog.log("[RuleWebViewActivity] Handling action: $action, isUserGesture=$isUserGesture")
         when (action) {
             is RuleAction.Survey -> viewModel.processSurveyAnswer(action.question, action.answer)
             RuleAction.Dismiss -> viewModel.processDismiss()
@@ -179,7 +179,7 @@ internal class RuleWebViewActivity : AppCompatActivity() {
             }
             RuleAction.BillingIssue -> viewModel.processBillingIssue()
             is RuleAction.Purchase -> viewModel.processPurchase(action.productId, action.offerId)
-            is RuleAction.ExternalLink -> handleExternalLink(action.url)
+            is RuleAction.ExternalLink -> handleExternalLink(action.url, closeAfter = !isUserGesture)
             RuleAction.IgnoreScreen -> {
                 ApphudLog.log("[RuleWebViewActivity] Linked screen is not supported on Android, closing")
                 viewModel.processDismiss()
@@ -206,17 +206,23 @@ internal class RuleWebViewActivity : AppCompatActivity() {
         }
     }
 
-    private fun handleExternalLink(externalUrl: String) {
-        ApphudLog.log("[RuleWebViewActivity] External link: $externalUrl")
+    private fun handleExternalLink(externalUrl: String, closeAfter: Boolean) {
+        ApphudLog.log(
+            "[RuleWebViewActivity] External link: $externalUrl, closeAfter=$closeAfter",
+        )
         runCatching {
             // Do not use NEW_TASK — we are already an Activity; NEW_TASK can put the browser
             // in a separate task and cause this screen to be recreated on return.
             startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(externalUrl)))
         }.onSuccess {
-            // Auto-redirect screens recreate this Activity when returning from the browser and
-            // would loop forever. Close after handoff so there is nothing left to re-redirect.
-            ApphudLog.log("[RuleWebViewActivity] Closing screen after external link handoff")
-            viewModel.processDismiss()
+            // JS auto-redirect (no user gesture) recreates this Activity on return and would
+            // loop forever — close after handoff. Keep the screen open for manual button taps.
+            if (closeAfter) {
+                ApphudLog.log(
+                    "[RuleWebViewActivity] Closing screen after auto-redirect handoff",
+                )
+                viewModel.processDismiss()
+            }
         }.onFailure {
             ApphudLog.logE("[RuleWebViewActivity] Failed to open external link: ${it.message}")
         }
