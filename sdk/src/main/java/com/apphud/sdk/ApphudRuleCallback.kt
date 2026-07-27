@@ -133,6 +133,8 @@ interface ApphudRuleCallback {
      * Called for a Figma paywall rule whose resolved paywall has no screen payload. In this case
      * the SDK cannot present a screen by itself, so you should present the paywall using your own
      * UI.
+     * 
+     * Important: Purchases made using manual paywall handling will not be tracked in Rule analytics.
      *
      * @param rule Apphud rule that was triggered
      * @param paywall the resolved paywall associated with the rule

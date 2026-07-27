@@ -50,6 +50,9 @@ internal class RuleWebViewActivity : AppCompatActivity() {
     @Volatile
     private var hasLoadedOnce = false
 
+    /** Rule id whose HTML is already in the WebView; skips reload on lifecycle restarts. */
+    private var loadedRuleId: String? = null
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.apphud_rule_webview_activity_layout)
@@ -206,10 +209,14 @@ internal class RuleWebViewActivity : AppCompatActivity() {
     private fun handleExternalLink(externalUrl: String) {
         ApphudLog.log("[RuleWebViewActivity] External link: $externalUrl")
         runCatching {
-            val intent = Intent(Intent.ACTION_VIEW, Uri.parse(externalUrl)).apply {
-                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-            }
-            startActivity(intent)
+            // Do not use NEW_TASK — we are already an Activity; NEW_TASK can put the browser
+            // in a separate task and cause this screen to be recreated on return.
+            startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(externalUrl)))
+        }.onSuccess {
+            // Auto-redirect screens recreate this Activity when returning from the browser and
+            // would loop forever. Close after handoff so there is nothing left to re-redirect.
+            ApphudLog.log("[RuleWebViewActivity] Closing screen after external link handoff")
+            viewModel.processDismiss()
         }.onFailure {
             ApphudLog.logE("[RuleWebViewActivity] Failed to open external link: ${it.message}")
         }
@@ -247,11 +254,11 @@ internal class RuleWebViewActivity : AppCompatActivity() {
                             hidePurchaseLoader()
                         }
                         is WebViewState.Content -> {
-                            displayContent(state.ruleScreen.htmlScreen)
+                            displayContent(state.ruleScreen.rule.id, state.ruleScreen.htmlScreen)
                             hidePurchaseLoader()
                         }
                         is WebViewState.ContentWithPurchaseLoading -> {
-                            displayContent(state.ruleScreen.htmlScreen)
+                            displayContent(state.ruleScreen.rule.id, state.ruleScreen.htmlScreen)
                             showPurchaseLoader()
                         }
                         is WebViewState.Error -> {
@@ -371,8 +378,18 @@ internal class RuleWebViewActivity : AppCompatActivity() {
     }
 
     @SuppressLint("SetJavaScriptEnabled")
-    private fun displayContent(htmlContent: String) {
+    private fun displayContent(ruleId: String, htmlContent: String) {
         try {
+            // StateFlow + repeatOnLifecycle(STARTED) re-emits Content when returning from an
+            // external browser. Reloading would re-run auto-redirect JS and loop forever.
+            if (loadedRuleId == ruleId) {
+                ApphudLog.log(
+                    "[RuleWebViewActivity] Skip HTML reload (already loaded ruleId=$ruleId)",
+                )
+                return
+            }
+            ApphudLog.log("[RuleWebViewActivity] Loading HTML for ruleId=$ruleId")
+            loadedRuleId = ruleId
             if (!hasLoadedOnce) {
                 scheduleLoadTimeout()
             }
