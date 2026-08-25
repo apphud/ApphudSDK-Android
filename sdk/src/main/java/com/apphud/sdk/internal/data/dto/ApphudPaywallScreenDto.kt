@@ -4,6 +4,7 @@ import com.google.gson.annotations.SerializedName
 
 internal data class ApphudPaywallScreenDto(
     val id: String,
+    val name: String?,
 
     @SerializedName("default_url")
     val defaultURL: String?,
