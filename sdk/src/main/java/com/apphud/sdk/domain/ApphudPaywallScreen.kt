@@ -17,6 +17,12 @@ data class ApphudPaywallScreen(
      */
     @SerializedName("urls")
     private val _urls: Map<String, String>? = null,
+    /**
+     * Screen name as set in the Apphud Dashboard.
+     *
+     * Falls back to `null` for legacy cached data saved before this field existed.
+     */
+    val name: String? = null,
 ) {
     /**
      * Dictionary of localized URLs where key is a locale code ("en", "fr", etc.).

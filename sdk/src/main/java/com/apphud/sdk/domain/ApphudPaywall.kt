@@ -60,4 +60,9 @@ data class ApphudPaywall(
      * For internal usage
      */
     internal var placementId: String?,
-)
+) {
+    /**
+     * Name of the paywall's visual Screen as set in the Apphud Dashboard, if the paywall has one.
+     */
+    val screenName: String? get() = screen?.name
+}
