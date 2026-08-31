@@ -40,6 +40,7 @@ internal class PaywallsMapperLegacy(
             screen = paywallDto.screen?.let {
                 ApphudPaywallScreen(
                     id = it.id,
+                    name = it.name,
                     defaultUrl = it.defaultURL,
                     _urls = it.urls
                 )
