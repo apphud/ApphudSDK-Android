@@ -108,7 +108,7 @@ internal class OfferingsCallbackManager(
             ApphudLog.log("handle offeringsPreparedCallbacks latestError: $errorSnapshot")
         }
         while (offeringsPreparedCallbacks.isNotEmpty()) {
-            val callback = offeringsPreparedCallbacks.removeFirst()
+            val callback = offeringsPreparedCallbacks.removeAt(0)
             callback.invoke(null)
         }
 
@@ -137,7 +137,7 @@ internal class OfferingsCallbackManager(
             ApphudLog.log("handle offeringsPreparedCallbacks with error $error")
         }
         while (offeringsPreparedCallbacks.isNotEmpty()) {
-            val callback = offeringsPreparedCallbacks.removeFirst()
+            val callback = offeringsPreparedCallbacks.removeAt(0)
             callback.invoke(error)
         }
 
