@@ -49,18 +49,20 @@ internal class BillingWrapper(context: Context) : Closeable {
 
     private var connectionResponse: Int = BillingClient.BillingResponseCode.OK
 
-    @Volatile
-    private var billingUnavailable: Boolean = false
+    private val availabilityGate = BillingAvailabilityGate()
 
     private suspend fun connectIfNeeded(): Boolean {
         var result: Boolean
         mutex.withLock {
             if (billing.isReady) {
+                // The library may have reconnected on its own (enableAutoServiceReconnection).
+                availabilityGate.reset()
                 result = true
-            } else if (billingUnavailable) {
-                // Once Google Play Billing reports BILLING_UNAVAILABLE (typical on emulators
-                // without Play Services), further connect attempts only produce internal
-                // "Reconnection failed" / "Service not registered" warnings from BillingClient.
+            } else if (availabilityGate.isBlocked()) {
+                // Google Play Billing recently reported BILLING_UNAVAILABLE. On emulators without
+                // Play Services the condition never changes, so the gate stays closed to avoid
+                // "Reconnection failed" / "Service not registered" warning spam. On real devices
+                // the code is recoverable, so the gate reopens after a cooldown and we retry.
                 result = false
             } else {
                 try {
@@ -81,10 +83,10 @@ internal class BillingWrapper(context: Context) : Closeable {
                             break
                         }
                     }
-                    if (!connected &&
-                        connectionResponse == BillingClient.BillingResponseCode.BILLING_UNAVAILABLE
-                    ) {
-                        billingUnavailable = true
+                    if (connected) {
+                        availabilityGate.reset()
+                    } else if (connectionResponse == BillingClient.BillingResponseCode.BILLING_UNAVAILABLE) {
+                        availabilityGate.markUnavailable()
                     }
                     result = connected
                 } catch (ex: java.lang.Exception) {
