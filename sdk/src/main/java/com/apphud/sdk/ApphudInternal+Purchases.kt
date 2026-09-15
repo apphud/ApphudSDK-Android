@@ -698,7 +698,7 @@ private fun handleCheckSubmissionResult(
     val callbacksCopy = ApphudInternal.purchaseCallbacks.toMutableList()
 
     while (callbacksCopy.isNotEmpty()) {
-        val callback = callbacksCopy.removeFirst()
+        val callback = callbacksCopy.removeAt(0)
         callback.invoke(result)
     }
     synchronized(ApphudInternal.purchaseCallbacks) {
