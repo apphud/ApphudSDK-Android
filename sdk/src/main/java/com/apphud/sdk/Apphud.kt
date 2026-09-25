@@ -273,7 +273,7 @@ object Apphud {
      * Call it before [start] so that customer registration already carries this ID; a later call
      * affects only subsequent requests.
      *
-     * @param sessionId The session ID, sent as given; HTTP trims surrounding whitespace. A value
+     * @param sessionId The session ID, sent as given; surrounding spaces and tabs are trimmed. A value
      * that is not a valid HTTP header value (line breaks, non-ASCII characters) is not sent:
      * requests go without the header.
      */
