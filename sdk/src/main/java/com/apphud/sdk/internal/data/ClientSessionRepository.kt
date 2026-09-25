@@ -1,0 +1,88 @@
+package com.apphud.sdk.internal.data
+
+import com.apphud.sdk.storage.ClientSessionStorage
+import java.util.UUID
+
+/**
+ * Client-side session, sent as the `X-Apphud-Session-Id` header on every request.
+ *
+ * Default mode: a session starts when the user opens the app (a background-only process
+ * start never opens one), on return to the foreground after more than 30 minutes in the
+ * background, and on logout. The id is persisted so a background-only process keeps the
+ * previous session. External mode ([setExternalSessionId]): the host owns every boundary
+ * until the process ends.
+ */
+internal class ClientSessionRepository(
+    private val storage: ClientSessionStorage,
+    private val now: () -> Long = System::currentTimeMillis,
+    private val newId: () -> String = { UUID.randomUUID().toString() },
+) {
+    private var ownId: String? = null
+    private var externalId: String? = null
+    private var sessionStartedInProcess = false
+
+    // This process only: the launch boundary already starts a new session, so the persisted
+    // value is never compared.
+    private var backgroundStartedAt: Long? = null
+
+    @Synchronized
+    fun sessionId(): String = externalId ?: loadOwnId()
+
+    @Synchronized
+    fun sessionNumber(): Int = storage.clientSessionNumber
+
+    /** The process was started to show the app to the user. */
+    @Synchronized
+    fun onAppOpened() {
+        if (sessionStartedInProcess) return
+        sessionStartedInProcess = true
+        if (externalId == null) startNewSession()
+    }
+
+    /** Process lifecycle ON_START. */
+    @Synchronized
+    fun onForeground() {
+        if (!sessionStartedInProcess) {
+            onAppOpened()
+            return
+        }
+        val startedAt = backgroundStartedAt ?: return
+        backgroundStartedAt = null
+        if (externalId == null && now() - startedAt > BACKGROUND_TIMEOUT_MS) startNewSession()
+    }
+
+    /** Process lifecycle ON_STOP. */
+    @Synchronized
+    fun onBackground() {
+        // The first event wins: the app has been in the background since then.
+        if (backgroundStartedAt != null) return
+        val startedAt = now()
+        backgroundStartedAt = startedAt
+        storage.clientSessionLastBackgroundAt = startedAt
+    }
+
+    @Synchronized
+    fun onLogout() {
+        if (externalId == null) startNewSession()
+    }
+
+    @Synchronized
+    fun setExternalSessionId(sessionId: String) {
+        externalId = sessionId
+    }
+
+    private fun loadOwnId(): String =
+        ownId ?: (storage.clientSessionId ?: newId().also { storage.clientSessionId = it })
+            .also { ownId = it }
+
+    private fun startNewSession() {
+        val id = newId()
+        ownId = id
+        storage.clientSessionId = id
+        storage.clientSessionNumber = storage.clientSessionNumber + 1
+    }
+
+    companion object {
+        const val BACKGROUND_TIMEOUT_MS = 30 * 60 * 1000L
+    }
+}

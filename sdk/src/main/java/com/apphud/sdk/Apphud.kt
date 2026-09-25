@@ -247,6 +247,37 @@ object Apphud {
         return runCatching { ServiceLocator.instance.userRepository.getDeviceId() }.getOrNull()
     }
 
+    /**
+     * Returns the current session ID: the value the SDK puts in the `X-Apphud-Session-Id` header
+     * of API requests it sends from now on.
+     *
+     * After [setSessionId] is called, returns the ID from the latest call in this app process;
+     * otherwise returns the SDK's own ID, which changes when the user opens the app, when the app
+     * returns to the foreground after more than 30 minutes in the background, and on [logout].
+     *
+     * @return The session ID, or null if the SDK is not initialized.
+     */
+    fun sessionId(): String? =
+        runCatching { ServiceLocator.instance.clientSessionRepository.sessionId() }.getOrNull()
+
+    /**
+     * Sets the session ID for a host SDK that owns the session. Every subsequent API request
+     * the SDK sends to Apphud carries this ID.
+     *
+     * After the first call, the SDK stops starting sessions on its own: neither background nor
+     * [logout] changes the ID until this method is called again. The ID is not saved; after the
+     * app process restarts the SDK starts its own sessions again until this method is called.
+     *
+     * Call it before [start] so that customer registration already carries this ID; a later call
+     * affects only subsequent requests.
+     *
+     * @param sessionId The session ID, sent exactly as given.
+     */
+    fun setSessionId(sessionId: String) {
+        runCatching { ServiceLocator.instance.clientSessionRepository.setExternalSessionId(sessionId) }
+            .onFailure { ApphudLog.logE("setSessionId ignored: SDK is not initialized") }
+    }
+
     //endregion
     //region === Placements, Paywalls and Products ===
 
