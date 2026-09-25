@@ -29,9 +29,10 @@ internal object ClientSessionLifecycle {
         )
     }
 
-    // IMPORTANCE_FOREGROUND at process start: an activity is being launched, or the top app
-    // bound the process (the repository handles the latter). Pushes, receivers, services and
-    // WorkManager start the process with a lower importance.
+    // IMPORTANCE_FOREGROUND at process start: an activity is being launched, or (rarely) the top
+    // app bound the process. The latter opens a session without the user; a real open more than
+    // 30 minutes later still starts its own. Pushes, receivers, services and WorkManager start
+    // the process with a lower importance.
     private fun isStartedForUser(): Boolean {
         val info = ActivityManager.RunningAppProcessInfo()
         ActivityManager.getMyMemoryState(info)

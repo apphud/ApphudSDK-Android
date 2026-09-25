@@ -42,6 +42,16 @@ class ClientSessionLifecycleTest {
     }
 
     @Test
+    fun `GIVEN process start looked like an open WHEN first start comes after 30 minutes EXPECT new session`() {
+        attach(startedForUser = true)
+
+        nowMs += ClientSessionRepository.BACKGROUND_TIMEOUT_MS + 1
+        process.registry.handleLifecycleEvent(Lifecycle.Event.ON_START)
+
+        assertEquals(2, repository.sessionNumber())
+    }
+
+    @Test
     fun `GIVEN background-only process start WHEN process lifecycle starts EXPECT session opened`() {
         attach(startedForUser = false)
 

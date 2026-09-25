@@ -273,8 +273,9 @@ object Apphud {
      * Call it before [start] so that customer registration already carries this ID; a later call
      * affects only subsequent requests.
      *
-     * @param sessionId The session ID, sent exactly as given. A value that is not a valid HTTP
-     * header value (line breaks, non-ASCII characters) is not sent: requests go without the header.
+     * @param sessionId The session ID, sent as given; HTTP trims surrounding whitespace. A value
+     * that is not a valid HTTP header value (line breaks, non-ASCII characters) is not sent:
+     * requests go without the header.
      */
     fun setSessionId(sessionId: String) {
         runCatching { ServiceLocator.instance.clientSessionRepository.setExternalSessionId(sessionId) }
