@@ -255,7 +255,9 @@ object Apphud {
      * otherwise returns the SDK's own ID, which changes when the user opens the app, when the app
      * returns to the foreground after more than 30 minutes in the background, and on [logout].
      *
-     * @return The session ID, or null if the SDK is not initialized.
+     * Available before [start].
+     *
+     * @return The session ID, or null if the SDK's init provider did not run.
      */
     fun sessionId(): String? =
         runCatching { ServiceLocator.instance.clientSessionRepository.sessionId() }.getOrNull()
@@ -271,7 +273,8 @@ object Apphud {
      * Call it before [start] so that customer registration already carries this ID; a later call
      * affects only subsequent requests.
      *
-     * @param sessionId The session ID, sent exactly as given.
+     * @param sessionId The session ID, sent exactly as given. A value that is not a valid HTTP
+     * header value (line breaks, non-ASCII characters) is not sent: requests go without the header.
      */
     fun setSessionId(sessionId: String) {
         runCatching { ServiceLocator.instance.clientSessionRepository.setExternalSessionId(sessionId) }

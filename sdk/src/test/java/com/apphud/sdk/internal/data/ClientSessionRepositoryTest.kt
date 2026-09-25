@@ -98,13 +98,24 @@ class ClientSessionRepositoryTest {
     }
 
     @Test
-    fun `GIVEN app opened at start WHEN first foreground EXPECT same session`() {
-        val repository = openedRepository()
+    fun `GIVEN app opened at process start WHEN first foreground right away EXPECT same session`() {
+        val repository = repository().apply { onOpenedAtProcessStart() }
         val id = repository.sessionId()
 
         repository.onForeground()
 
         assertEquals(id, repository.sessionId())
+    }
+
+    @Test
+    fun `GIVEN process start looked like an open WHEN first foreground after 30 minutes EXPECT new session`() {
+        val repository = repository().apply { onOpenedAtProcessStart() }
+        val id = repository.sessionId()
+
+        nowMs += overTimeout
+        repository.onForeground()
+
+        assertNotEquals(id, repository.sessionId())
     }
 
     // Background
@@ -170,6 +181,18 @@ class ClientSessionRepositoryTest {
         repository.onForeground()
 
         assertNotEquals(id, repository.sessionId())
+    }
+
+    @Test
+    fun `GIVEN two short backgrounds far apart EXPECT same id`() {
+        val repository = openedRepository()
+        val id = repository.sessionId()
+
+        repository.background(20 * 60_000L)
+        nowMs += 20 * 60_000L
+        repository.background(20 * 60_000L)
+
+        assertEquals(id, repository.sessionId())
     }
 
     @Test

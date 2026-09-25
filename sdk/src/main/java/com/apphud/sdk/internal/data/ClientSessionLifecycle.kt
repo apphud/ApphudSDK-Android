@@ -11,12 +11,14 @@ import androidx.lifecycle.ProcessLifecycleOwner
  */
 internal object ClientSessionLifecycle {
 
-    fun attach(repository: ClientSessionRepository) {
-        // IMPORTANCE_FOREGROUND at process start means an activity is being launched; pushes,
-        // receivers, services and WorkManager start the process with a lower importance.
-        if (isStartedForUser()) repository.onAppOpened()
+    fun attach(
+        repository: ClientSessionRepository,
+        lifecycle: Lifecycle = ProcessLifecycleOwner.get().lifecycle,
+        startedForUser: () -> Boolean = ::isStartedForUser,
+    ) {
+        if (startedForUser()) repository.onOpenedAtProcessStart()
 
-        ProcessLifecycleOwner.get().lifecycle.addObserver(
+        lifecycle.addObserver(
             LifecycleEventObserver { _, event ->
                 when (event) {
                     Lifecycle.Event.ON_START -> repository.onForeground()
@@ -27,6 +29,9 @@ internal object ClientSessionLifecycle {
         )
     }
 
+    // IMPORTANCE_FOREGROUND at process start: an activity is being launched, or the top app
+    // bound the process (the repository handles the latter). Pushes, receivers, services and
+    // WorkManager start the process with a lower importance.
     private fun isStartedForUser(): Boolean {
         val info = ActivityManager.RunningAppProcessInfo()
         ActivityManager.getMyMemoryState(info)

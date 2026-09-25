@@ -31,12 +31,23 @@ internal class ClientSessionRepository(
     @Synchronized
     fun sessionNumber(): Int = storage.clientSessionNumber
 
-    /** The process was started to show the app to the user. */
+    /** The user opened the app. */
     @Synchronized
     fun onAppOpened() {
         if (sessionStartedInProcess) return
         sessionStartedInProcess = true
         if (externalId == null) startNewSession()
+    }
+
+    /**
+     * The process looks started for the user. The app is not visible until the first ON_START:
+     * if that takes more than 30 minutes (the process was only bound by the top app), that
+     * first real open starts a new session.
+     */
+    @Synchronized
+    fun onOpenedAtProcessStart() {
+        onAppOpened()
+        if (backgroundStartedAt == null) backgroundStartedAt = now()
     }
 
     /** Process lifecycle ON_START. */
