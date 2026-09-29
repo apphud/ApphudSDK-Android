@@ -255,7 +255,7 @@ class ClientSessionRepositoryTest {
     // External mode
 
     @Test
-    fun `GIVEN external id EXPECT sent exactly as given`() {
+    fun `GIVEN valid external id EXPECT kept as given`() {
         val repository = openedRepository()
 
         repository.setExternalSessionId("Host Session-1")

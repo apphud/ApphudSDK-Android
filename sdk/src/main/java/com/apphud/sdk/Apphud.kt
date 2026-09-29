@@ -267,8 +267,8 @@ object Apphud {
      * the SDK sends to Apphud carries this ID.
      *
      * Once an ID is accepted, the SDK stops starting sessions on its own: neither background nor
-     * [logout] changes the ID until this method is called again. The ID is not saved; after the
-     * app process restarts the SDK starts its own sessions again until this method is called.
+     * [logout] changes the ID until another ID is accepted. The ID is not saved; after the app
+     * process restarts the SDK starts its own sessions again until an ID is accepted.
      *
      * Call it before [start] so that customer registration already carries this ID; a later call
      * affects only subsequent requests.

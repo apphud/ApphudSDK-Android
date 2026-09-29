@@ -15,8 +15,8 @@ internal class SessionIdInterceptor(
     override fun intercept(chain: Interceptor.Chain): Response {
         val request = chain.request()
         val sessionId = sessionIdProvider()
-        // OkHttp rejects header values outside printable ASCII; a host-supplied id must not
-        // fail the SDK's requests.
+        // Safety net: setSessionId already rejects values OkHttp can't send as a header, and a
+        // bad value must never fail the SDK's requests.
         val sessionRequest = runCatching {
             request.newBuilder().header(HEADER, sessionId).build()
         }.getOrElse {
