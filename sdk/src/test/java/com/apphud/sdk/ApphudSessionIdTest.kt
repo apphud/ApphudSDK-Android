@@ -94,6 +94,15 @@ class ApphudSessionIdTest {
     }
 
     @Test
+    fun `GIVEN blank setSessionId EXPECT sessionId unchanged`() {
+        val id = Apphud.sessionId()
+
+        Apphud.setSessionId("  ")
+
+        assertEquals(id, Apphud.sessionId())
+    }
+
+    @Test
     fun `GIVEN default mode WHEN logout EXPECT new session id`() {
         val id = Apphud.sessionId()
 

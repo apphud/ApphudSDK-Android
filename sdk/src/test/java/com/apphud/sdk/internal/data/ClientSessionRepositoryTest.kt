@@ -264,6 +264,75 @@ class ClientSessionRepositoryTest {
     }
 
     @Test
+    fun `GIVEN external id with surrounding spaces EXPECT trimmed id`() {
+        val repository = openedRepository()
+
+        repository.setExternalSessionId("  host-1 \t")
+
+        assertEquals("host-1", repository.sessionId())
+    }
+
+    @Test
+    fun `GIVEN empty external id EXPECT own id kept`() {
+        val repository = openedRepository()
+        val id = repository.sessionId()
+
+        repository.setExternalSessionId("")
+
+        assertEquals(id, repository.sessionId())
+    }
+
+    @Test
+    fun `GIVEN whitespace-only external id EXPECT own id kept`() {
+        val repository = openedRepository()
+        val id = repository.sessionId()
+
+        repository.setExternalSessionId("   ")
+
+        assertEquals(id, repository.sessionId())
+    }
+
+    @Test
+    fun `GIVEN external id with a line break inside EXPECT own id kept`() {
+        val repository = openedRepository()
+        val id = repository.sessionId()
+
+        repository.setExternalSessionId("line\nbreak")
+
+        assertEquals(id, repository.sessionId())
+    }
+
+    @Test
+    fun `GIVEN non-ASCII external id EXPECT own id kept`() {
+        val repository = openedRepository()
+        val id = repository.sessionId()
+
+        repository.setExternalSessionId("сессия")
+
+        assertEquals(id, repository.sessionId())
+    }
+
+    @Test
+    fun `GIVEN invalid external id EXPECT SDK keeps its own boundaries`() {
+        val repository = openedRepository()
+        repository.setExternalSessionId("   ")
+
+        repository.background(overTimeout)
+
+        assertEquals(2, repository.sessionNumber())
+    }
+
+    @Test
+    fun `GIVEN host id WHEN invalid id set EXPECT host id kept`() {
+        val repository = openedRepository()
+        repository.setExternalSessionId("host")
+
+        repository.setExternalSessionId("")
+
+        assertEquals("host", repository.sessionId())
+    }
+
+    @Test
     fun `GIVEN external mode and background over 30 minutes EXPECT same id`() {
         val repository = openedRepository()
         repository.setExternalSessionId("host")

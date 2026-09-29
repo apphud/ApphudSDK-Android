@@ -251,8 +251,8 @@ object Apphud {
      * Returns the current session ID: the value the SDK puts in the `X-Apphud-Session-Id` header
      * of API requests it sends from now on.
      *
-     * After [setSessionId] is called, returns the ID from the latest call in this app process;
-     * otherwise returns the SDK's own ID, which changes when the user opens the app, when the app
+     * After [setSessionId] accepts an ID, returns the ID from the latest accepted call in this app
+     * process; otherwise returns the SDK's own ID, which changes when the user opens the app, when the app
      * returns to the foreground after more than 30 minutes in the background, and on [logout].
      *
      * Available before [start].
@@ -266,16 +266,16 @@ object Apphud {
      * Sets the session ID for a host SDK that owns the session. Every subsequent API request
      * the SDK sends to Apphud carries this ID.
      *
-     * After the first call, the SDK stops starting sessions on its own: neither background nor
+     * Once an ID is accepted, the SDK stops starting sessions on its own: neither background nor
      * [logout] changes the ID until this method is called again. The ID is not saved; after the
      * app process restarts the SDK starts its own sessions again until this method is called.
      *
      * Call it before [start] so that customer registration already carries this ID; a later call
      * affects only subsequent requests.
      *
-     * @param sessionId The session ID, sent as given; surrounding spaces and tabs are trimmed. A value
-     * that is not a valid HTTP header value (line breaks, non-ASCII characters) is not sent:
-     * requests go without the header.
+     * @param sessionId The session ID; surrounding whitespace is trimmed. A blank value or one with
+     * characters outside printable ASCII (line breaks, non-ASCII) is ignored and logged: the current
+     * session stays.
      */
     fun setSessionId(sessionId: String) {
         runCatching { ServiceLocator.instance.clientSessionRepository.setExternalSessionId(sessionId) }

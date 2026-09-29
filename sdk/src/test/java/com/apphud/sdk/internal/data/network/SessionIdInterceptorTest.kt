@@ -91,10 +91,8 @@ class SessionIdInterceptorTest {
     }
 
     @Test
-    fun `GIVEN id that is not a valid header value EXPECT request sent without header`() {
-        repository.setExternalSessionId("line\nbreak")
-
-        call(client(sessionInterceptor, terminal()))
+    fun `GIVEN provider returns an invalid header value EXPECT request sent without header`() {
+        call(client(SessionIdInterceptor { "line\nbreak" }, terminal()))
 
         assertNull(recorded.single().header(SessionIdInterceptor.HEADER))
     }

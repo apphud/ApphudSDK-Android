@@ -1,5 +1,6 @@
 package com.apphud.sdk.internal.data
 
+import com.apphud.sdk.ApphudLog
 import com.apphud.sdk.storage.ClientSessionStorage
 import java.util.UUID
 
@@ -77,9 +78,15 @@ internal class ClientSessionRepository(
         if (externalId == null) startNewSession()
     }
 
+    /** A blank value or one that can't be an HTTP header value is ignored: the session stays. */
     @Synchronized
     fun setExternalSessionId(sessionId: String) {
-        externalId = sessionId
+        val id = sessionId.trim()
+        if (id.isEmpty() || id.any { it !in ' '..'~' }) {
+            ApphudLog.logE("setSessionId ignored: invalid session id")
+            return
+        }
+        externalId = id
     }
 
     private fun loadOwnId(): String =
