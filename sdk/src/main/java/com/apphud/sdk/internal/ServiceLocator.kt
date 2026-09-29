@@ -23,6 +23,7 @@ internal class ServiceLocator private constructor() {
     val storage get() = appScope.storage
     val deviceIdentifiersRepository get() = appScope.deviceIdentifiersRepository
     val urlProvider get() = appScope.urlProvider
+    val clientSessionRepository get() = appScope.clientSessionRepository
     val localRulesScreenRepository get() = appScope.localRulesScreenRepository
     val lifecycleRepository get() = appScope.lifecycleRepository
     val billingWrapper get() = appScope.billingWrapper
