@@ -13,6 +13,10 @@ data class ApphudUserProperty(
     val setOnce: Boolean = false,
     var type: String = "",
 ) {
+    // Kept out of the constructor so the public API is unchanged. Nullable: properties
+    // persisted by older versions decode without it.
+    internal var attributes: Map<String, String>? = null
+
     fun toJSON(): MutableMap<String, Any?>? {
         if (increment && value == null) {
             return null
@@ -30,6 +34,8 @@ data class ApphudUserProperty(
         if (increment) {
             jsonParamsString[JSON_NAME_INCREMENT] = increment
         }
+        // Attributes never replace the fields set above
+        attributes?.forEach { (name, attribute) -> jsonParamsString.putIfAbsent(name, attribute) }
         return jsonParamsString
     }
 
