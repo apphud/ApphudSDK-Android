@@ -984,6 +984,9 @@ object Apphud {
         }
     }
 
+    internal val platform: PlatformProtocol
+        get() = ApphudPlatform
+
     /**
      * This method sends all user properties immediately to Apphud.
      * Should be used for audience segmentation in placements based on user properties.
