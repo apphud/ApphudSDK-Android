@@ -112,12 +112,16 @@ class ApphudSessionIdTest {
     }
 
     @Test
-    fun `GIVEN session number WHEN logout EXPECT number kept and incremented`() {
-        ServiceLocator.instance.storage.clientSessionNumber = 3
+    fun `GIVEN saved background time WHEN logout EXPECT it kept and a new id saved`() {
+        val storage = ServiceLocator.instance.storage
+        val id = Apphud.platform.sessionId()
+        storage.clientSessionLastBackgroundAt = 1_800_000_000_000L
 
         ApphudInternal.logout()
 
-        assertEquals(4, ServiceLocator.instance.storage.clientSessionNumber)
+        assertEquals(1_800_000_000_000L, storage.clientSessionLastBackgroundAt)
+        assertEquals(Apphud.platform.sessionId(), storage.clientSessionId)
+        assertNotEquals(id, storage.clientSessionId)
     }
 
     @Test

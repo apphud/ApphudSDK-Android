@@ -5,13 +5,13 @@ import androidx.lifecycle.LifecycleOwner
 import androidx.lifecycle.LifecycleRegistry
 import com.apphud.sdk.storage.ClientSessionStorage
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNotEquals
 import org.junit.Test
 
 class ClientSessionLifecycleTest {
 
     private class FakeStorage : ClientSessionStorage {
         override var clientSessionId: String? = null
-        override var clientSessionNumber: Int = 0
         override var clientSessionLastBackgroundAt: Long = 0L
     }
 
@@ -21,66 +21,92 @@ class ClientSessionLifecycleTest {
     }
 
     private var nowMs = 1_800_000_000_000L
-    private val repository = ClientSessionRepository(FakeStorage(), now = { nowMs })
+    private val storage = FakeStorage()
+    private val repository = ClientSessionRepository(storage, now = { nowMs })
     private val process = ProcessOwner()
 
-    private fun attach(startedForUser: Boolean) =
-        ClientSessionLifecycle.attach(repository, process.registry, startedForUser = { startedForUser })
+    private fun attach() = ClientSessionLifecycle.attach(repository, process.registry)
 
-    @Test
-    fun `GIVEN process started for the user EXPECT session opened at attach`() {
-        attach(startedForUser = true)
-
-        assertEquals(1, repository.sessionNumber())
+    private fun savedSession(backgroundMinutesAgo: Long) {
+        storage.clientSessionId = "previous"
+        storage.clientSessionLastBackgroundAt = nowMs - backgroundMinutesAgo * 60_000L
     }
 
     @Test
-    fun `GIVEN background-only process start EXPECT no session at attach`() {
-        attach(startedForUser = false)
+    fun `GIVEN process start within 30 minutes of the last background EXPECT saved session`() {
+        savedSession(backgroundMinutesAgo = 10)
 
-        assertEquals(0, repository.sessionNumber())
+        attach()
+
+        assertEquals("previous", repository.sessionId())
     }
 
     @Test
-    fun `GIVEN process start looked like an open WHEN first start comes after 30 minutes EXPECT new session`() {
-        attach(startedForUser = true)
+    fun `GIVEN process start over 30 minutes after the last background EXPECT new session`() {
+        savedSession(backgroundMinutesAgo = 31)
+
+        attach()
+
+        assertNotEquals("previous", repository.sessionId())
+    }
+
+    @Test
+    fun `GIVEN process start WHEN the app opens soon EXPECT one id`() {
+        savedSession(backgroundMinutesAgo = 10)
+        attach()
+        val id = repository.sessionId()
+
+        nowMs += 60_000L
+        process.registry.handleLifecycleEvent(Lifecycle.Event.ON_START)
+
+        assertEquals(id, repository.sessionId())
+    }
+
+    @Test
+    fun `GIVEN process start WHEN first start comes over 30 minutes later EXPECT new session`() {
+        attach()
+        val id = repository.sessionId()
 
         nowMs += ClientSessionRepository.BACKGROUND_TIMEOUT_MS + 1
         process.registry.handleLifecycleEvent(Lifecycle.Event.ON_START)
 
-        assertEquals(2, repository.sessionNumber())
-    }
-
-    @Test
-    fun `GIVEN background-only process start WHEN process lifecycle starts EXPECT session opened`() {
-        attach(startedForUser = false)
-
-        process.registry.handleLifecycleEvent(Lifecycle.Event.ON_START)
-
-        assertEquals(1, repository.sessionNumber())
+        assertNotEquals(id, repository.sessionId())
     }
 
     @Test
     fun `GIVEN opened app WHEN process stops and starts after 30 minutes EXPECT new session`() {
-        attach(startedForUser = true)
+        attach()
         process.registry.handleLifecycleEvent(Lifecycle.Event.ON_START)
+        val id = repository.sessionId()
 
         process.registry.handleLifecycleEvent(Lifecycle.Event.ON_STOP)
         nowMs += ClientSessionRepository.BACKGROUND_TIMEOUT_MS + 1
         process.registry.handleLifecycleEvent(Lifecycle.Event.ON_START)
 
-        assertEquals(2, repository.sessionNumber())
+        assertNotEquals(id, repository.sessionId())
     }
 
     @Test
     fun `GIVEN opened app WHEN process stops and starts after a minute EXPECT same session`() {
-        attach(startedForUser = true)
+        attach()
         process.registry.handleLifecycleEvent(Lifecycle.Event.ON_START)
+        val id = repository.sessionId()
 
         process.registry.handleLifecycleEvent(Lifecycle.Event.ON_STOP)
         nowMs += 60_000L
         process.registry.handleLifecycleEvent(Lifecycle.Event.ON_START)
 
-        assertEquals(1, repository.sessionNumber())
+        assertEquals(id, repository.sessionId())
+    }
+
+    @Test
+    fun `GIVEN process stop EXPECT background time saved`() {
+        attach()
+        process.registry.handleLifecycleEvent(Lifecycle.Event.ON_START)
+        nowMs += 60_000L
+
+        process.registry.handleLifecycleEvent(Lifecycle.Event.ON_STOP)
+
+        assertEquals(nowMs, storage.clientSessionLastBackgroundAt)
     }
 }

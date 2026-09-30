@@ -286,20 +286,12 @@ internal class SharedPreferencesStorage(
             }
         }
 
-    // Client-session keys are device-scoped: clean() leaves them, so the number survives logout.
+    // Client-session keys are device-scoped: clean() leaves them.
     override var clientSessionId: String?
         get() = preferences.getString(CLIENT_SESSION_ID_KEY, null)
         set(value) {
             preferences.edit {
                 putString(CLIENT_SESSION_ID_KEY, value)
-            }
-        }
-
-    override var clientSessionNumber: Int
-        get() = preferences.getInt(CLIENT_SESSION_NUMBER_KEY, 0)
-        set(value) {
-            preferences.edit {
-                putInt(CLIENT_SESSION_NUMBER_KEY, value)
             }
         }
 
@@ -478,7 +470,6 @@ internal class SharedPreferencesStorage(
         private const val CONNECT_DOMAIN_URL_KEY = "ApphudConnectDomainUrl"
         private const val SUBMITTED_PUSH_TOKEN_KEY = "submittedPushTokenKey"
         private const val CLIENT_SESSION_ID_KEY = "clientSessionIdKey"
-        private const val CLIENT_SESSION_NUMBER_KEY = "clientSessionNumberKey"
         private const val CLIENT_SESSION_LAST_BACKGROUND_AT_KEY = "clientSessionLastBackgroundAtKey"
     }
 }

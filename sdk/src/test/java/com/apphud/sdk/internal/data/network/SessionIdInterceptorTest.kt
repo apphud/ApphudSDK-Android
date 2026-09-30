@@ -16,13 +16,12 @@ class SessionIdInterceptorTest {
 
     private class FakeStorage : ClientSessionStorage {
         override var clientSessionId: String? = null
-        override var clientSessionNumber: Int = 0
         override var clientSessionLastBackgroundAt: Long = 0L
     }
 
     private var idCounter = 0
     private val repository = ClientSessionRepository(FakeStorage(), newId = { "id-${++idCounter}" })
-        .apply { onAppOpened() }
+        .apply { onProcessStart() }
     private val recorded = mutableListOf<Request>()
 
     // Records each attempt and answers with the next status code.

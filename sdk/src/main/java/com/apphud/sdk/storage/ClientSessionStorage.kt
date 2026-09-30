@@ -5,6 +5,5 @@ package com.apphud.sdk.storage
  */
 internal interface ClientSessionStorage {
     var clientSessionId: String?
-    var clientSessionNumber: Int
     var clientSessionLastBackgroundAt: Long
 }
