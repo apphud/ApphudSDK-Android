@@ -1,10 +1,12 @@
 package com.apphud.sdk.internal.data
 
+import com.apphud.sdk.ApphudUserProperty
 import com.apphud.sdk.ApphudUserPropertyKey
 import com.apphud.sdk.internal.ApphudDispatchers
 import com.apphud.sdk.storage.SharedPreferencesStorage
 import io.mockk.every
 import io.mockk.mockk
+import io.mockk.slot
 import io.mockk.verify
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
@@ -14,6 +16,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.runTest
+import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Test
 
@@ -56,6 +59,22 @@ class UserPropertiesManagerTest {
         manager.setUserProperty(key = key, value = "test_value", setOnce = false, increment = false)
 
         verify { storage.needSendProperty(any()) }
+    }
+
+    @Test
+    fun `GIVEN attributes EXPECT pending property carries them`() {
+        val sent = slot<ApphudUserProperty>()
+        every { storage.needSendProperty(capture(sent)) } returns true
+
+        manager.setUserProperty(
+            key = ApphudUserPropertyKey.CustomProperty("test_key"),
+            value = "test_value",
+            setOnce = false,
+            increment = false,
+            attributes = mapOf("extra" to "x"),
+        )
+
+        assertEquals(mapOf("extra" to "x"), sent.captured.attributes)
     }
 
     @Test

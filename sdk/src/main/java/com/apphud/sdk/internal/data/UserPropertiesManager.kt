@@ -61,6 +61,7 @@ internal class UserPropertiesManager(
         value: Any?,
         setOnce: Boolean,
         increment: Boolean,
+        attributes: Map<String, String> = emptyMap(),
     ) {
         val typeString = getType(value)
         if (typeString == "unknown") {
@@ -85,7 +86,7 @@ internal class UserPropertiesManager(
                 increment = increment,
                 setOnce = setOnce,
                 type = typeString,
-            )
+            ).also { it.attributes = attributes.ifEmpty { null } }
 
         if (!storage.needSendProperty(property)) {
             return
