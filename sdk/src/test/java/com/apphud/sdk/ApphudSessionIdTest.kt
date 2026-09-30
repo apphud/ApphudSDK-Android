@@ -88,27 +88,27 @@ class ApphudSessionIdTest {
 
     @Test
     fun `GIVEN setSessionId EXPECT sessionId returns the host id`() {
-        Apphud.setSessionId("Host-Session-1")
+        Apphud.platform.setSessionId("Host-Session-1")
 
-        assertEquals("Host-Session-1", Apphud.sessionId())
+        assertEquals("Host-Session-1", Apphud.platform.sessionId())
     }
 
     @Test
     fun `GIVEN blank setSessionId EXPECT sessionId unchanged`() {
-        val id = Apphud.sessionId()
+        val id = Apphud.platform.sessionId()
 
-        Apphud.setSessionId("  ")
+        Apphud.platform.setSessionId("  ")
 
-        assertEquals(id, Apphud.sessionId())
+        assertEquals(id, Apphud.platform.sessionId())
     }
 
     @Test
     fun `GIVEN default mode WHEN logout EXPECT new session id`() {
-        val id = Apphud.sessionId()
+        val id = Apphud.platform.sessionId()
 
         ApphudInternal.logout()
 
-        assertNotEquals(id, Apphud.sessionId())
+        assertNotEquals(id, Apphud.platform.sessionId())
     }
 
     @Test
@@ -122,11 +122,11 @@ class ApphudSessionIdTest {
 
     @Test
     fun `GIVEN host id WHEN logout EXPECT host id kept`() {
-        Apphud.setSessionId("host")
+        Apphud.platform.setSessionId("host")
 
         ApphudInternal.logout()
 
-        assertEquals("host", Apphud.sessionId())
+        assertEquals("host", Apphud.platform.sessionId())
     }
 
     @Test
