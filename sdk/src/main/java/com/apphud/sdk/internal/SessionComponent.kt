@@ -1,5 +1,6 @@
 package com.apphud.sdk.internal
 
+import androidx.annotation.VisibleForTesting
 import com.apphud.sdk.ApphudRuleCallback
 import com.apphud.sdk.internal.data.AnalyticsTracker
 import com.apphud.sdk.internal.data.ProductRepository
@@ -13,6 +14,7 @@ import com.apphud.sdk.internal.data.mapper.RenderResultMapper
 import com.apphud.sdk.internal.data.network.CustomerIdInterceptor
 import com.apphud.sdk.internal.data.network.HeadersInterceptor
 import com.apphud.sdk.internal.data.network.HttpRetryInterceptor
+import com.apphud.sdk.internal.data.network.SessionIdInterceptor
 import com.apphud.sdk.internal.data.network.TimeoutInterceptor
 import com.apphud.sdk.internal.data.remote.PurchaseBodyFactory
 import com.apphud.sdk.internal.data.remote.RegistrationBodyFactory
@@ -80,7 +82,8 @@ internal class SessionComponent(
             analyticsTracker = analyticsTracker,
         )
 
-    private val okHttpClient: OkHttpClient =
+    @VisibleForTesting
+    internal val okHttpClient: OkHttpClient =
         OkHttpClient.Builder()
             .addInterceptor(
                 HttpLoggingInterceptor().apply {
@@ -94,13 +97,15 @@ internal class SessionComponent(
             )
             .addInterceptor(HeadersInterceptor(apiKey))
             .addInterceptor(CustomerIdInterceptor { userRepository.getInternalId() })
+            .addInterceptor(SessionIdInterceptor { appScope.clientSessionRepository.sessionId() })
             .addInterceptor(TimeoutInterceptor())
             .addInterceptor(appScope.hostSwitcherInterceptor)
             .addInterceptor(HttpRetryInterceptor())
             .addInterceptor(appScope.prettyLoggingInterceptor)
             .build()
 
-    private val okHttpClientWithoutHeaders: OkHttpClient =
+    @VisibleForTesting
+    internal val okHttpClientWithoutHeaders: OkHttpClient =
         OkHttpClient.Builder()
             .addInterceptor(
                 HttpLoggingInterceptor().apply {
@@ -113,6 +118,7 @@ internal class SessionComponent(
                 }
             )
             .addInterceptor(CustomerIdInterceptor { userRepository.getInternalId() })
+            .addInterceptor(SessionIdInterceptor { appScope.clientSessionRepository.sessionId() })
             .addInterceptor(TimeoutInterceptor())
             .addInterceptor(appScope.hostSwitcherInterceptorWithoutHeaders)
             .addInterceptor(HttpRetryInterceptor())
