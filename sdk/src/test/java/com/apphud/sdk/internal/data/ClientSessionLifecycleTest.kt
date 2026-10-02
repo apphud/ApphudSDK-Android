@@ -51,26 +51,15 @@ class ClientSessionLifecycleTest {
     }
 
     @Test
-    fun `GIVEN process start WHEN the app opens soon EXPECT one id`() {
+    fun `GIVEN process start within 30 minutes WHEN the app opens EXPECT new session`() {
         savedSession(backgroundMinutesAgo = 10)
         attach()
-        val id = repository.sessionId()
+        assertEquals("previous", repository.sessionId())
 
         nowMs += 60_000L
         process.registry.handleLifecycleEvent(Lifecycle.Event.ON_START)
 
-        assertEquals(id, repository.sessionId())
-    }
-
-    @Test
-    fun `GIVEN process start WHEN first start comes over 30 minutes later EXPECT new session`() {
-        attach()
-        val id = repository.sessionId()
-
-        nowMs += ClientSessionRepository.BACKGROUND_TIMEOUT_MS + 1
-        process.registry.handleLifecycleEvent(Lifecycle.Event.ON_START)
-
-        assertNotEquals(id, repository.sessionId())
+        assertNotEquals("previous", repository.sessionId())
     }
 
     @Test

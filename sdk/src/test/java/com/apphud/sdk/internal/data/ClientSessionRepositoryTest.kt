@@ -57,12 +57,43 @@ class ClientSessionRepositoryTest {
     }
 
     @Test
-    fun `GIVEN start within 30 minutes of the background EXPECT saved session continued`() {
+    fun `GIVEN background start within 30 minutes of the background EXPECT saved session continued`() {
         val id = sessionSentToBackground()
         nowMs += 10 * 60_000L
 
-        assertEquals(id, started().sessionId())
         assertEquals(id, started(opened = false).sessionId())
+    }
+
+    @Test
+    fun `GIVEN user start within 30 minutes of the background EXPECT new session`() {
+        val id = sessionSentToBackground()
+        nowMs += 10 * 60_000L
+
+        assertNotEquals(id, started().sessionId())
+    }
+
+    @Test
+    fun `GIVEN cold start EXPECT requests before the first ON_START carry the start session`() {
+        val id = sessionSentToBackground()
+        nowMs += 10 * 60_000L
+        val repository = started(opened = false)
+        assertEquals(id, repository.sessionId())
+
+        repository.onForeground()
+
+        assertNotEquals(id, repository.sessionId())
+    }
+
+    @Test
+    fun `GIVEN first foreground WHEN foreground again without background EXPECT session kept`() {
+        val repository = started(opened = false)
+        repository.onForeground()
+        val id = repository.sessionId()
+
+        nowMs += 2 * 3_600_000L
+        repository.onForeground()
+
+        assertEquals(id, repository.sessionId())
     }
 
     @Test
@@ -97,7 +128,7 @@ class ClientSessionRepositoryTest {
         val id = sessionSentToBackground()
         nowMs -= 60_000L
 
-        assertNotEquals(id, started().sessionId())
+        assertNotEquals(id, started(opened = false).sessionId())
     }
 
     @Test
@@ -119,41 +150,16 @@ class ClientSessionRepositoryTest {
 
         nowMs += 10 * 60_000L
 
-        assertEquals(id, started().sessionId())
+        assertEquals(id, started(opened = false).sessionId())
     }
 
     @Test
-    fun `GIVEN background start WHEN the user opens the app soon EXPECT one id`() {
+    fun `GIVEN background start WHEN the user opens the app soon EXPECT new session`() {
         val id = sessionSentToBackground()
         nowMs += 10 * 60_000L
         val repository = started(opened = false)
 
-        nowMs += 15 * 60_000L
-        repository.onForeground()
-        assertEquals(id, repository.sessionId())
-
-        repository.background(overTimeout)
-        assertNotEquals(id, repository.sessionId())
-    }
-
-    @Test
-    fun `GIVEN background start WHEN the user opens the app 30 minutes after the saved background EXPECT new session`() {
-        val id = sessionSentToBackground()
-        nowMs += 10 * 60_000L
-        val repository = started(opened = false)
-
-        nowMs += 20 * 60_000L + 1
-        repository.onForeground()
-
-        assertNotEquals(id, repository.sessionId())
-    }
-
-    @Test
-    fun `GIVEN new session at start WHEN first foreground after 30 minutes EXPECT new session`() {
-        val repository = started(opened = false)
-        val id = repository.sessionId()
-
-        nowMs += overTimeout
+        nowMs += 5 * 60_000L
         repository.onForeground()
 
         assertNotEquals(id, repository.sessionId())
@@ -423,6 +429,18 @@ class ClientSessionRepositoryTest {
         repository.setExternalSessionId("host-2")
 
         assertEquals("host-2", repository.sessionId())
+    }
+
+    @Test
+    fun `GIVEN external id before first foreground EXPECT own session not rotated`() {
+        val repository = started(opened = false)
+        val ownId = storage.clientSessionId
+        repository.setExternalSessionId("host")
+
+        repository.onForeground()
+
+        assertEquals("host", repository.sessionId())
+        assertEquals(ownId, storage.clientSessionId)
     }
 
     @Test

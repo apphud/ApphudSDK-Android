@@ -7,12 +7,18 @@ import java.util.UUID
 /**
  * Client-side session, sent as the `X-Apphud-Session-Id` header on every request.
  *
- * Default mode, one rule for every process start (the user's or a background one: push,
- * WorkManager, a widget bind) and every return to the foreground: the session continues if the
- * app went to the background at most 30 minutes ago, otherwise a new one starts. A session that
- * starts with the process counts as being in the background since the start, until the first
- * ON_START. Logout starts a new session. External mode ([setExternalSessionId]): the host owns
- * every boundary until the process ends, and nothing is saved.
+ * Default mode:
+ * - The first ON_START in a process starts a new session, even within 30 minutes of the last
+ *   background: a start by the user can't be told from a background one at process start (a
+ *   widget bind looks like a user start), so the first foreground stands for it.
+ * - Before that (at process start, or in a background-only process: push, WorkManager, a widget
+ *   bind) the saved session continues if the app went to the background at most 30 minutes ago,
+ *   otherwise a new one starts, in the background since then. Requests sent before the first
+ *   ON_START carry this session; the registration from `Apphud.start` on a cold start runs
+ *   asynchronously and may go out before or after it.
+ * - Back from the background after more than 30 minutes: a new session; logout: a new session.
+ * External mode ([setExternalSessionId]): the host owns every boundary until the process ends,
+ * and nothing is saved.
  */
 internal class ClientSessionRepository(
     private val storage: ClientSessionStorage,
@@ -22,6 +28,7 @@ internal class ClientSessionRepository(
     private var ownId: String? = null
     private var externalId: String? = null
     private var sessionStartedInProcess = false
+    private var foregroundSeen = false
 
     // When the app went to the background, while it is there.
     private var backgroundStartedAt: Long? = null
@@ -59,6 +66,14 @@ internal class ClientSessionRepository(
     /** Process lifecycle ON_START. */
     @Synchronized
     fun onForeground() {
+        onProcessStart()
+        if (!foregroundSeen) {
+            // The first foreground in the process stands for a start by the user.
+            foregroundSeen = true
+            backgroundStartedAt = null
+            if (externalId == null) startNewSession()
+            return
+        }
         val startedAt = backgroundStartedAt ?: return
         backgroundStartedAt = null
         if (externalId == null && now() - startedAt > BACKGROUND_TIMEOUT_MS) startNewSession()
