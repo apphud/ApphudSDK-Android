@@ -9,6 +9,7 @@ import com.apphud.sdk.BuildConfig
 import com.apphud.sdk.buildAppVersion
 import com.apphud.sdk.internal.data.AnalyticsTracker
 import com.apphud.sdk.internal.data.DeviceIdentifiersRepository
+import com.apphud.sdk.internal.data.ReinstallRepository
 import com.apphud.sdk.internal.data.UserRepository
 import com.apphud.sdk.isDebuggable
 import java.util.Locale
@@ -20,6 +21,7 @@ internal class RegistrationProvider(
     private val deviceIdentifiersRepository: DeviceIdentifiersRepository,
     private val userRepository: UserRepository,
     private val analyticsTracker: AnalyticsTracker,
+    private val reinstallRepository: ReinstallRepository,
 ) {
 
     fun getLocale(): String = Locale.getDefault().toString()
@@ -81,6 +83,8 @@ internal class RegistrationProvider(
     fun getObserverMode(): Boolean = ApphudInternal.observerMode
 
     fun getFromWeb2Web(): Boolean = ApphudInternal.fromWeb2Web
+
+    fun getReinstall(): Boolean? = reinstallRepository.pendingReinstallFlag()
 
     private fun getInstallationDate(): Long? {
         var dateInSecond: Long? = null

@@ -212,6 +212,8 @@ internal object ApphudInternal {
             ruleCallback = ruleCallback,
             awaitUserRegistration = { awaitUserRegistration() },
         )
+        // Started early: registration waits for it (bounded), so a new install's first one carries `reinstall`.
+        ServiceLocator.instance.reinstallRepository.start()
 
         coroutineScope.launch(dispatchers.main) {
             ProcessLifecycleOwner.get().lifecycle.addObserver(lifecycleEventObserver)

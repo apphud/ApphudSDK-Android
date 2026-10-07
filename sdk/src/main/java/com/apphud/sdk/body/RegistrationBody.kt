@@ -47,5 +47,7 @@ internal data class RegistrationBody(
     val fromWeb2web: Boolean,
     val email: String?,
     @SerializedName("package_name")
-    val packageName: String? = null
+    val packageName: String? = null,
+    // True only on a reinstall, until a registration carrying it succeeds.
+    val reinstall: Boolean? = null,
 )

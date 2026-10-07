@@ -80,6 +80,7 @@ internal class SessionComponent(
             appScope.deviceIdentifiersRepository,
             userRepository,
             analyticsTracker = analyticsTracker,
+            reinstallRepository = appScope.reinstallRepository,
         )
 
     @VisibleForTesting
@@ -140,6 +141,7 @@ internal class SessionComponent(
             paywallsMapper = PaywallsMapper(appScope.gson),
             urlProvider = appScope.urlProvider,
             dispatchers = appScope.dispatchers,
+            reinstallRepository = appScope.reinstallRepository,
         )
 
     private val screenRemoteRepository: ScreenRemoteRepository =

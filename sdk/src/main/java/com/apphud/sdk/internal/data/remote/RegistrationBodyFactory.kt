@@ -39,6 +39,7 @@ internal class RegistrationBodyFactory(
             installSource = registrationProvider.getInstallSource(),
             observerMode = registrationProvider.getObserverMode(),
             fromWeb2web = registrationProvider.getFromWeb2Web(),
-            email = email
+            email = email,
+            reinstall = registrationProvider.getReinstall(),
         )
 }

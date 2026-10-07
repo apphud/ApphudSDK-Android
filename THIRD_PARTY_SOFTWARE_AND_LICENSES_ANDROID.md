@@ -2,7 +2,7 @@
 
 Generated at: 2026-03-05T07:08:52Z (UTC)
 Source of truth: `build.gradle` + `sdk/build.gradle` + resolved graph from `:sdk:releaseRuntimeClasspath`
-Total unique resolved artifacts: 66
+Total unique resolved artifacts: 67
 
 ## Scope
 
@@ -14,13 +14,13 @@ Total unique resolved artifacts: 66
 
 - `Permissive`: 59
 - `Copyleft / reciprocal`: 0
-- `Other`: 7
+- `Other`: 8
 - `Unknown`: 0
 
 ## Top License Identifiers
 
 - `The Apache Software License, Version 2.0`: 53
-- `Android Software Development Kit License`: 7
+- `Android Software Development Kit License`: 8
 - `The Apache License, Version 2.0`: 4
 - `Apache-2.0`: 2
 
@@ -70,6 +70,7 @@ Total unique resolved artifacts: 66
 | `com.google.android.datatransport:transport-backend-cct` | `3.1.8` | `The Apache Software License, Version 2.0` | `Permissive` | [link](http://www.apache.org/licenses/LICENSE-2.0.txt) | `https://dl.google.com/dl/android/maven2` |
 | `com.google.android.datatransport:transport-runtime` | `3.1.8` | `The Apache Software License, Version 2.0` | `Permissive` | [link](http://www.apache.org/licenses/LICENSE-2.0.txt) | `https://dl.google.com/dl/android/maven2` |
 | `com.google.android.gms:play-services-appset` | `16.1.0` | `Android Software Development Kit License` | `Other` | [link](https://developer.android.com/studio/terms.html) | `https://dl.google.com/dl/android/maven2` |
+| `com.google.android.gms:play-services-auth-blockstore` | `16.4.0` | `Android Software Development Kit License` | `Other` | [link](https://developer.android.com/studio/terms.html) | `https://dl.google.com/dl/android/maven2` |
 | `com.google.android.gms:play-services-base` | `18.5.0` | `Android Software Development Kit License` | `Other` | [link](https://developer.android.com/studio/terms.html) | `https://dl.google.com/dl/android/maven2` |
 | `com.google.android.gms:play-services-basement` | `18.9.0` | `Android Software Development Kit License` | `Other` | [link](https://developer.android.com/studio/terms.html) | `https://dl.google.com/dl/android/maven2` |
 | `com.google.android.gms:play-services-location` | `19.0.0` | `Android Software Development Kit License` | `Other` | [link](https://developer.android.com/studio/terms.html) | `https://dl.google.com/dl/android/maven2` |
