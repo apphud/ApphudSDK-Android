@@ -928,6 +928,9 @@ internal object ApphudInternal {
         freshPurchase = null
         prevPurchases.clear()
         productGroups.set(emptyList())
+        // The next customer's first request starts a new session.
+        runCatching { ServiceLocator.instance.clientSessionRepository.onLogout() }
+            .onFailure { ApphudLog.log("Skip clientSessionRepository.onLogout(): ${it.message}") }
         allowIdentifyUser = true
         didRegisterCustomerAtThisLaunch = false
         ApphudLog.log("SDK did logout")

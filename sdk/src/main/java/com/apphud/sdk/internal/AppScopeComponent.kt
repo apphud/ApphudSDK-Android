@@ -1,6 +1,7 @@
 package com.apphud.sdk.internal
 
 import android.content.Context
+import com.apphud.sdk.internal.data.ClientSessionRepository
 import com.apphud.sdk.internal.data.DeviceIdentifiersDataSource
 import com.apphud.sdk.internal.data.DeviceIdentifiersRepository
 import com.apphud.sdk.internal.data.local.LifecycleRepository
@@ -39,6 +40,8 @@ internal class AppScopeComponent(val applicationContext: Context) {
         DeviceIdentifiersRepository(deviceIdentifiersDataSource)
 
     val urlProvider = UrlProvider(storage)
+
+    val clientSessionRepository: ClientSessionRepository = ClientSessionRepository(storage)
 
     val hostSwitcherInterceptor = HostSwitcherInterceptor(OkHttpClient(), urlProvider)
     val hostSwitcherInterceptorWithoutHeaders = HostSwitcherInterceptor(OkHttpClient(), urlProvider)

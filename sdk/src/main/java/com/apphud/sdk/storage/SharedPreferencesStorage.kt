@@ -23,7 +23,7 @@ import com.google.gson.reflect.TypeToken
 
 internal class SharedPreferencesStorage(
     applicationContext: Context,
-) : Storage {
+) : Storage, ClientSessionStorage {
 
     private val cacheTimeout: Long = if (applicationContext.isDebuggable()) 30L else 3600L // 1 hour
 
@@ -286,6 +286,23 @@ internal class SharedPreferencesStorage(
             }
         }
 
+    // Client-session keys are device-scoped: clean() leaves them.
+    override var clientSessionId: String?
+        get() = preferences.getString(CLIENT_SESSION_ID_KEY, null)
+        set(value) {
+            preferences.edit {
+                putString(CLIENT_SESSION_ID_KEY, value)
+            }
+        }
+
+    override var clientSessionLastBackgroundAt: Long
+        get() = preferences.getLong(CLIENT_SESSION_LAST_BACKGROUND_AT_KEY, 0L)
+        set(value) {
+            preferences.edit {
+                putLong(CLIENT_SESSION_LAST_BACKGROUND_AT_KEY, value)
+            }
+        }
+
     override var connectDomainUrl: String?
         get() = preferences.getString(CONNECT_DOMAIN_URL_KEY, null)
         set(value) {
@@ -452,5 +469,7 @@ internal class SharedPreferencesStorage(
         private const val CURRENT_CACHE_VERSION = "3"
         private const val CONNECT_DOMAIN_URL_KEY = "ApphudConnectDomainUrl"
         private const val SUBMITTED_PUSH_TOKEN_KEY = "submittedPushTokenKey"
+        private const val CLIENT_SESSION_ID_KEY = "clientSessionIdKey"
+        private const val CLIENT_SESSION_LAST_BACKGROUND_AT_KEY = "clientSessionLastBackgroundAtKey"
     }
 }
