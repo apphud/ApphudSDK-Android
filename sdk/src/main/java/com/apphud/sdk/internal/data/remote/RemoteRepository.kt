@@ -22,6 +22,7 @@ import com.apphud.sdk.internal.data.dto.PaywallEventDto
 import com.apphud.sdk.internal.data.dto.PushTokenDto
 import com.apphud.sdk.internal.data.dto.ReadNotificationsRequestDto
 import com.apphud.sdk.internal.data.dto.RuleEventDto
+import com.apphud.sdk.internal.data.ReinstallRepository
 import com.apphud.sdk.internal.data.mapper.CustomerMapper
 import com.apphud.sdk.internal.data.mapper.PaywallsMapper
 import com.apphud.sdk.internal.data.mapper.ProductMapper
@@ -51,6 +52,7 @@ internal class RemoteRepository(
     private val paywallsMapper: PaywallsMapper,
     private val urlProvider: UrlProvider,
     private val dispatchers: ApphudDispatchers,
+    private val reinstallRepository: ReinstallRepository,
 ) {
 
     private val previousUser: ApphudUser?
@@ -65,19 +67,23 @@ internal class RemoteRepository(
         email: String? = null,
     ): Result<ApphudUser> =
         runCatchingCancellable {
-            val request =
-                buildPostRequest(urlProvider.customersUrl, registrationBodyFactory.create(needPlacements, isNew, userId, email))
-            executeForResponse<CustomerDto>(okHttpClient, gson, request, dispatchers.io)
+            // A new install's first registration carries the reinstall flag once the check has decided.
+            reinstallRepository.awaitIsReinstall()
+            val body = registrationBodyFactory.create(needPlacements, isNew, userId, email)
+            val request = buildPostRequest(urlProvider.customersUrl, body)
+            executeForResponse<CustomerDto>(okHttpClient, gson, request, dispatchers.io) to body.reinstall
         }
             .recoverCatchingCancellable { e ->
                 val message = e.message ?: "Registration failed"
                 throw ApphudError.from(message, originalCause = e)
             }
-            .mapCatchingCancellable { response ->
+            .mapCatchingCancellable { (response, reinstall) ->
                 urlProvider.updateConnectDomainUrl(response.data.meta)
-                response.data.results?.let { customerDto ->
+                val user = response.data.results?.let { customerDto ->
                     customerMapper.map(customerDto, previousUser)
                 } ?: throw ApphudError("Registration failed")
+                if (reinstall == true) reinstallRepository.onReinstallSent()
+                user
             }
 
     suspend fun getPurchased(purchaseContext: PurchaseContext): Result<ApphudUser> =

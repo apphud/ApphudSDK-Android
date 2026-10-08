@@ -107,6 +107,7 @@ dependencies {
     implementation libs.logging.interceptor
     implementation(libs.kotlinx.coroutines.android)
     implementation libs.play.services.appset
+    implementation libs.play.services.auth.blockstore
     implementation(libs.lifecycle.process)
     implementation(libs.lifecycle.viewmodel.ktx)
     implementation(libs.lifecycle.runtime.ktx)

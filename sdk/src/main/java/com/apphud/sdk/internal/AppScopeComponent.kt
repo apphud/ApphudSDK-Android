@@ -1,9 +1,12 @@
 package com.apphud.sdk.internal
 
 import android.content.Context
+import com.apphud.sdk.ApphudUtils
+import com.apphud.sdk.internal.data.BlockStoreInstallMarkerSource
 import com.apphud.sdk.internal.data.ClientSessionRepository
 import com.apphud.sdk.internal.data.DeviceIdentifiersDataSource
 import com.apphud.sdk.internal.data.DeviceIdentifiersRepository
+import com.apphud.sdk.internal.data.ReinstallRepository
 import com.apphud.sdk.internal.data.local.LifecycleRepository
 import com.apphud.sdk.internal.data.local.LocalRulesScreenRepository
 import com.apphud.sdk.internal.data.mapper.CustomerMapper
@@ -15,9 +18,13 @@ import com.apphud.sdk.internal.data.network.HostSwitcherInterceptor
 import com.apphud.sdk.internal.data.network.PrettyHttpLoggingInterceptor
 import com.apphud.sdk.internal.data.network.PrettyJsonFormatter
 import com.apphud.sdk.internal.data.network.UrlProvider
+import com.apphud.sdk.isFreshPackageInstall
+import com.apphud.sdk.storage.FileInstallRecordStorage
 import com.apphud.sdk.storage.SharedPreferencesStorage
 import com.google.gson.Gson
 import com.google.gson.GsonBuilder
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.SupervisorJob
 import okhttp3.OkHttpClient
 
 internal class AppScopeComponent(val applicationContext: Context) {
@@ -42,6 +49,22 @@ internal class AppScopeComponent(val applicationContext: Context) {
     val urlProvider = UrlProvider(storage)
 
     val clientSessionRepository: ClientSessionRepository = ClientSessionRepository(storage)
+
+    val reinstallRepository: ReinstallRepository by lazy {
+        ReinstallRepository(
+            storage = FileInstallRecordStorage { applicationContext.noBackupFilesDir },
+            markerSource = BlockStoreInstallMarkerSource(applicationContext),
+            deviceMarker = {
+                if (ApphudUtils.optOutOfTracking) {
+                    null
+                } else {
+                    ReinstallRepository.deviceMarkerOf(deviceIdentifiersDataSource.fetchAndroidIdSync())
+                }
+            },
+            isFreshPackageInstall = { applicationContext.isFreshPackageInstall() },
+            scope = CoroutineScope(SupervisorJob() + dispatchers.io),
+        )
+    }
 
     val hostSwitcherInterceptor = HostSwitcherInterceptor(OkHttpClient(), urlProvider)
     val hostSwitcherInterceptorWithoutHeaders = HostSwitcherInterceptor(OkHttpClient(), urlProvider)

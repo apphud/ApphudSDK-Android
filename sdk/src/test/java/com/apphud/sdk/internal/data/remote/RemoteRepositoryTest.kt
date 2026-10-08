@@ -3,6 +3,7 @@ package com.apphud.sdk.internal.data.remote
 import com.apphud.sdk.internal.ApphudDispatchers
 import com.apphud.sdk.body.RegistrationBody
 import com.apphud.sdk.domain.ApphudUser
+import com.apphud.sdk.internal.data.ReinstallRepository
 import com.apphud.sdk.internal.data.dto.CustomerDto
 import com.apphud.sdk.internal.data.dto.DataDto
 import com.apphud.sdk.internal.data.dto.ResponseDto
@@ -10,9 +11,11 @@ import com.apphud.sdk.internal.data.mapper.CustomerMapper
 import com.apphud.sdk.internal.data.network.UrlProvider
 import com.google.gson.Gson
 import io.mockk.Runs
+import io.mockk.coEvery
 import io.mockk.every
 import io.mockk.just
 import io.mockk.mockk
+import io.mockk.verify
 import kotlinx.coroutines.test.runTest
 import okhttp3.Call
 import okhttp3.HttpUrl.Companion.toHttpUrl
@@ -53,6 +56,11 @@ class RemoteRepositoryTest {
 
     private val okHttpClient: OkHttpClient = mockk()
 
+    private val reinstallRepository: ReinstallRepository = mockk {
+        coEvery { awaitIsReinstall() } returns null
+        every { onReinstallSent() } just Runs
+    }
+
     private val remoteRepository = RemoteRepository(
         okHttpClient = okHttpClient,
         gson = gson,
@@ -65,6 +73,7 @@ class RemoteRepositoryTest {
         paywallsMapper = mockk(),
         urlProvider = urlProvider,
         dispatchers = ApphudDispatchers(),
+        reinstallRepository = reinstallRepository,
     )
 
     private fun createSuccessResponse(): String {
@@ -120,6 +129,16 @@ class RemoteRepositoryTest {
 
         assertTrue("Result should be success", result.isSuccess)
         assertEquals("Returned user should match mocked user", mockApphudUser, result.getOrNull())
+    }
+
+    @Test
+    fun `GIVEN body carries reinstall WHEN registration succeeds EXPECT flag marked as sent`() = runTest {
+        every { mockRegistrationBody.reinstall } returns true
+        mockHttpCall(createMockResponse(200, createSuccessResponse()))
+
+        remoteRepository.getCustomers(needPlacements = true, isNew = false, userId = null, email = null)
+
+        verify { reinstallRepository.onReinstallSent() }
     }
 
     @Test
