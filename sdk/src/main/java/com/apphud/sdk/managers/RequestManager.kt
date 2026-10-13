@@ -7,7 +7,7 @@ import com.apphud.sdk.ApphudError
 import com.apphud.sdk.ApphudInternal
 import com.apphud.sdk.ApphudLog
 import com.apphud.sdk.ApphudUtils
-import com.apphud.sdk.UserId
+import com.apphud.sdk.internal.domain.model.ApphudIdentity
 import com.apphud.sdk.body.UserPropertiesBody
 import com.apphud.sdk.domain.ApphudGroup
 import com.apphud.sdk.domain.ApphudPaywall
@@ -70,8 +70,8 @@ internal object RequestManager {
         needPlacements: Boolean,
         isNew: Boolean,
         forceRegistration: Boolean = false,
-        userId: UserId? = null,
         email: String? = null,
+        legacyWeb2Web: Boolean = false,
     ): ApphudUser {
         if (!canPerformRequest()) {
             ApphudLog.logE(::registration.name + MUST_REGISTER_ERROR)
@@ -82,7 +82,7 @@ internal object RequestManager {
         return if (currentUserLocal == null || forceRegistration) {
             val repository = ServiceLocator.instance.remoteRepository
 
-            val getCustomersResult = repository.getCustomers(needPlacements, isNew, userId, email)
+            val getCustomersResult = repository.getCustomers(needPlacements, isNew, email, legacyWeb2Web)
 
             getCustomersResult
                 .getOrElse { t ->
@@ -100,10 +100,12 @@ internal object RequestManager {
     }
 
     suspend fun allProducts(): List<ApphudGroup> {
+        val identity = ServiceLocator.instance.userRepository.getIdentity() ?: throw ApphudError("SDK not initialized")
         val params = GetProductsParams(
-            System.currentTimeMillis().toString(),
-            ServiceLocator.instance.userRepository.getDeviceId() ?: throw ApphudError("SDK not initialized"),
-            ServiceLocator.instance.userRepository.getUserId() ?: throw ApphudError("SDK not initialized"),
+            requestTime = System.currentTimeMillis().toString(),
+            installationId = identity.installationId,
+            anonymousId = identity.anonymousId,
+            userId = identity.userId,
         )
         val repository = ServiceLocator.instance.remoteRepository
 
@@ -175,12 +177,12 @@ internal object RequestManager {
             throw ApphudError("SDK not initialized")
         }
 
-        val deviceId = ServiceLocator.instance.userRepository.getDeviceId()
+        val identity = ServiceLocator.instance.userRepository.getIdentity()
             ?: throw ApphudError("SDK not initialized")
         val repository = ServiceLocator.instance.remoteRepository
 
         return repository.deeplinkAttribution(
-            deviceId = deviceId,
+            identity = identity,
             bundleId = applicationContext.packageName,
             url = url,
             visitorId = visitorId,
@@ -221,10 +223,13 @@ internal object RequestManager {
 
             val repository = ServiceLocator.instance.remoteRepository
 
+            val identity = ServiceLocator.instance.userRepository.getIdentity()
+                ?: throw ApphudError("SDK not initialized")
             val grantPromotionalDto = GrantPromotionalDto(
                 duration = daysCount,
-                userId = ServiceLocator.instance.userRepository.getUserId() ?: throw ApphudError("SDK not initialized"),
-                deviceId = ServiceLocator.instance.userRepository.getDeviceId() ?: throw ApphudError("SDK not initialized"),
+                userId = identity.userId,
+                installationId = identity.installationId,
+                anonymousId = identity.anonymousId,
                 productId = productId,
                 productGroupId = permissionGroup?.id
             )
@@ -253,8 +258,7 @@ internal object RequestManager {
         error: ApphudError?,
         productsResponseCode: Int,
         success: Boolean,
-        userId: String,
-        deviceId: String,
+        identity: ApphudIdentity,
     ) {
         trackPaywallEvent(
             makePaywallLogsBody(
@@ -266,8 +270,7 @@ internal object RequestManager {
                 error,
                 productsResponseCode,
                 success,
-                userId,
-                deviceId
+                identity,
             )
         )
     }
@@ -361,10 +364,8 @@ internal object RequestManager {
         screenId: String? = null,
         errorMessage: String? = null,
     ): PaywallEventDto {
-        val currentUserId = ServiceLocator.instance.userRepository.getUserId()
-        val currentDeviceId = ServiceLocator.instance.userRepository.getDeviceId()
-
-        if (currentUserId == null || currentDeviceId == null) {
+        val identity = ServiceLocator.instance.userRepository.getIdentity()
+        if (identity == null) {
             ApphudLog.logE("Cannot track event '$name': SDK not fully initialized")
             throw ApphudError("SDK not initialized")
         }
@@ -379,8 +380,9 @@ internal object RequestManager {
 
         return PaywallEventDto(
             name = name,
-            userId = currentUserId,
-            deviceId = currentDeviceId,
+            userId = identity.userId,
+            installationId = identity.installationId,
+            anonymousId = identity.anonymousId,
             environment = if (applicationContext.isDebuggable()) "sandbox" else "production",
             timestamp = System.currentTimeMillis(),
             properties = properties.ifEmpty { null }
@@ -396,8 +398,7 @@ internal object RequestManager {
         error: ApphudError?,
         productsResponseCode: Int,
         success: Boolean,
-        userId: String,
-        deviceId: String,
+        identity: ApphudIdentity,
     ): PaywallEventDto {
         val properties = mutableMapOf<String, Any>()
         properties["launched_at"] = launchedAt
@@ -422,8 +423,9 @@ internal object RequestManager {
 
         return PaywallEventDto(
             name = "paywall_products_loaded",
-            userId = userId,
-            deviceId = deviceId,
+            userId = identity.userId,
+            installationId = identity.installationId,
+            anonymousId = identity.anonymousId,
             environment = if (applicationContext.isDebuggable()) "sandbox" else "production",
             timestamp = System.currentTimeMillis(),
             properties = properties.ifEmpty { null }

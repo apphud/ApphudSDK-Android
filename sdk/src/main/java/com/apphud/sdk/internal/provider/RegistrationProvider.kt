@@ -11,6 +11,7 @@ import com.apphud.sdk.internal.data.AnalyticsTracker
 import com.apphud.sdk.internal.data.DeviceIdentifiersRepository
 import com.apphud.sdk.internal.data.ReinstallRepository
 import com.apphud.sdk.internal.data.UserRepository
+import com.apphud.sdk.internal.domain.model.ApphudIdentity
 import com.apphud.sdk.isDebuggable
 import java.util.Locale
 import java.util.TimeZone
@@ -62,9 +63,10 @@ internal class RegistrationProvider(
         return if (androidId.isNullOrEmpty()) null else androidId
     }
 
-    fun getUserId(): String? = userRepository.getUserId()
+    fun getIdentity(): ApphudIdentity? = userRepository.getIdentity()
 
-    fun getDeviceId(): String? = userRepository.getDeviceId()
+    /** The current customer's user id as the backend sent it. */
+    fun getServerUserId(): String? = userRepository.getCurrentUser()?.userId
 
     fun getTimeZone(): String = TimeZone.getDefault().id
 
@@ -82,9 +84,7 @@ internal class RegistrationProvider(
 
     fun getObserverMode(): Boolean = ApphudInternal.observerMode
 
-    fun getFromWeb2Web(): Boolean = ApphudInternal.fromWeb2Web
-
-    fun getReinstall(): Boolean? = reinstallRepository.pendingReinstallFlag()
+    fun getReinstall(): Boolean? = reinstallRepository.reinstallFlag()
 
     private fun getInstallationDate(): Long? {
         var dateInSecond: Long? = null

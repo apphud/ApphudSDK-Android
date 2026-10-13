@@ -6,6 +6,7 @@ import com.apphud.sdk.internal.data.BlockStoreInstallMarkerSource
 import com.apphud.sdk.internal.data.ClientSessionRepository
 import com.apphud.sdk.internal.data.DeviceIdentifiersDataSource
 import com.apphud.sdk.internal.data.DeviceIdentifiersRepository
+import com.apphud.sdk.internal.data.IdentityStore
 import com.apphud.sdk.internal.data.ReinstallRepository
 import com.apphud.sdk.internal.data.local.LifecycleRepository
 import com.apphud.sdk.internal.data.local.LocalRulesScreenRepository
@@ -50,19 +51,30 @@ internal class AppScopeComponent(val applicationContext: Context) {
 
     val clientSessionRepository: ClientSessionRepository = ClientSessionRepository(storage)
 
+    private val installRecordStorage = FileInstallRecordStorage { applicationContext.noBackupFilesDir }
+
+    val identityStore: IdentityStore by lazy {
+        IdentityStore(
+            storage = storage,
+            installRecords = installRecordStorage,
+            isFreshPackageInstall = { applicationContext.isFreshPackageInstall() },
+            clearUserData = { storage.clean() },
+        )
+    }
+
     val reinstallRepository: ReinstallRepository by lazy {
         ReinstallRepository(
-            storage = FileInstallRecordStorage { applicationContext.noBackupFilesDir },
+            storage = installRecordStorage,
             markerSource = BlockStoreInstallMarkerSource(applicationContext),
             deviceMarker = {
                 if (ApphudUtils.optOutOfTracking) {
-                    null
+                    ReinstallRepository.CONSTANT_MARKER
                 } else {
                     ReinstallRepository.deviceMarkerOf(deviceIdentifiersDataSource.fetchAndroidIdSync())
                 }
             },
-            isFreshPackageInstall = { applicationContext.isFreshPackageInstall() },
             scope = CoroutineScope(SupervisorJob() + dispatchers.io),
+            onDecided = { identityStore.markSyncPending() },
         )
     }
 

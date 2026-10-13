@@ -24,14 +24,14 @@ internal class SubmitPushTokenUseCase(
             return true
         }
 
-        val deviceId = userRepository.getDeviceId()
-        if (deviceId == null) {
+        val identity = userRepository.getIdentity()
+        if (identity == null) {
             ApphudLog.logE("Cannot submit push token: SDK not initialized")
             return false
         }
 
         return runCatchingCancellable {
-            remoteRepository.submitPushToken(deviceId, token).getOrThrow()
+            remoteRepository.submitPushToken(identity, token).getOrThrow()
             storage.submittedPushToken = token
             true
         }.getOrElse { error ->

@@ -1,6 +1,7 @@
 package com.apphud.sdk.internal.data
 
 import com.apphud.sdk.ApphudUserProperty
+import com.apphud.sdk.internal.domain.model.ApphudIdentity
 import com.apphud.sdk.ApphudUserPropertyKey
 import com.apphud.sdk.internal.ApphudDispatchers
 import com.apphud.sdk.storage.SharedPreferencesStorage
@@ -24,7 +25,7 @@ class UserPropertiesManagerTest {
 
     private val userRepository: UserRepository = mockk {
         every { getCurrentUser() } returns null
-        every { getDeviceId() } returns "test-device-id"
+        every { getIdentity() } returns ApphudIdentity("test-installation-id", "test-anonymous-id", null)
     }
 
     private val storage: SharedPreferencesStorage = mockk {

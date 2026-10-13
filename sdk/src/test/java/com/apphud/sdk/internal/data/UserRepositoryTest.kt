@@ -2,6 +2,7 @@ package com.apphud.sdk.internal.data
 
 import com.apphud.sdk.domain.ApphudPlacement
 import com.apphud.sdk.domain.ApphudUser
+import com.apphud.sdk.internal.domain.model.ApphudIdentity
 import io.mockk.every
 import io.mockk.mockk
 import io.mockk.verify
@@ -16,6 +17,7 @@ class UserRepositoryTest {
 
     private lateinit var dataSource: UserDataSource
     private lateinit var repository: UserRepository
+    private val identityStore: IdentityStore = mockk()
     private val mockUser: ApphudUser = mockk(relaxed = true)
     private val mockUser2: ApphudUser = mockk(relaxed = true)
     private val temporaryUser: ApphudUser = mockk(relaxed = true)
@@ -43,7 +45,7 @@ class UserRepositoryTest {
     @Before
     fun setup() {
         dataSource = mockk(relaxed = true)
-        repository = UserRepository(dataSource)
+        repository = UserRepository(dataSource, identityStore)
 
         every { mockUser.userId } returns "user-id-1"
         every { mockUser.isTemporary } returns false
@@ -213,77 +215,35 @@ class UserRepositoryTest {
         verify(exactly = 2) { dataSource.saveUser(match { it.placements.size == 1 }) }
     }
 
-    // region getUserId fallback chain
+    // region getUserId: the identity, never the response
 
     @Test
-    fun `GIVEN no state EXPECT getUserId returns null`() {
-        every { dataSource.getCachedUser() } returns null
+    fun `GIVEN anonymous identity EXPECT getUserId returns the anonymous id`() {
+        every { identityStore.current } returns ApphudIdentity("installation-1", "anonymous-1", null)
 
-        val result = repository.getUserId()
-
-        assertNull("Should return null when no state", result)
+        assertEquals("anonymous-1", repository.getUserId())
     }
 
     @Test
-    fun `GIVEN only cachedUser in dataSource EXPECT getUserId returns cachedUser userId`() {
-        every { dataSource.getCachedUser() } returns mockUser
+    fun `GIVEN identified identity EXPECT getUserId returns the user id`() {
+        every { identityStore.current } returns ApphudIdentity("installation-1", "anonymous-1", "user-1")
 
-        val result = repository.getUserId()
-
-        assertEquals("Should fallback to cachedUser.userId", "user-id-1", result)
+        assertEquals("user-1", repository.getUserId())
     }
 
     @Test
-    fun `GIVEN pendingUserId set EXPECT getUserId returns pendingUserId`() {
-        every { dataSource.getCachedUser() } returns null
+    fun `GIVEN no identity before start EXPECT getUserId returns null`() {
+        every { identityStore.current } returns null
 
-        repository.setUserId("pending-id")
-        val result = repository.getUserId()
-
-        assertEquals("Should return pendingUserId", "pending-id", result)
+        assertNull(repository.getUserId())
     }
 
     @Test
-    fun `GIVEN pendingUserId and cachedUser EXPECT getUserId returns pendingUserId`() {
-        every { dataSource.getCachedUser() } returns mockUser
-
-        repository.setUserId("pending-id")
-        val result = repository.getUserId()
-
-        assertEquals("pendingUserId should take priority over cachedUser", "pending-id", result)
-    }
-
-    @Test
-    fun `GIVEN currentUser set EXPECT getUserId returns currentUser userId`() {
+    fun `GIVEN customer with another user id EXPECT getUserId keeps the identity`() {
+        every { identityStore.current } returns ApphudIdentity("installation-1", "anonymous-1", "user-1")
         repository.setCurrentUser(mockUser)
 
-        val result = repository.getUserId()
-
-        assertEquals("Should return currentUser.userId", "user-id-1", result)
-    }
-
-    @Test
-    fun `GIVEN currentUser and pendingUserId EXPECT getUserId returns currentUser userId`() {
-        repository.setUserId("pending-id")
-        repository.setCurrentUser(mockUser)
-
-        val result = repository.getUserId()
-
-        assertEquals("currentUser should take priority over pendingUserId", "user-id-1", result)
-    }
-
-    // endregion
-
-    // region setCurrentUser clears pendingUserId
-
-    @Test
-    fun `GIVEN pendingUserId then setCurrentUser EXPECT pendingUserId cleared`() {
-        repository.setUserId("pending-id")
-        repository.setCurrentUser(mockUser)
-
-        val result = repository.getUserId()
-
-        assertEquals("pendingUserId should be cleared, returning currentUser.userId", "user-id-1", result)
+        assertEquals("user-1", repository.getUserId())
     }
 
     // endregion
@@ -291,31 +251,8 @@ class UserRepositoryTest {
     // region clearUser (logout)
 
     @Test
-    fun `GIVEN currentUser set then clearUser EXPECT getUserId returns null`() {
+    fun `GIVEN currentUser then clearUser EXPECT getCurrentUser returns null`() {
         every { dataSource.getCachedUser() } returns null
-        repository.setCurrentUser(mockUser)
-
-        repository.clearUser()
-        val result = repository.getUserId()
-
-        assertNull("getUserId should return null after clearUser", result)
-    }
-
-    @Test
-    fun `GIVEN pendingUserId set then clearUser EXPECT getUserId returns null`() {
-        every { dataSource.getCachedUser() } returns null
-        repository.setUserId("pending-id")
-
-        repository.clearUser()
-        val result = repository.getUserId()
-
-        assertNull("getUserId should return null after clearUser", result)
-    }
-
-    @Test
-    fun `GIVEN currentUser and pendingUserId then clearUser EXPECT getCurrentUser returns null`() {
-        every { dataSource.getCachedUser() } returns null
-        repository.setUserId("pending-id")
         repository.setCurrentUser(mockUser)
 
         repository.clearUser()
@@ -326,24 +263,11 @@ class UserRepositoryTest {
 
     @Test
     fun `GIVEN clearUser called EXPECT dataSource clearUser called`() {
-        repository.setUserId("pending-id")
         repository.setCurrentUser(mockUser)
 
         repository.clearUser()
 
         verify { dataSource.clearUser() }
-    }
-
-    @Test
-    fun `GIVEN clearUser then setUserId EXPECT getUserId returns new pendingUserId`() {
-        every { dataSource.getCachedUser() } returns null
-        repository.setCurrentUser(mockUser)
-        repository.clearUser()
-
-        repository.setUserId("new-pending-id")
-        val result = repository.getUserId()
-
-        assertEquals("Should return new pendingUserId after clearUser", "new-pending-id", result)
     }
 
     @Test

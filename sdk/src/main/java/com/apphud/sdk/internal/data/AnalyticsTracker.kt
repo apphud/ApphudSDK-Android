@@ -60,10 +60,9 @@ internal class AnalyticsTracker(
             return
         }
 
-        val currentUserId = userRepository.getUserId()
-        val currentDeviceId = userRepository.getDeviceId()
-        if (currentUserId == null || currentDeviceId == null) {
-            ApphudLog.logE("Cannot track analytics: user not loaded or deviceId not set")
+        val identity = userRepository.getIdentity()
+        if (identity == null) {
+            ApphudLog.logE("Cannot track analytics: the ids are not resolved yet")
             return
         }
 
@@ -84,8 +83,7 @@ internal class AnalyticsTracker(
                     latestError,
                     billingResponseCode,
                     success,
-                    currentUserId,
-                    currentDeviceId
+                    identity,
                 )
             }.onFailure { error ->
                 ApphudLog.logE("Failed to send analytics: ${error.message}")

@@ -15,6 +15,7 @@ import android.app.Activity
 import android.net.Uri
 import com.apphud.sdk.domain.AdjustInfo
 import com.apphud.sdk.domain.ApphudUser
+import com.apphud.sdk.internal.domain.model.ApphudIdentity
 import com.apphud.sdk.domain.AppsflyerInfo
 import com.apphud.sdk.domain.FacebookInfo
 import com.apphud.sdk.internal.ServiceLocator
@@ -92,8 +93,10 @@ internal fun ApphudInternal.setAttribution(
                 providerIdPair?.let { (key, value) -> put(key, value) }
             }
 
+            val identity = userRepository.getIdentity() ?: throw ApphudError("SDK not initialized")
             val requestBody = AttributionRequestDto(
-                deviceId = userRepository.getDeviceId() ?: throw ApphudError("deviceId is null"),
+                installationId = identity.installationId,
+                anonymousId = identity.anonymousId,
                 packageName = context.packageName,
                 provider = provider.value,
                 rawData = mergedRawData,
@@ -172,12 +175,12 @@ internal fun ApphudInternal.requestDeferredDeeplinkAttribution(activity: Activit
     }
 
     coroutineScope.launch(dispatchers.main) {
-        val deviceId = userRepository.getDeviceId().orEmpty()
+        val installationId = userRepository.getIdentity()?.installationId.orEmpty()
         val urlProvider = ServiceLocator.instance.urlProvider
         ApphudWebController().present(
             activity,
             apiKey,
-            deviceId,
+            installationId,
             urlProvider.connectDomainUrl,
             urlProvider.connectHost,
         ) { visitorId ->
@@ -215,25 +218,61 @@ internal suspend fun ApphudInternal.tryWebAttribution(
     runCatchingCancellable { awaitUserRegistration() }
 
     val user = userRepository.getCurrentUser() ?: return false to null
-    val currentUserId = userRepository.getUserId() ?: return false to null
-    fromWeb2Web = true
 
     return when {
         !userId.isNullOrEmpty() -> {
-            if (currentUserId == userId) {
+            if (userRepository.getIdentifiedUserId() == userId) {
                 ApphudLog.logI("Already web2web user, skipping")
                 true to user
             } else {
+                // The web user's id is known: a plain identify, no from_web2web.
                 ApphudLog.logI("Trying to attribute from web by User ID: $userId")
-                true to updateUserId(userId, web2Web = true)
+                true to updateUserId(userId)
             }
         }
 
         !email.isNullOrEmpty() -> {
             ApphudLog.logI("Trying to attribute from web by email: $email")
-            true to updateUserId(currentUserId, email = email, web2Web = true)
+            true to attributeFromWebByEmail(email)
         }
 
         else -> false to null
     }
+}
+
+/**
+ * Email only: the old request shape; the response names the web user, who becomes the SDK's user
+ * as an identify would. The anonymous customer merges into it on the next request.
+ */
+private suspend fun ApphudInternal.attributeFromWebByEmail(email: String): ApphudUser? {
+    // In fallback mode the local user is made up: no customer id to compare against.
+    val adoptFrom = if (fallbackMode) null else userRepository.getCurrentUser()?.internalId to userRepository.getIdentity()
+    val response = registerWebOrIdentified(email = email) ?: return userRepository.getCurrentUser()
+    if (adoptFrom != null) {
+        webUserToAdopt(
+            customerBefore = adoptFrom.first,
+            sent = adoptFrom.second,
+            current = userRepository.getIdentity(),
+            response = response,
+        )?.let { applyIdentify(it) }
+    }
+    return userRepository.getCurrentUser()
+}
+
+/**
+ * The web user an email-only web-to-web request found: the response is another customer than
+ * before. Without a match the backend returns the same customer, possibly with another install's id
+ * as its user_id, which is no user to adopt. Only while the ids are those the request was sent with
+ * (no logout or identify in between).
+ */
+internal fun webUserToAdopt(
+    customerBefore: String?,
+    sent: ApphudIdentity?,
+    current: ApphudIdentity?,
+    response: ApphudUser,
+): String? {
+    if (sent == null || sent != current) return null
+    val userId = response.userId.takeUnless { it.isEmpty() || it == current.anonymousId } ?: return null
+    val customerId = response.internalId?.takeUnless { it.isEmpty() || it == customerBefore } ?: return null
+    return userId.takeIf { customerId.isNotEmpty() }
 }

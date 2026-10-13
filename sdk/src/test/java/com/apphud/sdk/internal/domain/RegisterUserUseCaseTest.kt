@@ -49,14 +49,14 @@ class RegisterUserUseCaseTest {
             needPlacementsPaywalls = true,
             isNew = false,
             forceRegistration = false,
-            userId = "custom-id",
             email = "test@example.com",
+            legacyWeb2Web = true,
             cachedUser = null,
         )
         val afterTime = System.currentTimeMillis()
 
         assertEquals(user, result)
-        coVerify { requestManager.registration(true, false, false, "custom-id", "test@example.com") }
+        coVerify { requestManager.registration(true, false, false, "test@example.com", true) }
         coVerify { userRepository.setCurrentUser(user) }
         verify {
             userDataSource.updateLastRegistrationTime(match { it in beforeTime..afterTime })

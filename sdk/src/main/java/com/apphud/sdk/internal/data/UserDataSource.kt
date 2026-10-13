@@ -26,14 +26,6 @@ internal class UserDataSource(
         storage.userId = null
     }
 
-    fun getDeviceId(): String? {
-        return storage.deviceId
-    }
-
-    fun saveDeviceId(deviceId: String) {
-        storage.deviceId = deviceId
-    }
-
     fun isCacheExpired(): Boolean {
         return storage.cacheExpired()
     }

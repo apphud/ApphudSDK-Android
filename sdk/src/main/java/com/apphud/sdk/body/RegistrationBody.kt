@@ -21,10 +21,16 @@ internal data class RegistrationBody(
     val idfa: String?,
     @SerializedName("android_id")
     val androidId: String?,
+    /** Only once the user is identified, or the web user's id in the old web-to-web shape. */
     @SerializedName("user_id")
     val userId: String?,
+    @SerializedName("installation_id")
+    val installationId: String?,
+    @SerializedName("anonymous_id")
+    val anonymousId: String?,
+    /** Only in the old web-to-web shape, which the backend still needs for a match by email. */
     @SerializedName("device_id")
-    val deviceId: String,
+    val deviceId: String? = null,
     @SerializedName("time_zone")
     val timeZone: String,
     @SerializedName("is_sandbox")
@@ -44,10 +50,11 @@ internal data class RegistrationBody(
     @SerializedName("observer_mode")
     val observerMode: Boolean,
     @SerializedName("from_web2web")
-    val fromWeb2web: Boolean,
+    /** Only in the old web-to-web shape; never sent in the new one. */
+    val fromWeb2web: Boolean?,
     val email: String?,
     @SerializedName("package_name")
     val packageName: String? = null,
-    // True only on a reinstall, until a registration carrying it succeeds.
+    /** True on every registration of a reinstalled install; otherwise not sent. */
     val reinstall: Boolean? = null,
 )

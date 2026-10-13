@@ -69,7 +69,7 @@ internal class BlockStoreInstallMarkerSource(
         }
 
     private companion object {
-        const val KEY = "apphud_install_marker"
+        const val KEY = "com.apphud.reinstall"
         val DIRECT = Executor { it.run() }
     }
 }

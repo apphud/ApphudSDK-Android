@@ -160,7 +160,8 @@ private fun ApphudInternal.resolveObfuscatedAccountId(oldToken: String?): String
             ?.firstOrNull { it.purchaseToken == oldToken }
             ?.obfuscatedDeviceId
     } else {
-        userRepository.getDeviceId()
+        // The installation id, as the device id was before.
+        userRepository.getIdentity()?.installationId
     }
 }
 

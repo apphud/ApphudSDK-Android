@@ -18,6 +18,7 @@ import com.apphud.sdk.domain.ApphudUser
 import com.apphud.sdk.domain.Rule
 import com.apphud.sdk.internal.ServiceLocator
 import com.apphud.sdk.internal.domain.model.ApiKey as ApiKeyModel
+import com.apphud.sdk.internal.domain.model.ApphudSuppliedIds
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.withContext
@@ -50,15 +51,26 @@ object Apphud {
         ruleCallback: ApphudRuleCallback = object : ApphudRuleCallback {},
         deeplinkHandler: ApphudDeeplinkHandler? = null,
         callback: ((ApphudUser) -> Unit)? = null,
-    ) = start(context, apiKey, null, null, observerMode, ruleCallback, deeplinkHandler, callback)
+    ) = start(
+        context = context,
+        apiKey = apiKey,
+        userId = null,
+        anonymousId = null,
+        installationId = null,
+        isReinstall = null,
+        observerMode = observerMode,
+        ruleCallback = ruleCallback,
+        deeplinkHandler = deeplinkHandler,
+        callback = callback,
+    )
 
     /**
      * Initializes Apphud SDK. You should call it during app launch.
      *
      * @param context The application context.
      * @param apiKey Your API key. This is a required parameter.
-     * @param userId (Optional) A unique user identifier. If null is passed, a UUID will be
-     *               generated and used as the user identifier.
+     * @param userId (Optional) Your own user identifier, once the user is identified. If null, the
+     *               user saved on a previous launch is kept.
      * @param observerMode (Optional). Pass true if you're using SDK only in analytics mode and not operating with Paywalls and Placements.
      * @param callback (Optional) A callback function that is invoked with the `ApphudUser`
      *                 object after the SDK initialization is complete. __Note__: Do not store
@@ -75,20 +87,38 @@ object Apphud {
         ruleCallback: ApphudRuleCallback = object : ApphudRuleCallback {},
         deeplinkHandler: ApphudDeeplinkHandler? = null,
         callback: ((ApphudUser) -> Unit)? = null,
-    ) = start(context, apiKey, userId, null, observerMode, ruleCallback, deeplinkHandler, callback)
+    ) = start(
+        context = context,
+        apiKey = apiKey,
+        userId = userId,
+        anonymousId = null,
+        installationId = null,
+        isReinstall = null,
+        observerMode = observerMode,
+        ruleCallback = ruleCallback,
+        deeplinkHandler = deeplinkHandler,
+        callback = callback,
+    )
 
     /**
-     * Initializes the Apphud SDK. This method should be called during the app launch.
+     * Initializes Apphud SDK. You should call it during app launch.
+     *
+     * Every id is optional: the SDK generates only what is missing and never generates over or
+     * rotates an id you pass. Pass [installationId] and [anonymousId] together when your app owns the
+     * ids; the SDK then stores what it was given and takes [isReinstall] from you instead of
+     * detecting it.
      *
      * @param context The application context.
      * @param apiKey Your API key. This is a required parameter.
-     * @param userId (Optional) A unique user identifier. If null is passed, a UUID will be
-     *               generated and used as the user identifier.
-     * @param deviceId (Optional) A unique device identifier. If null is passed, a UUID will be
-     *                 generated and used as the device identifier. __Important__: Use this
-     *                 parameter with caution. Passing different device IDs
-     *                 can result in the creation of multiple user records in Apphud for the same
-     *                 actual user. Best practice is to always pass null.
+     * @param userId (Optional) Your own user identifier, once the user is identified. If null, the
+     *               user saved on a previous launch is kept; when your app passes the ids itself,
+     *               null means no user.
+     * @param anonymousId (Optional) The anonymous person's id. If null, the saved one is kept, or
+     *                    one is generated on the first launch.
+     * @param installationId (Optional) The id of this app install. If null, the saved one is kept,
+     *                       or one is generated on the first launch.
+     * @param isReinstall (Optional) Whether this install is a reinstall. Used only when you pass
+     *                    both [installationId] and [anonymousId].
      * @param observerMode (Optional). Pass true if you're using SDK only in analytics mode and not operating with Paywalls and Placements.
      * @param callback (Optional) A callback function that is invoked with the `ApphudUser`
      *                 object after the SDK initialization is complete. __Note__: Do not store
@@ -97,6 +127,51 @@ object Apphud {
      * @param deeplinkHandler (Optional) A callback that receives deep link attribution updates.
      *                 It may be called multiple times for both direct and deferred attribution flows.
      */
+    fun start(
+        context: Context,
+        apiKey: ApiKey,
+        userId: UserId? = null,
+        anonymousId: String? = null,
+        installationId: String? = null,
+        isReinstall: Boolean? = null,
+        observerMode: Boolean = false,
+        ruleCallback: ApphudRuleCallback = object : ApphudRuleCallback {},
+        deeplinkHandler: ApphudDeeplinkHandler? = null,
+        callback: ((ApphudUser) -> Unit)? = null,
+    ) {
+        ApphudUtils.setPackageName(context.packageName)
+        val supplied = ApphudSuppliedIds.of(
+            userId = userId,
+            anonymousId = anonymousId,
+            installationId = installationId,
+            isReinstall = isReinstall,
+        )
+        ApphudInternal.initialize(context, apiKey, supplied, observerMode, callback, ruleCallback, deeplinkHandler)
+    }
+
+    /**
+     * Initializes the Apphud SDK with a User ID & Device ID pair. The device ID is now the
+     * installation ID.
+     *
+     * @param context The application context.
+     * @param apiKey Your API key. This is a required parameter.
+     * @param userId (Optional) Your own user identifier, once the user is identified.
+     * @param deviceId (Optional) Used as the installation ID. Generated if null.
+     * @param observerMode (Optional). Pass true if you're using SDK only in analytics mode and not operating with Paywalls and Placements.
+     * @param callback (Optional) A callback function that is invoked with the `ApphudUser`
+     *                 object after the SDK initialization is complete. __Note__: Do not store
+     *                 `ApphudUser`
+     *                 instance in your own code, since it may change at runtime.
+     * @param deeplinkHandler (Optional) A callback that receives deep link attribution updates.
+     *                 It may be called multiple times for both direct and deferred attribution flows.
+     */
+    @Deprecated(
+        "Pass the device ID as installationId.",
+        ReplaceWith(
+            "start(context, apiKey, userId = userId, installationId = deviceId, observerMode = observerMode, " +
+                "ruleCallback = ruleCallback, deeplinkHandler = deeplinkHandler, callback = callback)",
+        ),
+    )
     fun start(
         context: Context,
         apiKey: ApiKey,
@@ -108,7 +183,8 @@ object Apphud {
         callback: ((ApphudUser) -> Unit)? = null,
     ) {
         ApphudUtils.setPackageName(context.packageName)
-        ApphudInternal.initialize(context, apiKey, userId, deviceId, observerMode, callback, ruleCallback, deeplinkHandler)
+        val supplied = ApphudSuppliedIds.of(userId = userId, installationId = deviceId)
+        ApphudInternal.initialize(context, apiKey, supplied, observerMode, callback, ruleCallback, deeplinkHandler)
     }
 
     /**
@@ -121,10 +197,11 @@ object Apphud {
     }
 
     /**
-     * Updates the user ID. This method should only be called after the user is registered,
-     * for example, inside the ApphudListener's userDidLoad method.
+     * Identifies the user. While the user is anonymous, they become this user; if the id belongs to
+     * an existing customer, the anonymous one merges into it. The same id again does nothing. To
+     * switch to another user, call [logout] first.
      *
-     * @param userId The new user ID value to be set.
+     * @param userId The user ID.
      */
     fun updateUserId(userId: UserId, callback: ((ApphudUser?) -> Unit)? = null) {
         coroutineScope.launch {
@@ -223,11 +300,44 @@ object Apphud {
         }.getOrNull()
 
     /**
-     * Retrieves the current user ID that identifies the user across multiple devices.
+     * Returns the current user identity: the user ID once the user is identified, the anonymous ID
+     * before. Null before [start].
      *
-     * @return The user ID, or null if the SDK is not initialized.
+     * Note: This value may change during runtime. [ApphudListener.apphudDidChangeUserID] is called
+     * for an identify your app requested; logout changes the value without it.
      */
-    fun userId(): UserId? = runCatching { ServiceLocator.instance.userRepository.getUserId() }.getOrNull()
+    fun userId(): UserId? = runCatching { ServiceLocator.instance.identityStore.current?.currentId }.getOrNull()
+
+    /**
+     * Returns the ID of this app install. It is new after a reinstall and is kept across logout.
+     * Null before [start].
+     */
+    fun installationId(): String? = runCatching { ServiceLocator.instance.identityStore.current?.installationId }.getOrNull()
+
+    /**
+     * Returns the anonymous ID. It changes on logout and after a reinstall, and is kept when the user
+     * is identified. Null before [start].
+     */
+    fun anonymousId(): String? = runCatching { ServiceLocator.instance.identityStore.current?.anonymousId }.getOrNull()
+
+    /**
+     * Whether this install is a reinstall on the same device: true for a reinstall, false for a
+     * first install. Null before [start], while not known yet (Google Play services are unavailable,
+     * or the check hasn't finished; [awaitIsReinstall] waits for it), and for an install updated in
+     * place from an older SDK version. When your app passes the ids itself, it is the `isReinstall`
+     * you passed.
+     *
+     * The marker that tells a reinstall apart is kept in Google Block Store, which keeps it across
+     * uninstall only while Google Backup is on: with Backup off, a reinstall reads false. An app
+     * deleted on an older SDK version and reinstalled straight onto this one reads as a first install.
+     */
+    fun isReinstall(): Boolean? = runCatching { ServiceLocator.instance.reinstallRepository.isReinstall() }.getOrNull()
+
+    /** [isReinstall] once this install's check has finished or timed out (a few seconds at most). */
+    suspend fun awaitIsReinstall(): Boolean? {
+        val repository = runCatching { ServiceLocator.instance.reinstallRepository }.getOrNull() ?: return null
+        return repository.awaitIsReinstall()
+    }
 
     /**
      * Returns an instance of the current user.
@@ -238,14 +348,12 @@ object Apphud {
         runCatching { ServiceLocator.instance.userRepository.getCurrentUser() }.getOrNull()
 
     /**
-     * Retrieves the current device ID. This method is useful if you want to implement
-     * a custom logout/login flow by saving the User ID and Device ID pair for each app user.
+     * Returns the installation ID, which replaced the device ID.
      *
-     * @return The device ID, or null if the SDK is not initialized.
+     * @return The installation ID, or null before [start].
      */
-    fun deviceId(): String? {
-        return runCatching { ServiceLocator.instance.userRepository.getDeviceId() }.getOrNull()
-    }
+    @Deprecated("Use installationId().", ReplaceWith("installationId()"))
+    fun deviceId(): String? = installationId()
 
     //endregion
     //region === Placements, Paywalls and Products ===
@@ -1052,10 +1160,17 @@ object Apphud {
     fun enableDebugLogs() = ApphudUtils.enableDebugLogs()
 
     /**
-     * Use this method if you have a custom login system with your own backend logic.
-     * It effectively logs out the current user in the context of the Apphud SDK.
+     * Logs out the current user: a new anonymous ID is generated, the user ID is cleared, and the
+     * user's cached data is removed. The installation ID is kept. The SDK goes back to an
+     * uninitialized state: after calling this method, you must start it again with [start].
      */
     fun logout() = ApphudInternal.logout()
+
+    /**
+     * Logs out the current user like [logout]. The supplied anonymous ID replaces the current one;
+     * without one the SDK generates it. The installation ID is kept.
+     */
+    fun logout(anonymousId: String?) = ApphudInternal.logout(anonymousId)
 
     /**
      * Must be called before SDK initialization. If called, certain user parameters

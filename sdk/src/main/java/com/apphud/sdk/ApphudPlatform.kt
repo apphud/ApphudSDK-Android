@@ -31,10 +31,11 @@ internal interface PlatformProtocol {
 
     /**
      * Whether this install is a reinstall on this device: true on a reinstall, false on a first
-     * install, null while unknown (the marker read hasn't succeeded yet, the install predates this
-     * SDK version, or tracking is opted out). Null until [Apphud.start] has loaded this install's
-     * result; [awaitIsReinstall] waits for it. Google Block Store keeps the marker across uninstall
-     * only while Google Backup is on, so with Backup off a reinstall reads false.
+     * install, null while unknown (the marker read hasn't succeeded yet, or the install was updated
+     * in place from an older SDK version). When the app supplies the ids, it is the `isReinstall` it
+     * passed. Null until [Apphud.start] has loaded this install's result; [awaitIsReinstall] waits
+     * for it. Google Block Store keeps the marker across uninstall only while Google Backup is on,
+     * so with Backup off a reinstall reads false.
      */
     fun isReinstall(): Boolean?
 

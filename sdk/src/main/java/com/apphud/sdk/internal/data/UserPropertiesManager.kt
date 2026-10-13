@@ -126,10 +126,12 @@ internal class UserPropertiesManager(
                 }
             }
 
+            val identity = userRepository.getIdentity() ?: throw ApphudError("SDK not initialized")
             val body = UserPropertiesBody(
-                userRepository.getDeviceId() ?: throw ApphudError("SDK not initialized"),
-                properties,
-                force
+                installationId = identity.installationId,
+                anonymousId = identity.anonymousId,
+                properties = properties,
+                force = force,
             )
 
             return withContext(dispatchers.io) {

@@ -3,7 +3,6 @@ package com.apphud.sdk.internal.data.remote
 import android.util.Log
 import com.apphud.sdk.APPHUD_ERROR_NO_INTERNET
 import com.apphud.sdk.ApphudError
-import com.apphud.sdk.UserId
 import com.apphud.sdk.domain.ApphudGroup
 import com.apphud.sdk.domain.ApphudPaywall
 import com.apphud.sdk.domain.ApphudProduct
@@ -22,6 +21,9 @@ import com.apphud.sdk.internal.data.dto.PaywallEventDto
 import com.apphud.sdk.internal.data.dto.PushTokenDto
 import com.apphud.sdk.internal.data.dto.ReadNotificationsRequestDto
 import com.apphud.sdk.internal.data.dto.RuleEventDto
+import com.apphud.sdk.body.RegistrationBody
+import com.apphud.sdk.internal.data.IdentityStore
+import com.apphud.sdk.internal.domain.model.ApphudIdentity
 import com.apphud.sdk.internal.data.ReinstallRepository
 import com.apphud.sdk.internal.data.mapper.CustomerMapper
 import com.apphud.sdk.internal.data.mapper.PaywallsMapper
@@ -53,6 +55,7 @@ internal class RemoteRepository(
     private val urlProvider: UrlProvider,
     private val dispatchers: ApphudDispatchers,
     private val reinstallRepository: ReinstallRepository,
+    private val identityStore: IdentityStore,
 ) {
 
     private val previousUser: ApphudUser?
@@ -63,28 +66,43 @@ internal class RemoteRepository(
     suspend fun getCustomers(
         needPlacements: Boolean,
         isNew: Boolean,
-        userId: UserId? = null,
         email: String? = null,
+        legacyWeb2Web: Boolean = false,
     ): Result<ApphudUser> =
         runCatchingCancellable {
             // A new install's first registration carries the reinstall flag once the check has decided.
             reinstallRepository.awaitIsReinstall()
-            val body = registrationBodyFactory.create(needPlacements, isNew, userId, email)
+            val body = registrationBodyFactory.create(needPlacements, isNew, email, legacyWeb2Web)
             val request = buildPostRequest(urlProvider.customersUrl, body)
-            executeForResponse<CustomerDto>(okHttpClient, gson, request, dispatchers.io) to body.reinstall
+            executeForResponse<CustomerDto>(okHttpClient, gson, request, dispatchers.io) to body
         }
             .recoverCatchingCancellable { e ->
                 val message = e.message ?: "Registration failed"
                 throw ApphudError.from(message, originalCause = e)
             }
-            .mapCatchingCancellable { (response, reinstall) ->
+            .mapCatchingCancellable { (response, body) ->
                 urlProvider.updateConnectDomainUrl(response.data.meta)
                 val user = response.data.results?.let { customerDto ->
                     customerMapper.map(customerDto, previousUser)
                 } ?: throw ApphudError("Registration failed")
-                if (reinstall == true) reinstallRepository.onReinstallSent()
+                markSyncedIfCurrent(body)
                 user
             }
+
+    /**
+     * The backend has seen the current ids: a registration in the new shape, sent with the ids
+     * still current (they may change while it is out).
+     */
+    private fun markSyncedIfCurrent(body: RegistrationBody) {
+        val current = identityStore.current ?: return
+        if (body.installationId == current.installationId &&
+            body.anonymousId == current.anonymousId &&
+            body.userId == current.userId &&
+            body.reinstall == reinstallRepository.reinstallFlag()
+        ) {
+            identityStore.markSynced()
+        }
+    }
 
     suspend fun getPurchased(purchaseContext: PurchaseContext): Result<ApphudUser> =
         runCatchingCancellable {
@@ -129,11 +147,12 @@ internal class RemoteRepository(
 
     suspend fun getProducts(getProductsParams: GetProductsParams): Result<List<ApphudGroup>> =
         runCatchingCancellable {
-            val paramsMap = mapOf(
-                "request_time" to getProductsParams.requestTime,
-                "device_id" to getProductsParams.deviceId,
-                "user_id" to getProductsParams.userId,
-            )
+            val paramsMap = buildMap {
+                put("request_time", getProductsParams.requestTime)
+                put("installation_id", getProductsParams.installationId)
+                put("anonymous_id", getProductsParams.anonymousId)
+                getProductsParams.userId?.let { put("user_id", it) }
+            }
             val request = buildGetRequest(urlProvider.productsUrl, paramsMap)
             executeForResponse<List<ApphudGroupDto>>(okHttpClient, gson, request, dispatchers.io)
         }
@@ -165,7 +184,7 @@ internal class RemoteRepository(
             }
 
     suspend fun deeplinkAttribution(
-        deviceId: String,
+        identity: ApphudIdentity,
         bundleId: String,
         url: String? = null,
         visitorId: String? = null,
@@ -174,7 +193,8 @@ internal class RemoteRepository(
             val request = buildPostRequest(
                 urlProvider.deeplinkAttributionUrl,
                 DeeplinkAttributionRequestDto(
-                    deviceId = deviceId,
+                    installationId = identity.installationId,
+                    anonymousId = identity.anonymousId,
                     bundleId = bundleId,
                     url = url,
                     visitorId = visitorId,
@@ -222,12 +242,9 @@ internal class RemoteRepository(
             }
             .map { }
 
-    suspend fun getNotifications(deviceId: String): Result<List<Notification>> =
+    suspend fun getNotifications(identity: ApphudIdentity): Result<List<Notification>> =
         runCatchingCancellable {
-            val paramsMap = mapOf(
-                "device_id" to deviceId,
-            )
-            val request = buildGetRequest(urlProvider.notificationsUrl, paramsMap)
+            val request = buildGetRequest(urlProvider.notificationsUrl, identity.requestParams)
             executeForResponse<List<NotificationDto>>(okHttpClient, gson, request, dispatchers.io)
         }
             .recoverCatching { e ->
@@ -240,11 +257,11 @@ internal class RemoteRepository(
                 } ?: throw ApphudError("Failed to get notifications")
             }
 
-    suspend fun getPaywall(identifier: String, deviceId: String): Result<ApphudPaywall> =
+    suspend fun getPaywall(identifier: String, identity: ApphudIdentity): Result<ApphudPaywall> =
         runCatchingCancellable {
             val request = buildGetRequest(
                 urlProvider.paywallConfigUrl(identifier),
-                mapOf("device_id" to deviceId),
+                identity.requestParams,
             )
             executeForResponse<ApphudPaywallDto>(okHttpClient, gson, request, dispatchers.io)
         }
@@ -269,11 +286,15 @@ internal class RemoteRepository(
             }
             .map { }
 
-    suspend fun submitPushToken(deviceId: String, token: String): Result<Unit> =
+    suspend fun submitPushToken(identity: ApphudIdentity, token: String): Result<Unit> =
         runCatchingCancellable {
             val request = buildPutRequest(
                 urlProvider.pushTokenUrl,
-                PushTokenDto(deviceId = deviceId, pushToken = token),
+                PushTokenDto(
+                    installationId = identity.installationId,
+                    anonymousId = identity.anonymousId,
+                    pushToken = token,
+                ),
             )
             executeForResponse<Unit>(okHttpClient, gson, request, dispatchers.io)
         }
@@ -283,10 +304,11 @@ internal class RemoteRepository(
             }
             .map { }
 
-    suspend fun readAllNotifications(ruleId: String, deviceId: String): Result<Unit> =
+    suspend fun readAllNotifications(ruleId: String, identity: ApphudIdentity): Result<Unit> =
         runCatchingCancellable {
             val requestDto = ReadNotificationsRequestDto(
-                deviceId = deviceId,
+                installationId = identity.installationId,
+                anonymousId = identity.anonymousId,
                 ruleId = ruleId
             )
             val request = buildPostRequest(urlProvider.notificationsReadUrl, requestDto)

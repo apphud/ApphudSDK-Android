@@ -1,6 +1,7 @@
 package com.apphud.sdk.internal.data.remote
 
 import com.android.billingclient.api.ProductDetails
+import com.apphud.sdk.internal.domain.model.ApphudIdentity
 import com.android.billingclient.api.Purchase
 import com.apphud.sdk.domain.ApphudPlacement
 import com.apphud.sdk.domain.ApphudPaywall
@@ -18,7 +19,7 @@ import org.junit.Test
 class PurchaseBodyFactoryTest {
 
     private val userRepository: UserRepository = mockk {
-        every { getDeviceId() } returns "device-id"
+        every { getIdentity() } returns ApphudIdentity("installation-id", "anonymous-id", null)
     }
     private val factory = PurchaseBodyFactory(userRepository)
 

@@ -11,7 +11,7 @@ import com.apphud.sdk.ApphudInternal
 import com.apphud.sdk.ApphudLog
 import com.apphud.sdk.ApphudPurchaseResult
 import com.apphud.sdk.ApphudRuleCallback
-import com.apphud.sdk.DeviceId
+import com.apphud.sdk.internal.domain.model.ApphudIdentity
 import com.apphud.sdk.APPHUD_PAYWALL_SCREEN_LOAD_TIMEOUT
 import com.apphud.sdk.domain.ApphudPaywall
 import com.apphud.sdk.domain.ApphudPaywallScreenShowResult
@@ -67,7 +67,7 @@ internal class RuleController(
     private var broadcastReceiver: BroadcastReceiver? = null
 
     @Volatile
-    private lateinit var currentDeviceId: DeviceId
+    private lateinit var currentIdentity: ApphudIdentity
 
     @Volatile
     private var appInForeground: Boolean = false
@@ -92,8 +92,8 @@ internal class RuleController(
 
     private val state = MutableStateFlow<RuleState>(RuleState.Idle)
 
-    fun start(deviceId: DeviceId) {
-        currentDeviceId = deviceId
+    fun start(identity: ApphudIdentity) {
+        currentIdentity = identity
         fetchRuleScreenJob?.cancel()
         shownRuleIds.clear()
         state.value = RuleState.Idle
@@ -149,7 +149,7 @@ internal class RuleController(
      * Mirrors iOS `ApphudUtils.checkRules()`.
      */
     fun checkRules() {
-        if (!this::currentDeviceId.isInitialized) {
+        if (!this::currentIdentity.isInitialized) {
             ApphudLog.logE("RuleController: checkRules called before start")
             return
         }
@@ -169,7 +169,7 @@ internal class RuleController(
 
         val ruleId = data["rule_id"] as? String ?: return false
 
-        if (!this::currentDeviceId.isInitialized) {
+        if (!this::currentIdentity.isInitialized) {
             ApphudLog.logE("RuleController: handlePushNotification called before start")
             return false
         }
@@ -286,23 +286,23 @@ internal class RuleController(
             ruleCallback.shouldPerformRule(rule)
         }
         if (!shouldPerformRule) {
-            remoteRepository.readAllNotifications(rule.id, currentDeviceId)
+            remoteRepository.readAllNotifications(rule.id, currentIdentity)
             ApphudLog.log("RuleController: shouldPerformRule returned false for rule ${rule.ruleName}")
             return
         }
 
         if (rule.paywallId != null) {
-            remoteRepository.readAllNotifications(rule.id, currentDeviceId)
+            remoteRepository.readAllNotifications(rule.id, currentIdentity)
             state.value = RuleState.PendingRule(rule)
             processPendingRule(rule)
         } else if (ApphudInternal.legacyRuleScreensEnabled) {
-            val html = screenRemoteRepository.loadScreenHtmlData(rule.screenId, currentDeviceId).getOrNull()
+            val html = screenRemoteRepository.loadScreenHtmlData(rule.screenId, currentIdentity).getOrNull()
             if (html == null) {
                 ApphudLog.logE("RuleController: failed to load HTML for push rule ${rule.id}")
                 return
             }
             localRulesScreenRepository.save(RuleScreen(System.currentTimeMillis(), rule, html))
-            remoteRepository.readAllNotifications(rule.id, currentDeviceId)
+            remoteRepository.readAllNotifications(rule.id, currentIdentity)
             state.value = RuleState.PendingRule(rule)
             processPendingRule(rule)
         } else {
@@ -313,7 +313,7 @@ internal class RuleController(
     private suspend fun processRuleStateMachine() {
         when (val currentState = state.value) {
             is RuleState.RuleActivityAlreadyOpen -> Unit
-            RuleState.Idle -> fetchRules(currentDeviceId)
+            RuleState.Idle -> fetchRules(currentIdentity)
             RuleState.Loading -> Unit
             is RuleState.PendingRule -> processPendingRule(currentState.rule)
             is RuleState.RuleActivityClosed -> processRuleActivityClosed(currentState)
@@ -358,7 +358,7 @@ internal class RuleController(
     }
 
     private suspend fun presentPaywallScreen(pendingRule: Rule, paywallConfigId: String) {
-        val paywall = getPaywallByIdentifierUseCase(paywallConfigId, currentDeviceId)
+        val paywall = getPaywallByIdentifierUseCase(paywallConfigId, currentIdentity)
         if (paywall == null) {
             ApphudLog.logE("RuleController: no paywall found for id: $paywallConfigId")
             localRulesScreenRepository.deleteById(pendingRule.id)
@@ -373,7 +373,7 @@ internal class RuleController(
             withContext(dispatchers.main) {
                 ruleCallback.onRulePaywallWithoutScreen(pendingRule, paywall)
             }
-            remoteRepository.readAllNotifications(pendingRule.id, currentDeviceId)
+            remoteRepository.readAllNotifications(pendingRule.id, currentIdentity)
             localRulesScreenRepository.deleteById(pendingRule.id)
             state.value = RuleState.Idle
             return
@@ -510,10 +510,10 @@ internal class RuleController(
         return ruleScreen?.rule
     }
 
-    private suspend fun fetchRules(deviceId: DeviceId) {
+    private suspend fun fetchRules(identity: ApphudIdentity) {
         state.value = RuleState.Loading
 
-        when (val fetchResult = fetchRulesScreenUseCase(deviceId)) {
+        when (val fetchResult = fetchRulesScreenUseCase(identity)) {
             is FetchRulesScreenResult.Success -> selectAndProcessMostActualLocalRule()
             is FetchRulesScreenResult.Error -> {
                 ApphudLog.logE("Fetch ruleScreen failed: ${fetchResult.exception.message}")

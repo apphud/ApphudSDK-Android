@@ -1,6 +1,7 @@
 package com.apphud.sdk.internal.domain
 
 import com.apphud.sdk.internal.data.UserRepository
+import com.apphud.sdk.internal.domain.model.ApphudIdentity
 import com.apphud.sdk.internal.data.remote.RemoteRepository
 import com.apphud.sdk.storage.Storage
 import io.mockk.coEvery
@@ -17,7 +18,7 @@ class SubmitPushTokenUseCaseTest {
 
     private val remoteRepository: RemoteRepository = mockk()
     private val userRepository: UserRepository = mockk {
-        every { getDeviceId() } returns "device-id"
+        every { getIdentity() } returns IDENTITY
     }
     private val storage: Storage = mockk(relaxUnitFun = true) {
         every { submittedPushToken } returns null
@@ -27,16 +28,16 @@ class SubmitPushTokenUseCaseTest {
 
     @Test
     fun `GIVEN new token EXPECT submits to remote`() = runTest {
-        coEvery { remoteRepository.submitPushToken("device-id", "token-1") } returns Result.success(Unit)
+        coEvery { remoteRepository.submitPushToken(IDENTITY, "token-1") } returns Result.success(Unit)
 
         useCase("token-1")
 
-        coVerify { remoteRepository.submitPushToken("device-id", "token-1") }
+        coVerify { remoteRepository.submitPushToken(IDENTITY, "token-1") }
     }
 
     @Test
     fun `GIVEN successful submit EXPECT stores token`() = runTest {
-        coEvery { remoteRepository.submitPushToken("device-id", "token-1") } returns Result.success(Unit)
+        coEvery { remoteRepository.submitPushToken(IDENTITY, "token-1") } returns Result.success(Unit)
 
         useCase("token-1")
 
@@ -45,7 +46,7 @@ class SubmitPushTokenUseCaseTest {
 
     @Test
     fun `GIVEN successful submit EXPECT returns true`() = runTest {
-        coEvery { remoteRepository.submitPushToken("device-id", "token-1") } returns Result.success(Unit)
+        coEvery { remoteRepository.submitPushToken(IDENTITY, "token-1") } returns Result.success(Unit)
 
         val result = useCase("token-1")
 
@@ -69,8 +70,8 @@ class SubmitPushTokenUseCaseTest {
     }
 
     @Test
-    fun `GIVEN no device id EXPECT returns false`() = runTest {
-        every { userRepository.getDeviceId() } returns null
+    fun `GIVEN no ids EXPECT returns false`() = runTest {
+        every { userRepository.getIdentity() } returns null
 
         val result = useCase("token-1")
 
@@ -79,7 +80,7 @@ class SubmitPushTokenUseCaseTest {
 
     @Test
     fun `GIVEN remote failure EXPECT returns false`() = runTest {
-        coEvery { remoteRepository.submitPushToken("device-id", "token-1") } returns
+        coEvery { remoteRepository.submitPushToken(IDENTITY, "token-1") } returns
             Result.failure(RuntimeException("network"))
 
         val result = useCase("token-1")
@@ -89,11 +90,15 @@ class SubmitPushTokenUseCaseTest {
 
     @Test
     fun `GIVEN remote failure EXPECT does not store token`() = runTest {
-        coEvery { remoteRepository.submitPushToken("device-id", "token-1") } returns
+        coEvery { remoteRepository.submitPushToken(IDENTITY, "token-1") } returns
             Result.failure(RuntimeException("network"))
 
         useCase("token-1")
 
         verify(exactly = 0) { storage.submittedPushToken = "token-1" }
+    }
+
+    private companion object {
+        val IDENTITY = ApphudIdentity("installation-id", "anonymous-id", null)
     }
 }

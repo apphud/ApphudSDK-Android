@@ -1,6 +1,7 @@
 package com.apphud.sdk
 
 import android.content.Context
+import com.apphud.sdk.internal.domain.model.ApphudSuppliedIds
 import android.content.SharedPreferences
 import com.apphud.sdk.domain.ApphudKind
 import com.apphud.sdk.domain.ApphudNonRenewingPurchase
@@ -40,7 +41,9 @@ class ApphudHasPremiumAccessTest {
         val cachedUser = createUserWithSubscriptions(listOf(activeSubscription))
         setupStorageWithCachedUser(cachedUser)
         createServiceLocator()
-        ServiceLocator.instance.userRepository.setUserId("test-user-id")
+        ServiceLocator.instance.identityStore.resolve(
+            ApphudSuppliedIds.of(userId = "test-user-id", anonymousId = "test-anonymous-id", installationId = "test-installation-id"),
+        )
 
         val result = Apphud.hasPremiumAccess()
 
@@ -74,7 +77,9 @@ class ApphudHasPremiumAccessTest {
         val cachedUser = createUserWithPurchases(listOf(activePurchase))
         setupStorageWithCachedUser(cachedUser)
         createServiceLocator()
-        ServiceLocator.instance.userRepository.setUserId("test-user-id")
+        ServiceLocator.instance.identityStore.resolve(
+            ApphudSuppliedIds.of(userId = "test-user-id", anonymousId = "test-anonymous-id", installationId = "test-installation-id"),
+        )
 
         val result = Apphud.hasPremiumAccess()
 

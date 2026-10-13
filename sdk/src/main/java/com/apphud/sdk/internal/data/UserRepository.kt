@@ -1,29 +1,26 @@
 package com.apphud.sdk.internal.data
 
 import com.apphud.sdk.domain.ApphudUser
+import com.apphud.sdk.internal.domain.model.ApphudIdentity
 
 /**
  * Repository for managing current user state
  * Thread-safe with in-memory cache and storage persistence
  */
 internal class UserRepository(
-    private val dataSource: UserDataSource
+    private val dataSource: UserDataSource,
+    private val identityStore: IdentityStore,
 ) {
     private var currentUser: ApphudUser? = null
-    private var pendingUserId: String? = null
 
-    @Synchronized
-    fun getUserId(): String? =
-        currentUser?.userId ?: pendingUserId ?: dataSource.getCachedUser()?.userId
+    /** The ids resolved at start; null before start. */
+    fun getIdentity(): ApphudIdentity? = identityStore.current
 
-    @Synchronized
-    fun setUserId(id: String) {
-        pendingUserId = id
-    }
+    /** The user id once identified, the anonymous id before; null before start. */
+    fun getUserId(): String? = identityStore.current?.currentId
 
-    fun getDeviceId(): String? = dataSource.getDeviceId()
-
-    fun setDeviceId(id: String) = dataSource.saveDeviceId(id)
+    /** The user id the app set by identify; null while anonymous. */
+    fun getIdentifiedUserId(): String? = identityStore.current?.userId
 
     @Synchronized
     fun getCurrentUser(): ApphudUser? {
@@ -51,7 +48,6 @@ internal class UserRepository(
         }
 
         currentUser = mergedUser
-        pendingUserId = null
 
         if (mergedUser.isTemporary != true) {
             dataSource.saveUser(mergedUser)
@@ -63,7 +59,6 @@ internal class UserRepository(
     @Synchronized
     fun clearUser() {
         currentUser = null
-        pendingUserId = null
         dataSource.clearUser()
     }
 }

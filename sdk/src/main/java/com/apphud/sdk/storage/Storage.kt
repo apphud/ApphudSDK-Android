@@ -10,7 +10,15 @@ import com.apphud.sdk.domain.FacebookInfo
 internal interface Storage {
     var lastRegistration: Long
     var userId: String?
+    /** Old SDK versions only: read once on upgrade, then removed. */
     var deviceId: String?
+    var anonymousId: String?
+
+    /** Only a user id the app set by identify. */
+    var identifiedUserId: String?
+
+    /** Set while the backend hasn't seen the current ids; cleared by a successful registration. */
+    var identitySyncPending: Boolean
     var apphudUser: ApphudUser?
     var isNeedSync: Boolean
     var facebook: FacebookInfo?

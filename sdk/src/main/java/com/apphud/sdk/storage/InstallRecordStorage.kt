@@ -16,14 +16,15 @@ internal enum class InstallState {
     EXISTING,
 }
 
-/** How this install was classified, and whether the backend has its reinstall flag. */
+/** How this install was classified, and its installation id. */
 internal data class InstallRecord(
     val state: InstallState,
-    val reinstallSent: Boolean = false,
+    /** Null only in a record from before the installation id was kept here. */
+    val installationId: String? = null,
 )
 
 /**
- * Per-install state of the reinstall check. Install-scoped: survives logout.
+ * Per-install state: the installation id and the reinstall check. Install-scoped: survives logout.
  */
 internal interface InstallRecordStorage {
     /** Null when nothing has been saved yet. Throws when the saved record can't be read. */
@@ -57,14 +58,14 @@ internal class FileInstallRecordStorage(
             ?.let { name -> runCatching { InstallState.valueOf(name) }.getOrNull() }
             // The record existed, so this install was classified before: never reclassify it.
             ?: return InstallRecord(InstallState.EXISTING)
-        return InstallRecord(state, reinstallSent = properties.getProperty(REINSTALL_SENT_KEY).toBoolean())
+        return InstallRecord(state, installationId = properties.getProperty(INSTALLATION_ID_KEY)?.takeUnless { it.isBlank() })
     }
 
     override fun write(record: InstallRecord) {
         val file = atomicFile() ?: throw IOException("No directory for the install record")
         val properties = Properties().apply {
             setProperty(STATE_KEY, record.state.name)
-            setProperty(REINSTALL_SENT_KEY, record.reinstallSent.toString())
+            record.installationId?.let { setProperty(INSTALLATION_ID_KEY, it) }
         }
         val out = file.startWrite()
         try {
@@ -83,6 +84,6 @@ internal class FileInstallRecordStorage(
     companion object {
         const val FILE_NAME = "apphud_install_record"
         private const val STATE_KEY = "state"
-        private const val REINSTALL_SENT_KEY = "reinstall_sent"
+        private const val INSTALLATION_ID_KEY = "installation_id"
     }
 }

@@ -24,8 +24,8 @@ internal class TrackRuleEventUseCase(
         properties: Map<String, Any>? = null,
         paywallId: String? = null,
     ) {
-        val deviceId = userRepository.getDeviceId()
-        if (deviceId == null) {
+        val identity = userRepository.getIdentity()
+        if (identity == null) {
             ApphudLog.logE("Cannot track rule event '$name': SDK not initialized")
             return
         }
@@ -33,7 +33,8 @@ internal class TrackRuleEventUseCase(
         runCatchingCancellable {
             remoteRepository.trackRuleEvent(
                 RuleEventDto(
-                    deviceId = deviceId,
+                    installationId = identity.installationId,
+                    anonymousId = identity.anonymousId,
                     ruleId = ruleId,
                     screenId = screenId,
                     paywallId = paywallId,

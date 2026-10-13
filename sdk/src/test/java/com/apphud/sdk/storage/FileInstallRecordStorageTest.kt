@@ -13,7 +13,7 @@ class FileInstallRecordStorageTest {
     @Test
     fun `GIVEN saved record EXPECT same record read back`() {
         val storage = FileInstallRecordStorage { folder.root }
-        val record = InstallRecord(InstallState.REINSTALL, reinstallSent = true)
+        val record = InstallRecord(InstallState.REINSTALL, installationId = "installation-1")
 
         storage.write(record)
 

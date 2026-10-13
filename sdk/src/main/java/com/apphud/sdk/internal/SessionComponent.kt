@@ -33,7 +33,7 @@ import com.apphud.sdk.internal.domain.EnrichPlacementProductsUseCase
 import com.apphud.sdk.internal.domain.RegisterUserUseCase
 import com.apphud.sdk.internal.domain.RegistrationInteractor
 import com.apphud.sdk.internal.domain.RenderPaywallPropertiesUseCase
-import com.apphud.sdk.internal.domain.ResolveCredentialsUseCase
+import com.apphud.sdk.internal.domain.ResolveIdentityUseCase
 import com.apphud.sdk.internal.domain.SubmitPushTokenUseCase
 import com.apphud.sdk.internal.domain.TrackRuleEventUseCase
 import com.apphud.sdk.internal.domain.mapper.DateTimeMapper
@@ -67,7 +67,7 @@ internal class SessionComponent(
 
     val userDataSource: UserDataSource = UserDataSource(appScope.storage)
 
-    val userRepository: UserRepository = UserRepository(userDataSource)
+    val userRepository: UserRepository = UserRepository(userDataSource, appScope.identityStore)
 
     val analyticsTracker: AnalyticsTracker = AnalyticsTracker(
         coroutineScope = coroutineScope,
@@ -142,6 +142,7 @@ internal class SessionComponent(
             urlProvider = appScope.urlProvider,
             dispatchers = appScope.dispatchers,
             reinstallRepository = appScope.reinstallRepository,
+            identityStore = appScope.identityStore,
         )
 
     private val screenRemoteRepository: ScreenRemoteRepository =
@@ -250,8 +251,8 @@ internal class SessionComponent(
         analyticsTracker = analyticsTracker,
     )
 
-    val resolveCredentialsUseCase: ResolveCredentialsUseCase =
-        ResolveCredentialsUseCase(userRepository = userRepository)
+    val resolveIdentityUseCase: ResolveIdentityUseCase =
+        ResolveIdentityUseCase(identityStore = appScope.identityStore, reinstallRepository = appScope.reinstallRepository)
 
     val enrichPlacementProductsUseCase: EnrichPlacementProductsUseCase =
         EnrichPlacementProductsUseCase(

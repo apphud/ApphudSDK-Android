@@ -17,9 +17,12 @@ internal class PurchaseBodyFactory(
     private val userRepository: UserRepository,
 ) {
 
+    private fun identity() = userRepository.getIdentity() ?: throw ApphudError("SDK not initialized")
+
     fun create(purchaseContext: PurchaseContext): PurchaseBody =
         PurchaseBody(
-            deviceId = userRepository.getDeviceId() ?: throw ApphudError("SDK not initialized"),
+            installationId = identity().installationId,
+            anonymousId = identity().anonymousId,
             purchases = listOf(
                 with(purchaseContext) {
                     PurchaseItemBody(
@@ -53,7 +56,8 @@ internal class PurchaseBodyFactory(
         observerMode: Boolean,
     ): PurchaseBody =
         PurchaseBody(
-            deviceId = userRepository.getDeviceId() ?: throw ApphudError("SDK not initialized"),
+            installationId = identity().installationId,
+            anonymousId = identity().anonymousId,
             purchases =
                 purchases.map { item ->
                     val matchesApphudProduct =

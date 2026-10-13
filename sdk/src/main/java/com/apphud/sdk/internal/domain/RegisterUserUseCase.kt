@@ -18,14 +18,14 @@ internal class RegisterUserUseCase(
         needPlacementsPaywalls: Boolean,
         isNew: Boolean,
         forceRegistration: Boolean,
-        userId: String? = null,
         email: String? = null,
+        legacyWeb2Web: Boolean = false,
         cachedUser: ApphudUser? = null,
     ): ApphudUser {
         val registrationType = if (forceRegistration) "Force Registration" else "Registration"
         ApphudLog.log(
             "$registrationType: needPlacementsPaywalls=$needPlacementsPaywalls, " +
-                "isNew=$isNew, userId=$userId, email=$email",
+                "isNew=$isNew, email=$email, legacyWeb2Web=$legacyWeb2Web",
         )
 
         val newUser = runCatchingCancellable {
@@ -33,8 +33,8 @@ internal class RegisterUserUseCase(
                 needPlacements = needPlacementsPaywalls,
                 isNew = isNew,
                 forceRegistration = forceRegistration,
-                userId = userId,
                 email = email,
+                legacyWeb2Web = legacyWeb2Web,
             )
         }.getOrElse { error ->
             ApphudLog.logE("$registrationType failed: ${error.message}")

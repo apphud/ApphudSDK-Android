@@ -78,6 +78,30 @@ internal class SharedPreferencesStorage(
             }
         }
 
+    override var anonymousId: String?
+        get() = preferences.getString(ANONYMOUS_ID_KEY, null)
+        set(value) {
+            preferences.edit {
+                putString(ANONYMOUS_ID_KEY, value)
+            }
+        }
+
+    override var identifiedUserId: String?
+        get() = preferences.getString(IDENTIFIED_USER_ID_KEY, null)
+        set(value) {
+            preferences.edit {
+                putString(IDENTIFIED_USER_ID_KEY, value)
+            }
+        }
+
+    override var identitySyncPending: Boolean
+        get() = preferences.getBoolean(IDENTITY_SYNC_PENDING_KEY, false)
+        set(value) {
+            preferences.edit {
+                putBoolean(IDENTITY_SYNC_PENDING_KEY, value)
+            }
+        }
+
     override var isNeedSync: Boolean
         get() = preferences.getBoolean(NEED_RESTART_KEY, false)
         set(value) {
@@ -448,6 +472,9 @@ internal class SharedPreferencesStorage(
         private const val USER_ID_KEY = "userIdKey"
         private const val APPHUD_USER_KEY = "APPHUD_USER_KEY"
         private const val DEVICE_ID_KEY = "deviceIdKey"
+        private const val ANONYMOUS_ID_KEY = "anonymousIdKey"
+        private const val IDENTIFIED_USER_ID_KEY = "identifiedUserIdKey"
+        private const val IDENTITY_SYNC_PENDING_KEY = "identitySyncPendingKey"
         private const val NEED_RESTART_KEY = "needRestartKey"
         private const val PROPERTIES_KEY = "propertiesKey"
         private const val FACEBOOK_KEY = "facebookKey"
