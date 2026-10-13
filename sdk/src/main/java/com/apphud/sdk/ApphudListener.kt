@@ -29,7 +29,9 @@ interface ApphudListener {
     fun apphudFetchProductDetails(details: List<ProductDetails>)
 
     /**
-    Called when user identifier was changed
+    Called when the user's ID changes through an identify you requested: `updateUserId`, or
+    `attributeFromWeb` when it finds the web user. A response from Apphud never changes the user ID
+    on its own.
      */
     fun apphudDidChangeUserID(userId: String)
 

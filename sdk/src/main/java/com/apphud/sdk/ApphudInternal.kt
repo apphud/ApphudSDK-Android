@@ -224,7 +224,7 @@ internal object ApphudInternal {
         // Before the caches are validated: an update in place reads the old user from the cached customer.
         // The reinstall check starts here too, so a new install's first registration carries `reinstall`.
         val resolution = ServiceLocator.instance.resolveIdentityUseCase(supplied)
-        if (resolution.switchedUser) {
+        if (resolution.switchedUser && this.context.isDebuggable()) {
             ApphudLog.logE("Started with another user without logout. Call Apphud.logout() before a different user signs in.")
         }
         val identityChanged = resolution.changed || ServiceLocator.instance.identityStore.isSyncPending
