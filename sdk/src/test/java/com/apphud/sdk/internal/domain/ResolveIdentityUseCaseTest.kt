@@ -2,6 +2,7 @@ package com.apphud.sdk.internal.domain
 
 import com.apphud.sdk.internal.data.IdentityStore
 import com.apphud.sdk.internal.data.ReinstallRepository
+import com.apphud.sdk.internal.data.network.FirstRegistrationHold
 import com.apphud.sdk.internal.domain.model.ApphudIdentity
 import com.apphud.sdk.internal.domain.model.ApphudIdentityResolution
 import com.apphud.sdk.internal.domain.model.ApphudLaunchKind
@@ -19,9 +20,10 @@ class ResolveIdentityUseCaseTest {
     private val reinstallRepository: ReinstallRepository = mockk {
         every { start(any(), any(), any()) } just runs
         every { useHostValue(any()) } just runs
-        every { forgetLegacyDeviceId() } just runs
+        every { legacyDeviceId() } returns null
     }
-    private val useCase = ResolveIdentityUseCase(identityStore, reinstallRepository)
+    private val hold = FirstRegistrationHold()
+    private val useCase = ResolveIdentityUseCase(identityStore, reinstallRepository, hold)
 
     private fun resolvesTo(launch: ApphudLaunchKind, restoredPersonPending: Boolean = false) {
         every { identityStore.resolve(any()) } returns
@@ -74,25 +76,6 @@ class ResolveIdentityUseCaseTest {
     }
 
     @Test
-    fun `GIVEN another user than the stored one EXPECT the old device id forgotten`() {
-        every { identityStore.resolve(any()) } returns
-            ApphudIdentityResolution(IDENTITY, ApphudLaunchKind.NORMAL, changed = true, switchedUser = true)
-
-        useCase(ApphudSuppliedIds.of(userId = "bob"))
-
-        verify { reinstallRepository.forgetLegacyDeviceId() }
-    }
-
-    @Test
-    fun `GIVEN the same user EXPECT the old device id kept`() {
-        resolvesTo(ApphudLaunchKind.NORMAL)
-
-        useCase(ApphudSuppliedIds())
-
-        verify(exactly = 0) { reinstallRepository.forgetLegacyDeviceId() }
-    }
-
-    @Test
     fun `GIVEN an old device id the record couldn't keep EXPECT it handed to the check`() {
         every { identityStore.resolve(any()) } returns
             ApphudIdentityResolution(IDENTITY, ApphudLaunchKind.UPGRADE, changed = true, unsavedLegacyDeviceId = "OLD")
@@ -104,5 +87,24 @@ class ResolveIdentityUseCaseTest {
 
     private companion object {
         val IDENTITY = ApphudIdentity("installation-1", "anonymous-1", null)
+    }
+
+    @Test
+    fun `GIVEN the first launch after an update EXPECT requests held for the first registration`() {
+        resolvesTo(ApphudLaunchKind.UPGRADE)
+        every { reinstallRepository.legacyDeviceId() } returns "OLD"
+
+        useCase(ApphudSuppliedIds())
+
+        org.junit.Assert.assertTrue(hold.isClosed)
+    }
+
+    @Test
+    fun `GIVEN an installation the backend knows EXPECT nothing held`() {
+        resolvesTo(ApphudLaunchKind.NORMAL)
+
+        useCase(ApphudSuppliedIds())
+
+        org.junit.Assert.assertFalse(hold.isClosed)
     }
 }

@@ -604,17 +604,13 @@ internal object ApphudInternal {
 
     /**
      * Makes [userId] the user: persists it and tells the listener. False when nothing changed: the
-     * same user, or the anonymous id, which is never a user.
+     * same user, or a generated id (the anonymous id, the old version's device id), never a user.
      */
     internal fun applyIdentify(userId: String): Boolean {
         val outcome = ServiceLocator.instance.identityStore.identify(userId)
         if (outcome == ApphudIdentifyOutcome.UNCHANGED) return false
-        if (outcome == ApphudIdentifyOutcome.SWITCHED) {
-            // The old customer is not the new user's.
-            ServiceLocator.instance.reinstallRepository.forgetLegacyDeviceId()
-            if (context.isDebuggable()) {
-                ApphudLog.logE("Switched to another user without logout. Call Apphud.logout() before a different user signs in.")
-            }
+        if (outcome == ApphudIdentifyOutcome.SWITCHED && context.isDebuggable()) {
+            ApphudLog.logE("Switched to another user without logout. Call Apphud.logout() before a different user signs in.")
         }
         coroutineScope.launch(dispatchers.main) { apphudListener?.apphudDidChangeUserID(userId) }
         return true
@@ -920,9 +916,6 @@ internal object ApphudInternal {
         // The ids change first: the next start registers the new anonymous person.
         runCatching { ServiceLocator.instance.identityStore.logout(anonymousId) }
             .onFailure { ApphudLog.log("Skip identityStore.logout(): ${it.message}") }
-        // The old customer is the logged-out person's.
-        runCatching { ServiceLocator.instance.reinstallRepository.forgetLegacyDeviceId() }
-            .onFailure { ApphudLog.log("Skip forgetLegacyDeviceId(): ${it.message}") }
         clear()
     }
 

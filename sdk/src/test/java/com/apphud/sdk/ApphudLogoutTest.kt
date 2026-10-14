@@ -87,34 +87,32 @@ class ApphudLogoutTest {
         assertNull(storage.deviceId)
     }
 
-    // The relaxed Context gives no readable install record, so these launches keep the old device id
-    // only as the unsaved one.
+    // The relaxed Context gives no readable install record, so the old device id is kept only as the
+    // unsaved one here.
     @Test
-    fun `GIVEN an old device id not yet adopted WHEN logout EXPECT it forgotten`() {
+    fun `GIVEN an old device id not yet adopted WHEN logout EXPECT it still sent until a registration succeeds`() {
         val reinstall = ServiceLocator.instance.reinstallRepository
         reinstall.start(unsavedLegacyDeviceId = "OLD")
-        assertEquals("OLD", reinstall.legacyDeviceId())
 
         ApphudInternal.logout()
 
-        assertNull(reinstall.legacyDeviceId())
+        assertEquals("OLD", reinstall.legacyDeviceId())
     }
 
     @Test
-    fun `GIVEN an old device id not yet adopted WHEN another user identifies EXPECT it forgotten, not on identify`() {
+    fun `GIVEN an old device id not yet adopted WHEN another user identifies EXPECT it still sent`() {
         // The listener is told on the main dispatcher.
         Dispatchers.setMain(UnconfinedTestDispatcher())
         try {
-            ServiceLocator.instance.identityStore.resolve(ApphudSuppliedIds())
+            ServiceLocator.instance.identityStore.resolve(ApphudSuppliedIds.of(userId = "alice"))
             val reinstall = ServiceLocator.instance.reinstallRepository
             reinstall.start(unsavedLegacyDeviceId = "OLD")
 
-            ApphudInternal.applyIdentify("alice")
-            assertEquals("OLD", reinstall.legacyDeviceId())
-
             // The debug warning after a switch needs a started SDK: only the ids matter here.
             runCatching { ApphudInternal.applyIdentify("bob") }
-            assertNull(reinstall.legacyDeviceId())
+
+            assertEquals("bob", ServiceLocator.instance.identityStore.current?.userId)
+            assertEquals("OLD", reinstall.legacyDeviceId())
         } finally {
             Dispatchers.resetMain()
         }

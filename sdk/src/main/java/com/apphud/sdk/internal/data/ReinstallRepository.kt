@@ -154,25 +154,9 @@ internal class ReinstallRepository(
         if (isReinstall() == true && load()?.reinstallReported != true) true else null
 
     /**
-     * The old SDK's `device_id`, sent as `legacy_device_id` until a registration carrying it succeeds;
-     * dropped when the person changes first.
+     * The old SDK's `device_id`, sent as `legacy_device_id` until a registration carrying it succeeds.
      */
     fun legacyDeviceId(): String? = load().let { if (it != null) it.legacyDeviceId else unsavedLegacyDeviceId }
-
-    /** The person changed before a registration adopted the old customer: it belongs to the one before. */
-    fun forgetLegacyDeviceId() {
-        unsavedLegacyDeviceId = null
-        synchronized(lock) {
-            // The record in memory, so a failed save still forgets it in this process.
-            load()
-            // From disk, so a forget that wasn't saved before is saved now.
-            runCatching { update { it.copy(legacyDeviceId = null) } }
-                .onFailure {
-                    record = record?.copy(legacyDeviceId = null)
-                    ApphudLog.logE("Old device id not saved as forgotten: ${it.message}")
-                }
-        }
-    }
 
     /**
      * A registration succeeded. One that carried `reinstall: true` reported the reinstall, and one that
@@ -215,15 +199,15 @@ internal class ReinstallRepository(
             // Before registration goes on: a reinstall never registers with the restored person. Under
             // the lock, so a registration whose wait ends meanwhile waits for the drop to finish.
             synchronized(lock) {
-                val dropped = (closeRestoredPerson() && matches).also { if (it) dropRestoredPerson() }
+                if (closeRestoredPerson() && matches) dropRestoredPerson()
                 try {
-                    // A dropped person takes its old customer with it: nothing to adopt.
+                    // A reinstall on this device: the old customer is the deleted install's, nothing to adopt.
                     update {
-                        it.copy(state = state, legacyDeviceId = it.legacyDeviceId.takeUnless { dropped }).personSettled()
+                        it.copy(state = state, legacyDeviceId = it.legacyDeviceId.takeUnless { matches }).personSettled()
                     }
                 } finally {
                     // Not even when the record wasn't saved.
-                    if (dropped) record = record?.copy(legacyDeviceId = null)
+                    if (matches) record = record?.copy(legacyDeviceId = null)
                 }
             }
             decided.complete(Unit)

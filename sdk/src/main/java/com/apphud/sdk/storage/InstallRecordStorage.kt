@@ -32,8 +32,7 @@ internal data class InstallRecord(
     val reinstallReported: Boolean = false,
     /**
      * The `device_id` of the old SDK this install was updated from, or whose data was restored, sent as
-     * `legacy_device_id` until a registration carrying it succeeds: it adopts the old customer. Dropped when
-     * the person changes first.
+     * `legacy_device_id` until a registration carrying it succeeds: it adopts the old customer.
      */
     val legacyDeviceId: String? = null,
 ) {

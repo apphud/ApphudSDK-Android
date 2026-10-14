@@ -27,6 +27,7 @@ class IdentityStoreTest {
         override var lastRegistration: Long = 0L
         override var userId: String? = null
         override var deviceId: String? = null
+        override var oldDeviceId: String? = null
         override var anonymousId: String? = null
         override var identifiedUserId: String? = null
         override var identitySyncPending: Boolean = false
@@ -331,25 +332,25 @@ class IdentityStoreTest {
     }
 
     @Test
-    fun `GIVEN old data restored and the app's own anonymous id EXPECT no old device id to adopt`() {
+    fun `GIVEN old data restored and the app's own anonymous id EXPECT the old device id kept for the backend and the reinstall check`() {
         storage.deviceId = "OLD"
         storage.apphudUser = legacyUser("OLD")
         freshPackage = true
 
         launch(ApphudSuppliedIds.of(anonymousId = "host-anon"))
 
-        assertNull(records.record?.legacyDeviceId)
+        assertEquals("OLD", records.record?.legacyDeviceId)
     }
 
     @Test
-    fun `GIVEN old data restored and the app's own user EXPECT no old device id to adopt`() {
+    fun `GIVEN old data restored and another user started EXPECT the old device id kept for the backend to decide`() {
         storage.deviceId = "OLD"
         storage.apphudUser = legacyUser("alice")
         freshPackage = true
 
         launch(ApphudSuppliedIds.of(userId = "bob"))
 
-        assertNull(records.record?.legacyDeviceId)
+        assertEquals("OLD", records.record?.legacyDeviceId)
     }
 
     @Test
@@ -365,13 +366,13 @@ class IdentityStoreTest {
     }
 
     @Test
-    fun `GIVEN a restored person already dropped by an earlier launch EXPECT no old device id to adopt`() {
+    fun `GIVEN a restored person already dropped by an earlier launch EXPECT the old device id left to the reinstall check`() {
         records.record = InstallRecord(InstallState.PENDING, "installation-1", restoredAnonymousId = "OLD", legacyDeviceId = "OLD")
         storage.anonymousId = "new-anonymous"
 
         launch()
 
-        assertNull(records.record?.legacyDeviceId)
+        assertEquals("OLD", records.record?.legacyDeviceId)
     }
 
     @Test
@@ -389,6 +390,98 @@ class IdentityStoreTest {
         freshPackage = false
 
         assertNull(launch().unsavedLegacyDeviceId)
+    }
+
+    @Test
+    fun `GIVEN an update and the app passing back the old generated id EXPECT no user and no switch`() {
+        // The old SDK took a user id the server returned; the app kept the generated id it was given.
+        storage.deviceId = "OLD"
+        storage.apphudUser = legacyUser("alice")
+        freshPackage = false
+
+        val resolution = launch(ApphudSuppliedIds.of(userId = "OLD"))
+
+        assertEquals("alice", resolution.identity.userId)
+        assertFalse(resolution.switchedUser)
+        assertEquals("OLD", records.record?.legacyDeviceId)
+        val later = launch(ApphudSuppliedIds.of(userId = "OLD"))
+        assertEquals("alice", later.identity.userId)
+        assertFalse(later.switchedUser)
+    }
+
+    @Test
+    fun `GIVEN old data restored and the app passing back the old generated id EXPECT the restored user`() {
+        storage.deviceId = "OLD"
+        storage.apphudUser = legacyUser("alice")
+        freshPackage = true
+
+        val resolution = launch(ApphudSuppliedIds.of(userId = "OLD"))
+
+        assertEquals("alice", resolution.identity.userId)
+        assertEquals("OLD", records.record?.legacyDeviceId)
+        assertTrue("the reinstall check still decides the restored person", resolution.restoredPersonPending)
+        assertEquals("alice", launch(ApphudSuppliedIds.of(userId = "OLD")).identity.userId)
+    }
+
+    @Test
+    fun `GIVEN an update EXPECT the old generated id no user on identify nor with every id supplied`() {
+        storage.deviceId = "OLD"
+        storage.apphudUser = legacyUser("alice")
+        freshPackage = false
+        val store = store()
+        store.resolve(ApphudSuppliedIds())
+
+        assertEquals(ApphudIdentifyOutcome.UNCHANGED, store.identify("OLD"))
+        val supplied = launch(ApphudSuppliedIds.of(userId = "OLD", anonymousId = "a", installationId = "inst")).identity
+        assertNull(supplied.userId)
+    }
+
+    @Test
+    fun `GIVEN an update with the app's own installation id EXPECT the old generated id no user on later launches`() {
+        storage.deviceId = "OLD"
+        storage.apphudUser = legacyUser("alice")
+        freshPackage = false
+        launch(ApphudSuppliedIds.of(userId = "OLD", installationId = "host-inst"))
+
+        val later = launch(ApphudSuppliedIds.of(userId = "OLD", installationId = "host-inst"))
+
+        assertEquals("alice", later.identity.userId)
+        assertFalse(later.switchedUser)
+    }
+
+    @Test
+    fun `GIVEN an old version given the app's own device id as its user id EXPECT that id a user again after logout`() {
+        // Old versions also kept a device id the app passed, here the same as its user id.
+        storage.deviceId = "u42"
+        storage.apphudUser = legacyUser("u42")
+        freshPackage = false
+        val store = store()
+        store.resolve(ApphudSuppliedIds.of(userId = "u42", installationId = "u42"))
+        store.logout(null)
+
+        val identity = launch(ApphudSuppliedIds.of(userId = "u42", installationId = "u42")).identity
+
+        assertNull(storage.oldDeviceId)
+        assertEquals("u42", identity.userId)
+    }
+
+    @Test
+    fun `GIVEN the old generated id passed back as both ids while another user is cached EXPECT it no user`() {
+        storage.deviceId = "OLD"
+        storage.apphudUser = legacyUser("alice")
+        freshPackage = false
+
+        val resolution = launch(ApphudSuppliedIds.of(userId = "OLD", installationId = "OLD"))
+
+        assertEquals("alice", resolution.identity.userId)
+        assertFalse(resolution.switchedUser)
+        assertEquals("OLD", storage.oldDeviceId)
+    }
+
+    @Test
+    fun `GIVEN a user id the app chose EXPECT a user even when it is the installation id`() {
+        assertEquals("U", launch(ApphudSuppliedIds.of(userId = "U", installationId = "U")).identity.userId)
+        assertEquals("U", launch(ApphudSuppliedIds.of(userId = "U", anonymousId = "a", installationId = "U")).identity.userId)
     }
 
     @Test

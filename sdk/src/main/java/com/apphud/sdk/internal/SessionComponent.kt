@@ -12,6 +12,7 @@ import com.apphud.sdk.internal.data.mapper.PaywallsMapper
 import com.apphud.sdk.internal.data.mapper.ProductMapper
 import com.apphud.sdk.internal.data.mapper.RenderResultMapper
 import com.apphud.sdk.internal.data.network.CustomerIdInterceptor
+import com.apphud.sdk.internal.data.network.FirstRegistrationHoldInterceptor
 import com.apphud.sdk.internal.data.network.HeadersInterceptor
 import com.apphud.sdk.internal.data.network.HttpRetryInterceptor
 import com.apphud.sdk.internal.data.network.SessionIdInterceptor
@@ -86,6 +87,7 @@ internal class SessionComponent(
     @VisibleForTesting
     internal val okHttpClient: OkHttpClient =
         OkHttpClient.Builder()
+            .addInterceptor(FirstRegistrationHoldInterceptor(appScope.firstRegistrationHold))
             .addInterceptor(
                 HttpLoggingInterceptor().apply {
                     level =
@@ -108,6 +110,7 @@ internal class SessionComponent(
     @VisibleForTesting
     internal val okHttpClientWithoutHeaders: OkHttpClient =
         OkHttpClient.Builder()
+            .addInterceptor(FirstRegistrationHoldInterceptor(appScope.firstRegistrationHold))
             .addInterceptor(
                 HttpLoggingInterceptor().apply {
                     level =
@@ -143,6 +146,7 @@ internal class SessionComponent(
             dispatchers = appScope.dispatchers,
             reinstallRepository = appScope.reinstallRepository,
             identityStore = appScope.identityStore,
+            firstRegistrationHold = appScope.firstRegistrationHold,
         )
 
     private val screenRemoteRepository: ScreenRemoteRepository =
@@ -252,7 +256,11 @@ internal class SessionComponent(
     )
 
     val resolveIdentityUseCase: ResolveIdentityUseCase =
-        ResolveIdentityUseCase(identityStore = appScope.identityStore, reinstallRepository = appScope.reinstallRepository)
+        ResolveIdentityUseCase(
+            identityStore = appScope.identityStore,
+            reinstallRepository = appScope.reinstallRepository,
+            firstRegistrationHold = appScope.firstRegistrationHold,
+        )
 
     val enrichPlacementProductsUseCase: EnrichPlacementProductsUseCase =
         EnrichPlacementProductsUseCase(

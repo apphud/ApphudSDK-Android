@@ -28,6 +28,7 @@ import okhttp3.Request
 import okhttp3.Response
 import okhttp3.ResponseBody.Companion.toResponseBody
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
@@ -74,6 +75,8 @@ class RemoteRepositoryTest {
         every { current } returns IDENTITY
     }
 
+    private val hold = com.apphud.sdk.internal.data.network.FirstRegistrationHold()
+
     private val remoteRepository = RemoteRepository(
         okHttpClient = okHttpClient,
         gson = gson,
@@ -88,6 +91,7 @@ class RemoteRepositoryTest {
         dispatchers = ApphudDispatchers(),
         reinstallRepository = reinstallRepository,
         identityStore = identityStore,
+        firstRegistrationHold = hold,
     )
 
     private fun createSuccessResponse(): String {
@@ -145,6 +149,26 @@ class RemoteRepositoryTest {
     }
 
     // region identity sync
+
+    @Test
+    fun `GIVEN requests held for the first registration WHEN it succeeds EXPECT them released`() = runTest {
+        mockHttpCall(createMockResponse(200, createSuccessResponse()))
+        hold.close()
+
+        remoteRepository.getCustomers(needPlacements = true, isNew = false, email = null)
+
+        assertFalse(hold.isClosed)
+    }
+
+    @Test
+    fun `GIVEN requests held for the first registration WHEN it fails EXPECT them released too`() = runTest {
+        mockHttpCallWithException(java.io.IOException("offline"))
+        hold.close()
+
+        remoteRepository.getCustomers(needPlacements = true, isNew = false, email = null)
+
+        assertFalse(hold.isClosed)
+    }
 
     @Test
     fun `GIVEN the restore the user asked for EXPECT the purchases sent as a restore`() = runTest {

@@ -2,6 +2,7 @@ package com.apphud.sdk.internal.domain
 
 import com.apphud.sdk.internal.data.IdentityStore
 import com.apphud.sdk.internal.data.ReinstallRepository
+import com.apphud.sdk.internal.data.network.FirstRegistrationHold
 import com.apphud.sdk.internal.domain.model.ApphudIdentityResolution
 import com.apphud.sdk.internal.domain.model.ApphudLaunchKind
 import com.apphud.sdk.internal.domain.model.ApphudSuppliedIds
@@ -13,6 +14,7 @@ import com.apphud.sdk.internal.domain.model.ApphudSuppliedIds
 internal class ResolveIdentityUseCase(
     private val identityStore: IdentityStore,
     private val reinstallRepository: ReinstallRepository,
+    private val firstRegistrationHold: FirstRegistrationHold = FirstRegistrationHold(),
 ) {
     operator fun invoke(supplied: ApphudSuppliedIds): ApphudIdentityResolution {
         val resolution = identityStore.resolve(supplied)
@@ -25,8 +27,9 @@ internal class ResolveIdentityUseCase(
                 unsavedLegacyDeviceId = resolution.unsavedLegacyDeviceId,
             )
         }
-        // Another user than the stored one: the old customer is not theirs.
-        if (resolution.switchedUser) reinstallRepository.forgetLegacyDeviceId()
+        // legacy_device_id still to be sent (the first launch after an update): requests wait until the
+        // backend knows this installation.
+        if (reinstallRepository.legacyDeviceId() != null) firstRegistrationHold.close()
         return resolution
     }
 }

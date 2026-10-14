@@ -146,10 +146,19 @@ internal class IdentityStore(
         supplied.installationId?.let { record = record.copy(installationId = it) }
         supplied.anonymousId?.let { anonymousId = it }
         val resolvedAnonymousId = anonymousId ?: makeId()
-        // The anonymous id is never a user: a supplied one is ignored (the stored user stays), a
-        // stored one is dropped.
-        supplied.userId?.takeIf { it != resolvedAnonymousId }?.let { userId = it }
-        if (userId == resolvedAnonymousId) userId = null
+        // Old versions also kept a device id the app passed: one the app still passes as the installation id,
+        // with no other user cached, is the app's own.
+        val appsOwnDeviceId = legacyDeviceId == supplied.installationId &&
+            storage.apphudUser?.userId.nonBlank().let { it == null || it == legacyDeviceId }
+        if (legacyDeviceId != null && !appsOwnDeviceId && storage.oldDeviceId.nonBlank() == null) {
+            storage.oldDeviceId = legacyDeviceId
+        }
+        // Generated ids are never a user: a supplied one is ignored (the stored user stays), a stored one
+        // is dropped.
+        val generatedIds = setOfNotNull(resolvedAnonymousId, storage.oldDeviceId.nonBlank())
+        val suppliedUserId = supplied.userId?.takeIf { it !in generatedIds }
+        suppliedUserId?.let { userId = it }
+        if (userId in generatedIds) userId = null
 
         // Only restored ids still in use wait for the check: an id the host supplied stays, even one
         // equal to the restored id.
@@ -157,14 +166,12 @@ internal class IdentityStore(
             ?.let {
                 RestoredPerson(
                     anonymousId = it.anonymousId?.takeIf { id -> supplied.anonymousId == null && id == resolvedAnonymousId },
-                    userId = it.userId?.takeIf { id -> supplied.userId == null && id == userId },
+                    userId = it.userId?.takeIf { id -> suppliedUserId == null && id == userId },
                 )
             }
             ?.takeIf { it.anonymousId != null || it.userId != null }
         // Restored ids no longer in use are forgotten, so an id set again later is never taken for one.
         record = record.copy(restoredAnonymousId = restoredInUse?.anonymousId, restoredUserId = restoredInUse?.userId)
-        // The old customer goes with the restored person: none in use, nothing to adopt.
-        if (restored != null && restoredInUse == null) record = record.copy(legacyDeviceId = null)
         val clearRestoredData = launch == ApphudLaunchKind.NEW_INSTALL && restored != null
 
         val changed = record.installationId != stored?.installationId ||
@@ -204,7 +211,9 @@ internal class IdentityStore(
     @Synchronized
     fun identify(userId: String): ApphudIdentifyOutcome {
         val identity = current ?: return ApphudIdentifyOutcome.UNCHANGED
-        if (identity.userId == userId || userId == identity.anonymousId) return ApphudIdentifyOutcome.UNCHANGED
+        if (identity.userId == userId || userId == identity.anonymousId || userId == storage.oldDeviceId.nonBlank()) {
+            return ApphudIdentifyOutcome.UNCHANGED
+        }
         val outcome = if (identity.userId == null) ApphudIdentifyOutcome.IDENTIFIED else ApphudIdentifyOutcome.SWITCHED
         current = identity.copy(userId = userId)
         persist(identity.anonymousId, userId)
@@ -254,8 +263,8 @@ internal class IdentityStore(
     ): ApphudIdentityResolution {
         val installationId = requireNotNull(supplied.installationId)
         val anonymousId = requireNotNull(supplied.anonymousId)
-        // The host passes a user id when it has one: none means no user. The anonymous id is never one.
-        val userId = supplied.userId?.takeIf { it != anonymousId }
+        // The host passes a user id when it has one: none means no user. Generated ids are never one.
+        val userId = supplied.userId?.takeIf { it != anonymousId && it != storage.oldDeviceId.nonBlank() }
 
         val record = (stored ?: InstallRecord(InstallState.EXISTING)).copy(installationId = installationId)
         if (record != stored) write(record)

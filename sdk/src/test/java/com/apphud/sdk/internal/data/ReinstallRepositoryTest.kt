@@ -423,6 +423,15 @@ class ReinstallRepositoryTest {
     }
 
     @Test
+    fun `GIVEN old data restored on this device's reinstall and no restored person in use EXPECT no old customer to adopt`() = runTest {
+        markers.stored = THIS_DEVICE
+
+        launch(legacyDeviceId = "OLD").awaitBeforeRegistration()
+
+        assertNull(storage.record?.legacyDeviceId)
+    }
+
+    @Test
     fun `GIVEN old data restored on a new device EXPECT the old customer still to adopt`() = runTest {
         launch(restoredPerson = true, legacyDeviceId = "OLD").awaitBeforeRegistration()
         advanceUntilIdle()
@@ -458,49 +467,6 @@ class ReinstallRepositoryTest {
         val repository = launch(state = InstallState.EXISTING, start = false)
 
         repository.start(unsavedLegacyDeviceId = "OLD")
-
-        assertNull(repository.legacyDeviceId())
-    }
-
-    @Test
-    fun `GIVEN the person changed before the old customer was adopted EXPECT the old device id forgotten`() = runTest {
-        val repository = launch(state = InstallState.EXISTING, legacyDeviceId = "OLD")
-
-        repository.forgetLegacyDeviceId()
-
-        assertNull(repository.legacyDeviceId())
-        assertNull(storage.record?.legacyDeviceId)
-        assertNull(launch().legacyDeviceId())
-    }
-
-    @Test
-    fun `GIVEN forgetting the old device id not saved EXPECT it forgotten in this process`() = runTest {
-        val repository = launch(state = InstallState.EXISTING, legacyDeviceId = "OLD")
-        storage.failWrites = true
-
-        repository.forgetLegacyDeviceId()
-
-        assertNull(repository.legacyDeviceId())
-    }
-
-    @Test
-    fun `GIVEN a forget that wasn't saved EXPECT the next one saves it`() = runTest {
-        val repository = launch(state = InstallState.EXISTING, legacyDeviceId = "OLD")
-        storage.failWrites = true
-        repository.forgetLegacyDeviceId()
-        storage.failWrites = false
-
-        repository.forgetLegacyDeviceId()
-
-        assertNull(storage.record?.legacyDeviceId)
-    }
-
-    @Test
-    fun `GIVEN the person changed EXPECT an unsaved old device id forgotten`() = runTest {
-        val repository = ReinstallRepository(storage, markers, { THIS_DEVICE }, this)
-        repository.start(unsavedLegacyDeviceId = "OLD")
-
-        repository.forgetLegacyDeviceId()
 
         assertNull(repository.legacyDeviceId())
     }

@@ -34,6 +34,7 @@ import com.apphud.sdk.internal.domain.model.Notification
 import com.apphud.sdk.internal.domain.model.PurchaseContext
 import com.apphud.sdk.internal.util.mapCatchingCancellable
 import com.apphud.sdk.internal.ApphudDispatchers
+import com.apphud.sdk.internal.data.network.FirstRegistrationHold
 import com.apphud.sdk.internal.data.network.UrlProvider
 import com.apphud.sdk.internal.util.recoverCatchingCancellable
 import com.apphud.sdk.internal.util.runCatchingCancellable
@@ -56,6 +57,7 @@ internal class RemoteRepository(
     private val dispatchers: ApphudDispatchers,
     private val reinstallRepository: ReinstallRepository,
     private val identityStore: IdentityStore,
+    private val firstRegistrationHold: FirstRegistrationHold = FirstRegistrationHold(),
 ) {
 
     private val previousUser: ApphudUser?
@@ -93,6 +95,8 @@ internal class RemoteRepository(
                 markSyncedIfCurrent(body)
                 user
             }
+            // Requests held for the first registration go on, whatever it answered.
+            .also { firstRegistrationHold.open() }
 
     /**
      * The backend has seen the current ids: a registration in the new shape, sent with the ids

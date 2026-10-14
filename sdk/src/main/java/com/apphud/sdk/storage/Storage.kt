@@ -12,6 +12,11 @@ internal interface Storage {
     var userId: String?
     /** Old SDK versions only: read once on upgrade, then removed. */
     var deviceId: String?
+    /**
+     * The old version's generated device id, kept for good after an update: apps that saved it as their
+     * user id pass it back, and it is never a user. Logout keeps it.
+     */
+    var oldDeviceId: String?
     var anonymousId: String?
 
     /** Only a user id the app set by identify. */

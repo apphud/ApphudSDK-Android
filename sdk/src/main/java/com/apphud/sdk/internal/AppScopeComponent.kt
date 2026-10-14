@@ -15,6 +15,7 @@ import com.apphud.sdk.internal.data.mapper.PaywallsMapper
 import com.apphud.sdk.internal.data.mapper.PlacementsMapper
 import com.apphud.sdk.internal.data.mapper.RuleScreenMapper
 import com.apphud.sdk.internal.data.mapper.SubscriptionMapper
+import com.apphud.sdk.internal.data.network.FirstRegistrationHold
 import com.apphud.sdk.internal.data.network.HostSwitcherInterceptor
 import com.apphud.sdk.internal.data.network.PrettyHttpLoggingInterceptor
 import com.apphud.sdk.internal.data.network.PrettyJsonFormatter
@@ -61,6 +62,8 @@ internal class AppScopeComponent(val applicationContext: Context) {
             clearUserData = { storage.clean() },
         )
     }
+
+    val firstRegistrationHold: FirstRegistrationHold = FirstRegistrationHold()
 
     val reinstallRepository: ReinstallRepository by lazy {
         ReinstallRepository(
