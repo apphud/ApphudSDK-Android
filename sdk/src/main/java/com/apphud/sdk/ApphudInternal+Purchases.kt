@@ -153,14 +153,15 @@ private suspend fun ApphudInternal.fetchDetailsAndPurchase(
 
 var purchaseStartedAt: Long = 0
 
-private fun ApphudInternal.resolveObfuscatedAccountId(oldToken: String?): String? {
+internal fun ApphudInternal.resolveObfuscatedAccountId(oldToken: String?): String? {
     return if (oldToken != null) {
         userRepository.getCurrentUser()
             ?.subscriptions
             ?.firstOrNull { it.purchaseToken == oldToken }
             ?.obfuscatedDeviceId
     } else {
-        // The installation id, as the device id was before.
+        // The installation id: the backend finds a Google purchase's owner by the installation key it
+        // carries, so every account of this installation shares it.
         userRepository.getIdentity()?.installationId
     }
 }
