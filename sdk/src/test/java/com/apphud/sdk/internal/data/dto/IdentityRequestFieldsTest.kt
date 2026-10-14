@@ -3,14 +3,17 @@ package com.apphud.sdk.internal.data.dto
 import com.apphud.sdk.body.PurchaseBody
 import com.apphud.sdk.body.UserPropertiesBody
 import com.apphud.sdk.internal.domain.model.ApphudIdentity
-import com.google.gson.Gson
+import com.apphud.sdk.managers.RequestManager
 import org.junit.Assert.assertEquals
 import org.junit.Test
 
-/** Every request that sent `device_id` sends `installation_id` and `anonymous_id` instead. */
+/**
+ * Every request that sent `device_id` sends `installation_id` and `anonymous_id` instead. Checked
+ * with the serializer requests go out with, which writes nulls.
+ */
 class IdentityRequestFieldsTest {
 
-    private val gson = Gson()
+    private val gson = RequestManager.gson
 
     private fun idKeys(body: Any): Set<String> =
         gson.toJsonTree(body).asJsonObject.keySet()
@@ -20,10 +23,17 @@ class IdentityRequestFieldsTest {
     // region requests without a user id
 
     @Test
-    fun `GIVEN purchase body EXPECT installation and anonymous ids only`() {
+    fun `GIVEN purchase of an anonymous person EXPECT installation and anonymous ids only`() {
         val body = PurchaseBody(installationId = I, anonymousId = A, purchases = emptyList())
 
         assertEquals(NEW_IDS, idKeys(body))
+    }
+
+    @Test
+    fun `GIVEN purchase of an identified user EXPECT the user id too`() {
+        val body = PurchaseBody(installationId = I, anonymousId = A, userId = "u", purchases = emptyList())
+
+        assertEquals(NEW_IDS + "user_id", idKeys(body))
     }
 
     @Test

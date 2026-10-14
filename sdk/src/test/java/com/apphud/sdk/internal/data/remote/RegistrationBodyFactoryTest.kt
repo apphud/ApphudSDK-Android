@@ -3,7 +3,7 @@ package com.apphud.sdk.internal.data.remote
 import com.apphud.sdk.ApphudError
 import com.apphud.sdk.internal.domain.model.ApphudIdentity
 import com.apphud.sdk.internal.provider.RegistrationProvider
-import com.google.gson.Gson
+import com.apphud.sdk.managers.RequestManager
 import com.google.gson.JsonObject
 import io.mockk.every
 import io.mockk.mockk
@@ -24,7 +24,8 @@ class RegistrationBodyFactoryTest {
     private val factory = RegistrationBodyFactory(provider)
 
     private fun json(legacyWeb2Web: Boolean = false, email: String? = null): JsonObject =
-        Gson().toJsonTree(factory.create(needPlacements = true, isNew = true, email = email, legacyWeb2Web = legacyWeb2Web)).asJsonObject
+        // The serializer requests go out with, which writes nulls.
+        RequestManager.gson.toJsonTree(factory.create(needPlacements = true, isNew = true, email = email, legacyWeb2Web = legacyWeb2Web)).asJsonObject
 
     // region new shape
 
@@ -53,6 +54,18 @@ class RegistrationBodyFactoryTest {
         every { provider.getIdentity() } returns ANONYMOUS.copy(userId = "alice")
 
         assertEquals("alice", json().get("user_id").asString)
+    }
+
+    @Test
+    fun `GIVEN anonymous EXPECT the JSON sent has no user id or reinstall key`() {
+        val sent = RequestManager.parser.toJson(factory.create(needPlacements = true, isNew = true))
+
+        assertFalse(sent.contains("\"user_id\"") || sent.contains("\"reinstall\""))
+    }
+
+    @Test
+    fun `GIVEN no email EXPECT the other nullable fields still sent as null`() {
+        assertTrue(json().get("email").isJsonNull)
     }
 
     @Test

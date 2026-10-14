@@ -23,6 +23,7 @@ internal class PurchaseBodyFactory(
         PurchaseBody(
             installationId = identity().installationId,
             anonymousId = identity().anonymousId,
+            userId = identity().userId,
             purchases = listOf(
                 with(purchaseContext) {
                     PurchaseItemBody(
@@ -58,6 +59,7 @@ internal class PurchaseBodyFactory(
         PurchaseBody(
             installationId = identity().installationId,
             anonymousId = identity().anonymousId,
+            userId = identity().userId,
             purchases =
                 purchases.map { item ->
                     val matchesApphudProduct =

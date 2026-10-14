@@ -24,6 +24,30 @@ class PurchaseBodyFactoryTest {
     private val factory = PurchaseBodyFactory(userRepository)
 
     @Test
+    fun `GIVEN an identified user EXPECT the user id in a purchase`() {
+        every { userRepository.getIdentity() } returns ApphudIdentity("installation-id", "anonymous-id", "alice")
+
+        assertEquals("alice", factory.create(null, emptyList(), observerMode = false).userId)
+    }
+
+    @Test
+    fun `GIVEN an identified user EXPECT the user id in a purchase made in the app`() {
+        every { userRepository.getIdentity() } returns ApphudIdentity("installation-id", "anonymous-id", "alice")
+        every { userRepository.getCurrentUser() } returns null
+        val context = mockk<PurchaseContext>(relaxed = true) {
+            every { purchase } returns mockk(relaxed = true) { every { products } returns listOf("product") }
+            every { productDetails } returns null
+        }
+
+        assertEquals("alice", factory.create(context).userId)
+    }
+
+    @Test
+    fun `GIVEN an anonymous person EXPECT no user id in a purchase`() {
+        assertNull(factory.create(null, emptyList(), observerMode = false).userId)
+    }
+
+    @Test
     fun `GIVEN placementId with paywall variation EXPECT variation_identifier in purchase body`() {
         val placement = createPlacement(
             id = "placement-internal-id",

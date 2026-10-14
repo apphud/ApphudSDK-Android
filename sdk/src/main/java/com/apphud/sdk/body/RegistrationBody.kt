@@ -1,5 +1,6 @@
 package com.apphud.sdk.body
 
+import com.google.gson.annotations.JsonAdapter
 import com.google.gson.annotations.SerializedName
 
 internal data class RegistrationBody(
@@ -23,13 +24,17 @@ internal data class RegistrationBody(
     val androidId: String?,
     /** Only once the user is identified, or the web user's id in the old web-to-web shape. */
     @SerializedName("user_id")
+    @JsonAdapter(OmitWhenNull::class, nullSafe = false)
     val userId: String?,
     @SerializedName("installation_id")
+    @JsonAdapter(OmitWhenNull::class, nullSafe = false)
     val installationId: String?,
     @SerializedName("anonymous_id")
+    @JsonAdapter(OmitWhenNull::class, nullSafe = false)
     val anonymousId: String?,
     /** Only in the old web-to-web shape, which the backend still needs for a match by email. */
     @SerializedName("device_id")
+    @JsonAdapter(OmitWhenNull::class, nullSafe = false)
     val deviceId: String? = null,
     @SerializedName("time_zone")
     val timeZone: String,
@@ -50,11 +55,13 @@ internal data class RegistrationBody(
     @SerializedName("observer_mode")
     val observerMode: Boolean,
     @SerializedName("from_web2web")
+    @JsonAdapter(OmitWhenNull::class, nullSafe = false)
     /** Only in the old web-to-web shape; never sent in the new one. */
     val fromWeb2web: Boolean?,
     val email: String?,
     @SerializedName("package_name")
     val packageName: String? = null,
     /** True on every registration of a reinstalled install; otherwise not sent. */
+    @JsonAdapter(OmitWhenNull::class, nullSafe = false)
     val reinstall: Boolean? = null,
 )
