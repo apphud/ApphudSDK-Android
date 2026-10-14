@@ -18,7 +18,7 @@ internal class RegistrationInteractor(
         isNew: Boolean,
         forceRegistration: Boolean = false,
         email: String? = null,
-        legacyWeb2Web: Boolean = false,
+        fromWeb2Web: Boolean = false,
     ): ApphudUser =
         mutex.withLock {
             val currentUser = userRepository.getCurrentUser()
@@ -33,7 +33,7 @@ internal class RegistrationInteractor(
                 isNew = isNew,
                 forceRegistration = forceRegistration,
                 email = email,
-                legacyWeb2Web = legacyWeb2Web,
+                fromWeb2Web = fromWeb2Web,
                 cachedUser = currentUser,
             )
             enrichPlacementProductsUseCase(finalUser)

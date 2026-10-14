@@ -241,8 +241,8 @@ internal suspend fun ApphudInternal.tryWebAttribution(
 }
 
 /**
- * Email only: the old request shape; the response names the web user, who becomes the SDK's user
- * as an identify would. The anonymous customer merges into it on the next request.
+ * Email only: a registration with the email and the usual ids; the response names the web user, who
+ * becomes the SDK's user as an identify would. The anonymous customer merges into it on the next request.
  */
 private suspend fun ApphudInternal.attributeFromWebByEmail(email: String): ApphudUser? {
     // In fallback mode the local user is made up: no customer id to compare against.

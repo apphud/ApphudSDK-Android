@@ -17,15 +17,15 @@ class RegistrationBodyFactoryTest {
 
     private val provider: RegistrationProvider = mockk(relaxed = true) {
         every { getIdentity() } returns ANONYMOUS
-        every { getServerUserId() } returns "server-user"
         every { getReinstall() } returns null
+        every { getLegacyDeviceId() } returns null
     }
 
     private val factory = RegistrationBodyFactory(provider)
 
-    private fun json(legacyWeb2Web: Boolean = false, email: String? = null): JsonObject =
+    private fun json(fromWeb2Web: Boolean = false, email: String? = null): JsonObject =
         // The serializer requests go out with, which writes nulls.
-        RequestManager.gson.toJsonTree(factory.create(needPlacements = true, isNew = true, email = email, legacyWeb2Web = legacyWeb2Web)).asJsonObject
+        RequestManager.gson.toJsonTree(factory.create(needPlacements = true, isNew = true, email = email, fromWeb2Web = fromWeb2Web)).asJsonObject
 
     // region new shape
 
@@ -85,6 +85,20 @@ class RegistrationBodyFactoryTest {
         assertFalse(json().has("reinstall"))
     }
 
+    @Test
+    fun `GIVEN an update from an old version EXPECT the old device id sent as legacy device id`() {
+        every { provider.getLegacyDeviceId() } returns "OLD"
+
+        assertEquals("OLD", json().get("legacy_device_id").asString)
+    }
+
+    @Test
+    fun `GIVEN no old device id to adopt EXPECT no legacy device id key`() {
+        val sent = RequestManager.parser.toJson(factory.create(needPlacements = true, isNew = true))
+
+        assertFalse(sent.contains("\"legacy_device_id\""))
+    }
+
     @Test(expected = ApphudError::class)
     fun `GIVEN ids not resolved EXPECT error`() {
         every { provider.getIdentity() } returns null
@@ -94,50 +108,50 @@ class RegistrationBodyFactoryTest {
 
     // endregion
 
-    // region old web-to-web shape
+    // region web-to-web by email
 
     @Test
-    fun `GIVEN web to web by email EXPECT the installation id sent as device id`() {
-        assertEquals("installation-1", json(legacyWeb2Web = true).get("device_id").asString)
+    fun `GIVEN web to web by email EXPECT the installation id sent`() {
+        assertEquals("installation-1", json(fromWeb2Web = true).get("installation_id").asString)
     }
 
     @Test
-    fun `GIVEN web to web by email EXPECT the customer's user id sent`() {
-        assertEquals("server-user", json(legacyWeb2Web = true).get("user_id").asString)
+    fun `GIVEN web to web by email EXPECT the anonymous id sent`() {
+        assertEquals("anonymous-1", json(fromWeb2Web = true).get("anonymous_id").asString)
     }
 
     @Test
-    fun `GIVEN web to web by email EXPECT no anonymous id`() {
-        assertFalse(json(legacyWeb2Web = true).has("anonymous_id"))
+    fun `GIVEN web to web by email EXPECT no device id`() {
+        assertFalse(json(fromWeb2Web = true).has("device_id"))
     }
 
     @Test
-    fun `GIVEN web to web by email EXPECT no installation id`() {
-        assertFalse(json(legacyWeb2Web = true).has("installation_id"))
+    fun `GIVEN web to web by email of an anonymous person EXPECT no user id`() {
+        assertFalse(json(fromWeb2Web = true).has("user_id"))
+    }
+
+    @Test
+    fun `GIVEN web to web by email of an identified user EXPECT the user id`() {
+        every { provider.getIdentity() } returns ANONYMOUS.copy(userId = "alice")
+
+        assertEquals("alice", json(fromWeb2Web = true).get("user_id").asString)
     }
 
     @Test
     fun `GIVEN web to web by email EXPECT from web to web`() {
-        assertTrue(json(legacyWeb2Web = true, email = "a@b.c").get("from_web2web").asBoolean)
+        assertTrue(json(fromWeb2Web = true, email = "a@b.c").get("from_web2web").asBoolean)
     }
 
     @Test
     fun `GIVEN web to web by email EXPECT the email sent`() {
-        assertEquals("a@b.c", json(legacyWeb2Web = true, email = "a@b.c").get("email").asString)
+        assertEquals("a@b.c", json(fromWeb2Web = true, email = "a@b.c").get("email").asString)
     }
 
     @Test
     fun `GIVEN web to web by email on a reinstall EXPECT reinstall still sent`() {
         every { provider.getReinstall() } returns true
 
-        assertTrue(json(legacyWeb2Web = true).get("reinstall").asBoolean)
-    }
-
-    @Test
-    fun `GIVEN web to web by email and no customer yet EXPECT no user id`() {
-        every { provider.getServerUserId() } returns null
-
-        assertNull(json(legacyWeb2Web = true).get("user_id"))
+        assertTrue(json(fromWeb2Web = true).get("reinstall").asBoolean)
     }
 
     // endregion

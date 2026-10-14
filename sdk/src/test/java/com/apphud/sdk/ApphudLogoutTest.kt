@@ -4,13 +4,20 @@ import android.content.Context
 import android.content.SharedPreferences
 import com.apphud.sdk.domain.ApphudUser
 import com.apphud.sdk.internal.ServiceLocator
+import com.apphud.sdk.internal.domain.model.ApphudSuppliedIds
 import io.mockk.every
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.test.UnconfinedTestDispatcher
+import kotlinx.coroutines.test.resetMain
+import kotlinx.coroutines.test.setMain
 import io.mockk.mockk
 import org.junit.After
+import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
 import org.junit.Before
 import org.junit.Test
 
+@OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
 class ApphudLogoutTest {
 
     private val prefsMap = mutableMapOf<String, Any?>()
@@ -78,6 +85,39 @@ class ApphudLogoutTest {
         assertNull(storage.apphudUser)
         assertNull(storage.userId)
         assertNull(storage.deviceId)
+    }
+
+    // The relaxed Context gives no readable install record, so these launches keep the old device id
+    // only as the unsaved one.
+    @Test
+    fun `GIVEN an old device id not yet adopted WHEN logout EXPECT it forgotten`() {
+        val reinstall = ServiceLocator.instance.reinstallRepository
+        reinstall.start(unsavedLegacyDeviceId = "OLD")
+        assertEquals("OLD", reinstall.legacyDeviceId())
+
+        ApphudInternal.logout()
+
+        assertNull(reinstall.legacyDeviceId())
+    }
+
+    @Test
+    fun `GIVEN an old device id not yet adopted WHEN another user identifies EXPECT it forgotten, not on identify`() {
+        // The listener is told on the main dispatcher.
+        Dispatchers.setMain(UnconfinedTestDispatcher())
+        try {
+            ServiceLocator.instance.identityStore.resolve(ApphudSuppliedIds())
+            val reinstall = ServiceLocator.instance.reinstallRepository
+            reinstall.start(unsavedLegacyDeviceId = "OLD")
+
+            ApphudInternal.applyIdentify("alice")
+            assertEquals("OLD", reinstall.legacyDeviceId())
+
+            // The debug warning after a switch needs a started SDK: only the ids matter here.
+            runCatching { ApphudInternal.applyIdentify("bob") }
+            assertNull(reinstall.legacyDeviceId())
+        } finally {
+            Dispatchers.resetMain()
+        }
     }
 
     private fun cachedUser() = ApphudUser(

@@ -64,7 +64,7 @@ class RegistrationInteractorTest {
                 isNew = false,
                 forceRegistration = false,
                 email = null,
-                legacyWeb2Web = false,
+                fromWeb2Web = false,
                 cachedUser = temporaryUser,
             )
         }
@@ -80,7 +80,7 @@ class RegistrationInteractorTest {
             isNew = false,
             forceRegistration = true,
             email = "test@example.com",
-            legacyWeb2Web = true,
+            fromWeb2Web = true,
         )
 
         coVerify {
@@ -89,7 +89,7 @@ class RegistrationInteractorTest {
                 isNew = false,
                 forceRegistration = true,
                 email = "test@example.com",
-                legacyWeb2Web = true,
+                fromWeb2Web = true,
                 cachedUser = cachedUser,
             )
         }
@@ -108,7 +108,7 @@ class RegistrationInteractorTest {
                 isNew = true,
                 forceRegistration = false,
                 email = null,
-                legacyWeb2Web = false,
+                fromWeb2Web = false,
                 cachedUser = null,
             )
         }

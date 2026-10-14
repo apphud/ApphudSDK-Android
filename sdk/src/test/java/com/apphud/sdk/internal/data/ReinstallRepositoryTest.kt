@@ -30,8 +30,10 @@ class ReinstallRepositoryTest {
 
     private class FakeStorage : InstallRecordStorage {
         var record: InstallRecord? = null
+        var failWrites = false
         override fun read(): InstallRecord? = record
         override fun write(record: InstallRecord) {
+            if (failWrites) throw java.io.IOException("not saved")
             this.record = record
         }
     }
@@ -71,10 +73,18 @@ class ReinstallRepositoryTest {
         state: InstallState? = null,
         start: Boolean = true,
         restoredPerson: Boolean = false,
+        legacyDeviceId: String? = null,
     ): ReinstallRepository {
         val newInstall = storage.record == null
         if (newInstall) {
-            storage.write(InstallRecord(state ?: InstallState.PENDING, "installation-1", restoredAnonymousId = RESTORED.takeIf { restoredPerson }))
+            storage.write(
+                InstallRecord(
+                    state ?: InstallState.PENDING,
+                    "installation-1",
+                    restoredAnonymousId = RESTORED.takeIf { restoredPerson },
+                    legacyDeviceId = legacyDeviceId,
+                ),
+            )
         }
         lateinit var repository: ReinstallRepository
         repository = ReinstallRepository(
@@ -189,7 +199,7 @@ class ReinstallRepositoryTest {
     }
 
     @Test
-    fun `GIVEN reinstall EXPECT flag on every registration after relaunch`() = runTest {
+    fun `GIVEN reinstall not reported yet EXPECT flag on registrations after relaunch`() = runTest {
         markers.stored = THIS_DEVICE
         launch().awaitIsReinstall()
         advanceUntilIdle()
@@ -197,6 +207,53 @@ class ReinstallRepositoryTest {
         val relaunch = launch()
         relaunch.awaitIsReinstall()
         assertEquals(true, relaunch.reinstallFlag())
+    }
+
+    @Test
+    fun `GIVEN reinstall reported EXPECT no flag`() = runTest {
+        markers.stored = THIS_DEVICE
+        val repository = launch()
+        repository.awaitIsReinstall()
+
+        repository.onRegistered(reinstallSent = true, legacyDeviceIdSent = false)
+
+        assertNull(repository.reinstallFlag())
+    }
+
+    @Test
+    fun `GIVEN reinstall reported EXPECT no flag after relaunch`() = runTest {
+        markers.stored = THIS_DEVICE
+        launch().also {
+            it.awaitIsReinstall()
+            it.onRegistered(reinstallSent = true, legacyDeviceIdSent = false)
+        }
+        advanceUntilIdle()
+
+        val relaunch = launch()
+        relaunch.awaitIsReinstall()
+
+        assertNull(relaunch.reinstallFlag())
+    }
+
+    @Test
+    fun `GIVEN reinstall reported EXPECT still a reinstall`() = runTest {
+        markers.stored = THIS_DEVICE
+        val repository = launch()
+        repository.awaitIsReinstall()
+
+        repository.onRegistered(reinstallSent = true, legacyDeviceIdSent = false)
+
+        assertEquals(true, repository.isReinstall())
+    }
+
+    @Test
+    fun `GIVEN the app's reinstall flag reported EXPECT no flag`() = runTest {
+        val repository = launch(start = false)
+        repository.useHostValue(true)
+
+        repository.onRegistered(reinstallSent = true, legacyDeviceIdSent = false)
+
+        assertNull(repository.reinstallFlag())
     }
 
     @Test
@@ -329,6 +386,140 @@ class ReinstallRepositoryTest {
 
     // endregion
 
+    // region old device id to adopt
+
+    @Test
+    fun `GIVEN an update from an old version EXPECT its device id offered for adoption`() = runTest {
+        val repository = launch(state = InstallState.EXISTING, legacyDeviceId = "OLD")
+
+        assertEquals("OLD", repository.legacyDeviceId())
+    }
+
+    @Test
+    fun `GIVEN a registration with the old device id succeeded EXPECT it no longer offered`() = runTest {
+        val repository = launch(state = InstallState.EXISTING, legacyDeviceId = "OLD")
+
+        repository.onRegistered(reinstallSent = false, legacyDeviceIdSent = true)
+
+        assertNull(launch().legacyDeviceId())
+    }
+
+    @Test
+    fun `GIVEN a registration without the old device id succeeded EXPECT it still offered`() = runTest {
+        val repository = launch(state = InstallState.EXISTING, legacyDeviceId = "OLD")
+
+        repository.onRegistered(reinstallSent = true, legacyDeviceIdSent = false)
+
+        assertEquals("OLD", repository.legacyDeviceId())
+    }
+
+    @Test
+    fun `GIVEN old data restored on this device's reinstall EXPECT no old customer to adopt`() = runTest {
+        markers.stored = THIS_DEVICE
+
+        launch(restoredPerson = true, legacyDeviceId = "OLD").awaitBeforeRegistration()
+
+        assertNull(storage.record?.legacyDeviceId)
+    }
+
+    @Test
+    fun `GIVEN old data restored on a new device EXPECT the old customer still to adopt`() = runTest {
+        launch(restoredPerson = true, legacyDeviceId = "OLD").awaitBeforeRegistration()
+        advanceUntilIdle()
+
+        assertEquals("OLD", storage.record?.legacyDeviceId)
+    }
+
+    @Test
+    fun `GIVEN old data restored on this device's reinstall and the drop not saved EXPECT no old customer to adopt`() = runTest {
+        markers.stored = THIS_DEVICE
+        val repository = launch(restoredPerson = true, legacyDeviceId = "OLD", start = false)
+        storage.failWrites = true
+
+        repository.start(newInstall = true, restoredPerson = true)
+        repository.awaitBeforeRegistration()
+
+        assertEquals(1, drops)
+        assertNull(repository.legacyDeviceId())
+    }
+
+    @Test
+    fun `GIVEN an update whose record wasn't saved EXPECT the old device id offered until a registration succeeds`() = runTest {
+        val repository = ReinstallRepository(storage, markers, { THIS_DEVICE }, this)
+        repository.start(unsavedLegacyDeviceId = "OLD")
+
+        assertEquals("OLD", repository.legacyDeviceId())
+        repository.onRegistered(reinstallSent = false, legacyDeviceIdSent = true)
+        assertNull(repository.legacyDeviceId())
+    }
+
+    @Test
+    fun `GIVEN a saved record EXPECT its old device id, not an unsaved one`() = runTest {
+        val repository = launch(state = InstallState.EXISTING, start = false)
+
+        repository.start(unsavedLegacyDeviceId = "OLD")
+
+        assertNull(repository.legacyDeviceId())
+    }
+
+    @Test
+    fun `GIVEN the person changed before the old customer was adopted EXPECT the old device id forgotten`() = runTest {
+        val repository = launch(state = InstallState.EXISTING, legacyDeviceId = "OLD")
+
+        repository.forgetLegacyDeviceId()
+
+        assertNull(repository.legacyDeviceId())
+        assertNull(storage.record?.legacyDeviceId)
+        assertNull(launch().legacyDeviceId())
+    }
+
+    @Test
+    fun `GIVEN forgetting the old device id not saved EXPECT it forgotten in this process`() = runTest {
+        val repository = launch(state = InstallState.EXISTING, legacyDeviceId = "OLD")
+        storage.failWrites = true
+
+        repository.forgetLegacyDeviceId()
+
+        assertNull(repository.legacyDeviceId())
+    }
+
+    @Test
+    fun `GIVEN a forget that wasn't saved EXPECT the next one saves it`() = runTest {
+        val repository = launch(state = InstallState.EXISTING, legacyDeviceId = "OLD")
+        storage.failWrites = true
+        repository.forgetLegacyDeviceId()
+        storage.failWrites = false
+
+        repository.forgetLegacyDeviceId()
+
+        assertNull(storage.record?.legacyDeviceId)
+    }
+
+    @Test
+    fun `GIVEN the person changed EXPECT an unsaved old device id forgotten`() = runTest {
+        val repository = ReinstallRepository(storage, markers, { THIS_DEVICE }, this)
+        repository.start(unsavedLegacyDeviceId = "OLD")
+
+        repository.forgetLegacyDeviceId()
+
+        assertNull(repository.legacyDeviceId())
+    }
+
+    @Test
+    fun `GIVEN a registration's report not saved EXPECT nothing sent again in this process`() = runTest {
+        markers.stored = THIS_DEVICE
+        val repository = launch(legacyDeviceId = "OLD")
+        repository.awaitIsReinstall()
+        storage.failWrites = true
+
+        repository.onRegistered(reinstallSent = true, legacyDeviceIdSent = true)
+
+        assertNull(repository.reinstallFlag())
+        assertNull(repository.legacyDeviceId())
+    }
+
+    // endregion
+
     // region person restored by Auto Backup
 
     @Test
@@ -457,7 +648,7 @@ class ReinstallRepositoryTest {
 
     @Test
     fun `GIVEN registration's wait ends while the drop runs EXPECT registration goes on after the drop`() {
-        storage.write(InstallRecord(InstallState.PENDING, "installation-1", restoredAnonymousId = RESTORED))
+        storage.write(InstallRecord(InstallState.PENDING, "installation-1", restoredAnonymousId = RESTORED, legacyDeviceId = "OLD"))
         markers.stored = THIS_DEVICE
         val dropping = CountDownLatch(1)
         val release = CountDownLatch(1)
@@ -477,9 +668,11 @@ class ReinstallRepositoryTest {
         repository.start(newInstall = true, restoredPerson = true)
         assertTrue("the drop never started", dropping.await(5, TimeUnit.SECONDS))
         val dropDoneWhenRegistrationWentOn = AtomicBoolean(false)
+        var legacyWhenRegistrationWentOn: String? = "unset"
         val registration = thread {
             runBlocking { repository.awaitBeforeRegistration() }
             dropDoneWhenRegistrationWentOn.set(dropDone.get())
+            legacyWhenRegistrationWentOn = repository.legacyDeviceId()
         }
 
         Thread.sleep(300)
@@ -487,6 +680,7 @@ class ReinstallRepositoryTest {
         registration.join()
 
         assertTrue(dropDoneWhenRegistrationWentOn.get())
+        assertNull("the dropped person's old customer", legacyWhenRegistrationWentOn)
     }
 
     // endregion

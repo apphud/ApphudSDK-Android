@@ -65,6 +65,8 @@ internal data class ApphudIdentityResolution(
     val switchedUser: Boolean = false,
     /** The ids came back with data Auto Backup restored: the reinstall check decides whether they stay. */
     val restoredPersonPending: Boolean = false,
+    /** The old SDK's `device_id` of a record that couldn't be saved: still sent this launch. */
+    val unsavedLegacyDeviceId: String? = null,
 )
 
 internal enum class ApphudIdentifyOutcome {

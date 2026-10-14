@@ -8,15 +8,12 @@ internal class RegistrationBodyFactory(
     private val registrationProvider: RegistrationProvider,
 ) {
 
-    /**
-     * [legacyWeb2Web]: a web-to-web match by email, which the backend accepts only in the old shape:
-     * `device_id` with the installation id and the customer's `user_id`, no `anonymous_id`.
-     */
+    /** [fromWeb2Web]: a web-to-web match by [email]; the ids are sent as on any registration. */
     fun create(
         needPlacements: Boolean,
         isNew: Boolean,
         email: String? = null,
-        legacyWeb2Web: Boolean = false,
+        fromWeb2Web: Boolean = false,
     ): RegistrationBody {
         val identity = registrationProvider.getIdentity() ?: throw ApphudError("SDK not initialized")
         return RegistrationBody(
@@ -31,10 +28,10 @@ internal class RegistrationBodyFactory(
             idfv = registrationProvider.getIdfv(),
             idfa = registrationProvider.getIdfa(),
             androidId = registrationProvider.getAndroidId(),
-            userId = if (legacyWeb2Web) registrationProvider.getServerUserId() else identity.userId,
-            installationId = identity.installationId.takeUnless { legacyWeb2Web },
-            anonymousId = identity.anonymousId.takeUnless { legacyWeb2Web },
-            deviceId = identity.installationId.takeIf { legacyWeb2Web },
+            userId = identity.userId,
+            installationId = identity.installationId,
+            anonymousId = identity.anonymousId,
+            legacyDeviceId = registrationProvider.getLegacyDeviceId(),
             timeZone = registrationProvider.getTimeZone(),
             isSandbox = registrationProvider.isSandbox(),
             isNew = isNew,
@@ -44,7 +41,7 @@ internal class RegistrationBodyFactory(
             requestTime = registrationProvider.getRequestTime(),
             installSource = registrationProvider.getInstallSource(),
             observerMode = registrationProvider.getObserverMode(),
-            fromWeb2web = true.takeIf { legacyWeb2Web },
+            fromWeb2web = true.takeIf { fromWeb2Web },
             email = email,
             reinstall = registrationProvider.getReinstall(),
         )

@@ -28,6 +28,14 @@ internal data class InstallRecord(
      */
     val restoredAnonymousId: String? = null,
     val restoredUserId: String? = null,
+    /** A registration that carried `reinstall: true` succeeded: the backend has this install's reinstall. */
+    val reinstallReported: Boolean = false,
+    /**
+     * The `device_id` of the old SDK this install was updated from, or whose data was restored, sent as
+     * `legacy_device_id` until a registration carrying it succeeds: it adopts the old customer. Dropped when
+     * the person changes first.
+     */
+    val legacyDeviceId: String? = null,
 ) {
     val restoredPerson: Boolean get() = restoredAnonymousId != null || restoredUserId != null
 
@@ -75,6 +83,8 @@ internal class FileInstallRecordStorage(
             installationId = properties.getProperty(INSTALLATION_ID_KEY)?.takeUnless { it.isBlank() },
             restoredAnonymousId = properties.getProperty(RESTORED_ANONYMOUS_ID_KEY)?.takeUnless { it.isBlank() },
             restoredUserId = properties.getProperty(RESTORED_USER_ID_KEY)?.takeUnless { it.isBlank() },
+            reinstallReported = properties.getProperty(REINSTALL_REPORTED_KEY).toBoolean(),
+            legacyDeviceId = properties.getProperty(LEGACY_DEVICE_ID_KEY)?.takeUnless { it.isBlank() },
         )
     }
 
@@ -85,6 +95,8 @@ internal class FileInstallRecordStorage(
             record.installationId?.let { setProperty(INSTALLATION_ID_KEY, it) }
             record.restoredAnonymousId?.let { setProperty(RESTORED_ANONYMOUS_ID_KEY, it) }
             record.restoredUserId?.let { setProperty(RESTORED_USER_ID_KEY, it) }
+            if (record.reinstallReported) setProperty(REINSTALL_REPORTED_KEY, "true")
+            record.legacyDeviceId?.let { setProperty(LEGACY_DEVICE_ID_KEY, it) }
         }
         val out = file.startWrite()
         try {
@@ -106,5 +118,7 @@ internal class FileInstallRecordStorage(
         private const val INSTALLATION_ID_KEY = "installation_id"
         private const val RESTORED_ANONYMOUS_ID_KEY = "restored_anonymous_id"
         private const val RESTORED_USER_ID_KEY = "restored_user_id"
+        private const val REINSTALL_REPORTED_KEY = "reinstall_reported"
+        private const val LEGACY_DEVICE_ID_KEY = "legacy_device_id"
     }
 }

@@ -50,7 +50,7 @@ class RegisterUserUseCaseTest {
             isNew = false,
             forceRegistration = false,
             email = "test@example.com",
-            legacyWeb2Web = true,
+            fromWeb2Web = true,
             cachedUser = null,
         )
         val afterTime = System.currentTimeMillis()

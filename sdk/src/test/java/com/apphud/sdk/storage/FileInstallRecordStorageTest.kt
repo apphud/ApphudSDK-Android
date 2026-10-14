@@ -21,6 +21,26 @@ class FileInstallRecordStorageTest {
     }
 
     @Test
+    fun `GIVEN saved record with an old device id EXPECT it read back`() {
+        val storage = FileInstallRecordStorage { folder.root }
+        val record = InstallRecord(InstallState.EXISTING, "OLD", legacyDeviceId = "OLD")
+
+        storage.write(record)
+
+        assertEquals(record, storage.read())
+    }
+
+    @Test
+    fun `GIVEN saved record with the reinstall reported EXPECT the flag read back`() {
+        val storage = FileInstallRecordStorage { folder.root }
+        val record = InstallRecord(InstallState.REINSTALL, "installation-1", reinstallReported = true)
+
+        storage.write(record)
+
+        assertEquals(record, storage.read())
+    }
+
+    @Test
     fun `GIVEN saved record with a restored person EXPECT the restored ids read back`() {
         val storage = FileInstallRecordStorage { folder.root }
         val record = InstallRecord(InstallState.PENDING, "installation-1", restoredAnonymousId = "A", restoredUserId = "U")

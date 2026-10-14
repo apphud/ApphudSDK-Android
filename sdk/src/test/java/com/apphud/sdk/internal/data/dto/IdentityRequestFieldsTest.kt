@@ -30,6 +30,13 @@ class IdentityRequestFieldsTest {
     }
 
     @Test
+    fun `GIVEN a purchase EXPECT the restore flag always sent`() {
+        val body = PurchaseBody(installationId = I, anonymousId = A, purchases = emptyList())
+
+        assertEquals(false, gson.toJsonTree(body).asJsonObject.get("restore").asBoolean)
+    }
+
+    @Test
     fun `GIVEN purchase of an identified user EXPECT the user id too`() {
         val body = PurchaseBody(installationId = I, anonymousId = A, userId = "u", purchases = emptyList())
 

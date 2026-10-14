@@ -22,20 +22,21 @@ internal data class RegistrationBody(
     val idfa: String?,
     @SerializedName("android_id")
     val androidId: String?,
-    /** Only once the user is identified, or the web user's id in the old web-to-web shape. */
+    /** Only once the user is identified. */
     @SerializedName("user_id")
     @JsonAdapter(OmitWhenNull::class, nullSafe = false)
     val userId: String?,
     @SerializedName("installation_id")
-    @JsonAdapter(OmitWhenNull::class, nullSafe = false)
-    val installationId: String?,
+    val installationId: String,
     @SerializedName("anonymous_id")
+    val anonymousId: String,
+    /**
+     * The old SDK's `device_id` (an update in place, or its data restored) until a registration carrying it
+     * succeeds: it adopts the old customer.
+     */
+    @SerializedName("legacy_device_id")
     @JsonAdapter(OmitWhenNull::class, nullSafe = false)
-    val anonymousId: String?,
-    /** Only in the old web-to-web shape, which the backend still needs for a match by email. */
-    @SerializedName("device_id")
-    @JsonAdapter(OmitWhenNull::class, nullSafe = false)
-    val deviceId: String? = null,
+    val legacyDeviceId: String? = null,
     @SerializedName("time_zone")
     val timeZone: String,
     @SerializedName("is_sandbox")
@@ -56,12 +57,12 @@ internal data class RegistrationBody(
     val observerMode: Boolean,
     @SerializedName("from_web2web")
     @JsonAdapter(OmitWhenNull::class, nullSafe = false)
-    /** Only in the old web-to-web shape; never sent in the new one. */
+    /** Only on a web-to-web match by email. */
     val fromWeb2web: Boolean?,
     val email: String?,
     @SerializedName("package_name")
     val packageName: String? = null,
-    /** True on every registration of a reinstalled install; otherwise not sent. */
+    /** True on a reinstalled install's registrations until one succeeds; otherwise not sent. */
     @JsonAdapter(OmitWhenNull::class, nullSafe = false)
     val reinstall: Boolean? = null,
 )

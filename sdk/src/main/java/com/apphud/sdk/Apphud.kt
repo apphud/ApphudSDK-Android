@@ -827,7 +827,8 @@ object Apphud {
 
     /**
      * Implements the 'Restore Purchases' mechanism. This method sends the current Play Market
-     * Purchase Tokens to Apphud and returns subscription information.
+     * Purchase Tokens to Apphud and returns subscription information. A purchase another customer
+     * owns moves to the current one: call it only when the user asks to restore.
      * Note: Even if the callback returns some subscription, it doesn't necessarily mean that
      * the subscription is active. Check `subscription.isActive()` for subscription status.
      *

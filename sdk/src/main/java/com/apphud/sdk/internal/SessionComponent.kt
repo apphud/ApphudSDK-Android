@@ -133,7 +133,7 @@ internal class SessionComponent(
             okHttpClient = okHttpClient,
             gson = appScope.gson,
             customerMapper = appScope.customerMapper,
-            purchaseBodyFactory = PurchaseBodyFactory(userRepository),
+            purchaseBodyFactory = PurchaseBodyFactory(userRepository) { appScope.reinstallRepository.legacyDeviceId() },
             registrationBodyFactory = RegistrationBodyFactory(registrationProvider),
             productMapper = ProductMapper(),
             attributionMapper = AttributionMapper(),

@@ -71,7 +71,7 @@ internal object RequestManager {
         isNew: Boolean,
         forceRegistration: Boolean = false,
         email: String? = null,
-        legacyWeb2Web: Boolean = false,
+        fromWeb2Web: Boolean = false,
     ): ApphudUser {
         if (!canPerformRequest()) {
             ApphudLog.logE(::registration.name + MUST_REGISTER_ERROR)
@@ -82,7 +82,7 @@ internal object RequestManager {
         return if (currentUserLocal == null || forceRegistration) {
             val repository = ServiceLocator.instance.remoteRepository
 
-            val getCustomersResult = repository.getCustomers(needPlacements, isNew, email, legacyWeb2Web)
+            val getCustomersResult = repository.getCustomers(needPlacements, isNew, email, fromWeb2Web)
 
             getCustomersResult
                 .getOrElse { t ->
@@ -133,6 +133,7 @@ internal object RequestManager {
         apphudProduct: ApphudProduct? = null,
         purchaseRecordDetailsSet: List<PurchaseRecordDetails>,
         observerMode: Boolean,
+        restore: Boolean = false,
     ): ApphudUser {
         if (!canPerformRequest()) {
             val message = "restorePurchases $MUST_REGISTER_ERROR"
@@ -145,7 +146,7 @@ internal object RequestManager {
         }
 
         val repository = ServiceLocator.instance.remoteRepository
-        return repository.restorePurchased(apphudProduct, purchaseRecordDetailsSet, observerMode).getOrThrow()
+        return repository.restorePurchased(apphudProduct, purchaseRecordDetailsSet, observerMode, restore).getOrThrow()
     }
 
     internal suspend fun send(

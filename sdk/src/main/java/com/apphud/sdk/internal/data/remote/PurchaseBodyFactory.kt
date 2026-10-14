@@ -15,15 +15,19 @@ import com.apphud.sdk.managers.subscriptionPeriod
 
 internal class PurchaseBodyFactory(
     private val userRepository: UserRepository,
+    private val legacyDeviceId: () -> String? = { null },
 ) {
 
     private fun identity() = userRepository.getIdentity() ?: throw ApphudError("SDK not initialized")
 
+    /** A purchase the app just made: never a restore. */
     fun create(purchaseContext: PurchaseContext): PurchaseBody =
         PurchaseBody(
             installationId = identity().installationId,
             anonymousId = identity().anonymousId,
             userId = identity().userId,
+            restore = false,
+            legacyDeviceId = legacyDeviceId(),
             purchases = listOf(
                 with(purchaseContext) {
                     PurchaseItemBody(
@@ -51,15 +55,19 @@ internal class PurchaseBodyFactory(
             )
         )
 
+    /** The device's purchases: [restore] when the user asked for a restore, otherwise an automatic sync. */
     fun create(
         apphudProduct: ApphudProduct?,
         purchases: List<PurchaseRecordDetails>,
         observerMode: Boolean,
+        restore: Boolean = false,
     ): PurchaseBody =
         PurchaseBody(
             installationId = identity().installationId,
             anonymousId = identity().anonymousId,
             userId = identity().userId,
+            restore = restore,
+            legacyDeviceId = legacyDeviceId(),
             purchases =
                 purchases.map { item ->
                     val matchesApphudProduct =

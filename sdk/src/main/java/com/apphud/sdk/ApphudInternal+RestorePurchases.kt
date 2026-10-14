@@ -14,16 +14,28 @@ import kotlinx.coroutines.withContext
 
 internal suspend fun ApphudInternal.restorePurchases(): ApphudPurchasesRestoreResult {
     ApphudLog.log("User called: SyncPurchases()")
-    return syncPurchases(observerMode = false)
+    return syncPurchases(observerMode = false, restore = true)
 }
 
 private val mutexSync = Mutex()
+
+/**
+ * Nothing to send, or an automatic sync of purchases already sent. A restore is always sent: the
+ * purchases may belong to another customer until it moves them.
+ */
+internal fun skipsSync(
+    restore: Boolean,
+    prevPurchases: Collection<PurchaseRecordDetails>,
+    restoredPurchases: Collection<PurchaseRecordDetails>,
+): Boolean = restoredPurchases.isEmpty() || (!restore && prevPurchases.containsAll(restoredPurchases))
 
 internal suspend fun ApphudInternal.syncPurchases(
     paywallIdentifier: String? = null,
     placementIdentifier: String? = null,
     observerMode: Boolean = true,
     unvalidatedPurchs: List<Purchase>? = null,
+    // Only the restore the user asked for; it moves a purchase another customer owns.
+    restore: Boolean = false,
 ): ApphudPurchasesRestoreResult {
     runCatchingCancellable { awaitUserRegistration() }
         .onFailure { error ->
@@ -86,7 +98,7 @@ internal suspend fun ApphudInternal.syncPurchases(
 
             ApphudLog.log("Start syncing ${restoredPurchases.count()} in-app purchases: ${restoredPurchases.map { it.details.productId }}")
 
-            if (prevPurchases.containsAll(restoredPurchases)) {
+            if (skipsSync(restore, prevPurchases, restoredPurchases)) {
                 ApphudLog.log("SyncPurchases: Don't send equal purchases from prev state")
                 storage.isNeedSync = false
                 refreshEntitlements(true)
@@ -102,6 +114,7 @@ internal suspend fun ApphudInternal.syncPurchases(
                     placementIdentifier = placementIdentifier,
                     tempPurchaseRecordDetails = restoredPurchases,
                     observerMode = observerMode,
+                    restore = restore,
                 )
             }
         }
@@ -113,6 +126,7 @@ internal suspend fun ApphudInternal.sendPurchasesToApphud(
     placementIdentifier: String? = null,
     tempPurchaseRecordDetails: List<PurchaseRecordDetails>?,
     observerMode: Boolean,
+    restore: Boolean = false,
 ): ApphudPurchasesRestoreResult {
     val apphudProduct: ApphudProduct? = findJustPurchasedProduct(
         paywallIdentifier,
@@ -132,6 +146,7 @@ internal suspend fun ApphudInternal.sendPurchasesToApphud(
             apphudProduct,
             tempPurchaseRecordDetails,
             observerMode,
+            restore,
         )
     }.fold(
         onSuccess = { customer ->

@@ -17,8 +17,9 @@ class ResolveIdentityUseCaseTest {
 
     private val identityStore: IdentityStore = mockk()
     private val reinstallRepository: ReinstallRepository = mockk {
-        every { start(any(), any()) } just runs
+        every { start(any(), any(), any()) } just runs
         every { useHostValue(any()) } just runs
+        every { forgetLegacyDeviceId() } just runs
     }
     private val useCase = ResolveIdentityUseCase(identityStore, reinstallRepository)
 
@@ -42,7 +43,7 @@ class ResolveIdentityUseCaseTest {
 
         useCase(ApphudSuppliedIds.of(anonymousId = "a", installationId = "i", isReinstall = true))
 
-        verify(exactly = 0) { reinstallRepository.start(any(), any()) }
+        verify(exactly = 0) { reinstallRepository.start(any(), any(), any()) }
     }
 
     @Test
@@ -70,6 +71,35 @@ class ResolveIdentityUseCaseTest {
         useCase(ApphudSuppliedIds())
 
         verify { reinstallRepository.start(newInstall = true, restoredPerson = true) }
+    }
+
+    @Test
+    fun `GIVEN another user than the stored one EXPECT the old device id forgotten`() {
+        every { identityStore.resolve(any()) } returns
+            ApphudIdentityResolution(IDENTITY, ApphudLaunchKind.NORMAL, changed = true, switchedUser = true)
+
+        useCase(ApphudSuppliedIds.of(userId = "bob"))
+
+        verify { reinstallRepository.forgetLegacyDeviceId() }
+    }
+
+    @Test
+    fun `GIVEN the same user EXPECT the old device id kept`() {
+        resolvesTo(ApphudLaunchKind.NORMAL)
+
+        useCase(ApphudSuppliedIds())
+
+        verify(exactly = 0) { reinstallRepository.forgetLegacyDeviceId() }
+    }
+
+    @Test
+    fun `GIVEN an old device id the record couldn't keep EXPECT it handed to the check`() {
+        every { identityStore.resolve(any()) } returns
+            ApphudIdentityResolution(IDENTITY, ApphudLaunchKind.UPGRADE, changed = true, unsavedLegacyDeviceId = "OLD")
+
+        useCase(ApphudSuppliedIds())
+
+        verify { reinstallRepository.start(newInstall = false, restoredPerson = false, unsavedLegacyDeviceId = "OLD") }
     }
 
     private companion object {

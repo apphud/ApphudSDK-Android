@@ -14,22 +14,22 @@ internal class UrlProvider(
     private val baseUrl = AtomicReference("https://gateway.apphud.com")
 
     val customersUrl: HttpUrl
-        get() = "${baseUrl.get()}/v1/customers".toHttpUrl()
+        get() = "${baseUrl.get()}/v4/customers".toHttpUrl()
 
     val customerPropertiesUrl: HttpUrl
-        get() = "${baseUrl.get()}/v1/customers/properties".toHttpUrl()
+        get() = "${baseUrl.get()}/v4/customers/properties".toHttpUrl()
 
     val subscriptionsUrl: HttpUrl
-        get() = "${baseUrl.get()}/v1/subscriptions".toHttpUrl()
+        get() = "${baseUrl.get()}/v4/subscriptions".toHttpUrl()
 
     val productsUrl: HttpUrl
-        get() = "${baseUrl.get()}/v2/products".toHttpUrl()
+        get() = "${baseUrl.get()}/v4/products".toHttpUrl()
 
     val attributionUrl: HttpUrl
-        get() = "${baseUrl.get()}/v2/customers/attribution".toHttpUrl()
+        get() = "${baseUrl.get()}/v4/customers/attribution".toHttpUrl()
 
     val deeplinkAttributionUrl: HttpUrl
-        get() = "${baseUrl.get()}/v2/customers/deeplink_attribution".toHttpUrl()
+        get() = "${baseUrl.get()}/v4/customers/deeplink_attribution".toHttpUrl()
 
     val connectHost: String
         get() = baseUrl.get()
@@ -49,26 +49,26 @@ internal class UrlProvider(
     }
 
     val promotionsUrl: HttpUrl
-        get() = "${baseUrl.get()}/v1/promotions".toHttpUrl()
+        get() = "${baseUrl.get()}/v4/promotions".toHttpUrl()
 
-    /** Shared endpoint for paywall analytics and rule `$` events (mirrors iOS APIv2). */
+    /** Shared endpoint for paywall analytics and rule `$` events. */
     val eventsUrl: HttpUrl
-        get() = "${baseUrl.get()}/v2/events".toHttpUrl()
+        get() = "${baseUrl.get()}/v4/events".toHttpUrl()
 
     val pushTokenUrl: HttpUrl
-        get() = "${baseUrl.get()}/v1/customers/push_token".toHttpUrl()
+        get() = "${baseUrl.get()}/v4/customers/push_token".toHttpUrl()
 
     val notificationsReadUrl: HttpUrl
-        get() = "${baseUrl.get()}/v2/notifications/read".toHttpUrl()
+        get() = "${baseUrl.get()}/v4/notifications/read".toHttpUrl()
 
     val notificationsUrl: HttpUrl
-        get() = "${baseUrl.get()}/v2/notifications".toHttpUrl()
+        get() = "${baseUrl.get()}/v4/notifications".toHttpUrl()
 
     val renderPropertiesUrl: HttpUrl
-        get() = "${baseUrl.get()}/v2/paywall_configs/items/render_properties".toHttpUrl()
+        get() = "${baseUrl.get()}/v4/paywall_configs/items/render_properties".toHttpUrl()
 
     fun paywallConfigUrl(identifier: String): HttpUrl =
-        "${baseUrl.get()}/v3/paywall_configs".toHttpUrl()
+        "${baseUrl.get()}/v4/paywall_configs".toHttpUrl()
             .newBuilder()
             .addPathSegment(identifier)
             .build()

@@ -310,6 +310,95 @@ class IdentityStoreTest {
     }
 
     @Test
+    fun `GIVEN an update from an old version EXPECT the old device id kept for adoption`() {
+        storage.deviceId = "OLD"
+        freshPackage = false
+
+        launch()
+
+        assertEquals("OLD", records.record?.legacyDeviceId)
+    }
+
+    @Test
+    fun `GIVEN old data restored by backup EXPECT the old device id kept for adoption`() {
+        storage.deviceId = "OLD"
+        storage.apphudUser = legacyUser("OLD")
+        freshPackage = true
+
+        launch()
+
+        assertEquals("OLD", records.record?.legacyDeviceId)
+    }
+
+    @Test
+    fun `GIVEN old data restored and the app's own anonymous id EXPECT no old device id to adopt`() {
+        storage.deviceId = "OLD"
+        storage.apphudUser = legacyUser("OLD")
+        freshPackage = true
+
+        launch(ApphudSuppliedIds.of(anonymousId = "host-anon"))
+
+        assertNull(records.record?.legacyDeviceId)
+    }
+
+    @Test
+    fun `GIVEN old data restored and the app's own user EXPECT no old device id to adopt`() {
+        storage.deviceId = "OLD"
+        storage.apphudUser = legacyUser("alice")
+        freshPackage = true
+
+        launch(ApphudSuppliedIds.of(userId = "bob"))
+
+        assertNull(records.record?.legacyDeviceId)
+    }
+
+    @Test
+    fun `GIVEN old data restored and only the app's own user EXPECT the old device id kept with the restored anonymous id`() {
+        storage.deviceId = "OLD"
+        storage.apphudUser = legacyUser("OLD")
+        freshPackage = true
+
+        val identity = launch(ApphudSuppliedIds.of(userId = "bob")).identity
+
+        assertEquals("OLD", identity.anonymousId)
+        assertEquals("OLD", records.record?.legacyDeviceId)
+    }
+
+    @Test
+    fun `GIVEN a restored person already dropped by an earlier launch EXPECT no old device id to adopt`() {
+        records.record = InstallRecord(InstallState.PENDING, "installation-1", restoredAnonymousId = "OLD", legacyDeviceId = "OLD")
+        storage.anonymousId = "new-anonymous"
+
+        launch()
+
+        assertNull(records.record?.legacyDeviceId)
+    }
+
+    @Test
+    fun `GIVEN an update whose record wasn't saved EXPECT the old device id handed on for this launch`() {
+        storage.deviceId = "OLD"
+        freshPackage = false
+        records.failWrites = true
+
+        assertEquals("OLD", launch().unsavedLegacyDeviceId)
+    }
+
+    @Test
+    fun `GIVEN an update whose record was saved EXPECT nothing unsaved`() {
+        storage.deviceId = "OLD"
+        freshPackage = false
+
+        assertNull(launch().unsavedLegacyDeviceId)
+    }
+
+    @Test
+    fun `GIVEN a fresh install EXPECT no old device id to adopt`() {
+        launch()
+
+        assertNull(records.record?.legacyDeviceId)
+    }
+
+    @Test
     fun `GIVEN package freshness unknown and an old device id EXPECT update in place`() {
         storage.deviceId = "OLD"
         freshPackage = null

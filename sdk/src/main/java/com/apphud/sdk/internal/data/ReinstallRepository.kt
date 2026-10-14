@@ -33,6 +33,8 @@ import java.util.concurrent.TimeoutException
  * - A person Auto Backup restored onto a new install waits for this check, and registration waits
  *   with it: this device's marker means a reinstall, and the person is dropped before registration
  *   goes on. No marker, another device's, or no answer keeps the person, for good.
+ * - A reinstall is reported until a registration carrying it succeeds, then never again for this
+ *   install: a later customer of the same install (after logout, a switch) is not a reinstall.
  */
 internal class ReinstallRepository(
     private val storage: InstallRecordStorage,
@@ -67,6 +69,10 @@ internal class ReinstallRepository(
     @Volatile
     private var holdRegistrationForRead = false
 
+    /** The old SDK's `device_id` of a record this launch couldn't save. */
+    @Volatile
+    private var unsavedLegacyDeviceId: String? = null
+
     // A restored person waits for this launch's read, until it is dropped or kept. Guarded by [lock].
     private var restoredPersonOpen = false
 
@@ -84,7 +90,8 @@ internal class ReinstallRepository(
      * read. [restoredPerson]: the ids came back with restored data, and the read decides whether they
      * stay, so registration waits too.
      */
-    fun start(newInstall: Boolean = false, restoredPerson: Boolean = false) {
+    fun start(newInstall: Boolean = false, restoredPerson: Boolean = false, unsavedLegacyDeviceId: String? = null) {
+        this.unsavedLegacyDeviceId = unsavedLegacyDeviceId
         // A later start without supplied ids (after logout) goes back to the SDK's own check.
         hostDecides = false
         hostValue = null
@@ -139,8 +146,56 @@ internal class ReinstallRepository(
         if (!hostDecides) decided.await()
     }
 
-    /** `reinstall: true` goes on every registration of a reinstalled install; otherwise no param. */
-    fun reinstallFlag(): Boolean? = if (isReinstall() == true) true else null
+    /**
+     * `reinstall: true` goes on a reinstalled install's registrations until one of them succeeds;
+     * otherwise no param. The backend records it on the customer that registration resolves to.
+     */
+    fun reinstallFlag(): Boolean? =
+        if (isReinstall() == true && load()?.reinstallReported != true) true else null
+
+    /**
+     * The old SDK's `device_id`, sent as `legacy_device_id` until a registration carrying it succeeds;
+     * dropped when the person changes first.
+     */
+    fun legacyDeviceId(): String? = load().let { if (it != null) it.legacyDeviceId else unsavedLegacyDeviceId }
+
+    /** The person changed before a registration adopted the old customer: it belongs to the one before. */
+    fun forgetLegacyDeviceId() {
+        unsavedLegacyDeviceId = null
+        synchronized(lock) {
+            // The record in memory, so a failed save still forgets it in this process.
+            load()
+            // From disk, so a forget that wasn't saved before is saved now.
+            runCatching { update { it.copy(legacyDeviceId = null) } }
+                .onFailure {
+                    record = record?.copy(legacyDeviceId = null)
+                    ApphudLog.logE("Old device id not saved as forgotten: ${it.message}")
+                }
+        }
+    }
+
+    /**
+     * A registration succeeded. One that carried `reinstall: true` reported the reinstall, and one that
+     * carried `legacy_device_id` had the old customer adopted: later ones send neither again.
+     */
+    fun onRegistered(reinstallSent: Boolean, legacyDeviceIdSent: Boolean) {
+        if (!reinstallSent && !legacyDeviceIdSent) return
+        if (legacyDeviceIdSent) unsavedLegacyDeviceId = null
+        val reported = { it: InstallRecord ->
+            it.copy(
+                reinstallReported = it.reinstallReported || reinstallSent,
+                legacyDeviceId = it.legacyDeviceId.takeUnless { legacyDeviceIdSent },
+            )
+        }
+        synchronized(lock) {
+            runCatching { update(reported) }
+                .onFailure {
+                    // Not sent again in this process at least.
+                    record = record?.let(reported)
+                    ApphudLog.logE("Registration not saved as reported: ${it.message}")
+                }
+        }
+    }
 
     private suspend fun checkInstall() {
         val current = load() ?: return
@@ -159,8 +214,18 @@ internal class ReinstallRepository(
             val state = if (matches) InstallState.REINSTALL else InstallState.FIRST_INSTALL
             // Before registration goes on: a reinstall never registers with the restored person. Under
             // the lock, so a registration whose wait ends meanwhile waits for the drop to finish.
-            synchronized(lock) { if (closeRestoredPerson() && matches) dropRestoredPerson() }
-            update { it.copy(state = state).personSettled() }
+            synchronized(lock) {
+                val dropped = (closeRestoredPerson() && matches).also { if (it) dropRestoredPerson() }
+                try {
+                    // A dropped person takes its old customer with it: nothing to adopt.
+                    update {
+                        it.copy(state = state, legacyDeviceId = it.legacyDeviceId.takeUnless { dropped }).personSettled()
+                    }
+                } finally {
+                    // Not even when the record wasn't saved.
+                    if (dropped) record = record?.copy(legacyDeviceId = null)
+                }
+            }
             decided.complete(Unit)
             onDecided()
             ApphudLog.log("Install classified: $state")

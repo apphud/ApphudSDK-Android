@@ -22,8 +22,11 @@ internal class ResolveIdentityUseCase(
             reinstallRepository.start(
                 newInstall = resolution.launch == ApphudLaunchKind.NEW_INSTALL,
                 restoredPerson = resolution.restoredPersonPending,
+                unsavedLegacyDeviceId = resolution.unsavedLegacyDeviceId,
             )
         }
+        // Another user than the stored one: the old customer is not theirs.
+        if (resolution.switchedUser) reinstallRepository.forgetLegacyDeviceId()
         return resolution
     }
 }

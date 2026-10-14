@@ -65,9 +65,6 @@ internal class RegistrationProvider(
 
     fun getIdentity(): ApphudIdentity? = userRepository.getIdentity()
 
-    /** The current customer's user id as the backend sent it. */
-    fun getServerUserId(): String? = userRepository.getCurrentUser()?.userId
-
     fun getTimeZone(): String = TimeZone.getDefault().id
 
     fun isSandbox(): Boolean = applicationContext.isDebuggable()
@@ -85,6 +82,8 @@ internal class RegistrationProvider(
     fun getObserverMode(): Boolean = ApphudInternal.observerMode
 
     fun getReinstall(): Boolean? = reinstallRepository.reinstallFlag()
+
+    fun getLegacyDeviceId(): String? = reinstallRepository.legacyDeviceId()
 
     private fun getInstallationDate(): Long? {
         var dateInSecond: Long? = null

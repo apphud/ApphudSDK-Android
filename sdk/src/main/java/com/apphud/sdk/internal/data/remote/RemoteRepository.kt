@@ -67,12 +67,12 @@ internal class RemoteRepository(
         needPlacements: Boolean,
         isNew: Boolean,
         email: String? = null,
-        legacyWeb2Web: Boolean = false,
+        fromWeb2Web: Boolean = false,
     ): Result<ApphudUser> =
         runCatchingCancellable {
             // A new install's first registration carries the reinstall flag once the check has decided.
             reinstallRepository.awaitBeforeRegistration()
-            val body = registrationBodyFactory.create(needPlacements, isNew, email, legacyWeb2Web)
+            val body = registrationBodyFactory.create(needPlacements, isNew, email, fromWeb2Web)
             val request = buildPostRequest(urlProvider.customersUrl, body)
             executeForResponse<CustomerDto>(okHttpClient, gson, request, dispatchers.io) to body
         }
@@ -85,20 +85,25 @@ internal class RemoteRepository(
                 val user = response.data.results?.let { customerDto ->
                     customerMapper.map(customerDto, previousUser)
                 } ?: throw ApphudError("Registration failed")
+                // The backend has this install's reinstall and old customer now: later ones don't repeat them.
+                reinstallRepository.onRegistered(
+                    reinstallSent = body.reinstall == true,
+                    legacyDeviceIdSent = body.legacyDeviceId != null,
+                )
                 markSyncedIfCurrent(body)
                 user
             }
 
     /**
      * The backend has seen the current ids: a registration in the new shape, sent with the ids
-     * still current (they may change while it is out).
+     * still current (they may change while it is out). A reinstall it reported counts as current.
      */
     private fun markSyncedIfCurrent(body: RegistrationBody) {
         val current = identityStore.current ?: return
         if (body.installationId == current.installationId &&
             body.anonymousId == current.anonymousId &&
             body.userId == current.userId &&
-            body.reinstall == reinstallRepository.reinstallFlag()
+            (body.reinstall == true || body.reinstall == reinstallRepository.reinstallFlag())
         ) {
             identityStore.markSynced()
         }
@@ -125,12 +130,13 @@ internal class RemoteRepository(
         apphudProduct: ApphudProduct? = null,
         purchases: List<PurchaseRecordDetails>,
         observerMode: Boolean,
+        restore: Boolean = false,
     ): Result<ApphudUser> =
         runCatchingCancellable {
             val request =
                 buildPostRequest(
                     urlProvider.subscriptionsUrl,
-                    purchaseBodyFactory.create(apphudProduct, purchases, observerMode)
+                    purchaseBodyFactory.create(apphudProduct, purchases, observerMode, restore)
                 )
             executeForResponse<CustomerDto>(okHttpClient, gson, request, dispatchers.io)
         }
