@@ -329,7 +329,7 @@ class IdentityStoreTest {
     }
 
     @Test
-    fun `GIVEN fresh package with old data restored by backup EXPECT the restored user data cleared`() {
+    fun `GIVEN fresh package with old data restored by backup EXPECT the restored caches cleared`() {
         storage.deviceId = "OLD"
         storage.apphudUser = legacyUser("OLD")
         freshPackage = true
@@ -340,14 +340,304 @@ class IdentityStoreTest {
     }
 
     @Test
-    fun `GIVEN fresh package with restored ids EXPECT new anonymous id and no user`() {
+    fun `GIVEN fresh package with old generated ids restored by backup EXPECT the old id kept as the anonymous id`() {
+        storage.deviceId = "OLD"
+        storage.apphudUser = legacyUser("OLD")
+        freshPackage = true
+
+        val identity = launch().identity
+
+        assertEquals("OLD" to null, identity.anonymousId to identity.userId)
+    }
+
+    @Test
+    fun `GIVEN fresh package with an old app-set user restored by backup EXPECT the user kept`() {
+        storage.deviceId = "OLD"
+        storage.apphudUser = legacyUser("Alice")
+        freshPackage = true
+
+        assertEquals("Alice", launch().identity.userId)
+    }
+
+    @Test
+    fun `GIVEN fresh package with restored ids EXPECT the restored person kept until the reinstall check`() {
         storage.anonymousId = "RESTORED-ANON"
         storage.identifiedUserId = "RESTORED-USER"
         freshPackage = true
 
         val identity = launch().identity
 
-        assertEquals("id-2" to null, identity.anonymousId to identity.userId)
+        assertEquals("RESTORED-ANON" to "RESTORED-USER", identity.anonymousId to identity.userId)
+    }
+
+    @Test
+    fun `GIVEN fresh package with restored ids EXPECT a new installation id`() {
+        storage.anonymousId = "RESTORED-ANON"
+        freshPackage = true
+
+        assertEquals("id-1", launch().identity.installationId)
+    }
+
+    @Test
+    fun `GIVEN fresh package with restored ids EXPECT the record waits for the check on the person`() {
+        storage.anonymousId = "RESTORED-ANON"
+        freshPackage = true
+
+        launch()
+
+        assertEquals(InstallState.PENDING to true, records.record?.state to records.record?.restoredPerson)
+    }
+
+    @Test
+    fun `GIVEN fresh package with restored ids EXPECT the check told to decide the person`() {
+        storage.anonymousId = "RESTORED-ANON"
+        freshPackage = true
+
+        assertTrue(launch().restoredPersonPending)
+    }
+
+    @Test
+    fun `GIVEN restored ids but the host supplies its own person EXPECT nothing left for the check`() {
+        storage.anonymousId = "RESTORED-ANON"
+        storage.identifiedUserId = "RESTORED-USER"
+        freshPackage = true
+
+        val resolution = launch(ApphudSuppliedIds(userId = "Host", anonymousId = "host-anon"))
+
+        assertFalse(resolution.restoredPersonPending)
+    }
+
+    @Test
+    fun `GIVEN a launch that died before the check decided EXPECT the next launch tells the check again`() {
+        storage.anonymousId = "RESTORED-ANON"
+        freshPackage = true
+        launch()
+        freshPackage = false
+
+        assertTrue(launch().restoredPersonPending)
+    }
+
+    @Test
+    fun `GIVEN the host passes the restored user at start EXPECT the drop keeps it`() {
+        storage.anonymousId = "RESTORED-ANON"
+        storage.identifiedUserId = "U"
+        freshPackage = true
+        val store = store()
+        store.resolve(ApphudSuppliedIds(userId = "U"))
+
+        store.dropRestoredPerson()
+
+        assertEquals("U", store.current?.userId)
+    }
+
+    @Test
+    fun `GIVEN the host passes the restored anonymous id at start EXPECT the drop keeps it`() {
+        storage.anonymousId = "A"
+        storage.identifiedUserId = "RESTORED-USER"
+        freshPackage = true
+        val store = store()
+        store.resolve(ApphudSuppliedIds(anonymousId = "A"))
+
+        store.dropRestoredPerson()
+
+        assertEquals("A" to null, store.current?.anonymousId to store.current?.userId)
+    }
+
+    @Test
+    fun `GIVEN the host's user set in a launch that died before the check EXPECT the next launch never drops it`() {
+        storage.anonymousId = "RESTORED-ANON"
+        storage.identifiedUserId = "RESTORED-USER"
+        freshPackage = true
+        launch(ApphudSuppliedIds(userId = "Host"))
+        freshPackage = false
+        val store = store()
+        store.resolve(ApphudSuppliedIds())
+
+        store.dropRestoredPerson()
+
+        assertEquals("Host", store.current?.userId)
+    }
+
+    @Test
+    fun `GIVEN a launch that died before the check decided EXPECT the next launch can still drop the restored user`() {
+        storage.anonymousId = "RESTORED-ANON"
+        storage.identifiedUserId = "RESTORED-USER"
+        freshPackage = true
+        launch()
+        freshPackage = false
+        val store = store()
+        store.resolve(ApphudSuppliedIds())
+
+        store.dropRestoredPerson()
+
+        assertNull(store.current?.userId)
+    }
+
+    @Test
+    fun `GIVEN restored ids no longer in use at a relaunch EXPECT the record forgets them`() {
+        storage.anonymousId = "RESTORED-ANON"
+        storage.identifiedUserId = "U"
+        freshPackage = true
+        store().also { it.resolve(ApphudSuppliedIds()) }.logout(null)
+        freshPackage = false
+
+        launch()
+
+        assertFalse(records.record?.restoredPerson ?: true)
+    }
+
+    @Test
+    fun `GIVEN a drop the record never settled EXPECT the next launch keeps the new ids`() {
+        storage.anonymousId = "RESTORED-ANON"
+        freshPackage = true
+        store().also { it.resolve(ApphudSuppliedIds()) }.dropRestoredPerson()
+        freshPackage = false
+
+        assertFalse(launch().restoredPersonPending)
+    }
+
+    @Test
+    fun `GIVEN restored data and a failed record write EXPECT the restored caches cleared anyway`() {
+        storage.deviceId = "OLD"
+        storage.apphudUser = legacyUser("OLD")
+        freshPackage = true
+        records.failWrites = true
+
+        launch()
+
+        assertEquals(1, clearedUserData)
+    }
+
+    @Test
+    fun `GIVEN restored person dropped EXPECT a push token sent during the check sent again`() {
+        storage.anonymousId = "RESTORED-ANON"
+        freshPackage = true
+        val store = store()
+        store.resolve(ApphudSuppliedIds())
+        storage.submittedPushToken = "token"
+
+        store.dropRestoredPerson()
+
+        assertNull(storage.submittedPushToken)
+    }
+
+    @Test
+    fun `GIVEN a new install with nothing restored EXPECT no person waiting for the check`() {
+        launch()
+
+        assertEquals(false, records.record?.restoredPerson)
+    }
+
+    @Test
+    fun `GIVEN restored ids on an updated package EXPECT no person waiting for the check`() {
+        storage.anonymousId = "RESTORED-ANON"
+        freshPackage = false
+
+        launch()
+
+        assertEquals(false, records.record?.restoredPerson)
+    }
+
+    @Test
+    fun `GIVEN restored ids and the host's user at start EXPECT only the restored anonymous id waits for the check`() {
+        storage.anonymousId = "RESTORED-ANON"
+        storage.identifiedUserId = "RESTORED-USER"
+        freshPackage = true
+        val store = store()
+        store.resolve(ApphudSuppliedIds(userId = "Host"))
+
+        store.dropRestoredPerson()
+
+        assertEquals("Host", store.current?.userId)
+    }
+
+    @Test
+    fun `GIVEN restored person dropped EXPECT a new anonymous id and no user`() {
+        storage.anonymousId = "RESTORED-ANON"
+        storage.identifiedUserId = "RESTORED-USER"
+        freshPackage = true
+        val store = store()
+        store.resolve(ApphudSuppliedIds())
+
+        store.dropRestoredPerson()
+
+        assertEquals("id-2" to null, store.current?.anonymousId to store.current?.userId)
+    }
+
+    @Test
+    fun `GIVEN restored person dropped EXPECT the installation id kept`() {
+        storage.anonymousId = "RESTORED-ANON"
+        freshPackage = true
+        val store = store()
+        store.resolve(ApphudSuppliedIds())
+
+        store.dropRestoredPerson()
+
+        assertEquals("id-1", store.current?.installationId)
+    }
+
+    @Test
+    fun `GIVEN restored person dropped EXPECT the new ids saved`() {
+        storage.anonymousId = "RESTORED-ANON"
+        storage.identifiedUserId = "RESTORED-USER"
+        freshPackage = true
+        val store = store()
+        store.resolve(ApphudSuppliedIds())
+
+        store.dropRestoredPerson()
+
+        assertEquals("id-2" to null, storage.anonymousId to storage.identifiedUserId)
+    }
+
+    @Test
+    fun `GIVEN restored person dropped EXPECT the new ids sent at the next registration`() {
+        storage.anonymousId = "RESTORED-ANON"
+        freshPackage = true
+        val store = store()
+        store.resolve(ApphudSuppliedIds())
+        store.markSynced()
+
+        store.dropRestoredPerson()
+
+        assertTrue(store.isSyncPending)
+    }
+
+    @Test
+    fun `GIVEN the host identified during the check EXPECT the drop keeps that user`() {
+        storage.anonymousId = "RESTORED-ANON"
+        storage.identifiedUserId = "RESTORED-USER"
+        freshPackage = true
+        val store = store()
+        store.resolve(ApphudSuppliedIds())
+        store.identify("Bob")
+
+        store.dropRestoredPerson()
+
+        assertEquals("Bob", store.current?.userId)
+    }
+
+    @Test
+    fun `GIVEN nothing restored EXPECT drop changes nothing`() {
+        val store = store()
+        val before = store.resolve(ApphudSuppliedIds()).identity
+
+        store.dropRestoredPerson()
+
+        assertEquals(before, store.current)
+    }
+
+    @Test
+    fun `GIVEN a launch that died before the check decided EXPECT the next launch can still drop the restored person`() {
+        storage.anonymousId = "RESTORED-ANON"
+        freshPackage = true
+        launch()
+        freshPackage = false
+        val store = store()
+        store.resolve(ApphudSuppliedIds())
+
+        store.dropRestoredPerson()
+
+        assertEquals("id-2", store.current?.anonymousId)
     }
 
     @Test

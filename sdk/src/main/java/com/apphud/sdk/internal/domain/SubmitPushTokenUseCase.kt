@@ -32,7 +32,8 @@ internal class SubmitPushTokenUseCase(
 
         return runCatchingCancellable {
             remoteRepository.submitPushToken(identity, token).getOrThrow()
-            storage.submittedPushToken = token
+            // Ids that changed while it was out (a reinstall found after start) need the token again.
+            if (userRepository.getIdentity() == identity) storage.submittedPushToken = token
             true
         }.getOrElse { error ->
             ApphudLog.logE("Failed to submit push token: ${error.message}")

@@ -14,6 +14,7 @@ import com.apphud.sdk.internal.data.network.UrlProvider
 import com.google.gson.Gson
 import io.mockk.Runs
 import io.mockk.coEvery
+import io.mockk.coVerifyOrder
 import io.mockk.every
 import io.mockk.just
 import io.mockk.mockk
@@ -59,7 +60,7 @@ class RemoteRepositoryTest {
     private val okHttpClient: OkHttpClient = mockk()
 
     private val reinstallRepository: ReinstallRepository = mockk {
-        coEvery { awaitIsReinstall() } returns null
+        coEvery { awaitBeforeRegistration() } returns null
         every { reinstallFlag() } returns null
     }
 
@@ -138,6 +139,18 @@ class RemoteRepositoryTest {
     }
 
     // region identity sync
+
+    @Test
+    fun `GIVEN registration EXPECT the body built after the reinstall wait`() = runTest {
+        mockHttpCall(createMockResponse(200, createSuccessResponse()))
+
+        remoteRepository.getCustomers(needPlacements = true, isNew = false, email = null)
+
+        coVerifyOrder {
+            reinstallRepository.awaitBeforeRegistration()
+            registrationBodyFactory.create(any(), any(), any(), any())
+        }
+    }
 
     private fun bodyWithIds(installationId: String?, anonymousId: String?, userId: String?) {
         every { mockRegistrationBody.installationId } returns installationId

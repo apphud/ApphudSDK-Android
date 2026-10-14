@@ -22,6 +22,9 @@ import java.util.UUID
  * - Old versions kept one generated id as both `device_id` and the customer's `user_id`. An update
  *   in place adopts them: `device_id` becomes `installation_id`, and a `user_id` equal to it is the
  *   anonymous id, never a user.
+ * - Auto Backup can restore the preferences onto a new install: after a reinstall on this device, or
+ *   onto a new device. The person comes back at start, as on a new device; the reinstall check drops
+ *   it ([dropRestoredPerson]) when it finds this device's marker.
  */
 internal class IdentityStore(
     private val storage: Storage,
@@ -35,6 +38,11 @@ internal class IdentityStore(
     @Volatile
     var current: ApphudIdentity? = null
         private set
+
+    /** The ids that came back from a backup, until the reinstall check confirms or drops them. */
+    private data class RestoredPerson(val anonymousId: String?, val userId: String?)
+
+    private var restoredPerson: RestoredPerson? = null
 
     /** The backend hasn't seen the current ids yet, so registration must not be skipped. */
     val isSyncPending: Boolean get() = storage.identitySyncPending
@@ -72,10 +80,16 @@ internal class IdentityStore(
         var record: InstallRecord
         val launch: ApphudLaunchKind
         val legacyDeviceId = storage.deviceId.nonBlank()
+        // The person Auto Backup brought back, still to be confirmed by the reinstall check.
+        var restored: RestoredPerson? = null
 
         if (stored != null) {
             launch = ApphudLaunchKind.NORMAL
             record = stored
+            // The launch that found the restored person ended before the check decided.
+            if (stored.restoredPerson && stored.state == InstallState.PENDING) {
+                restored = RestoredPerson(stored.restoredAnonymousId, stored.restoredUserId)
+            }
         } else if (legacyDeviceId != null && isFreshPackageInstall() != true) {
             // In-place update: the old device_id becomes installation_id, so the backend adopts the
             // old customer. A fresh install never adopts it: Auto Backup restores old preferences.
@@ -96,15 +110,24 @@ internal class IdentityStore(
             record = InstallRecord(InstallState.EXISTING, makeId())
         } else {
             launch = ApphudLaunchKind.NEW_INSTALL
-            val restored = legacyDeviceId != null || storedAnonymousId != null || storedUserId != null || storage.apphudUser != null
+            val restoredData = legacyDeviceId != null || storedAnonymousId != null || storedUserId != null || storage.apphudUser != null
             // Only a fresh package can carry data Auto Backup restored; an updated one keeps its person.
             val fresh = isFreshPackageInstall() == true
-            if (restored && fresh) {
-                // Auto Backup restored another install's data: a new install starts with new ids.
-                ApphudLog.log("New install: ignoring restored user data")
-                clearUserData()
-                anonymousId = null
-                userId = null
+            if (restoredData && fresh) {
+                // Auto Backup restored this data, after a reinstall on this device or onto a new one.
+                // Only the reinstall marker tells them apart: until it does, the person is kept, as on
+                // a new device. Data from an old version maps as an update does, but never gives the
+                // installation id.
+                if (anonymousId == null && legacyDeviceId != null) {
+                    val legacyUserId = storage.apphudUser?.userId.nonBlank()
+                    if (legacyUserId == null || legacyUserId == legacyDeviceId) {
+                        anonymousId = legacyDeviceId
+                    } else if (userId == null) {
+                        userId = legacyUserId
+                    }
+                }
+                ApphudLog.log("New install with restored data: the reinstall check decides the person")
+                restored = RestoredPerson(anonymousId, userId)
             }
             // No installation id: a new install, so the reinstall marker decides.
             record = InstallRecord(InstallState.PENDING, makeId())
@@ -122,18 +145,36 @@ internal class IdentityStore(
         supplied.userId?.takeIf { it != resolvedAnonymousId }?.let { userId = it }
         if (userId == resolvedAnonymousId) userId = null
 
+        // Only restored ids still in use wait for the check: an id the host supplied stays, even one
+        // equal to the restored id.
+        val restoredInUse = restored
+            ?.let {
+                RestoredPerson(
+                    anonymousId = it.anonymousId?.takeIf { id -> supplied.anonymousId == null && id == resolvedAnonymousId },
+                    userId = it.userId?.takeIf { id -> supplied.userId == null && id == userId },
+                )
+            }
+            ?.takeIf { it.anonymousId != null || it.userId != null }
+        // Restored ids no longer in use are forgotten, so an id set again later is never taken for one.
+        record = record.copy(restoredAnonymousId = restoredInUse?.anonymousId, restoredUserId = restoredInUse?.userId)
+        val clearRestoredData = launch == ApphudLaunchKind.NEW_INSTALL && restored != null
+
         val changed = record.installationId != stored?.installationId ||
             resolvedAnonymousId != storedAnonymousId || userId != storedUserId
         if (changed) markSyncPending()
 
         val migrating = launch == ApphudLaunchKind.UPGRADE
-        // An update adopts the ids before the old device_id is deleted: a crash in between must not
-        // leave an SDK-generated user_id behind as a real user.
-        if (migrating) persist(resolvedAnonymousId, userId)
+        // An update, or a restore, keeps the person before the old data is deleted: a crash in between
+        // must not lose it, or leave an SDK-generated user_id behind as a real user.
+        if (migrating || clearRestoredData) persist(resolvedAnonymousId, userId)
         if (record == stored || write(record)) {
             if (migrating) storage.deviceId = null
         }
+        // The restored caches belong to the install the backup was taken from, and its old device_id
+        // must never become an installation id: the customer is loaded again by the registration.
+        if (clearRestoredData) clearUserData()
         persist(resolvedAnonymousId, userId)
+        restoredPerson = restoredInUse
 
         val identity = ApphudIdentity(
             installationId = requireNotNull(record.installationId),
@@ -146,6 +187,7 @@ internal class IdentityStore(
             launch = launch,
             changed = changed,
             switchedUser = isSwitch(userBeforeSupplied, userId),
+            restoredPersonPending = restoredInUse != null,
         )
     }
 
@@ -168,6 +210,27 @@ internal class IdentityStore(
         current = current?.copy(anonymousId = newAnonymousId, userId = null)
         persist(newAnonymousId, null)
         markSyncPending()
+    }
+
+    /**
+     * The reinstall check found this device's marker: the restored person belongs to the deleted
+     * install, so a reinstall starts with a new anonymous id and no user. Ids the host set since
+     * start stay.
+     */
+    @Synchronized
+    fun dropRestoredPerson() {
+        val restored = restoredPerson ?: return
+        restoredPerson = null
+        val identity = current ?: return
+        val anonymousId = if (identity.anonymousId == restored.anonymousId) makeId() else identity.anonymousId
+        val userId = identity.userId?.takeUnless { it == restored.userId }
+        if (anonymousId == identity.anonymousId && userId == identity.userId) return
+        ApphudLog.log("Reinstall on this device: the restored person is dropped")
+        current = identity.copy(anonymousId = anonymousId, userId = userId)
+        persist(anonymousId, userId)
+        markSyncPending()
+        // A push token sent during the check went out with the restored ids: send it again.
+        storage.submittedPushToken = null
     }
 
     /**

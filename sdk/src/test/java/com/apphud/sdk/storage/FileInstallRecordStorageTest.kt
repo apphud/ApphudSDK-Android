@@ -19,4 +19,14 @@ class FileInstallRecordStorageTest {
 
         assertEquals(record, storage.read())
     }
+
+    @Test
+    fun `GIVEN saved record with a restored person EXPECT the restored ids read back`() {
+        val storage = FileInstallRecordStorage { folder.root }
+        val record = InstallRecord(InstallState.PENDING, "installation-1", restoredAnonymousId = "A", restoredUserId = "U")
+
+        storage.write(record)
+
+        assertEquals(record, storage.read())
+    }
 }

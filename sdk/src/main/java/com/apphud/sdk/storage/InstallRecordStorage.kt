@@ -21,7 +21,19 @@ internal data class InstallRecord(
     val state: InstallState,
     /** Null only in a record from before the installation id was kept here. */
     val installationId: String? = null,
-)
+    /**
+     * The ids that came back with data Auto Backup restored, until the reinstall check confirms them:
+     * a reinstall on this device drops them, a new device keeps them. Kept here, not in the
+     * preferences, so ids set after start are never taken for restored ones.
+     */
+    val restoredAnonymousId: String? = null,
+    val restoredUserId: String? = null,
+) {
+    val restoredPerson: Boolean get() = restoredAnonymousId != null || restoredUserId != null
+
+    /** The reinstall check has decided about the restored person, or there was none. */
+    fun personSettled(): InstallRecord = copy(restoredAnonymousId = null, restoredUserId = null)
+}
 
 /**
  * Per-install state: the installation id and the reinstall check. Install-scoped: survives logout.
@@ -58,7 +70,12 @@ internal class FileInstallRecordStorage(
             ?.let { name -> runCatching { InstallState.valueOf(name) }.getOrNull() }
             // The record existed, so this install was classified before: never reclassify it.
             ?: return InstallRecord(InstallState.EXISTING)
-        return InstallRecord(state, installationId = properties.getProperty(INSTALLATION_ID_KEY)?.takeUnless { it.isBlank() })
+        return InstallRecord(
+            state,
+            installationId = properties.getProperty(INSTALLATION_ID_KEY)?.takeUnless { it.isBlank() },
+            restoredAnonymousId = properties.getProperty(RESTORED_ANONYMOUS_ID_KEY)?.takeUnless { it.isBlank() },
+            restoredUserId = properties.getProperty(RESTORED_USER_ID_KEY)?.takeUnless { it.isBlank() },
+        )
     }
 
     override fun write(record: InstallRecord) {
@@ -66,6 +83,8 @@ internal class FileInstallRecordStorage(
         val properties = Properties().apply {
             setProperty(STATE_KEY, record.state.name)
             record.installationId?.let { setProperty(INSTALLATION_ID_KEY, it) }
+            record.restoredAnonymousId?.let { setProperty(RESTORED_ANONYMOUS_ID_KEY, it) }
+            record.restoredUserId?.let { setProperty(RESTORED_USER_ID_KEY, it) }
         }
         val out = file.startWrite()
         try {
@@ -85,5 +104,7 @@ internal class FileInstallRecordStorage(
         const val FILE_NAME = "apphud_install_record"
         private const val STATE_KEY = "state"
         private const val INSTALLATION_ID_KEY = "installation_id"
+        private const val RESTORED_ANONYMOUS_ID_KEY = "restored_anonymous_id"
+        private const val RESTORED_USER_ID_KEY = "restored_user_id"
     }
 }

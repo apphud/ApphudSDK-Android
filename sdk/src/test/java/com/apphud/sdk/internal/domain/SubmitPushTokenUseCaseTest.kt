@@ -45,6 +45,18 @@ class SubmitPushTokenUseCaseTest {
     }
 
     @Test
+    fun `GIVEN ids changed while the token was out EXPECT the token not stored as sent`() = runTest {
+        coEvery { remoteRepository.submitPushToken(IDENTITY, "token-1") } answers {
+            every { userRepository.getIdentity() } returns IDENTITY.copy(anonymousId = "anonymous-2")
+            Result.success(Unit)
+        }
+
+        useCase("token-1")
+
+        verify(exactly = 0) { storage.submittedPushToken = "token-1" }
+    }
+
+    @Test
     fun `GIVEN successful submit EXPECT returns true`() = runTest {
         coEvery { remoteRepository.submitPushToken(IDENTITY, "token-1") } returns Result.success(Unit)
 

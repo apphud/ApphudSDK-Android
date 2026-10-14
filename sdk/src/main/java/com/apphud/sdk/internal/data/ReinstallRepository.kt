@@ -25,11 +25,14 @@ import java.util.concurrent.TimeoutException
  *   install's own marker for a previous one.
  * - The marker holds a hash of this device's id: a marker copied to a new phone by a device-to-device
  *   transfer doesn't match there, so a new phone is not a reinstall. Without the device id the
- *   marker is a constant.
+ *   marker is a constant, and such a transfer reads as a reinstall.
  * - Every launch puts this device's marker back if it is missing, e.g. after the host app cleared
  *   its Block Store data.
  * - An install updated in place from an older SDK version isn't a new install: its result stays unknown.
  * - When the app supplies the ids, it decides the flag ([useHostValue]): no marker is read or written.
+ * - A person Auto Backup restored onto a new install waits for this check, and registration waits
+ *   with it: this device's marker means a reinstall, and the person is dropped before registration
+ *   goes on. No marker, another device's, or no answer keeps the person, for good.
  */
 internal class ReinstallRepository(
     private val storage: InstallRecordStorage,
@@ -38,6 +41,10 @@ internal class ReinstallRepository(
     private val scope: CoroutineScope,
     /** Called when a new install's result is decided, so the next registration reports it. */
     private val onDecided: () -> Unit = {},
+    /** Drops the person Auto Backup restored: this device's marker shows a reinstall. */
+    private val dropRestoredPerson: () -> Unit = {},
+    /** How long a read, a write and a wait for the verdict may take. */
+    private val timeoutMs: Long = TIMEOUT_MS,
 ) {
     private val lock = Any()
 
@@ -55,9 +62,13 @@ internal class ReinstallRepository(
     @Volatile
     private var hostValue: Boolean? = null
 
-    // Only a new install's first launch holds registration for the marker read.
+    // A new install's first launch, or one with a restored person to confirm, holds registration
+    // for the marker read.
     @Volatile
     private var holdRegistrationForRead = false
+
+    // A restored person waits for this launch's read, until it is dropped or kept. Guarded by [lock].
+    private var restoredPersonOpen = false
 
     // One check per process: later callers wait for it instead of reading the marker again.
     private val check: Job by lazy {
@@ -68,12 +79,17 @@ internal class ReinstallRepository(
         }
     }
 
-    /** [newInstall]: this launch created the install record, so its first registration waits for the read. */
-    fun start(newInstall: Boolean = false) {
+    /**
+     * [newInstall]: this launch created the install record, so its first registration waits for the
+     * read. [restoredPerson]: the ids came back with restored data, and the read decides whether they
+     * stay, so registration waits too.
+     */
+    fun start(newInstall: Boolean = false, restoredPerson: Boolean = false) {
         // A later start without supplied ids (after logout) goes back to the SDK's own check.
         hostDecides = false
         hostValue = null
-        if (newInstall) holdRegistrationForRead = true
+        if (newInstall || restoredPerson) holdRegistrationForRead = true
+        if (restoredPerson) synchronized(lock) { restoredPersonOpen = true }
         resolved.complete(Unit)
         check.start()
     }
@@ -99,17 +115,28 @@ internal class ReinstallRepository(
     }
 
     /**
-     * [isReinstall] once this launch's check has decided, waiting at most [TIMEOUT_MS]. Never starts
+     * [isReinstall] once this launch's check has decided, waiting at most [timeoutMs]. Never starts
      * the check itself: called before `Apphud.start`, it waits for start instead of reading the
      * marker before the install record exists.
      */
     suspend fun awaitIsReinstall(): Boolean? {
-        withTimeoutOrNull(TIMEOUT_MS) {
-            resolved.await()
-            // The app's own flag needs no wait.
-            if (!hostDecides) decided.await()
-        }
+        withTimeoutOrNull(timeoutMs) { awaitVerdict() }
         return isReinstall()
+    }
+
+    /**
+     * [awaitIsReinstall] for a registration: when it goes on without a verdict, it carries the
+     * restored person, which then stays.
+     */
+    suspend fun awaitBeforeRegistration(): Boolean? {
+        if (withTimeoutOrNull(timeoutMs) { awaitVerdict() } == null) keepRestoredPerson()
+        return isReinstall()
+    }
+
+    private suspend fun awaitVerdict() {
+        resolved.await()
+        // The app's own flag needs no wait.
+        if (!hostDecides) decided.await()
     }
 
     /** `reinstall: true` goes on every registration of a reinstalled install; otherwise no param. */
@@ -117,19 +144,23 @@ internal class ReinstallRepository(
 
     private suspend fun checkInstall() {
         val current = load() ?: return
-        // Only the launch that created the record holds registration for the read; later launches
-        // retry a failed read in the background.
+        // The launch that created the record, or one with a restored person to confirm, holds
+        // registration for the read; later launches retry a failed read in the background.
         if (current.state != InstallState.PENDING || !holdRegistrationForRead) decided.complete(Unit)
 
         val marker = deviceMarker()
         val stored = bounded { markerSource.read() }.getOrElse {
             ApphudLog.log("Install marker not read: ${it.message}")
+            keepRestoredPerson()
             return
         }
         val matches = stored?.contentEquals(marker) == true
         if (current.state == InstallState.PENDING) {
             val state = if (matches) InstallState.REINSTALL else InstallState.FIRST_INSTALL
-            update { it.copy(state = state) }
+            // Before registration goes on: a reinstall never registers with the restored person. Under
+            // the lock, so a registration whose wait ends meanwhile waits for the drop to finish.
+            synchronized(lock) { if (closeRestoredPerson() && matches) dropRestoredPerson() }
+            update { it.copy(state = state).personSettled() }
             decided.complete(Unit)
             onDecided()
             ApphudLog.log("Install classified: $state")
@@ -140,9 +171,20 @@ internal class ReinstallRepository(
         }
     }
 
+    /** Ends the wait on the restored person: true only for the caller that ended it. */
+    private fun closeRestoredPerson(): Boolean =
+        synchronized(lock) { restoredPersonOpen.also { restoredPersonOpen = false } }
+
+    /** No verdict, or none in time: the restored person stays, as on a new device, for good. */
+    private fun keepRestoredPerson() {
+        if (!closeRestoredPerson()) return
+        runCatching { update { it.personSettled() } }
+            .onFailure { ApphudLog.logE("Restored person not saved as kept: ${it.message}") }
+    }
+
     private suspend fun <T> bounded(block: suspend () -> T): Result<T> =
-        withTimeoutOrNull(TIMEOUT_MS) { runCatchingCancellable { block() } }
-            ?: Result.failure(TimeoutException("no answer in $TIMEOUT_MS ms"))
+        withTimeoutOrNull(timeoutMs) { runCatchingCancellable { block() } }
+            ?: Result.failure(TimeoutException("no answer in $timeoutMs ms"))
 
     private fun load(): InstallRecord? =
         synchronized(lock) { record ?: runCatching { storage.read() }.getOrNull().also { record = it } }

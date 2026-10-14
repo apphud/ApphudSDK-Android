@@ -75,6 +75,7 @@ internal class AppScopeComponent(val applicationContext: Context) {
             },
             scope = CoroutineScope(SupervisorJob() + dispatchers.io),
             onDecided = { identityStore.markSyncPending() },
+            dropRestoredPerson = { identityStore.dropRestoredPerson() },
         )
     }
 

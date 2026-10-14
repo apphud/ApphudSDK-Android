@@ -19,7 +19,10 @@ internal class ResolveIdentityUseCase(
         if (supplied.suppliesAllIds) {
             reinstallRepository.useHostValue(supplied.isReinstall)
         } else {
-            reinstallRepository.start(newInstall = resolution.launch == ApphudLaunchKind.NEW_INSTALL)
+            reinstallRepository.start(
+                newInstall = resolution.launch == ApphudLaunchKind.NEW_INSTALL,
+                restoredPerson = resolution.restoredPersonPending,
+            )
         }
         return resolution
     }

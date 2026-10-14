@@ -17,13 +17,14 @@ class ResolveIdentityUseCaseTest {
 
     private val identityStore: IdentityStore = mockk()
     private val reinstallRepository: ReinstallRepository = mockk {
-        every { start(any()) } just runs
+        every { start(any(), any()) } just runs
         every { useHostValue(any()) } just runs
     }
     private val useCase = ResolveIdentityUseCase(identityStore, reinstallRepository)
 
-    private fun resolvesTo(launch: ApphudLaunchKind) {
-        every { identityStore.resolve(any()) } returns ApphudIdentityResolution(IDENTITY, launch, changed = false)
+    private fun resolvesTo(launch: ApphudLaunchKind, restoredPersonPending: Boolean = false) {
+        every { identityStore.resolve(any()) } returns
+            ApphudIdentityResolution(IDENTITY, launch, changed = false, restoredPersonPending = restoredPersonPending)
     }
 
     @Test
@@ -41,7 +42,7 @@ class ResolveIdentityUseCaseTest {
 
         useCase(ApphudSuppliedIds.of(anonymousId = "a", installationId = "i", isReinstall = true))
 
-        verify(exactly = 0) { reinstallRepository.start(any()) }
+        verify(exactly = 0) { reinstallRepository.start(any(), any()) }
     }
 
     @Test
@@ -60,6 +61,15 @@ class ResolveIdentityUseCaseTest {
         useCase(ApphudSuppliedIds())
 
         verify { reinstallRepository.start(newInstall = false) }
+    }
+
+    @Test
+    fun `GIVEN a restored person to confirm EXPECT the check started deciding it`() {
+        resolvesTo(ApphudLaunchKind.NEW_INSTALL, restoredPersonPending = true)
+
+        useCase(ApphudSuppliedIds())
+
+        verify { reinstallRepository.start(newInstall = true, restoredPerson = true) }
     }
 
     private companion object {

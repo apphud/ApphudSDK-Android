@@ -304,7 +304,8 @@ object Apphud {
      * before. Null before [start].
      *
      * Note: This value may change during runtime. [ApphudListener.apphudDidChangeUserID] is called
-     * for an identify your app requested; logout changes the value without it.
+     * for an identify your app requested; logout changes the value without it, and so does a
+     * reinstall found right after start (see [anonymousId]).
      */
     fun userId(): UserId? = runCatching { ServiceLocator.instance.identityStore.current?.currentId }.getOrNull()
 
@@ -317,6 +318,11 @@ object Apphud {
     /**
      * Returns the anonymous ID. It changes on logout and after a reinstall, and is kept when the user
      * is identified. Null before [start].
+     *
+     * When Auto Backup restored the app's data onto a new install, the restored IDs are used until
+     * the reinstall check decides, a few seconds at most: a reinstall on this device then drops them
+     * (IDs your app passed or set stay), a new device keeps them. Without a device ID, or with tracking
+     * opted out, a device-to-device transfer reads as a reinstall.
      */
     fun anonymousId(): String? = runCatching { ServiceLocator.instance.identityStore.current?.anonymousId }.getOrNull()
 

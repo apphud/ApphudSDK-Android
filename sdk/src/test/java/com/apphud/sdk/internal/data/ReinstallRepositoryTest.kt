@@ -6,6 +6,7 @@ import com.apphud.sdk.storage.InstallState
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.async
+import kotlinx.coroutines.asCoroutineDispatcher
 import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.awaitCancellation
 import kotlinx.coroutines.test.advanceUntilIdle
@@ -17,6 +18,13 @@ import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
+import kotlin.concurrent.thread
+import java.util.concurrent.atomic.AtomicBoolean
+import java.util.concurrent.CountDownLatch
+import java.util.concurrent.TimeUnit
+import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.Dispatchers
+import java.util.concurrent.Executor
 
 class ReinstallRepositoryTest {
 
@@ -55,21 +63,40 @@ class ReinstallRepositoryTest {
     private val storage = FakeStorage()
     private val markers = FakeMarkerSource()
     private var decidedCalls = 0
+    private var drops = 0
+    private var verdictSeenAtDrop: Boolean? = null
 
     /** A launch over the same storage. A new install's record is created first, as identity resolution does. */
     private fun CoroutineScope.launch(
         state: InstallState? = null,
         start: Boolean = true,
+        restoredPerson: Boolean = false,
     ): ReinstallRepository {
         val newInstall = storage.record == null
-        if (newInstall) storage.write(InstallRecord(state ?: InstallState.PENDING, "installation-1"))
-        return ReinstallRepository(
+        if (newInstall) {
+            storage.write(InstallRecord(state ?: InstallState.PENDING, "installation-1", restoredAnonymousId = RESTORED.takeIf { restoredPerson }))
+        }
+        lateinit var repository: ReinstallRepository
+        repository = ReinstallRepository(
             storage = storage,
             markerSource = markers,
             deviceMarker = { THIS_DEVICE },
             scope = this,
             onDecided = { decidedCalls += 1 },
-        ).also { if (start) it.start(newInstall) }
+            dropRestoredPerson = {
+                drops += 1
+                verdictSeenAtDrop = repository.isReinstall()
+            },
+        )
+        return repository.also { if (start) it.start(newInstall, restoredPerson) }
+    }
+
+    /** A new install with a restored person whose check never runs: only the waits act. */
+    private fun idleLaunch(): ReinstallRepository {
+        storage.write(InstallRecord(InstallState.PENDING, "installation-1", restoredAnonymousId = RESTORED))
+        val neverRuns = CoroutineScope(Executor { }.asCoroutineDispatcher())
+        return ReinstallRepository(storage, markers, { THIS_DEVICE }, neverRuns, dropRestoredPerson = { drops += 1 })
+            .also { it.start(newInstall = true, restoredPerson = true) }
     }
 
     // region new install
@@ -302,6 +329,168 @@ class ReinstallRepositoryTest {
 
     // endregion
 
+    // region person restored by Auto Backup
+
+    @Test
+    fun `GIVEN restored person and this device's marker EXPECT the person dropped`() = runTest {
+        markers.stored = THIS_DEVICE
+
+        launch(restoredPerson = true).awaitBeforeRegistration()
+
+        assertEquals(1, drops)
+    }
+
+    @Test
+    fun `GIVEN restored person and this device's marker EXPECT the drop before the verdict is out`() = runTest {
+        markers.stored = THIS_DEVICE
+
+        launch(restoredPerson = true).awaitBeforeRegistration()
+
+        assertNull(verdictSeenAtDrop)
+    }
+
+    @Test
+    fun `GIVEN restored person and this device's marker EXPECT the person settled in the record`() = runTest {
+        markers.stored = THIS_DEVICE
+
+        launch(restoredPerson = true).awaitBeforeRegistration()
+
+        assertEquals(InstallState.REINSTALL to false, storage.record?.state to storage.record?.restoredPerson)
+    }
+
+    @Test
+    fun `GIVEN restored person and no marker EXPECT the person kept`() = runTest {
+        launch(restoredPerson = true).awaitBeforeRegistration()
+        advanceUntilIdle()
+
+        assertEquals(0 to false, drops to storage.record?.restoredPerson)
+    }
+
+    @Test
+    fun `GIVEN restored person and another device's marker EXPECT the person kept`() = runTest {
+        markers.stored = OTHER_DEVICE
+
+        launch(restoredPerson = true).awaitBeforeRegistration()
+        advanceUntilIdle()
+
+        assertEquals(0 to false, drops to storage.record?.restoredPerson)
+    }
+
+    @Test
+    fun `GIVEN restored person and a failed read EXPECT the person kept`() = runTest {
+        markers.readError = IllegalStateException("Block Store failed")
+
+        launch(restoredPerson = true).awaitBeforeRegistration()
+
+        assertEquals(0 to false, drops to storage.record?.restoredPerson)
+    }
+
+    @Test
+    fun `GIVEN restored person kept after a failed read EXPECT a later read never drops it`() = runTest {
+        markers.readError = IllegalStateException("Block Store failed")
+        launch(restoredPerson = true).awaitBeforeRegistration()
+        advanceUntilIdle()
+        markers.readError = null
+        markers.stored = THIS_DEVICE.copyOf()
+
+        launch().awaitBeforeRegistration()
+        advanceUntilIdle()
+
+        assertEquals(0, drops)
+    }
+
+    @Test
+    fun `GIVEN restored person and a read that never answers EXPECT the person kept after the bound`() = runTest {
+        markers.neverAnswers = true
+
+        launch(restoredPerson = true).awaitBeforeRegistration()
+
+        assertEquals(0 to false, drops to storage.record?.restoredPerson)
+    }
+
+    @Test
+    fun `GIVEN nothing restored and this device's marker EXPECT nothing dropped`() = runTest {
+        markers.stored = THIS_DEVICE
+
+        launch().awaitBeforeRegistration()
+
+        assertEquals(0, drops)
+    }
+
+    @Test
+    fun `GIVEN restored person left undecided by an earlier launch EXPECT registration held for the read`() = runTest {
+        launch(start = false, restoredPerson = true)
+        markers.neverAnswers = true
+
+        launch(restoredPerson = true).awaitBeforeRegistration()
+
+        assertEquals(5_000L, currentTime)
+    }
+
+    @Test
+    fun `GIVEN restored person left undecided by an earlier launch EXPECT this device's marker drops it`() = runTest {
+        launch(start = false, restoredPerson = true)
+        markers.stored = THIS_DEVICE
+
+        launch(restoredPerson = true).awaitBeforeRegistration()
+
+        assertEquals(1, drops)
+    }
+
+    @Test
+    fun `GIVEN restored person and registration going on without a verdict EXPECT the person kept for good`() = runTest {
+        val repository = idleLaunch()
+
+        repository.awaitBeforeRegistration()
+
+        assertEquals(false, storage.record?.restoredPerson)
+    }
+
+    @Test
+    fun `GIVEN restored person and the app's own wait timing out EXPECT the read still decides the person`() = runTest {
+        val repository = idleLaunch()
+
+        repository.awaitIsReinstall()
+
+        assertEquals(true, storage.record?.restoredPerson)
+    }
+
+    @Test
+    fun `GIVEN registration's wait ends while the drop runs EXPECT registration goes on after the drop`() {
+        storage.write(InstallRecord(InstallState.PENDING, "installation-1", restoredAnonymousId = RESTORED))
+        markers.stored = THIS_DEVICE
+        val dropping = CountDownLatch(1)
+        val release = CountDownLatch(1)
+        val dropDone = AtomicBoolean(false)
+        val repository = ReinstallRepository(
+            storage = storage,
+            markerSource = markers,
+            deviceMarker = { THIS_DEVICE },
+            scope = CoroutineScope(Dispatchers.Default),
+            dropRestoredPerson = {
+                dropping.countDown()
+                release.await()
+                dropDone.set(true)
+            },
+            timeoutMs = 50,
+        )
+        repository.start(newInstall = true, restoredPerson = true)
+        assertTrue("the drop never started", dropping.await(5, TimeUnit.SECONDS))
+        val dropDoneWhenRegistrationWentOn = AtomicBoolean(false)
+        val registration = thread {
+            runBlocking { repository.awaitBeforeRegistration() }
+            dropDoneWhenRegistrationWentOn.set(dropDone.get())
+        }
+
+        Thread.sleep(300)
+        release.countDown()
+        registration.join()
+
+        assertTrue(dropDoneWhenRegistrationWentOn.get())
+    }
+
+    // endregion
+
     // region marker value
 
     @Test
@@ -329,5 +518,6 @@ class ReinstallRepositoryTest {
     private companion object {
         val THIS_DEVICE = ReinstallRepository.deviceMarkerOf("this-device")
         val OTHER_DEVICE = ReinstallRepository.deviceMarkerOf("other-device")
+        const val RESTORED = "restored-anonymous-id"
     }
 }

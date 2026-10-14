@@ -63,6 +63,8 @@ internal data class ApphudIdentityResolution(
     val changed: Boolean,
     /** The host passed another user while one was stored, without logout. */
     val switchedUser: Boolean = false,
+    /** The ids came back with data Auto Backup restored: the reinstall check decides whether they stay. */
+    val restoredPersonPending: Boolean = false,
 )
 
 internal enum class ApphudIdentifyOutcome {

@@ -71,7 +71,7 @@ internal class RemoteRepository(
     ): Result<ApphudUser> =
         runCatchingCancellable {
             // A new install's first registration carries the reinstall flag once the check has decided.
-            reinstallRepository.awaitIsReinstall()
+            reinstallRepository.awaitBeforeRegistration()
             val body = registrationBodyFactory.create(needPlacements, isNew, email, legacyWeb2Web)
             val request = buildPostRequest(urlProvider.customersUrl, body)
             executeForResponse<CustomerDto>(okHttpClient, gson, request, dispatchers.io) to body
