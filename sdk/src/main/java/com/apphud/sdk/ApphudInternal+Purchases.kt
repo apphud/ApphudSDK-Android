@@ -159,6 +159,8 @@ internal fun ApphudInternal.resolveObfuscatedAccountId(oldToken: String?): Strin
             ?.subscriptions
             ?.firstOrNull { it.purchaseToken == oldToken }
             ?.obfuscatedDeviceId
+    } else if (isIdentityV1) {
+        userRepository.getDeviceId()
     } else {
         // The installation id: the backend finds a Google purchase's owner by the installation key it
         // carries, so every account of this installation shares it.

@@ -15,6 +15,37 @@ internal data class ApphudIdentity(
     /** Sent on every request in place of the old `device_id`. */
     val requestParams: Map<String, String>
         get() = mapOf("installation_id" to installationId, "anonymous_id" to anonymousId)
+
+    val requestIds: RequestIds
+        get() = RequestIds(installationId = installationId, anonymousId = anonymousId, userId = userId)
+}
+
+/**
+ * The ids a request carries. Identity version 1 sends `device_id`, and `user_id` where SDK 3.6 sent
+ * it; version 2 sends `installation_id` and `anonymous_id`, and `user_id` once identified.
+ */
+internal data class RequestIds(
+    /** Identity version 1 only. */
+    val deviceId: String? = null,
+    /** Identity version 2 only. */
+    val installationId: String? = null,
+    /** Identity version 2 only. */
+    val anonymousId: String? = null,
+    /** Version 1: its user id. Version 2: the identified user, null while anonymous. */
+    val userId: String? = null,
+) {
+    val isVersion1: Boolean get() = deviceId != null
+
+    /** The ids as query parameters. */
+    val requestParams: Map<String, String>
+        get() = if (deviceId != null) {
+            mapOf("device_id" to deviceId)
+        } else {
+            mapOf("installation_id" to installationId.orEmpty(), "anonymous_id" to anonymousId.orEmpty())
+        }
+
+    /** `user_id` of the requests SDK 3.6 sent without one: version 2 only. */
+    val identifiedUserId: String? get() = userId.takeUnless { isVersion1 }
 }
 
 /** Ids the host passed to `start`. A blank string means "not supplied". */
@@ -23,6 +54,8 @@ internal data class ApphudSuppliedIds(
     val anonymousId: String? = null,
     val installationId: String? = null,
     val isReinstall: Boolean? = null,
+    /** `start(deviceId)`: identity version 1's device id. Version 2 takes it as the installation id. */
+    val deviceId: String? = null,
 ) {
     /**
      * The app supplies every id and decides the reinstall flag itself. The SDK stores what it was
@@ -36,11 +69,13 @@ internal data class ApphudSuppliedIds(
             anonymousId: String? = null,
             installationId: String? = null,
             isReinstall: Boolean? = null,
+            deviceId: String? = null,
         ) = ApphudSuppliedIds(
             userId = userId?.takeUnless { it.isBlank() },
             anonymousId = anonymousId?.takeUnless { it.isBlank() },
             installationId = installationId?.takeUnless { it.isBlank() },
             isReinstall = isReinstall,
+            deviceId = deviceId?.takeUnless { it.isBlank() },
         )
     }
 }
@@ -67,6 +102,16 @@ internal data class ApphudIdentityResolution(
     val restoredPersonPending: Boolean = false,
     /** The old SDK's `device_id` of a record that couldn't be saved: still sent this launch. */
     val unsavedLegacyDeviceId: String? = null,
+    /** The person changed (another user, or the host's new anonymous id): `legacy_device_id` is not sent. */
+    val dropsLegacyDeviceId: Boolean = false,
+)
+
+/** Identity version 1 after version 2 ran here: the ids it sends, so the backend finds the same customer. */
+internal data class Version1Ids(
+    /** The old device id, or the installation id when the install started on version 2. */
+    val deviceId: String?,
+    /** The identified user, or the anonymous id. */
+    val userId: String,
 )
 
 internal enum class ApphudIdentifyOutcome {

@@ -31,7 +31,7 @@ class IdentityRequestFieldsTest {
 
     @Test
     fun `GIVEN a purchase EXPECT the restore flag always sent`() {
-        val body = PurchaseBody(installationId = I, anonymousId = A, purchases = emptyList())
+        val body = PurchaseBody(installationId = I, anonymousId = A, restore = false, purchases = emptyList())
 
         assertEquals(false, gson.toJsonTree(body).asJsonObject.get("restore").asBoolean)
     }
@@ -52,7 +52,7 @@ class IdentityRequestFieldsTest {
 
     @Test
     fun `GIVEN attribution body EXPECT installation and anonymous ids only`() {
-        val body = AttributionRequestDto(I, A, provider = "p", rawData = emptyMap(), attribution = emptyMap())
+        val body = AttributionRequestDto(installationId = I, anonymousId = A, provider = "p", rawData = emptyMap(), attribution = emptyMap())
 
         assertEquals(NEW_IDS, idKeys(body))
     }

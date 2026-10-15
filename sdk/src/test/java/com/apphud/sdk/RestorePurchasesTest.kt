@@ -83,6 +83,12 @@ class RestorePurchasesTest {
     }
 
     @Test
+    fun `GIVEN identity version 1 and a restore of purchases already sent EXPECT a skip, as SDK 3_6 did`() {
+        assertTrue(skipsSync(restore = true, prevPurchases = listOf(sent), restoredPurchases = listOf(sent), identityVersion1 = true))
+        assertFalse(skipsSync(restore = true, prevPurchases = listOf(sent), restoredPurchases = listOf(sent, other), identityVersion1 = true))
+    }
+
+    @Test
     fun `GIVEN an automatic sync of purchases already sent EXPECT a skip`() {
         assertTrue(skipsSync(restore = false, prevPurchases = listOf(sent), restoredPurchases = listOf(sent)))
     }

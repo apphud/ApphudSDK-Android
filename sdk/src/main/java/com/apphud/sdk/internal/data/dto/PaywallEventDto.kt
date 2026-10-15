@@ -10,10 +10,18 @@ internal data class PaywallEventDto(
     @SerializedName("user_id")
     @JsonAdapter(OmitWhenNull::class, nullSafe = false)
     val userId: String?,
+    /** Identity version 1 only. */
+    @SerializedName("device_id")
+    @JsonAdapter(OmitWhenNull::class, nullSafe = false)
+    val deviceId: String? = null,
+    /** Identity version 2 only. */
     @SerializedName("installation_id")
-    val installationId: String,
+    @JsonAdapter(OmitWhenNull::class, nullSafe = false)
+    val installationId: String? = null,
+    /** Identity version 2 only. */
     @SerializedName("anonymous_id")
-    val anonymousId: String,
+    @JsonAdapter(OmitWhenNull::class, nullSafe = false)
+    val anonymousId: String? = null,
     val environment: String,
     val timestamp: Long,
     val properties: Map<String, Any>?,

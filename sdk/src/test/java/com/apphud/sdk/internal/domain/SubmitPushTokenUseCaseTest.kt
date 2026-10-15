@@ -2,6 +2,7 @@ package com.apphud.sdk.internal.domain
 
 import com.apphud.sdk.internal.data.UserRepository
 import com.apphud.sdk.internal.domain.model.ApphudIdentity
+import com.apphud.sdk.internal.domain.model.RequestIds
 import com.apphud.sdk.internal.data.remote.RemoteRepository
 import com.apphud.sdk.storage.Storage
 import io.mockk.coEvery
@@ -18,7 +19,7 @@ class SubmitPushTokenUseCaseTest {
 
     private val remoteRepository: RemoteRepository = mockk()
     private val userRepository: UserRepository = mockk {
-        every { getIdentity() } returns IDENTITY
+        every { getRequestIds() } returns IDENTITY
     }
     private val storage: Storage = mockk(relaxUnitFun = true) {
         every { submittedPushToken } returns null
@@ -45,9 +46,23 @@ class SubmitPushTokenUseCaseTest {
     }
 
     @Test
+    fun `GIVEN identity version 1 ids changed while the token was out EXPECT the token stored, as SDK 3_6 did`() = runTest {
+        val version1 = RequestIds(deviceId = "device-1", userId = "user-1")
+        every { userRepository.getRequestIds() } returns version1
+        coEvery { remoteRepository.submitPushToken(version1, "token-1") } answers {
+            every { userRepository.getRequestIds() } returns version1.copy(userId = "user-2")
+            Result.success(Unit)
+        }
+
+        useCase("token-1")
+
+        verify { storage.submittedPushToken = "token-1" }
+    }
+
+    @Test
     fun `GIVEN ids changed while the token was out EXPECT the token not stored as sent`() = runTest {
         coEvery { remoteRepository.submitPushToken(IDENTITY, "token-1") } answers {
-            every { userRepository.getIdentity() } returns IDENTITY.copy(anonymousId = "anonymous-2")
+            every { userRepository.getRequestIds() } returns IDENTITY.copy(anonymousId = "anonymous-2")
             Result.success(Unit)
         }
 
@@ -83,7 +98,7 @@ class SubmitPushTokenUseCaseTest {
 
     @Test
     fun `GIVEN no ids EXPECT returns false`() = runTest {
-        every { userRepository.getIdentity() } returns null
+        every { userRepository.getRequestIds() } returns null
 
         val result = useCase("token-1")
 
@@ -111,6 +126,6 @@ class SubmitPushTokenUseCaseTest {
     }
 
     private companion object {
-        val IDENTITY = ApphudIdentity("installation-id", "anonymous-id", null)
+        val IDENTITY = ApphudIdentity("installation-id", "anonymous-id", null).requestIds
     }
 }

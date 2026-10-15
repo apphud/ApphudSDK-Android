@@ -14,7 +14,7 @@ class AnalyticsTrackerTest {
 
     private val userRepository: UserRepository = mockk {
         every { getUserId() } returns "test-user-id"
-        every { getIdentity() } returns ApphudIdentity("test-installation-id", "test-anonymous-id", "test-user-id")
+        every { getRequestIds() } returns ApphudIdentity("test-installation-id", "test-anonymous-id", "test-user-id").requestIds
     }
 
     private val tracker = AnalyticsTracker(
@@ -35,7 +35,7 @@ class AnalyticsTrackerTest {
 
     @Test
     fun `GIVEN no ids EXPECT trackAnalytics does not send`() {
-        every { userRepository.getIdentity() } returns null
+        every { userRepository.getRequestIds() } returns null
 
         tracker.trackAnalytics(success = true, latestError = null, productCount = 5, billingResponseCode = 0)
 

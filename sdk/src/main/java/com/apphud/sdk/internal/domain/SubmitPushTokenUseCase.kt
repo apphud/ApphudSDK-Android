@@ -24,16 +24,17 @@ internal class SubmitPushTokenUseCase(
             return true
         }
 
-        val identity = userRepository.getIdentity()
-        if (identity == null) {
+        val ids = userRepository.getRequestIds()
+        if (ids == null) {
             ApphudLog.logE("Cannot submit push token: SDK not initialized")
             return false
         }
 
         return runCatchingCancellable {
-            remoteRepository.submitPushToken(identity, token).getOrThrow()
+            remoteRepository.submitPushToken(ids, token).getOrThrow()
             // Ids that changed while it was out (a reinstall found after start) need the token again.
-            if (userRepository.getIdentity() == identity) storage.submittedPushToken = token
+            // Identity version 1 keeps it as SDK 3.6 did.
+            if (ids.isVersion1 || userRepository.getRequestIds() == ids) storage.submittedPushToken = token
             true
         }.getOrElse { error ->
             ApphudLog.logE("Failed to submit push token: ${error.message}")

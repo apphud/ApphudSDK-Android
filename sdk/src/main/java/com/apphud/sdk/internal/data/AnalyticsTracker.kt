@@ -60,8 +60,8 @@ internal class AnalyticsTracker(
             return
         }
 
-        val identity = userRepository.getIdentity()
-        if (identity == null) {
+        val ids = userRepository.getRequestIds()
+        if (ids == null) {
             ApphudLog.logE("Cannot track analytics: the ids are not resolved yet")
             return
         }
@@ -83,7 +83,7 @@ internal class AnalyticsTracker(
                     latestError,
                     billingResponseCode,
                     success,
-                    identity,
+                    ids,
                 )
             }.onFailure { error ->
                 ApphudLog.logE("Failed to send analytics: ${error.message}")

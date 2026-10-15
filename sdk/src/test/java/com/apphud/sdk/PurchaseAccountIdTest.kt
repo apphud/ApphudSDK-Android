@@ -36,6 +36,7 @@ class PurchaseAccountIdTest {
         mockkObject(ApphudInternal)
         mockkStatic("com.apphud.sdk.ApphudInternal_RestorePurchasesKt")
         every { ApphudInternal.userRepository } returns userRepository
+        every { ApphudInternal.isIdentityV1 } returns false
         every { userRepository.getIdentity() } returns ApphudIdentity("installation-1", "anonymous-2", "bob")
     }
 
@@ -47,6 +48,14 @@ class PurchaseAccountIdTest {
     @Test
     fun `GIVEN a purchase EXPECT the installation id as the obfuscated account id`() {
         assertEquals("installation-1", ApphudInternal.resolveObfuscatedAccountId(oldToken = null))
+    }
+
+    @Test
+    fun `GIVEN identity version 1 EXPECT the device id as the obfuscated account id`() {
+        every { ApphudInternal.isIdentityV1 } returns true
+        every { userRepository.getDeviceId() } returns "device-1"
+
+        assertEquals("device-1", ApphudInternal.resolveObfuscatedAccountId(oldToken = null))
     }
 
     @Test

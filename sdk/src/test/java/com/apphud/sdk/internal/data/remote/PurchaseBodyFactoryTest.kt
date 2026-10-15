@@ -21,20 +21,20 @@ import org.junit.Test
 class PurchaseBodyFactoryTest {
 
     private val userRepository: UserRepository = mockk {
-        every { getIdentity() } returns ApphudIdentity("installation-id", "anonymous-id", null)
+        every { getRequestIds() } returns ApphudIdentity("installation-id", "anonymous-id", null).requestIds
     }
     private val factory = PurchaseBodyFactory(userRepository)
 
     @Test
     fun `GIVEN an identified user EXPECT the user id in a purchase`() {
-        every { userRepository.getIdentity() } returns ApphudIdentity("installation-id", "anonymous-id", "alice")
+        every { userRepository.getRequestIds() } returns ApphudIdentity("installation-id", "anonymous-id", "alice").requestIds
 
         assertEquals("alice", factory.create(null, emptyList(), observerMode = false).userId)
     }
 
     @Test
     fun `GIVEN an identified user EXPECT the user id in a purchase made in the app`() {
-        every { userRepository.getIdentity() } returns ApphudIdentity("installation-id", "anonymous-id", "alice")
+        every { userRepository.getRequestIds() } returns ApphudIdentity("installation-id", "anonymous-id", "alice").requestIds
         every { userRepository.getCurrentUser() } returns null
         val context = mockk<PurchaseContext>(relaxed = true) {
             every { purchase } returns mockk(relaxed = true) { every { products } returns listOf("product") }
@@ -46,12 +46,12 @@ class PurchaseBodyFactoryTest {
 
     @Test
     fun `GIVEN the restore the user asked for EXPECT restore true`() {
-        assertTrue(factory.create(null, emptyList(), observerMode = false, restore = true).restore)
+        assertEquals(true, factory.create(null, emptyList(), observerMode = false, restore = true).restore)
     }
 
     @Test
     fun `GIVEN an automatic sync EXPECT restore false`() {
-        assertFalse(factory.create(null, emptyList(), observerMode = true).restore)
+        assertEquals(false, factory.create(null, emptyList(), observerMode = true).restore)
     }
 
     @Test
@@ -62,7 +62,7 @@ class PurchaseBodyFactoryTest {
             every { productDetails } returns null
         }
 
-        assertFalse(factory.create(context).restore)
+        assertEquals(false, factory.create(context).restore)
     }
 
     @Test

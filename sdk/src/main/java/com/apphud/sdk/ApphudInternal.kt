@@ -22,6 +22,7 @@ import com.apphud.sdk.internal.ApphudDispatchers
 import com.apphud.sdk.internal.BillingWrapper
 import com.apphud.sdk.internal.ServiceLocator
 import com.apphud.sdk.internal.data.ProductLoadingState
+import com.apphud.sdk.internal.domain.Version1RegistrationGate
 import com.apphud.sdk.internal.domain.model.ApiKey as ApiKeyModel
 import com.apphud.sdk.internal.domain.model.ApphudIdentifyOutcome
 import com.apphud.sdk.internal.domain.model.ApphudSuppliedIds
@@ -29,6 +30,7 @@ import com.apphud.sdk.internal.presentation.figma.FigmaWebViewActivity
 import com.apphud.sdk.internal.util.runCatchingCancellable
 import com.apphud.sdk.managers.RequestManager
 import com.apphud.sdk.storage.SharedPreferencesStorage
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -82,6 +84,44 @@ internal object ApphudInternal {
         get() = productRepository.state.value.products
 
     internal var isRegisteringUser = false
+
+    /** Identity version 1: every registration after a web-to-web attribution carries `from_web2web`, as in SDK 3.6. */
+    @Volatile
+    internal var fromWeb2Web = false
+
+    /** The identity model of this launch, chosen by the first start. */
+    @Volatile
+    internal var identityVersion = ApphudIdentityVersion.V1
+        set(value) {
+            field = value
+            identityVersionChosen = true
+        }
+
+    @Volatile
+    private var identityVersionChosen = false
+
+    internal val isIdentityV1: Boolean get() = identityVersion == ApphudIdentityVersion.V1
+
+    /** Version 1 is known to run: chosen by a start of this launch, or, before one, the version that ran last here. */
+    internal val runsIdentityV1: Boolean
+        get() = if (identityVersionChosen) {
+            isIdentityV1
+        } else {
+            runCatching { ServiceLocator.instance.identityStore.lastIdentityVersion() }.getOrNull() != ApphudIdentityVersion.V2
+        }
+
+    /** A start of this launch chose version 1. */
+    internal val startedIdentityV1: Boolean get() = identityVersionChosen && isIdentityV1
+
+    /** Read once per launch: a later start (after logout) keeps the first choice. */
+    internal fun chooseIdentityVersion(version: ApphudIdentityVersion) = synchronized(this) {
+        if (!identityVersionChosen) {
+            identityVersionChosen = true
+            identityVersion = version
+        } else if (version != identityVersion) {
+            ApphudLog.logE("identityVersion is read once per launch: $identityVersion stays until the next launch")
+        }
+    }
 
     internal var hasRespondedToPaywallsRequest = false
     internal var refreshUserPending = false
@@ -144,6 +184,11 @@ internal object ApphudInternal {
     }
 
     private var userRegisteredBlock: ((ApphudUser) -> Unit)? = null
+
+    /** Identity version 1 after version 2: requests wait for its registration, see [Version1RegistrationGate]. */
+    private val version1Registration = Version1RegistrationGate {
+        isIdentityV1 && ServiceLocator.instance.identityStore.isVersion1RegistrationPending
+    }
     internal var deferPlacements = false
     internal var legacyRuleScreensEnabled = true
     internal var isActive = false
@@ -187,7 +232,9 @@ internal object ApphudInternal {
         callback: ((ApphudUser) -> Unit)?,
         ruleCallback: ApphudRuleCallback,
         deeplinkHandler: ApphudDeeplinkHandler? = null,
+        identityVersion: ApphudIdentityVersion = ApphudIdentityVersion.V1,
     ) = synchronized(this) {
+        chooseIdentityVersion(identityVersion)
         if (!allowIdentifyUser) {
             ApphudLog.logE(
                 " " +
@@ -215,19 +262,33 @@ internal object ApphudInternal {
             ProcessLifecycleOwner.get().lifecycle.addObserver(lifecycleEventObserver)
         }
 
-        ApphudLog.log(
-            "Start initialization with userId=${supplied.userId}, anonymousId=${supplied.anonymousId}, " +
-                "installationId=${supplied.installationId}",
-        )
+        if (isIdentityV1) {
+            ApphudLog.log("Start initialization with userId=${supplied.userId}, deviceId=${supplied.deviceId}")
+        } else {
+            ApphudLog.log(
+                "Start initialization with userId=${supplied.userId}, anonymousId=${supplied.anonymousId}, " +
+                    "installationId=${supplied.installationId}",
+            )
+        }
         if (apiKey.isEmpty()) throw Exception("ApiKey can't be empty")
 
-        // Before the caches are validated: an update in place reads the old user from the cached customer.
-        // The reinstall check starts here too, so a new install's first registration carries `reinstall`.
-        val resolution = ServiceLocator.instance.resolveIdentityUseCase(supplied)
-        if (resolution.switchedUser && this.context.isDebuggable()) {
-            ApphudLog.logE("Started with another user without logout. Call Apphud.logout() before a different user signs in.")
+        var identityChanged = false
+        var closedVersion1Registration: CompletableDeferred<Unit>? = null
+        if (isIdentityV1) {
+            val versionTwoIds = supplied.anonymousId != null || supplied.isReinstall != null ||
+                (supplied.installationId != null && supplied.installationId != supplied.deviceId)
+            if (versionTwoIds && this.context.isDebuggable()) {
+                ApphudLog.logE("anonymousId, installationId and isReinstall are used with identityVersion V2 only")
+            }
+        } else {
+            // Before the caches are validated: an update in place reads the old user from the cached customer.
+            // The reinstall check starts here too, so a new install's first registration carries `reinstall`.
+            val resolution = ServiceLocator.instance.resolveIdentityUseCase(supplied)
+            if (resolution.switchedUser && this.context.isDebuggable()) {
+                ApphudLog.logE("Started with another user without logout. Call Apphud.logout() before a different user signs in.")
+            }
+            identityChanged = resolution.changed || ServiceLocator.instance.identityStore.isSyncPending
         }
-        val identityChanged = resolution.changed || ServiceLocator.instance.identityStore.isSyncPending
 
         val isValid = storage.validateCaches()
         if (ignoreCache) {
@@ -238,6 +299,22 @@ internal object ApphudInternal {
             if (ignoreCache || !isValid || observerMode) null else userRepository.getCurrentUser()?.placements
 
         analyticsTracker.recordSdkLaunch()
+
+        if (isIdentityV1) {
+            // Version 2 ran last: its user id (or anonymous id) finds the same customer, and the first
+            // launch registers, so the backend sees this device id.
+            val identityStore = ServiceLocator.instance.identityStore
+            val fromVersion2 = identityStore.idsForVersion1()
+            val credentialsChanged = ServiceLocator.instance.resolveCredentialsUseCase(
+                supplied.userId ?: fromVersion2?.userId,
+                supplied.deviceId ?: fromVersion2?.deviceId,
+            ).credentialsChanged
+            identityStore.markVersion1(tookOverVersion2 = fromVersion2 != null)
+            // After version 2 a registration must show the backend this device id, on a later launch too
+            // if the first one failed.
+            identityChanged = credentialsChanged || identityStore.isVersion1RegistrationPending
+            closedVersion1Registration = version1Registration.closeIfPending()
+        }
 
         this.productGroups.set(if (isValid) storage.productGroups.orEmpty() else emptyList())
 
@@ -251,11 +328,13 @@ internal object ApphudInternal {
         ApphudLog.log("Need to register user: $needRegistration")
 
         coroutineScope.launch {
-            if (needRegistration) {
-                runCatchingCancellable { registration() }
-                    .onFailure { ApphudLog.logE("Registration failed in initialize: ${it.message}") }
-            } else {
-                coroutineScope.launch(dispatchers.main) { notifyLoadingCompleted(customerLoaded = userRepository.getCurrentUser()) }
+            version1Registration.runLaunchRegistration(closedVersion1Registration) {
+                if (needRegistration) {
+                    runCatchingCancellable { registration() }
+                        .onFailure { ApphudLog.logE("Registration failed in initialize: ${it.message}") }
+                } else {
+                    coroutineScope.launch(dispatchers.main) { notifyLoadingCompleted(customerLoaded = userRepository.getCurrentUser()) }
+                }
             }
             postInitSetup()
         }
@@ -266,7 +345,7 @@ internal object ApphudInternal {
             loadProducts()
         }
         ServiceLocator.instance.fetchNativePurchasesUseCase()
-        userRepository.getIdentity()?.let { ServiceLocator.instance.ruleController.start(it) }
+        userRepository.getRequestIds()?.let { ServiceLocator.instance.ruleController.start(it) }
     }
 
     //endregion
@@ -580,6 +659,7 @@ internal object ApphudInternal {
      * id while identified switches to that user.
      */
     internal suspend fun updateUserId(userId: UserId): ApphudUser? {
+        if (isIdentityV1) return updateUserIdV1(userId)
         if (userId.isBlank()) {
             ApphudLog.log("Invalid UserId=$userId")
             return userRepository.getCurrentUser()
@@ -609,8 +689,12 @@ internal object ApphudInternal {
     internal fun applyIdentify(userId: String): Boolean {
         val outcome = ServiceLocator.instance.identityStore.identify(userId)
         if (outcome == ApphudIdentifyOutcome.UNCHANGED) return false
-        if (outcome == ApphudIdentifyOutcome.SWITCHED && context.isDebuggable()) {
-            ApphudLog.logE("Switched to another user without logout. Call Apphud.logout() before a different user signs in.")
+        if (outcome == ApphudIdentifyOutcome.SWITCHED) {
+            // The store dropped the old customer from the record; the check's copy of it too.
+            ServiceLocator.instance.reinstallRepository.forgetLegacyDeviceId()
+            if (context.isDebuggable()) {
+                ApphudLog.logE("Switched to another user without logout. Call Apphud.logout() before a different user signs in.")
+            }
         }
         coroutineScope.launch(dispatchers.main) { apphudListener?.apphudDidChangeUserID(userId) }
         return true
@@ -640,6 +724,51 @@ internal object ApphudInternal {
             coroutineScope.launch(dispatchers.main) { notifyLoadingCompleted(customerLoaded = it) }
         }
         return customer
+    }
+
+    /** Identity version 1: the user id of the next registration, as SDK 3.6 set it. */
+    internal suspend fun updateUserIdV1(
+        userId: UserId,
+        email: String? = null,
+        web2Web: Boolean? = false,
+    ): ApphudUser? {
+        if (userId.isBlank()) {
+            ApphudLog.log("Invalid UserId=$userId")
+            return userRepository.getCurrentUser()
+        }
+        ApphudLog.log("Start updateUserId userId=$userId")
+
+        runCatchingCancellable { awaitUserRegistration() }
+            .onFailure { error ->
+                ApphudLog.logE(error.message.orEmpty())
+                return userRepository.getCurrentUser()
+            }
+
+        userRepository.setUserId(userId)
+        RequestManager.setParams(this.context, this.apiKey)
+
+        if (web2Web == true) {
+            fromWeb2Web = true
+        }
+        val needPlacementsPaywalls = !didRegisterCustomerAtThisLaunch && !deferPlacements && !observerMode
+        val customer: ApphudUser? = runCatchingCancellable {
+            ServiceLocator.instance.registrationInteractor(
+                needPlacementsPaywalls = needPlacementsPaywalls,
+                isNew = isNew,
+                forceRegistration = true,
+                userId = userId,
+                email = email
+            )
+        }.getOrElse { error ->
+            val apphudError = if (error is ApphudError) error else ApphudError.from(originalCause = error)
+            ApphudLog.logE("updateUserId error: ${apphudError.message}")
+            null
+        }
+
+        customer?.let {
+            coroutineScope.launch(dispatchers.main) { notifyLoadingCompleted(customerLoaded = it) }
+        }
+        return userRepository.getCurrentUser()
     }
 
 //endregion
@@ -824,12 +953,26 @@ internal object ApphudInternal {
         }
     }
 
+    /** The app's reinstall answer that arrived after start, version 2 with every id from the app only. */
+    internal fun setReinstall(isReinstall: Boolean) {
+        val used = !isIdentityV1 &&
+            runCatching { ServiceLocator.instance.reinstallRepository.useLaterHostValue(isReinstall) }.getOrDefault(false)
+        if (!used && runCatching { context.isDebuggable() }.getOrDefault(false)) {
+            ApphudLog.logE("setReinstall is used after a start with identityVersion V2, installationId and anonymousId only")
+        }
+    }
+
+    /** Identity version 1 after version 2: waits for this launch's first registration. */
+    internal suspend fun awaitVersion1Registration() {
+        version1Registration.awaitLaunchRegistration()
+    }
+
     internal suspend fun awaitUserRegistration() {
         if (!isInitialized()) {
             throw ApphudError(MUST_REGISTER_ERROR)
         }
 
-        val mCurrentUser = userRepository.getCurrentUser()
+        val mCurrentUser = version1Registration.afterLaunchRegistration { userRepository.getCurrentUser() }
         when {
             mCurrentUser == null -> {
                 registration()
@@ -907,19 +1050,31 @@ internal object ApphudInternal {
 
     private fun isInitialized(): Boolean {
         return ::context.isInitialized &&
-            runCatching { userRepository.getIdentity() }.getOrNull() != null &&
+            runCatching { userRepository.getRequestIds() }.getOrNull() != null &&
             ::apiKey.isInitialized
     }
 
     /** [anonymousId]: the next anonymous id; without one the SDK generates it. The installation id stays. */
     internal fun logout(anonymousId: String? = null) = synchronized(this) {
-        // The ids change first: the next start registers the new anonymous person.
+        // Before a start in this launch, the version that ran last here decides how to log out.
+        if (runsIdentityV1) {
+            runCatching { ServiceLocator.instance.identityStore.markVersion1LoggedOut() }
+                .onFailure { ApphudLog.log("Skip identityStore.markVersion1LoggedOut(): ${it.message}") }
+            clear()
+            return@synchronized
+        }
+        // The ids change first: the next start registers the new anonymous person. The store drops the old
+        // customer from the record before it saves the new person.
         runCatching { ServiceLocator.instance.identityStore.logout(anonymousId) }
             .onFailure { ApphudLog.log("Skip identityStore.logout(): ${it.message}") }
+        // The check's copy of the old customer too.
+        runCatching { ServiceLocator.instance.reinstallRepository.forgetLegacyDeviceId() }
+            .onFailure { ApphudLog.log("Skip forgetLegacyDeviceId(): ${it.message}") }
         clear()
     }
 
     private fun clear() {
+        version1Registration.open()
         // Detach the process lifecycle observer before cancelling the session scope so that
         // ON_START/ON_STOP callbacks don't fire against a torn-down session.
         // ProcessLifecycleOwner.removeObserver requires the main thread.
@@ -987,8 +1142,15 @@ internal object ApphudInternal {
      * Separation of concerns: state mutation is separated from notifications
      */
     private fun updateUserState(user: ApphudUser, fromFallback: Boolean = false) {
-        // The user id never changes through a response: only identify and logout change it.
-        userRepository.setCurrentUser(user)
+        // The user id never changes through a response: only identify and logout change it. Identity
+        // version 1 takes the user id the response names, as SDK 3.6 did.
+        val userIdChanged = userRepository.setCurrentUser(user)
+        if (isIdentityV1 && userIdChanged && !fromFallback) {
+            val newUserId = user.userId
+            coroutineScope.launch(dispatchers.main) {
+                apphudListener?.apphudDidChangeUserID(newUserId)
+            }
+        }
 
         hasRespondedToPaywallsRequest =
             hasRespondedToPaywallsRequest || user.placements.isNotEmpty() || observerMode

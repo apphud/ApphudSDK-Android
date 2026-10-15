@@ -11,7 +11,7 @@ import com.apphud.sdk.internal.data.AnalyticsTracker
 import com.apphud.sdk.internal.data.DeviceIdentifiersRepository
 import com.apphud.sdk.internal.data.ReinstallRepository
 import com.apphud.sdk.internal.data.UserRepository
-import com.apphud.sdk.internal.domain.model.ApphudIdentity
+import com.apphud.sdk.internal.domain.model.RequestIds
 import com.apphud.sdk.isDebuggable
 import java.util.Locale
 import java.util.TimeZone
@@ -63,7 +63,7 @@ internal class RegistrationProvider(
         return if (androidId.isNullOrEmpty()) null else androidId
     }
 
-    fun getIdentity(): ApphudIdentity? = userRepository.getIdentity()
+    fun getRequestIds(): RequestIds? = userRepository.getRequestIds()
 
     fun getTimeZone(): String = TimeZone.getDefault().id
 
@@ -80,6 +80,9 @@ internal class RegistrationProvider(
         ApphudUtils.getInstallerPackageName(applicationContext) ?: "unknown"
 
     fun getObserverMode(): Boolean = ApphudInternal.observerMode
+
+    /** Identity version 1: `from_web2web` of every registration after a web-to-web attribution. */
+    fun getFromWeb2Web(): Boolean = ApphudInternal.fromWeb2Web
 
     fun getReinstall(): Boolean? = reinstallRepository.reinstallFlag()
 

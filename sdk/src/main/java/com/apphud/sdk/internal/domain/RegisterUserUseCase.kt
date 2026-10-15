@@ -20,12 +20,14 @@ internal class RegisterUserUseCase(
         forceRegistration: Boolean,
         email: String? = null,
         fromWeb2Web: Boolean = false,
+        /** Identity version 1: the user id this registration sends, as SDK 3.6 passed it. */
+        userId: String? = null,
         cachedUser: ApphudUser? = null,
     ): ApphudUser {
         val registrationType = if (forceRegistration) "Force Registration" else "Registration"
         ApphudLog.log(
             "$registrationType: needPlacementsPaywalls=$needPlacementsPaywalls, " +
-                "isNew=$isNew, email=$email, fromWeb2Web=$fromWeb2Web",
+                "isNew=$isNew, userId=$userId, email=$email, fromWeb2Web=$fromWeb2Web",
         )
 
         val newUser = runCatchingCancellable {
@@ -35,6 +37,7 @@ internal class RegisterUserUseCase(
                 forceRegistration = forceRegistration,
                 email = email,
                 fromWeb2Web = fromWeb2Web,
+                userId = userId,
             )
         }.getOrElse { error ->
             ApphudLog.logE("$registrationType failed: ${error.message}")

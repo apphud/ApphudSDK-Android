@@ -1,6 +1,6 @@
 package com.apphud.sdk.internal.domain
 
-import com.apphud.sdk.internal.domain.model.ApphudIdentity
+import com.apphud.sdk.internal.domain.model.RequestIds
 import com.apphud.sdk.domain.ApphudPaywall
 import com.apphud.sdk.internal.data.UserRepository
 import com.apphud.sdk.internal.data.remote.RemoteRepository
@@ -14,7 +14,7 @@ internal class GetPaywallByIdentifierUseCase(
     private val remoteRepository: RemoteRepository,
 ) {
 
-    suspend operator fun invoke(identifier: String, identity: ApphudIdentity): ApphudPaywall? {
+    suspend operator fun invoke(identifier: String, identity: RequestIds): ApphudPaywall? {
         cachedPaywall(identifier)?.let { return it }
         return remoteRepository.getPaywall(identifier, identity).getOrNull()
     }

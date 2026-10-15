@@ -25,7 +25,7 @@ class UserPropertiesManagerTest {
 
     private val userRepository: UserRepository = mockk {
         every { getCurrentUser() } returns null
-        every { getIdentity() } returns ApphudIdentity("test-installation-id", "test-anonymous-id", null)
+        every { getRequestIds() } returns ApphudIdentity("test-installation-id", "test-anonymous-id", null).requestIds
     }
 
     private val storage: SharedPreferencesStorage = mockk {

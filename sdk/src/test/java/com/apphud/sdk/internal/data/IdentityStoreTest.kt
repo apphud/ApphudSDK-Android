@@ -9,6 +9,8 @@ import com.apphud.sdk.domain.FacebookInfo
 import com.apphud.sdk.internal.domain.model.ApphudIdentifyOutcome
 import com.apphud.sdk.internal.domain.model.ApphudLaunchKind
 import com.apphud.sdk.internal.domain.model.ApphudSuppliedIds
+import com.apphud.sdk.internal.domain.model.ApphudIdentity
+import com.apphud.sdk.internal.domain.model.Version1Ids
 import com.apphud.sdk.storage.InstallRecord
 import com.apphud.sdk.storage.InstallRecordStorage
 import com.apphud.sdk.storage.InstallState
@@ -19,6 +21,8 @@ import org.junit.Assert.assertNotEquals
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
+import com.apphud.sdk.ApphudIdentityVersion
+import com.apphud.sdk.storage.IdentityVersionStorage
 import java.io.IOException
 
 class IdentityStoreTest {
@@ -31,6 +35,10 @@ class IdentityStoreTest {
         override var anonymousId: String? = null
         override var identifiedUserId: String? = null
         override var identitySyncPending: Boolean = false
+        override var idsIdentityVersion: String? = null
+        override var version1IdsReset: Boolean = false
+        override var version1LoggedOut: Boolean = false
+        override var version1RegistrationPending: Boolean = false
         override var apphudUser: ApphudUser? = null
         override var isNeedSync: Boolean = false
         override var facebook: FacebookInfo? = null
@@ -52,6 +60,8 @@ class IdentityStoreTest {
         var record: InstallRecord? = null
         var failWrites = false
         var failReads = false
+        /** Called before every write, e.g. to see what was saved in the preferences at that moment. */
+        var onWrite: (() -> Unit)? = null
 
         override fun read(): InstallRecord? {
             if (failReads) throw IOException("unreadable")
@@ -59,13 +69,26 @@ class IdentityStoreTest {
         }
 
         override fun write(record: InstallRecord) {
+            onWrite?.invoke()
             if (failWrites) throw IOException("not saved")
             this.record = record
         }
     }
 
+    /** The identity version this install ran last: install-scoped, like the record. */
+    private class FakeVersions : IdentityVersionStorage {
+        var version: ApphudIdentityVersion? = null
+
+        override fun read(): ApphudIdentityVersion? = version
+
+        override fun write(version: ApphudIdentityVersion) {
+            this.version = version
+        }
+    }
+
     private val storage = FakeStorage()
     private val records = FakeInstallRecords()
+    private val versions = FakeVersions()
     private var freshPackage: Boolean? = true
     private var clearedUserData = 0
     private var nextId = 0
@@ -74,6 +97,7 @@ class IdentityStoreTest {
     private fun store() = IdentityStore(
         storage = storage,
         installRecords = records,
+        versions = versions,
         isFreshPackageInstall = { freshPackage },
         clearUserData = {
             clearedUserData += 1
@@ -88,11 +112,33 @@ class IdentityStoreTest {
     /** Delete the app: everything the install kept is gone; nothing survives in app storage. */
     private fun deleteApp() {
         records.record = null
+        versions.version = null
         storage.anonymousId = null
         storage.identifiedUserId = null
         storage.identitySyncPending = false
         storage.apphudUser = null
         storage.deviceId = null
+        storage.idsIdentityVersion = null
+        storage.version1IdsReset = false
+        storage.version1LoggedOut = false
+        storage.version1RegistrationPending = false
+    }
+
+    /**
+     * What identity version 1 leaves when it runs with these ids: its device id, its customer, the
+     * install's version. [tookOverVersion2]: its first start after version 2; false after its own logout.
+     */
+    private fun runVersion1(deviceId: String, userId: String, tookOverVersion2: Boolean = true) {
+        storage.deviceId = deviceId
+        storage.apphudUser = legacyUser(userId)
+        store().markVersion1(tookOverVersion2)
+    }
+
+    /** Another phone restored from this one's backup: the preferences come along, noBackupFilesDir doesn't. */
+    private fun restoreBackupOntoAnotherPhone() {
+        records.record = null
+        versions.version = null
+        freshPackage = true
     }
 
     private fun legacyUser(userId: String) = ApphudUser(
@@ -277,13 +323,13 @@ class IdentityStoreTest {
     }
 
     @Test
-    fun `GIVEN update in place EXPECT the old device id key removed`() {
+    fun `GIVEN update in place EXPECT the old device id kept for identity version 1`() {
         storage.deviceId = "OLD"
         freshPackage = false
 
         launch()
 
-        assertNull(storage.deviceId)
+        assertEquals("OLD", storage.deviceId)
     }
 
     @Test
@@ -343,14 +389,118 @@ class IdentityStoreTest {
     }
 
     @Test
-    fun `GIVEN old data restored and another user started EXPECT the old device id kept for the backend to decide`() {
+    fun `GIVEN old data restored and another user started EXPECT the old device id dropped`() {
         storage.deviceId = "OLD"
         storage.apphudUser = legacyUser("alice")
         freshPackage = true
 
+        val resolution = launch(ApphudSuppliedIds.of(userId = "bob"))
+
+        assertNull("not after a user switch", records.record?.legacyDeviceId)
+        assertTrue(resolution.dropsLegacyDeviceId)
+    }
+
+    @Test
+    fun `GIVEN an update started with another user EXPECT the record without the old device id saved before the user`() {
+        storage.deviceId = "OLD"
+        storage.apphudUser = legacyUser("alice")
+        freshPackage = false
+        var userAtTheRecord: String? = "unset"
+        records.onWrite = { userAtTheRecord = storage.identifiedUserId }
+
         launch(ApphudSuppliedIds.of(userId = "bob"))
 
+        assertNull("a crash in between leaves the user before: the next launch drops it again", userAtTheRecord)
+        assertNull(records.record?.legacyDeviceId)
+        assertEquals("bob", storage.identifiedUserId)
+    }
+
+    @Test
+    fun `GIVEN a user switch EXPECT the old device id dropped from the record before the new user is saved`() {
+        storage.deviceId = "OLD"
+        storage.apphudUser = legacyUser("alice")
+        freshPackage = false
+        val launched = store().also { it.resolve(ApphudSuppliedIds()) }
+        var userAtTheDrop: String? = "unset"
+        records.onWrite = { userAtTheDrop = storage.identifiedUserId }
+
+        assertEquals(ApphudIdentifyOutcome.SWITCHED, launched.identify("bob"))
+
+        assertEquals("alice", userAtTheDrop)
+        assertNull(records.record?.legacyDeviceId)
+    }
+
+    @Test
+    fun `GIVEN the first identify of the anonymous person EXPECT the old device id kept`() {
+        storage.deviceId = "OLD"
+        storage.apphudUser = legacyUser("OLD")
+        freshPackage = false
+        val launched = store().also { it.resolve(ApphudSuppliedIds()) }
+
+        assertEquals(ApphudIdentifyOutcome.IDENTIFIED, launched.identify("alice"))
+
         assertEquals("OLD", records.record?.legacyDeviceId)
+    }
+
+    @Test
+    fun `GIVEN a logout EXPECT the old device id dropped from the record before the new person is saved`() {
+        storage.deviceId = "OLD"
+        storage.apphudUser = legacyUser("alice")
+        freshPackage = false
+        val launched = store().also { it.resolve(ApphudSuppliedIds()) }
+        val before = storage.anonymousId
+        var anonymousIdAtTheDrop: String? = "unset"
+        records.onWrite = { anonymousIdAtTheDrop = storage.anonymousId }
+
+        launched.logout(null)
+
+        assertEquals(before, anonymousIdAtTheDrop)
+        assertNull(records.record?.legacyDeviceId)
+    }
+
+    @Test
+    fun `GIVEN version 2 of a build before the version marker then version 1 EXPECT version 2 again on the same anonymous person`() {
+        val first = launch()
+        // A build before the version marker: the ids of version 2, no marker.
+        versions.version = null
+        storage.idsIdentityVersion = null
+
+        val version1 = store().idsForVersion1()
+        assertEquals(first.identity.installationId, version1?.deviceId)
+        assertEquals("the anonymous id finds the customer", first.identity.anonymousId, version1?.userId)
+        // Version 1 registered; the backend answered with that customer, whose user id is the anonymous id.
+        runVersion1(deviceId = first.identity.installationId, userId = first.identity.anonymousId)
+
+        val back = launch().identity
+
+        assertEquals(first.identity.anonymousId, back.anonymousId)
+        assertNull("the user id version 1 had was the anonymous id: no user", back.userId)
+        assertEquals(first.identity.installationId, records.record?.legacyDeviceId)
+    }
+
+    @Test
+    fun `GIVEN version 2 anonymous then version 1 WHEN version 2 starts with a user EXPECT a first identify, not a switch`() {
+        val first = launch()
+        runVersion1(deviceId = first.identity.installationId, userId = first.identity.anonymousId)
+
+        val resolution = launch(ApphudSuppliedIds.of(userId = "alice"))
+
+        assertFalse("version 1's user id was version 2's anonymous id", resolution.switchedUser)
+        assertFalse(resolution.dropsLegacyDeviceId)
+        assertEquals(first.identity.installationId, records.record?.legacyDeviceId)
+    }
+
+    @Test
+    fun `GIVEN the host's new anonymous id EXPECT the old device id dropped as after a logout`() {
+        storage.deviceId = "OLD"
+        storage.apphudUser = legacyUser("alice")
+        freshPackage = false
+        launch()
+
+        val resolution = launch(ApphudSuppliedIds.of(anonymousId = "host-anon", installationId = "inst"))
+
+        assertNull(records.record?.legacyDeviceId)
+        assertTrue(resolution.dropsLegacyDeviceId)
     }
 
     @Test
@@ -889,6 +1039,26 @@ class IdentityStoreTest {
     // region ids supplied by the app
 
     @Test
+    fun `GIVEN the app's kept reinstall answer WHEN it passes another installation id EXPECT the answer dropped`() {
+        launch(ApphudSuppliedIds.of(anonymousId = "a", installationId = "inst-A"))
+        records.record = records.record?.copy(hostReinstall = true)
+
+        launch(ApphudSuppliedIds.of(anonymousId = "a", installationId = "inst-B"))
+
+        assertNull("the answer belongs to its installation", records.record?.hostReinstall)
+    }
+
+    @Test
+    fun `GIVEN the app's kept reinstall answer WHEN the same installation id EXPECT it kept`() {
+        launch(ApphudSuppliedIds.of(anonymousId = "a", installationId = "inst-A"))
+        records.record = records.record?.copy(hostReinstall = true)
+
+        launch(ApphudSuppliedIds.of(anonymousId = "a", installationId = "inst-A"))
+
+        assertEquals(true, records.record?.hostReinstall)
+    }
+
+    @Test
     fun `GIVEN every id supplied EXPECT stored as given`() {
         val identity = launch(ApphudSuppliedIds.of(userId = "u", anonymousId = "a", installationId = "i")).identity
 
@@ -1003,6 +1173,427 @@ class IdentityStoreTest {
         deleteApp()
 
         assertNotEquals(before.installationId, launch().identity.installationId)
+    }
+
+    // endregion
+
+    // region identity version switch
+
+    @Test
+    fun `GIVEN a fresh version 2 install WHEN version 1 starts EXPECT the installation and anonymous ids`() {
+        val identity = launch().identity
+
+        assertEquals(Version1Ids(identity.installationId, identity.anonymousId), store().idsForVersion1())
+    }
+
+    @Test
+    fun `GIVEN an identified version 2 user WHEN version 1 starts EXPECT that user`() {
+        val store = store().also { it.resolve(ApphudSuppliedIds()) }
+        store.identify("alice")
+
+        assertEquals("alice", store().idsForVersion1()?.userId)
+    }
+
+    @Test
+    fun `GIVEN an updated install WHEN version 1 starts EXPECT the old ids`() {
+        storage.deviceId = "OLD"
+        storage.apphudUser = legacyUser("OLD")
+        freshPackage = false
+        launch()
+
+        assertEquals(Version1Ids("OLD", "OLD"), store().idsForVersion1())
+    }
+
+    @Test
+    fun `GIVEN an updated install with a real user WHEN version 1 starts EXPECT the old device id and the user`() {
+        storage.deviceId = "OLD"
+        storage.apphudUser = legacyUser("alice@example.com")
+        freshPackage = false
+        launch()
+
+        assertEquals(Version1Ids("OLD", "alice@example.com"), store().idsForVersion1())
+    }
+
+    @Test
+    fun `GIVEN a logout on version 2 WHEN version 1 starts EXPECT a new device id and the new anonymous id`() {
+        storage.deviceId = "OLD"
+        storage.apphudUser = legacyUser("alice@example.com")
+        freshPackage = false
+        val store = store().also { it.resolve(ApphudSuppliedIds()) }
+
+        store.logout(null)
+
+        assertNull(storage.deviceId)
+        assertTrue(storage.version1IdsReset)
+        val ids = store().idsForVersion1()
+        assertEquals(store.current!!.anonymousId, ids?.userId)
+        assertNotEquals("never the logged-out person's", "OLD", ids?.deviceId)
+        assertTrue("a new device id", !ids?.deviceId.isNullOrEmpty())
+    }
+
+    @Test
+    fun `GIVEN version 2 never ran EXPECT nothing to take over`() {
+        assertNull("a fresh install", store().idsForVersion1())
+        storage.deviceId = "OLD"
+        storage.apphudUser = legacyUser("OLD")
+        assertNull("only an old version ran", store().idsForVersion1())
+        store().markVersion1()
+        assertNull("only version 1 ran", store().idsForVersion1())
+    }
+
+    @Test
+    fun `GIVEN version 1 already took the ids over EXPECT nothing to take over again`() {
+        val identity = launch().identity
+        runVersion1(identity.installationId, identity.anonymousId)
+
+        assertNull(store().idsForVersion1())
+    }
+
+    @Test
+    fun `GIVEN a build without the version marker WHEN version 1 starts EXPECT the ids of version 2`() {
+        val identity = launch().identity
+        versions.version = null
+
+        assertEquals(identity.installationId, store().idsForVersion1()?.deviceId)
+    }
+
+    @Test
+    fun `GIVEN version 1 ran after version 2 WHEN version 2 starts EXPECT its ids taken over again`() {
+        val first = launch().identity
+        store().markSynced()
+        runVersion1(first.installationId, first.anonymousId)
+
+        val resolution = launch()
+
+        assertEquals(ApphudLaunchKind.UPGRADE, resolution.launch)
+        assertEquals(first, resolution.identity)
+        assertTrue(resolution.changed)
+        assertTrue(store().isSyncPending)
+        assertEquals(first.installationId, records.record?.legacyDeviceId)
+        assertEquals(ApphudIdentityVersion.V2, versions.version)
+        assertEquals("V2", storage.idsIdentityVersion)
+    }
+
+    @Test
+    fun `GIVEN version 1 kept the user of version 2 WHEN version 2 starts EXPECT a sync for the old device id alone`() {
+        val store = store().also { it.resolve(ApphudSuppliedIds()) }
+        store.identify("alice")
+        val first = store.current!!
+        runVersion1(first.installationId, "alice")
+        store().markSynced()
+
+        val resolution = launch()
+
+        assertEquals(first, resolution.identity)
+        assertTrue("only legacy_device_id is new, and it must be registered", resolution.changed)
+    }
+
+    @Test
+    fun `GIVEN a logout and a new start on version 1 WHEN version 2 starts EXPECT its new ids`() {
+        val first = launch().identity
+        runVersion1(first.installationId, first.anonymousId)
+        store().markVersion1LoggedOut()
+        runVersion1("V1-NEW", "V1-NEW", tookOverVersion2 = false)
+
+        val identity = launch().identity
+
+        assertEquals(ApphudIdentity(first.installationId, "V1-NEW", null), identity)
+        assertEquals("V1-NEW", records.record?.legacyDeviceId)
+    }
+
+    @Test
+    fun `GIVEN a logout, a new start and another user on version 1 WHEN version 2 starts EXPECT no anonymous id from before`() {
+        val store = store().also { it.resolve(ApphudSuppliedIds()) }
+        store.identify("alice")
+        val first = store.current!!
+        runVersion1(first.installationId, "alice")
+        store().markVersion1LoggedOut()
+        runVersion1("V1-NEW", "bob", tookOverVersion2 = false)
+
+        val identity = launch().identity
+
+        assertEquals("bob", identity.userId)
+        assertNotEquals("alice's anonymous id stays with alice", first.anonymousId, identity.anonymousId)
+        assertEquals("V1-NEW", records.record?.legacyDeviceId)
+    }
+
+    @Test
+    fun `GIVEN a logout on version 1 without a start WHEN version 2 starts EXPECT a new person`() {
+        val store = store().also { it.resolve(ApphudSuppliedIds()) }
+        store.identify("alice")
+        val first = store.current!!
+        runVersion1(first.installationId, "alice")
+        // Logout on version 1 clears its device id and customer.
+        store().markVersion1LoggedOut()
+        storage.deviceId = null
+        storage.apphudUser = null
+
+        val identity = launch().identity
+
+        assertEquals(first.installationId, identity.installationId)
+        assertNotEquals(first.anonymousId, identity.anonymousId)
+        assertNull(identity.userId)
+        assertNull(records.record?.legacyDeviceId)
+    }
+
+    @Test
+    fun `GIVEN an old version, then version 2, version 1 and version 2 EXPECT the same ids`() {
+        storage.deviceId = "OLD"
+        storage.apphudUser = legacyUser("OLD")
+        freshPackage = false
+        val updated = launch().identity
+        val ids = store().idsForVersion1()!!
+        runVersion1(ids.deviceId!!, ids.userId)
+
+        val again = launch()
+
+        assertEquals(ApphudLaunchKind.UPGRADE, again.launch)
+        assertEquals(updated, again.identity)
+        assertEquals(Version1Ids("OLD", "OLD"), store().idsForVersion1())
+        assertEquals("OLD", records.record?.legacyDeviceId)
+    }
+
+    @Test
+    fun `GIVEN version 1 installed the app WHEN version 2 starts without an app update EXPECT an update, not a restore`() {
+        // A fresh package: the app was installed with version 1 and never updated.
+        freshPackage = true
+        runVersion1("V1-DEVICE", "V1-DEVICE", tookOverVersion2 = false)
+
+        val resolution = launch()
+
+        assertEquals(ApphudLaunchKind.UPGRADE, resolution.launch)
+        assertEquals(ApphudIdentity("V1-DEVICE", "V1-DEVICE", null), resolution.identity)
+        assertEquals(0, clearedUserData)
+        assertEquals("V1-DEVICE", records.record?.legacyDeviceId)
+    }
+
+    @Test
+    fun `GIVEN a backup of an updated install restored and the app updated before it opened EXPECT no update`() {
+        storage.deviceId = "OLD"
+        storage.apphudUser = legacyUser("OLD")
+        freshPackage = false
+        val updated = launch().identity
+        restoreBackupOntoAnotherPhone()
+        freshPackage = false
+
+        val resolution = launch()
+
+        assertEquals(ApphudLaunchKind.NEW_INSTALL, resolution.launch)
+        assertNotEquals("its old device id never becomes an installation id", "OLD", resolution.identity.installationId)
+        assertEquals(updated.anonymousId, resolution.identity.anonymousId)
+    }
+
+    @Test
+    fun `GIVEN a switch from version 1 that could not be saved EXPECT it runs again`() {
+        val first = launch().identity
+        runVersion1(first.installationId, first.anonymousId)
+        records.failWrites = true
+        assertEquals(ApphudLaunchKind.UPGRADE, launch().launch)
+
+        records.failWrites = false
+
+        assertEquals("the marker waits for the saved record", ApphudLaunchKind.UPGRADE, launch().launch)
+        assertEquals(ApphudLaunchKind.NORMAL, launch().launch)
+    }
+
+    @Test
+    fun `GIVEN version 1 then ids the app supplies on version 2 WHEN version 1 starts EXPECT those ids`() {
+        store().markVersion1()
+        launch(ApphudSuppliedIds(userId = "host-user", anonymousId = "host-anon", installationId = "host-install", isReinstall = false))
+
+        assertEquals(ApphudIdentityVersion.V2, versions.version)
+        assertEquals(Version1Ids("host-install", "host-user"), store().idsForVersion1())
+    }
+
+    @Test
+    fun `GIVEN an update in place EXPECT both version markers set to version 2`() {
+        storage.deviceId = "OLD"
+        freshPackage = false
+
+        launch()
+
+        assertEquals(ApphudIdentityVersion.V2, versions.version)
+        assertEquals("V2", storage.idsIdentityVersion)
+    }
+
+    @Test
+    fun `GIVEN a logout on version 1, then version 2, WHEN version 1 starts EXPECT a new device id`() {
+        val store = store().also { it.resolve(ApphudSuppliedIds()) }
+        store.identify("alice")
+        val first = store.current!!
+        runVersion1(first.installationId, "alice")
+        store().markVersion1LoggedOut()
+        storage.deviceId = null
+        storage.apphudUser = null
+        val second = launch().identity
+
+        val ids = store().idsForVersion1()
+
+        assertEquals(second.anonymousId, ids?.userId)
+        assertTrue("a new device id", !ids?.deviceId.isNullOrEmpty())
+        assertNotEquals("alice's device id stays with alice", first.installationId, ids?.deviceId)
+    }
+
+    @Test
+    fun `GIVEN version 1 went on with the person of version 2 WHEN version 2 starts EXPECT that person`() {
+        val first = launch().identity
+        runVersion1(first.installationId, first.anonymousId)
+
+        val identity = launch().identity
+
+        assertEquals(first, identity)
+        assertEquals("its device id adopts the customer again", first.installationId, records.record?.legacyDeviceId)
+    }
+
+    @Test
+    fun `GIVEN version 1 ran last and logged out, WHEN its backup is restored onto a version 2 phone EXPECT its person`() {
+        val store = store().also { it.resolve(ApphudSuppliedIds()) }
+        store.identify("alice")
+        val first = store.current!!
+        runVersion1(first.installationId, "alice")
+        store().markVersion1LoggedOut()
+        runVersion1("V1-NEW", "bob", tookOverVersion2 = false)
+        restoreBackupOntoAnotherPhone()
+
+        val identity = launch().identity
+
+        assertEquals("bob", identity.userId)
+        assertNotEquals("alice's anonymous id stays with alice", first.anonymousId, identity.anonymousId)
+        assertEquals("V1-NEW", records.record?.legacyDeviceId)
+    }
+
+    @Test
+    fun `GIVEN version 1 ran last, WHEN its backup is restored and version 1 starts EXPECT its own ids, not those of version 2`() {
+        val store = store().also { it.resolve(ApphudSuppliedIds()) }
+        store.identify("alice")
+        val first = store.current!!
+        runVersion1(first.installationId, "alice")
+        store().markVersion1LoggedOut()
+        runVersion1("V1-NEW", "bob", tookOverVersion2 = false)
+        restoreBackupOntoAnotherPhone()
+
+        assertNull("version 1 ran last on these ids: nothing of version 2 to take over", store().idsForVersion1())
+    }
+
+    @Test
+    fun `GIVEN version 1 took over WHEN no registration succeeded yet EXPECT it still pending on a later launch`() {
+        val first = launch().identity
+        runVersion1(first.installationId, first.anonymousId)
+        assertTrue(store().isVersion1RegistrationPending)
+
+        store().markVersion1()
+        assertTrue(store().isVersion1RegistrationPending)
+
+        store().markVersion1Registered()
+        assertFalse(store().isVersion1RegistrationPending)
+    }
+
+    @Test
+    fun `GIVEN the version that ran last EXPECT it known before a start`() {
+        assertNull(store().lastIdentityVersion())
+        store().markVersion1()
+        assertEquals(ApphudIdentityVersion.V1, store().lastIdentityVersion())
+        launch()
+        assertEquals(ApphudIdentityVersion.V2, store().lastIdentityVersion())
+        versions.version = null
+        assertEquals("the marker next to the ids when the install's own is gone", ApphudIdentityVersion.V2, store().lastIdentityVersion())
+        storage.idsIdentityVersion = null
+        assertEquals("ids of version 2 without a marker", ApphudIdentityVersion.V2, store().lastIdentityVersion())
+    }
+
+    /** What the logout of version 1 (as in SDK 3.6) leaves: no device id, no cached customer. */
+    private fun logOutOnVersion1() {
+        store().markVersion1LoggedOut()
+        storage.deviceId = null
+        storage.apphudUser = null
+    }
+
+    @Test
+    fun `GIVEN a backup taken after a logout on version 1 WHEN restored onto a version 2 phone EXPECT no person back`() {
+        val store = store().also { it.resolve(ApphudSuppliedIds()) }
+        store.identify("alice")
+        val first = store.current!!
+        runVersion1(first.installationId, "alice")
+        logOutOnVersion1()
+        restoreBackupOntoAnotherPhone()
+
+        val identity = launch().identity
+
+        assertNotEquals(first.anonymousId, identity.anonymousId)
+        assertNull(identity.userId)
+        assertFalse(storage.version1LoggedOut)
+        assertTrue(storage.version1IdsReset)
+    }
+
+    @Test
+    fun `GIVEN a logout on version 1 WHEN the record cannot be saved EXPECT one new person, not one per launch`() {
+        // An update whose old device id is not adopted yet: the switch back changes the record.
+        storage.deviceId = "OLD"
+        storage.apphudUser = legacyUser("alice@example.com")
+        freshPackage = false
+        val first = launch().identity
+        runVersion1("OLD", "alice@example.com")
+        logOutOnVersion1()
+        records.failWrites = true
+
+        val once = launch().identity
+        val again = launch().identity
+
+        assertNotEquals(first.anonymousId, once.anonymousId)
+        assertEquals(once.anonymousId, again.anonymousId)
+    }
+
+    @Test
+    fun `GIVEN a logout on version 2 EXPECT version 1's device id reset before the new person is saved`() {
+        storage.deviceId = "OLD"
+        storage.apphudUser = legacyUser("OLD")
+        freshPackage = false
+        var watching = false
+        var resetWhenSaved: Boolean? = null
+        val watched = object : Storage by storage {
+            override var anonymousId: String?
+                get() = storage.anonymousId
+                set(value) {
+                    if (watching && resetWhenSaved == null) resetWhenSaved = storage.version1IdsReset && storage.deviceId == null
+                    storage.anonymousId = value
+                }
+        }
+        val store = IdentityStore(watched, records, versions, { freshPackage }, {}, { "id-x" }).apply { resolve(ApphudSuppliedIds()) }
+        assertEquals("OLD", storage.deviceId)
+
+        watching = true
+        store.logout(null)
+
+        assertEquals(true, resetWhenSaved)
+    }
+
+    @Test
+    fun `GIVEN a damaged record after a logout on version 1 EXPECT no person back`() {
+        val store = store().also { it.resolve(ApphudSuppliedIds()) }
+        store.identify("alice")
+        val first = store.current!!
+        runVersion1(first.installationId, "alice")
+        logOutOnVersion1()
+        // A record without an installation id is damaged.
+        records.record = InstallRecord(InstallState.EXISTING)
+
+        val identity = launch().identity
+
+        assertNotEquals(first.anonymousId, identity.anonymousId)
+        assertNull(identity.userId)
+    }
+
+    @Test
+    fun `GIVEN a logout on version 2 while the marker still says version 1 WHEN version 1 starts EXPECT a new device id`() {
+        val first = launch().identity
+        runVersion1(first.installationId, first.anonymousId)
+        store().logout(null)
+
+        val ids = store().idsForVersion1()
+
+        assertEquals(storage.anonymousId, ids?.userId)
+        assertTrue(!ids?.deviceId.isNullOrEmpty())
+        assertNotEquals(first.installationId, ids?.deviceId)
     }
 
     // endregion

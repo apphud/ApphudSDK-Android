@@ -19,6 +19,8 @@ internal class RegistrationInteractor(
         forceRegistration: Boolean = false,
         email: String? = null,
         fromWeb2Web: Boolean = false,
+        /** Identity version 1: the user id this registration sends, as SDK 3.6 passed it. */
+        userId: String? = null,
     ): ApphudUser =
         mutex.withLock {
             val currentUser = userRepository.getCurrentUser()
@@ -34,6 +36,7 @@ internal class RegistrationInteractor(
                 forceRegistration = forceRegistration,
                 email = email,
                 fromWeb2Web = fromWeb2Web,
+                userId = userId,
                 cachedUser = currentUser,
             )
             enrichPlacementProductsUseCase(finalUser)

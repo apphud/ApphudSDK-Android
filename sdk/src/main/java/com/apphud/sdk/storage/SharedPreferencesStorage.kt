@@ -110,6 +110,38 @@ internal class SharedPreferencesStorage(
             }
         }
 
+    override var idsIdentityVersion: String?
+        get() = preferences.getString(IDS_IDENTITY_VERSION_KEY, null)
+        set(value) {
+            preferences.edit {
+                putString(IDS_IDENTITY_VERSION_KEY, value)
+            }
+        }
+
+    override var version1IdsReset: Boolean
+        get() = preferences.getBoolean(VERSION1_IDS_RESET_KEY, false)
+        set(value) {
+            preferences.edit {
+                putBoolean(VERSION1_IDS_RESET_KEY, value)
+            }
+        }
+
+    override var version1LoggedOut: Boolean
+        get() = preferences.getBoolean(VERSION1_LOGGED_OUT_KEY, false)
+        set(value) {
+            preferences.edit {
+                putBoolean(VERSION1_LOGGED_OUT_KEY, value)
+            }
+        }
+
+    override var version1RegistrationPending: Boolean
+        get() = preferences.getBoolean(VERSION1_REGISTRATION_PENDING_KEY, false)
+        set(value) {
+            preferences.edit {
+                putBoolean(VERSION1_REGISTRATION_PENDING_KEY, value)
+            }
+        }
+
     override var isNeedSync: Boolean
         get() = preferences.getBoolean(NEED_RESTART_KEY, false)
         set(value) {
@@ -484,6 +516,10 @@ internal class SharedPreferencesStorage(
         private const val ANONYMOUS_ID_KEY = "anonymousIdKey"
         private const val IDENTIFIED_USER_ID_KEY = "identifiedUserIdKey"
         private const val IDENTITY_SYNC_PENDING_KEY = "identitySyncPendingKey"
+        private const val VERSION1_IDS_RESET_KEY = "version1IdsResetKey"
+        private const val IDS_IDENTITY_VERSION_KEY = "idsIdentityVersionKey"
+        private const val VERSION1_LOGGED_OUT_KEY = "version1LoggedOutKey"
+        private const val VERSION1_REGISTRATION_PENDING_KEY = "version1RegistrationPendingKey"
         private const val NEED_RESTART_KEY = "needRestartKey"
         private const val PROPERTIES_KEY = "propertiesKey"
         private const val FACEBOOK_KEY = "facebookKey"

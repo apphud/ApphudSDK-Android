@@ -1,6 +1,7 @@
 package com.apphud.sdk.internal
 
 import android.content.Context
+import com.apphud.sdk.ApphudInternal
 import com.apphud.sdk.ApphudUtils
 import com.apphud.sdk.internal.data.BlockStoreInstallMarkerSource
 import com.apphud.sdk.internal.data.ClientSessionRepository
@@ -21,6 +22,7 @@ import com.apphud.sdk.internal.data.network.PrettyHttpLoggingInterceptor
 import com.apphud.sdk.internal.data.network.PrettyJsonFormatter
 import com.apphud.sdk.internal.data.network.UrlProvider
 import com.apphud.sdk.isFreshPackageInstall
+import com.apphud.sdk.storage.FileIdentityVersionStorage
 import com.apphud.sdk.storage.FileInstallRecordStorage
 import com.apphud.sdk.storage.SharedPreferencesStorage
 import com.google.gson.Gson
@@ -48,7 +50,7 @@ internal class AppScopeComponent(val applicationContext: Context) {
     val deviceIdentifiersRepository: DeviceIdentifiersRepository =
         DeviceIdentifiersRepository(deviceIdentifiersDataSource)
 
-    val urlProvider = UrlProvider(storage)
+    val urlProvider = UrlProvider(storage) { ApphudInternal.isIdentityV1 }
 
     val clientSessionRepository: ClientSessionRepository = ClientSessionRepository(storage)
 
@@ -58,6 +60,7 @@ internal class AppScopeComponent(val applicationContext: Context) {
         IdentityStore(
             storage = storage,
             installRecords = installRecordStorage,
+            versions = FileIdentityVersionStorage { applicationContext.noBackupFilesDir },
             isFreshPackageInstall = { applicationContext.isFreshPackageInstall() },
             clearUserData = { storage.clean() },
         )

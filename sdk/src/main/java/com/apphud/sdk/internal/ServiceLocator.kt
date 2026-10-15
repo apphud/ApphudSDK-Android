@@ -54,6 +54,7 @@ internal class ServiceLocator private constructor() {
     val productRepository get() = session.productRepository
     val userPropertiesManager get() = session.userPropertiesManager
     val offeringsCallbackManager get() = session.offeringsCallbackManager
+    val resolveCredentialsUseCase get() = session.resolveCredentialsUseCase
     val resolveIdentityUseCase get() = session.resolveIdentityUseCase
     val enrichPlacementProductsUseCase get() = session.enrichPlacementProductsUseCase
     val registrationInteractor get() = session.registrationInteractor

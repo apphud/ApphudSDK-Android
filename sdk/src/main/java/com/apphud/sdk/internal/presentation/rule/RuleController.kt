@@ -11,7 +11,7 @@ import com.apphud.sdk.ApphudInternal
 import com.apphud.sdk.ApphudLog
 import com.apphud.sdk.ApphudPurchaseResult
 import com.apphud.sdk.ApphudRuleCallback
-import com.apphud.sdk.internal.domain.model.ApphudIdentity
+import com.apphud.sdk.internal.domain.model.RequestIds
 import com.apphud.sdk.APPHUD_PAYWALL_SCREEN_LOAD_TIMEOUT
 import com.apphud.sdk.domain.ApphudPaywall
 import com.apphud.sdk.domain.ApphudPaywallScreenShowResult
@@ -67,7 +67,7 @@ internal class RuleController(
     private var broadcastReceiver: BroadcastReceiver? = null
 
     @Volatile
-    private lateinit var currentIdentity: ApphudIdentity
+    private lateinit var currentIdentity: RequestIds
 
     @Volatile
     private var appInForeground: Boolean = false
@@ -92,7 +92,7 @@ internal class RuleController(
 
     private val state = MutableStateFlow<RuleState>(RuleState.Idle)
 
-    fun start(identity: ApphudIdentity) {
+    fun start(identity: RequestIds) {
         currentIdentity = identity
         fetchRuleScreenJob?.cancel()
         shownRuleIds.clear()
@@ -510,7 +510,7 @@ internal class RuleController(
         return ruleScreen?.rule
     }
 
-    private suspend fun fetchRules(identity: ApphudIdentity) {
+    private suspend fun fetchRules(identity: RequestIds) {
         state.value = RuleState.Loading
 
         when (val fetchResult = fetchRulesScreenUseCase(identity)) {

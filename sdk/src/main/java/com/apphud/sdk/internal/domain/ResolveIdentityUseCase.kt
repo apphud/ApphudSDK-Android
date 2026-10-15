@@ -27,6 +27,8 @@ internal class ResolveIdentityUseCase(
                 unsavedLegacyDeviceId = resolution.unsavedLegacyDeviceId,
             )
         }
+        // The person changed: the record dropped the old customer; the check's copy of it too.
+        if (resolution.dropsLegacyDeviceId) reinstallRepository.forgetLegacyDeviceId()
         // legacy_device_id still to be sent (the first launch after an update): requests wait until the
         // backend knows this installation.
         if (reinstallRepository.legacyDeviceId() != null) firstRegistrationHold.close()

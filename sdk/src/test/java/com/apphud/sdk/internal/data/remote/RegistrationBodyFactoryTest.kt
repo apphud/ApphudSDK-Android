@@ -16,7 +16,7 @@ import org.junit.Test
 class RegistrationBodyFactoryTest {
 
     private val provider: RegistrationProvider = mockk(relaxed = true) {
-        every { getIdentity() } returns ANONYMOUS
+        every { getRequestIds() } returns ANONYMOUS.requestIds
         every { getReinstall() } returns null
         every { getLegacyDeviceId() } returns null
     }
@@ -51,7 +51,7 @@ class RegistrationBodyFactoryTest {
 
     @Test
     fun `GIVEN identified EXPECT the user id sent`() {
-        every { provider.getIdentity() } returns ANONYMOUS.copy(userId = "alice")
+        every { provider.getRequestIds() } returns ANONYMOUS.copy(userId = "alice").requestIds
 
         assertEquals("alice", json().get("user_id").asString)
     }
@@ -81,6 +81,18 @@ class RegistrationBodyFactoryTest {
     }
 
     @Test
+    fun `GIVEN reinstall EXPECT this install's date sent with it as first seen`() {
+        // The backend contract: `reinstall: true` together with `first_seen`, the install's date.
+        every { provider.getReinstall() } returns true
+        every { provider.getFirstSeen() } returns 1_792_059_295L
+
+        val json = json()
+
+        assertTrue(json.get("reinstall").asBoolean)
+        assertEquals(1_792_059_295L, json.get("first_seen").asLong)
+    }
+
+    @Test
     fun `GIVEN not a reinstall EXPECT no reinstall param`() {
         assertFalse(json().has("reinstall"))
     }
@@ -101,7 +113,7 @@ class RegistrationBodyFactoryTest {
 
     @Test(expected = ApphudError::class)
     fun `GIVEN ids not resolved EXPECT error`() {
-        every { provider.getIdentity() } returns null
+        every { provider.getRequestIds() } returns null
 
         factory.create(needPlacements = true, isNew = true)
     }
@@ -132,7 +144,7 @@ class RegistrationBodyFactoryTest {
 
     @Test
     fun `GIVEN web to web by email of an identified user EXPECT the user id`() {
-        every { provider.getIdentity() } returns ANONYMOUS.copy(userId = "alice")
+        every { provider.getRequestIds() } returns ANONYMOUS.copy(userId = "alice").requestIds
 
         assertEquals("alice", json(fromWeb2Web = true).get("user_id").asString)
     }

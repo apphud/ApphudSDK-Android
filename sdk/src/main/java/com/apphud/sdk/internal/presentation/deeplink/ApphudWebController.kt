@@ -37,7 +37,7 @@ internal class ApphudWebController {
     fun present(
         activity: Activity,
         apiKey: String,
-        installationId: String,
+        deviceId: String,
         connectDomainUrl: String,
         connectHost: String,
         callback: (String?) -> Unit,
@@ -60,8 +60,9 @@ internal class ApphudWebController {
         val url = Uri.parse(connectDomainUrl)
             .buildUpon()
             .appendQueryParameter("api_key", apiKey)
-            // The page reads only `device_id`; the backend looks the value up among installation ids too.
-            .appendQueryParameter("device_id", installationId)
+            // The page reads only `device_id`; with identity version 2 it is the installation id, which the
+            // backend looks up among installation ids too.
+            .appendQueryParameter("device_id", deviceId)
             .appendQueryParameter("host", connectHost)
             .build()
             .toString()

@@ -7,7 +7,7 @@ import com.apphud.sdk.ApphudError
 import com.apphud.sdk.ApphudInternal
 import com.apphud.sdk.ApphudLog
 import com.apphud.sdk.ApphudUtils
-import com.apphud.sdk.internal.domain.model.ApphudIdentity
+import com.apphud.sdk.internal.domain.model.RequestIds
 import com.apphud.sdk.body.UserPropertiesBody
 import com.apphud.sdk.domain.ApphudGroup
 import com.apphud.sdk.domain.ApphudPaywall
@@ -72,6 +72,7 @@ internal object RequestManager {
         forceRegistration: Boolean = false,
         email: String? = null,
         fromWeb2Web: Boolean = false,
+        userId: String? = null,
     ): ApphudUser {
         if (!canPerformRequest()) {
             ApphudLog.logE(::registration.name + MUST_REGISTER_ERROR)
@@ -82,7 +83,7 @@ internal object RequestManager {
         return if (currentUserLocal == null || forceRegistration) {
             val repository = ServiceLocator.instance.remoteRepository
 
-            val getCustomersResult = repository.getCustomers(needPlacements, isNew, email, fromWeb2Web)
+            val getCustomersResult = repository.getCustomers(needPlacements, isNew, email, fromWeb2Web, userId)
 
             getCustomersResult
                 .getOrElse { t ->
@@ -100,12 +101,13 @@ internal object RequestManager {
     }
 
     suspend fun allProducts(): List<ApphudGroup> {
-        val identity = ServiceLocator.instance.userRepository.getIdentity() ?: throw ApphudError("SDK not initialized")
+        val ids = ServiceLocator.instance.userRepository.getRequestIds() ?: throw ApphudError("SDK not initialized")
         val params = GetProductsParams(
             requestTime = System.currentTimeMillis().toString(),
-            installationId = identity.installationId,
-            anonymousId = identity.anonymousId,
-            userId = identity.userId,
+            deviceId = ids.deviceId,
+            installationId = ids.installationId,
+            anonymousId = ids.anonymousId,
+            userId = ids.userId,
         )
         val repository = ServiceLocator.instance.remoteRepository
 
@@ -178,12 +180,12 @@ internal object RequestManager {
             throw ApphudError("SDK not initialized")
         }
 
-        val identity = ServiceLocator.instance.userRepository.getIdentity()
+        val ids = ServiceLocator.instance.userRepository.getRequestIds()
             ?: throw ApphudError("SDK not initialized")
         val repository = ServiceLocator.instance.remoteRepository
 
         return repository.deeplinkAttribution(
-            identity = identity,
+            ids = ids,
             bundleId = applicationContext.packageName,
             url = url,
             visitorId = visitorId,
@@ -224,13 +226,14 @@ internal object RequestManager {
 
             val repository = ServiceLocator.instance.remoteRepository
 
-            val identity = ServiceLocator.instance.userRepository.getIdentity()
+            val ids = ServiceLocator.instance.userRepository.getRequestIds()
                 ?: throw ApphudError("SDK not initialized")
             val grantPromotionalDto = GrantPromotionalDto(
                 duration = daysCount,
-                userId = identity.userId,
-                installationId = identity.installationId,
-                anonymousId = identity.anonymousId,
+                userId = ids.userId,
+                deviceId = ids.deviceId,
+                installationId = ids.installationId,
+                anonymousId = ids.anonymousId,
                 productId = productId,
                 productGroupId = permissionGroup?.id
             )
@@ -259,7 +262,7 @@ internal object RequestManager {
         error: ApphudError?,
         productsResponseCode: Int,
         success: Boolean,
-        identity: ApphudIdentity,
+        ids: RequestIds,
     ) {
         trackPaywallEvent(
             makePaywallLogsBody(
@@ -271,7 +274,7 @@ internal object RequestManager {
                 error,
                 productsResponseCode,
                 success,
-                identity,
+                ids,
             )
         )
     }
@@ -365,8 +368,8 @@ internal object RequestManager {
         screenId: String? = null,
         errorMessage: String? = null,
     ): PaywallEventDto {
-        val identity = ServiceLocator.instance.userRepository.getIdentity()
-        if (identity == null) {
+        val ids = ServiceLocator.instance.userRepository.getRequestIds()
+        if (ids == null) {
             ApphudLog.logE("Cannot track event '$name': SDK not fully initialized")
             throw ApphudError("SDK not initialized")
         }
@@ -381,9 +384,10 @@ internal object RequestManager {
 
         return PaywallEventDto(
             name = name,
-            userId = identity.userId,
-            installationId = identity.installationId,
-            anonymousId = identity.anonymousId,
+            userId = ids.userId,
+            deviceId = ids.deviceId,
+            installationId = ids.installationId,
+            anonymousId = ids.anonymousId,
             environment = if (applicationContext.isDebuggable()) "sandbox" else "production",
             timestamp = System.currentTimeMillis(),
             properties = properties.ifEmpty { null }
@@ -399,7 +403,7 @@ internal object RequestManager {
         error: ApphudError?,
         productsResponseCode: Int,
         success: Boolean,
-        identity: ApphudIdentity,
+        ids: RequestIds,
     ): PaywallEventDto {
         val properties = mutableMapOf<String, Any>()
         properties["launched_at"] = launchedAt
@@ -424,9 +428,10 @@ internal object RequestManager {
 
         return PaywallEventDto(
             name = "paywall_products_loaded",
-            userId = identity.userId,
-            installationId = identity.installationId,
-            anonymousId = identity.anonymousId,
+            userId = ids.userId,
+            deviceId = ids.deviceId,
+            installationId = ids.installationId,
+            anonymousId = ids.anonymousId,
             environment = if (applicationContext.isDebuggable()) "sandbox" else "production",
             timestamp = System.currentTimeMillis(),
             properties = properties.ifEmpty { null }

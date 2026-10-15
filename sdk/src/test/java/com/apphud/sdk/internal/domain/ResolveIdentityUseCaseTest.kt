@@ -12,6 +12,7 @@ import io.mockk.just
 import io.mockk.mockk
 import io.mockk.runs
 import io.mockk.verify
+import org.junit.Assert.assertFalse
 import org.junit.Test
 
 class ResolveIdentityUseCaseTest {
@@ -21,6 +22,7 @@ class ResolveIdentityUseCaseTest {
         every { start(any(), any(), any()) } just runs
         every { useHostValue(any()) } just runs
         every { legacyDeviceId() } returns null
+        every { forgetLegacyDeviceId() } just runs
     }
     private val hold = FirstRegistrationHold()
     private val useCase = ResolveIdentityUseCase(identityStore, reinstallRepository, hold)
@@ -73,6 +75,48 @@ class ResolveIdentityUseCaseTest {
         useCase(ApphudSuppliedIds())
 
         verify { reinstallRepository.start(newInstall = true, restoredPerson = true) }
+    }
+
+    @Test
+    fun `GIVEN the person changed EXPECT the old device id forgotten`() {
+        every { identityStore.resolve(any()) } returns
+            ApphudIdentityResolution(IDENTITY, ApphudLaunchKind.NORMAL, changed = true, switchedUser = true, dropsLegacyDeviceId = true)
+
+        useCase(ApphudSuppliedIds.of(userId = "bob"))
+
+        verify { reinstallRepository.forgetLegacyDeviceId() }
+    }
+
+    @Test
+    fun `GIVEN the host's new anonymous id without a user switch EXPECT the old device id forgotten`() {
+        every { identityStore.resolve(any()) } returns
+            ApphudIdentityResolution(IDENTITY, ApphudLaunchKind.NORMAL, changed = true, switchedUser = false, dropsLegacyDeviceId = true)
+
+        useCase(ApphudSuppliedIds.of(anonymousId = "host-anon", installationId = "i"))
+
+        verify { reinstallRepository.forgetLegacyDeviceId() }
+    }
+
+    @Test
+    fun `GIVEN the person changed after an update EXPECT nothing held for the old customer`() {
+        var legacy: String? = "OLD"
+        every { reinstallRepository.legacyDeviceId() } answers { legacy }
+        every { reinstallRepository.forgetLegacyDeviceId() } answers { legacy = null }
+        every { identityStore.resolve(any()) } returns
+            ApphudIdentityResolution(IDENTITY, ApphudLaunchKind.UPGRADE, changed = true, switchedUser = true, dropsLegacyDeviceId = true)
+
+        useCase(ApphudSuppliedIds.of(userId = "bob"))
+
+        assertFalse("dropped before the hold is decided", hold.isClosed)
+    }
+
+    @Test
+    fun `GIVEN the same user EXPECT the old device id kept`() {
+        resolvesTo(ApphudLaunchKind.NORMAL)
+
+        useCase(ApphudSuppliedIds())
+
+        verify(exactly = 0) { reinstallRepository.forgetLegacyDeviceId() }
     }
 
     @Test

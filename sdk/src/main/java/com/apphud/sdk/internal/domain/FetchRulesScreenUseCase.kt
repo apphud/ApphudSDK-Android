@@ -1,6 +1,6 @@
 package com.apphud.sdk.internal.domain
 
-import com.apphud.sdk.internal.domain.model.ApphudIdentity
+import com.apphud.sdk.internal.domain.model.RequestIds
 import com.apphud.sdk.ApphudInternal
 import com.apphud.sdk.internal.data.local.LocalRulesScreenRepository
 import com.apphud.sdk.internal.data.remote.RemoteRepository
@@ -30,7 +30,7 @@ internal class FetchRulesScreenUseCase(
      * @param identity The ids of the current install and person
      * @return A [FetchRulesScreenResult] indicating success or failure with error details
      */
-    suspend operator fun invoke(identity: ApphudIdentity): FetchRulesScreenResult =
+    suspend operator fun invoke(identity: RequestIds): FetchRulesScreenResult =
         runCatchingCancellable {
             val notifications = remoteRepository.getNotifications(identity).getOrThrow()
             val legacyRuleScreensEnabled = ApphudInternal.legacyRuleScreensEnabled

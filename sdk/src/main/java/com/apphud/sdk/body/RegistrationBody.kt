@@ -26,13 +26,21 @@ internal data class RegistrationBody(
     @SerializedName("user_id")
     @JsonAdapter(OmitWhenNull::class, nullSafe = false)
     val userId: String?,
+    /** Identity version 1 only. */
+    @SerializedName("device_id")
+    @JsonAdapter(OmitWhenNull::class, nullSafe = false)
+    val deviceId: String? = null,
+    /** Identity version 2 only. */
     @SerializedName("installation_id")
-    val installationId: String,
+    @JsonAdapter(OmitWhenNull::class, nullSafe = false)
+    val installationId: String? = null,
+    /** Identity version 2 only. */
     @SerializedName("anonymous_id")
-    val anonymousId: String,
+    @JsonAdapter(OmitWhenNull::class, nullSafe = false)
+    val anonymousId: String? = null,
     /**
      * The old SDK's `device_id` (an update in place, or its data restored) until a registration carrying it
-     * succeeds: it adopts the old customer.
+     * succeeds, not after a logout or a user switch: it adopts the old customer.
      */
     @SerializedName("legacy_device_id")
     @JsonAdapter(OmitWhenNull::class, nullSafe = false)

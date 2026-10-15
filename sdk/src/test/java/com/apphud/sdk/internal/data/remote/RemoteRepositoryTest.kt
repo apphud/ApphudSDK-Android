@@ -14,6 +14,7 @@ import com.apphud.sdk.internal.data.network.UrlProvider
 import com.google.gson.Gson
 import io.mockk.Runs
 import io.mockk.coEvery
+import io.mockk.coVerify
 import io.mockk.coVerifyOrder
 import io.mockk.every
 import io.mockk.just
@@ -239,6 +240,35 @@ class RemoteRepositoryTest {
         remoteRepository.getCustomers(needPlacements = true, isNew = false, email = null)
 
         verify { reinstallRepository.onRegistered(reinstallSent = true, legacyDeviceIdSent = false) }
+    }
+
+    @Test
+    fun `GIVEN identity version 1 WHEN it registers EXPECT no reinstall wait, no report and no sync mark`() = runTest {
+        val version1Repository = RemoteRepository(
+            okHttpClient = okHttpClient,
+            gson = gson,
+            customerMapper = customerMapper,
+            purchaseBodyFactory = purchaseBodyFactory,
+            registrationBodyFactory = registrationBodyFactory,
+            productMapper = mockk(),
+            attributionMapper = mockk(),
+            notificationMapper = mockk(),
+            paywallsMapper = mockk(),
+            urlProvider = urlProvider,
+            dispatchers = ApphudDispatchers(),
+            reinstallRepository = reinstallRepository,
+            identityStore = identityStore,
+            firstRegistrationHold = hold,
+            isVersion1 = { true },
+        )
+        mockHttpCall(createMockResponse(200, createSuccessResponse()))
+
+        version1Repository.getCustomers(needPlacements = true, isNew = false, email = null)
+
+        coVerify(exactly = 0) { reinstallRepository.awaitBeforeRegistration() }
+        verify(exactly = 0) { reinstallRepository.onRegistered(any(), any()) }
+        verify(exactly = 0) { identityStore.markSynced() }
+        verify { identityStore.markVersion1Registered() }
     }
 
     @Test

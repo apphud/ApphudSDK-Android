@@ -71,6 +71,34 @@ class UserDataSourceTest {
     }
 
     @Test
+    fun `getDeviceId should return deviceId from storage`() {
+        val expectedDeviceId = "test-device-id"
+        every { storage.deviceId } returns expectedDeviceId
+
+        val result = dataSource.getDeviceId()
+
+        assertEquals("Should return deviceId from storage", expectedDeviceId, result)
+    }
+
+    @Test
+    fun `getDeviceId should return null when no deviceId in storage`() {
+        every { storage.deviceId } returns null
+
+        val result = dataSource.getDeviceId()
+
+        assertNull("Should return null when no deviceId in storage", result)
+    }
+
+    @Test
+    fun `saveDeviceId should save deviceId to storage`() {
+        val deviceId = "test-device-id"
+
+        dataSource.saveDeviceId(deviceId)
+
+        verify { storage.deviceId = deviceId }
+    }
+
+    @Test
     fun `isCacheExpired should return true when cache expired`() {
         every { storage.cacheExpired() } returns true
 

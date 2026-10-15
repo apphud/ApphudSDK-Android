@@ -73,6 +73,13 @@ internal class ReinstallRepository(
     @Volatile
     private var unsavedLegacyDeviceId: String? = null
 
+    // What this process knows even when a save failed: a later reload of the record never undoes it.
+    @Volatile
+    private var reinstallReportedInProcess = false
+
+    @Volatile
+    private var legacyDeviceIdDroppedInProcess = false
+
     // A restored person waits for this launch's read, until it is dropped or kept. Guarded by [lock].
     private var restoredPersonOpen = false
 
@@ -103,9 +110,36 @@ internal class ReinstallRepository(
 
     /** The app supplies the ids and the flag: the SDK runs no check of its own. */
     fun useHostValue(isReinstall: Boolean?) {
-        hostValue = isReinstall
+        // Identity has just written this start's record: never a copy loaded before it.
+        synchronized(lock) { record = null }
+        // The answer passed now, else the one the app gave after an earlier start.
+        if (isReinstall != null) keepHostValue(isReinstall)
+        hostValue = isReinstall ?: load()?.hostReinstall
         hostDecides = true
         resolved.complete(Unit)
+        // A reinstall not reported yet goes with the next registration, which isn't skipped then.
+        if (reinstallFlag() == true) onDecided()
+    }
+
+    /**
+     * The app's reinstall answer that arrived after start: the next registration, on a later launch at
+     * the latest, carries a reinstall until one carrying it succeeds. False when the SDK runs its own
+     * check: the answer is ignored then.
+     */
+    fun useLaterHostValue(isReinstall: Boolean): Boolean {
+        if (!hostDecides) return false
+        hostValue = isReinstall
+        keepHostValue(isReinstall)
+        if (reinstallFlag() == true) onDecided()
+        return true
+    }
+
+    /** Kept for later launches: a later start may come before the app has its answer again. */
+    private fun keepHostValue(isReinstall: Boolean) {
+        if (load()?.hostReinstall == isReinstall) return
+        // Not saved: still used in this launch.
+        runCatching { update { it.copy(hostReinstall = isReinstall) } }
+            .onFailure { ApphudLog.logE("Reinstall answer not saved: ${it.message}") }
     }
 
     /**
@@ -151,12 +185,30 @@ internal class ReinstallRepository(
      * otherwise no param. The backend records it on the customer that registration resolves to.
      */
     fun reinstallFlag(): Boolean? =
-        if (isReinstall() == true && load()?.reinstallReported != true) true else null
+        if (isReinstall() == true && !reinstallReportedInProcess && load()?.reinstallReported != true) true else null
 
     /**
-     * The old SDK's `device_id`, sent as `legacy_device_id` until a registration carrying it succeeds.
+     * The old SDK's `device_id`, sent as `legacy_device_id` until a registration carrying it succeeds;
+     * not after a logout or a user switch ([forgetLegacyDeviceId]).
      */
-    fun legacyDeviceId(): String? = load().let { if (it != null) it.legacyDeviceId else unsavedLegacyDeviceId }
+    fun legacyDeviceId(): String? =
+        if (legacyDeviceIdDroppedInProcess) null else load().let { if (it != null) it.legacyDeviceId else unsavedLegacyDeviceId }
+
+    /** A logout or a user switch before a registration adopted the old customer: it is the person before's. */
+    fun forgetLegacyDeviceId() {
+        legacyDeviceIdDroppedInProcess = true
+        unsavedLegacyDeviceId = null
+        synchronized(lock) {
+            // The record in memory, so a failed save still forgets it in this process.
+            load()
+            // From disk, so a forget that wasn't saved before is saved now.
+            runCatching { update { it.copy(legacyDeviceId = null) } }
+                .onFailure {
+                    record = record?.copy(legacyDeviceId = null)
+                    ApphudLog.logE("Old device id not saved as forgotten: ${it.message}")
+                }
+        }
+    }
 
     /**
      * A registration succeeded. One that carried `reinstall: true` reported the reinstall, and one that
@@ -164,7 +216,11 @@ internal class ReinstallRepository(
      */
     fun onRegistered(reinstallSent: Boolean, legacyDeviceIdSent: Boolean) {
         if (!reinstallSent && !legacyDeviceIdSent) return
-        if (legacyDeviceIdSent) unsavedLegacyDeviceId = null
+        if (reinstallSent) reinstallReportedInProcess = true
+        if (legacyDeviceIdSent) {
+            legacyDeviceIdDroppedInProcess = true
+            unsavedLegacyDeviceId = null
+        }
         val reported = { it: InstallRecord ->
             it.copy(
                 reinstallReported = it.reinstallReported || reinstallSent,
@@ -240,17 +296,9 @@ internal class ReinstallRepository(
 
     private fun update(transform: (InstallRecord) -> InstallRecord) {
         synchronized(lock) {
-            // From disk: identity resolution may have rewritten the record since it was loaded.
-            val current = runCatching { storage.read() }.getOrNull() ?: record ?: return
-            val next = transform(current)
-            if (next != current) save(next)
+            // From disk, in one step with the storage: identity may change the record meanwhile.
+            record = storage.update(fallback = record, transform) ?: return
         }
-    }
-
-    /** Throws when the record wasn't saved, so nothing acts on a state that a relaunch wouldn't see. */
-    private fun save(next: InstallRecord) {
-        storage.write(next)
-        record = next
     }
 
     companion object {

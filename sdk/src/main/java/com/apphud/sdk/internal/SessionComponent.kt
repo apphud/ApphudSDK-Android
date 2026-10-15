@@ -1,6 +1,7 @@
 package com.apphud.sdk.internal
 
 import androidx.annotation.VisibleForTesting
+import com.apphud.sdk.ApphudInternal
 import com.apphud.sdk.ApphudRuleCallback
 import com.apphud.sdk.internal.data.AnalyticsTracker
 import com.apphud.sdk.internal.data.ProductRepository
@@ -34,6 +35,7 @@ import com.apphud.sdk.internal.domain.EnrichPlacementProductsUseCase
 import com.apphud.sdk.internal.domain.RegisterUserUseCase
 import com.apphud.sdk.internal.domain.RegistrationInteractor
 import com.apphud.sdk.internal.domain.RenderPaywallPropertiesUseCase
+import com.apphud.sdk.internal.domain.ResolveCredentialsUseCase
 import com.apphud.sdk.internal.domain.ResolveIdentityUseCase
 import com.apphud.sdk.internal.domain.SubmitPushTokenUseCase
 import com.apphud.sdk.internal.domain.TrackRuleEventUseCase
@@ -68,7 +70,8 @@ internal class SessionComponent(
 
     val userDataSource: UserDataSource = UserDataSource(appScope.storage)
 
-    val userRepository: UserRepository = UserRepository(userDataSource, appScope.identityStore)
+    val userRepository: UserRepository =
+        UserRepository(userDataSource, appScope.identityStore, isVersion1 = { ApphudInternal.isIdentityV1 })
 
     val analyticsTracker: AnalyticsTracker = AnalyticsTracker(
         coroutineScope = coroutineScope,
@@ -147,6 +150,7 @@ internal class SessionComponent(
             reinstallRepository = appScope.reinstallRepository,
             identityStore = appScope.identityStore,
             firstRegistrationHold = appScope.firstRegistrationHold,
+            isVersion1 = { ApphudInternal.isIdentityV1 },
         )
 
     private val screenRemoteRepository: ScreenRemoteRepository =
@@ -254,6 +258,9 @@ internal class SessionComponent(
         productRepository = productRepository,
         analyticsTracker = analyticsTracker,
     )
+
+    val resolveCredentialsUseCase: ResolveCredentialsUseCase =
+        ResolveCredentialsUseCase(userRepository = userRepository)
 
     val resolveIdentityUseCase: ResolveIdentityUseCase =
         ResolveIdentityUseCase(

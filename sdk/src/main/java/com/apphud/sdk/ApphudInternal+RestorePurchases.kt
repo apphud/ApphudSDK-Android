@@ -21,13 +21,16 @@ private val mutexSync = Mutex()
 
 /**
  * Nothing to send, or an automatic sync of purchases already sent. A restore is always sent: the
- * purchases may belong to another customer until it moves them.
+ * purchases may belong to another customer until it moves them. [identityVersion1]: a restore of
+ * purchases already sent is skipped too, as SDK 3.6 did.
  */
 internal fun skipsSync(
     restore: Boolean,
     prevPurchases: Collection<PurchaseRecordDetails>,
     restoredPurchases: Collection<PurchaseRecordDetails>,
-): Boolean = restoredPurchases.isEmpty() || (!restore && prevPurchases.containsAll(restoredPurchases))
+    identityVersion1: Boolean = false,
+): Boolean = restoredPurchases.isEmpty() ||
+    ((!restore || identityVersion1) && prevPurchases.containsAll(restoredPurchases))
 
 internal suspend fun ApphudInternal.syncPurchases(
     paywallIdentifier: String? = null,
@@ -98,7 +101,7 @@ internal suspend fun ApphudInternal.syncPurchases(
 
             ApphudLog.log("Start syncing ${restoredPurchases.count()} in-app purchases: ${restoredPurchases.map { it.details.productId }}")
 
-            if (skipsSync(restore, prevPurchases, restoredPurchases)) {
+            if (skipsSync(restore, prevPurchases, restoredPurchases, identityVersion1 = isIdentityV1)) {
                 ApphudLog.log("SyncPurchases: Don't send equal purchases from prev state")
                 storage.isNeedSync = false
                 refreshEntitlements(true)

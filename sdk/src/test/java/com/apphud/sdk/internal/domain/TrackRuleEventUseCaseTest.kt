@@ -19,7 +19,7 @@ class TrackRuleEventUseCaseTest {
         coEvery { trackRuleEvent(any()) } returns Result.success(Unit)
     }
     private val userRepository: UserRepository = mockk {
-        every { getIdentity() } returns ApphudIdentity("installation-id", "anonymous-id", null)
+        every { getRequestIds() } returns ApphudIdentity("installation-id", "anonymous-id", null).requestIds
     }
 
     private val useCase = TrackRuleEventUseCase(remoteRepository, userRepository)
@@ -111,7 +111,7 @@ class TrackRuleEventUseCaseTest {
 
     @Test
     fun `GIVEN no ids EXPECT does not call remote`() = runTest {
-        every { userRepository.getIdentity() } returns null
+        every { userRepository.getRequestIds() } returns null
 
         useCase("rule-1", "screen-1", "\$feedback")
 

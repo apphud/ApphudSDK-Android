@@ -125,6 +125,6 @@ class GetPaywallByIdentifierUseCaseTest {
     // endregion
 
     private companion object {
-        val IDENTITY = ApphudIdentity("installation-id", "anonymous-id", null)
+        val IDENTITY = ApphudIdentity("installation-id", "anonymous-id", null).requestIds
     }
 }

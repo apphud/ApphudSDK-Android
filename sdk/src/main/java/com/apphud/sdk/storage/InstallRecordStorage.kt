@@ -32,9 +32,15 @@ internal data class InstallRecord(
     val reinstallReported: Boolean = false,
     /**
      * The `device_id` of the old SDK this install was updated from, or whose data was restored, sent as
-     * `legacy_device_id` until a registration carrying it succeeds: it adopts the old customer.
+     * `legacy_device_id` until a registration carrying it succeeds, not after a logout or a user switch: it
+     * adopts the old customer.
      */
     val legacyDeviceId: String? = null,
+    /**
+     * The app's own reinstall answer when it supplies the ids, kept until it changes: an answer that came
+     * after start still reaches a later launch's registration.
+     */
+    val hostReinstall: Boolean? = null,
 ) {
     val restoredPerson: Boolean get() = restoredAnonymousId != null || restoredUserId != null
 
@@ -51,6 +57,18 @@ internal interface InstallRecordStorage {
 
     /** Throws when the record wasn't saved. */
     fun write(record: InstallRecord)
+
+    /**
+     * Reads the record ([fallback] when it can't be read), changes it and saves the change, in one step
+     * no other change of the record interleaves with: identity and the reinstall check both change it.
+     * [transform] must not call out. Null when there is no record. Throws when the change wasn't saved.
+     */
+    fun update(fallback: InstallRecord?, transform: (InstallRecord) -> InstallRecord): InstallRecord? {
+        val current = runCatching { read() }.getOrNull() ?: fallback ?: return null
+        val next = transform(current)
+        if (next != current) write(next)
+        return next
+    }
 }
 
 /**
@@ -61,6 +79,7 @@ internal class FileInstallRecordStorage(
     private val directory: () -> File?,
 ) : InstallRecordStorage {
 
+    @Synchronized
     override fun read(): InstallRecord? {
         val file = atomicFile() ?: return null
         val properties = Properties()
@@ -84,9 +103,11 @@ internal class FileInstallRecordStorage(
             restoredUserId = properties.getProperty(RESTORED_USER_ID_KEY)?.takeUnless { it.isBlank() },
             reinstallReported = properties.getProperty(REINSTALL_REPORTED_KEY).toBoolean(),
             legacyDeviceId = properties.getProperty(LEGACY_DEVICE_ID_KEY)?.takeUnless { it.isBlank() },
+            hostReinstall = properties.getProperty(HOST_REINSTALL_KEY)?.toBooleanStrictOrNull(),
         )
     }
 
+    @Synchronized
     override fun write(record: InstallRecord) {
         val file = atomicFile() ?: throw IOException("No directory for the install record")
         val properties = Properties().apply {
@@ -96,6 +117,7 @@ internal class FileInstallRecordStorage(
             record.restoredUserId?.let { setProperty(RESTORED_USER_ID_KEY, it) }
             if (record.reinstallReported) setProperty(REINSTALL_REPORTED_KEY, "true")
             record.legacyDeviceId?.let { setProperty(LEGACY_DEVICE_ID_KEY, it) }
+            record.hostReinstall?.let { setProperty(HOST_REINSTALL_KEY, it.toString()) }
         }
         val out = file.startWrite()
         try {
@@ -109,6 +131,11 @@ internal class FileInstallRecordStorage(
         if (read() != record) throw IOException("Install record not saved")
     }
 
+    /** One lock for every change of the record, innermost: [transform] calls nothing that locks. */
+    @Synchronized
+    override fun update(fallback: InstallRecord?, transform: (InstallRecord) -> InstallRecord): InstallRecord? =
+        super.update(fallback, transform)
+
     private fun atomicFile(): AtomicFile? = directory()?.let { AtomicFile(File(it, FILE_NAME)) }
 
     companion object {
@@ -119,5 +146,6 @@ internal class FileInstallRecordStorage(
         private const val RESTORED_USER_ID_KEY = "restored_user_id"
         private const val REINSTALL_REPORTED_KEY = "reinstall_reported"
         private const val LEGACY_DEVICE_ID_KEY = "legacy_device_id"
+        private const val HOST_REINSTALL_KEY = "host_reinstall"
     }
 }
