@@ -2,6 +2,8 @@ package com.apphud.sdk.internal.data
 
 import com.apphud.sdk.domain.ApphudPlacement
 import com.apphud.sdk.domain.ApphudUser
+import com.apphud.sdk.internal.domain.model.ApphudIdentity
+import com.apphud.sdk.internal.domain.model.RequestIds
 import io.mockk.every
 import io.mockk.mockk
 import io.mockk.verify
@@ -16,6 +18,8 @@ class UserRepositoryTest {
 
     private lateinit var dataSource: UserDataSource
     private lateinit var repository: UserRepository
+    private lateinit var version1Repository: UserRepository
+    private val identityStore: IdentityStore = mockk()
     private val mockUser: ApphudUser = mockk(relaxed = true)
     private val mockUser2: ApphudUser = mockk(relaxed = true)
     private val temporaryUser: ApphudUser = mockk(relaxed = true)
@@ -43,7 +47,8 @@ class UserRepositoryTest {
     @Before
     fun setup() {
         dataSource = mockk(relaxed = true)
-        repository = UserRepository(dataSource)
+        repository = UserRepository(dataSource, identityStore)
+        version1Repository = UserRepository(dataSource, identityStore) { true }
 
         every { mockUser.userId } returns "user-id-1"
         every { mockUser.isTemporary } returns false
@@ -213,77 +218,35 @@ class UserRepositoryTest {
         verify(exactly = 2) { dataSource.saveUser(match { it.placements.size == 1 }) }
     }
 
-    // region getUserId fallback chain
+    // region getUserId: the identity, never the response
 
     @Test
-    fun `GIVEN no state EXPECT getUserId returns null`() {
-        every { dataSource.getCachedUser() } returns null
+    fun `GIVEN anonymous identity EXPECT getUserId returns the anonymous id`() {
+        every { identityStore.current } returns ApphudIdentity("installation-1", "anonymous-1", null)
 
-        val result = repository.getUserId()
-
-        assertNull("Should return null when no state", result)
+        assertEquals("anonymous-1", repository.getUserId())
     }
 
     @Test
-    fun `GIVEN only cachedUser in dataSource EXPECT getUserId returns cachedUser userId`() {
-        every { dataSource.getCachedUser() } returns mockUser
+    fun `GIVEN identified identity EXPECT getUserId returns the user id`() {
+        every { identityStore.current } returns ApphudIdentity("installation-1", "anonymous-1", "user-1")
 
-        val result = repository.getUserId()
-
-        assertEquals("Should fallback to cachedUser.userId", "user-id-1", result)
+        assertEquals("user-1", repository.getUserId())
     }
 
     @Test
-    fun `GIVEN pendingUserId set EXPECT getUserId returns pendingUserId`() {
-        every { dataSource.getCachedUser() } returns null
+    fun `GIVEN no identity before start EXPECT getUserId returns null`() {
+        every { identityStore.current } returns null
 
-        repository.setUserId("pending-id")
-        val result = repository.getUserId()
-
-        assertEquals("Should return pendingUserId", "pending-id", result)
+        assertNull(repository.getUserId())
     }
 
     @Test
-    fun `GIVEN pendingUserId and cachedUser EXPECT getUserId returns pendingUserId`() {
-        every { dataSource.getCachedUser() } returns mockUser
-
-        repository.setUserId("pending-id")
-        val result = repository.getUserId()
-
-        assertEquals("pendingUserId should take priority over cachedUser", "pending-id", result)
-    }
-
-    @Test
-    fun `GIVEN currentUser set EXPECT getUserId returns currentUser userId`() {
+    fun `GIVEN customer with another user id EXPECT getUserId keeps the identity`() {
+        every { identityStore.current } returns ApphudIdentity("installation-1", "anonymous-1", "user-1")
         repository.setCurrentUser(mockUser)
 
-        val result = repository.getUserId()
-
-        assertEquals("Should return currentUser.userId", "user-id-1", result)
-    }
-
-    @Test
-    fun `GIVEN currentUser and pendingUserId EXPECT getUserId returns currentUser userId`() {
-        repository.setUserId("pending-id")
-        repository.setCurrentUser(mockUser)
-
-        val result = repository.getUserId()
-
-        assertEquals("currentUser should take priority over pendingUserId", "user-id-1", result)
-    }
-
-    // endregion
-
-    // region setCurrentUser clears pendingUserId
-
-    @Test
-    fun `GIVEN pendingUserId then setCurrentUser EXPECT pendingUserId cleared`() {
-        repository.setUserId("pending-id")
-        repository.setCurrentUser(mockUser)
-
-        val result = repository.getUserId()
-
-        assertEquals("pendingUserId should be cleared, returning currentUser.userId", "user-id-1", result)
+        assertEquals("user-1", repository.getUserId())
     }
 
     // endregion
@@ -291,31 +254,8 @@ class UserRepositoryTest {
     // region clearUser (logout)
 
     @Test
-    fun `GIVEN currentUser set then clearUser EXPECT getUserId returns null`() {
+    fun `GIVEN currentUser then clearUser EXPECT getCurrentUser returns null`() {
         every { dataSource.getCachedUser() } returns null
-        repository.setCurrentUser(mockUser)
-
-        repository.clearUser()
-        val result = repository.getUserId()
-
-        assertNull("getUserId should return null after clearUser", result)
-    }
-
-    @Test
-    fun `GIVEN pendingUserId set then clearUser EXPECT getUserId returns null`() {
-        every { dataSource.getCachedUser() } returns null
-        repository.setUserId("pending-id")
-
-        repository.clearUser()
-        val result = repository.getUserId()
-
-        assertNull("getUserId should return null after clearUser", result)
-    }
-
-    @Test
-    fun `GIVEN currentUser and pendingUserId then clearUser EXPECT getCurrentUser returns null`() {
-        every { dataSource.getCachedUser() } returns null
-        repository.setUserId("pending-id")
         repository.setCurrentUser(mockUser)
 
         repository.clearUser()
@@ -326,7 +266,6 @@ class UserRepositoryTest {
 
     @Test
     fun `GIVEN clearUser called EXPECT dataSource clearUser called`() {
-        repository.setUserId("pending-id")
         repository.setCurrentUser(mockUser)
 
         repository.clearUser()
@@ -334,17 +273,180 @@ class UserRepositoryTest {
         verify { dataSource.clearUser() }
     }
 
-    @Test
-    fun `GIVEN clearUser then setUserId EXPECT getUserId returns new pendingUserId`() {
-        every { dataSource.getCachedUser() } returns null
-        repository.setCurrentUser(mockUser)
-        repository.clearUser()
+    // region identity version 1: the user id as SDK 3.6 had it
 
-        repository.setUserId("new-pending-id")
-        val result = repository.getUserId()
+    // region getUserId fallback chain
+
+    @Test
+    fun `V1 GIVEN no state EXPECT getUserId returns null`() {
+        every { dataSource.getCachedUser() } returns null
+
+        val result = version1Repository.getUserId()
+
+        assertNull("Should return null when no state", result)
+    }
+
+    @Test
+    fun `V1 GIVEN only cachedUser in dataSource EXPECT getUserId returns cachedUser userId`() {
+        every { dataSource.getCachedUser() } returns mockUser
+
+        val result = version1Repository.getUserId()
+
+        assertEquals("Should fallback to cachedUser.userId", "user-id-1", result)
+    }
+
+    @Test
+    fun `V1 GIVEN pendingUserId set EXPECT getUserId returns pendingUserId`() {
+        every { dataSource.getCachedUser() } returns null
+
+        version1Repository.setUserId("pending-id")
+        val result = version1Repository.getUserId()
+
+        assertEquals("Should return pendingUserId", "pending-id", result)
+    }
+
+    @Test
+    fun `V1 GIVEN pendingUserId and cachedUser EXPECT getUserId returns pendingUserId`() {
+        every { dataSource.getCachedUser() } returns mockUser
+
+        version1Repository.setUserId("pending-id")
+        val result = version1Repository.getUserId()
+
+        assertEquals("pendingUserId should take priority over cachedUser", "pending-id", result)
+    }
+
+    @Test
+    fun `V1 GIVEN currentUser set EXPECT getUserId returns currentUser userId`() {
+        version1Repository.setCurrentUser(mockUser)
+
+        val result = version1Repository.getUserId()
+
+        assertEquals("Should return currentUser.userId", "user-id-1", result)
+    }
+
+    @Test
+    fun `V1 GIVEN currentUser and pendingUserId EXPECT getUserId returns currentUser userId`() {
+        version1Repository.setUserId("pending-id")
+        version1Repository.setCurrentUser(mockUser)
+
+        val result = version1Repository.getUserId()
+
+        assertEquals("currentUser should take priority over pendingUserId", "user-id-1", result)
+    }
+
+    // endregion
+
+    // region setCurrentUser clears pendingUserId
+
+    @Test
+    fun `V1 GIVEN pendingUserId then setCurrentUser EXPECT pendingUserId cleared`() {
+        version1Repository.setUserId("pending-id")
+        version1Repository.setCurrentUser(mockUser)
+
+        val result = version1Repository.getUserId()
+
+        assertEquals("pendingUserId should be cleared, returning currentUser.userId", "user-id-1", result)
+    }
+
+    // endregion
+
+    // region clearUser (logout)
+
+    @Test
+    fun `V1 GIVEN currentUser set then clearUser EXPECT getUserId returns null`() {
+        every { dataSource.getCachedUser() } returns null
+        version1Repository.setCurrentUser(mockUser)
+
+        version1Repository.clearUser()
+        val result = version1Repository.getUserId()
+
+        assertNull("getUserId should return null after clearUser", result)
+    }
+
+    @Test
+    fun `V1 GIVEN pendingUserId set then clearUser EXPECT getUserId returns null`() {
+        every { dataSource.getCachedUser() } returns null
+        version1Repository.setUserId("pending-id")
+
+        version1Repository.clearUser()
+        val result = version1Repository.getUserId()
+
+        assertNull("getUserId should return null after clearUser", result)
+    }
+
+    @Test
+    fun `V1 GIVEN currentUser and pendingUserId then clearUser EXPECT getCurrentUser returns null`() {
+        every { dataSource.getCachedUser() } returns null
+        version1Repository.setUserId("pending-id")
+        version1Repository.setCurrentUser(mockUser)
+
+        version1Repository.clearUser()
+        val result = version1Repository.getCurrentUser()
+
+        assertNull("getCurrentUser should return null after clearUser", result)
+    }
+
+    @Test
+    fun `V1 GIVEN clearUser called EXPECT dataSource clearUser called`() {
+        version1Repository.setUserId("pending-id")
+        version1Repository.setCurrentUser(mockUser)
+
+        version1Repository.clearUser()
+
+        verify { dataSource.clearUser() }
+    }
+
+    @Test
+    fun `V1 GIVEN clearUser then setUserId EXPECT getUserId returns new pendingUserId`() {
+        every { dataSource.getCachedUser() } returns null
+        version1Repository.setCurrentUser(mockUser)
+        version1Repository.clearUser()
+
+        version1Repository.setUserId("new-pending-id")
+        val result = version1Repository.getUserId()
 
         assertEquals("Should return new pendingUserId after clearUser", "new-pending-id", result)
     }
+
+    // region getRequestIds
+
+    @Test
+    fun `V1 GIVEN device and user ids EXPECT the device id and the user id only`() {
+        every { dataSource.getDeviceId() } returns "device-1"
+        every { dataSource.getCachedUser() } returns mockUser
+
+        assertEquals(RequestIds(deviceId = "device-1", userId = "user-id-1"), version1Repository.getRequestIds())
+    }
+
+    @Test
+    fun `V1 GIVEN no device id EXPECT no ids`() {
+        every { dataSource.getDeviceId() } returns null
+        every { dataSource.getCachedUser() } returns mockUser
+
+        assertNull(version1Repository.getRequestIds())
+    }
+
+    @Test
+    fun `V1 GIVEN no user id EXPECT no ids`() {
+        every { dataSource.getDeviceId() } returns "device-1"
+        every { dataSource.getCachedUser() } returns null
+
+        assertNull(version1Repository.getRequestIds())
+    }
+
+    @Test
+    fun `GIVEN identity version 2 EXPECT the installation and anonymous ids and the identified user`() {
+        every { identityStore.current } returns ApphudIdentity("installation-1", "anonymous-1", "user-1")
+
+        assertEquals(
+            RequestIds(installationId = "installation-1", anonymousId = "anonymous-1", userId = "user-1"),
+            repository.getRequestIds(),
+        )
+    }
+
+    // endregion
+
+    // endregion
 
     @Test
     fun `GIVEN currentUser with internalId EXPECT getInternalId returns internalId`() {

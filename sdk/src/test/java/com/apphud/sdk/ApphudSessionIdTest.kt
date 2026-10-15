@@ -3,6 +3,7 @@ package com.apphud.sdk
 import android.content.Context
 import android.content.SharedPreferences
 import com.apphud.sdk.internal.ServiceLocator
+import com.apphud.sdk.internal.data.network.FirstRegistrationHoldInterceptor
 import com.apphud.sdk.internal.data.network.HostSwitcherInterceptor
 import com.apphud.sdk.internal.data.network.HttpRetryInterceptor
 import com.apphud.sdk.internal.data.network.SessionIdInterceptor
@@ -145,5 +146,13 @@ class ApphudSessionIdTest {
         startSessionScope()
 
         assertTrue(ServiceLocator.instance.session.okHttpClientWithoutHeaders.sessionInterceptorComesFirst())
+    }
+
+    @Test
+    fun `GIVEN both clients EXPECT the first-registration hold before everything else`() {
+        startSessionScope()
+
+        assertTrue(ServiceLocator.instance.session.okHttpClient.interceptors.first() is FirstRegistrationHoldInterceptor)
+        assertTrue(ServiceLocator.instance.session.okHttpClientWithoutHeaders.interceptors.first() is FirstRegistrationHoldInterceptor)
     }
 }

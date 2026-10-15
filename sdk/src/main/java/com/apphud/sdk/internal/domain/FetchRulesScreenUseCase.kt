@@ -1,5 +1,6 @@
 package com.apphud.sdk.internal.domain
 
+import com.apphud.sdk.internal.domain.model.RequestIds
 import com.apphud.sdk.ApphudInternal
 import com.apphud.sdk.internal.data.local.LocalRulesScreenRepository
 import com.apphud.sdk.internal.data.remote.RemoteRepository
@@ -26,12 +27,12 @@ internal class FetchRulesScreenUseCase(
     /**
      * Fetches rule screens for the specified device.
      *
-     * @param deviceId The unique identifier of the device
+     * @param identity The ids of the current install and person
      * @return A [FetchRulesScreenResult] indicating success or failure with error details
      */
-    suspend operator fun invoke(deviceId: String): FetchRulesScreenResult =
+    suspend operator fun invoke(identity: RequestIds): FetchRulesScreenResult =
         runCatchingCancellable {
-            val notifications = remoteRepository.getNotifications(deviceId).getOrThrow()
+            val notifications = remoteRepository.getNotifications(identity).getOrThrow()
             val legacyRuleScreensEnabled = ApphudInternal.legacyRuleScreensEnabled
 
             val ruleScreenList = notifications
@@ -43,7 +44,7 @@ internal class FetchRulesScreenUseCase(
                             rule.paywallId != null -> ""
                             !legacyRuleScreensEnabled -> return@mapNotNull null
                             else -> screenRemoteRepository.loadScreenHtmlData(
-                                rule.screenId, deviceId
+                                rule.screenId, identity
                             ).getOrThrow()
                         }
 
@@ -59,14 +60,14 @@ internal class FetchRulesScreenUseCase(
 
             if (legacyRuleScreensEnabled) {
                 ruleScreenList.forEach { ruleScreen ->
-                    remoteRepository.readAllNotifications(ruleScreen.rule.id, deviceId)
+                    remoteRepository.readAllNotifications(ruleScreen.rule.id, identity)
                 }
             } else {
                 notifications
                     .mapNotNull { it.rule?.id }
                     .distinct()
                     .forEach { ruleId ->
-                        remoteRepository.readAllNotifications(ruleId, deviceId)
+                        remoteRepository.readAllNotifications(ruleId, identity)
                     }
             }
 

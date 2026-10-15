@@ -28,6 +28,19 @@ internal interface PlatformProtocol {
      * app restarts.
      */
     fun setSessionId(sessionId: String)
+
+    /**
+     * Whether this install is a reinstall on this device: true on a reinstall, false on a first
+     * install, null while unknown (the marker read hasn't succeeded yet, or the install was updated
+     * in place from an older SDK version). When the app supplies the ids, it is the `isReinstall` it
+     * passed, or the latest [Apphud.setReinstall]. Null until [Apphud.start] has loaded this install's result; [awaitIsReinstall] waits
+     * for it. Google Block Store keeps the marker across uninstall only while Google Backup is on,
+     * so with Backup off a reinstall reads false.
+     */
+    fun isReinstall(): Boolean?
+
+    /** [isReinstall] once this install's marker read has finished or timed out (a few seconds at most). */
+    suspend fun awaitIsReinstall(): Boolean?
 }
 
 internal object ApphudPlatform : PlatformProtocol {
@@ -51,5 +64,17 @@ internal object ApphudPlatform : PlatformProtocol {
     override fun setSessionId(sessionId: String) {
         runCatching { ServiceLocator.instance.clientSessionRepository.setExternalSessionId(sessionId) }
             .onFailure { ApphudLog.logE("setSessionId ignored: SDK is not initialized") }
+    }
+
+    // Identity version 2 only: version 1 runs no reinstall check.
+    override fun isReinstall(): Boolean? =
+        if (ApphudInternal.startedIdentityV1) null else runCatching { ServiceLocator.instance.reinstallRepository.isReinstall() }.getOrNull()
+
+    override suspend fun awaitIsReinstall(): Boolean? {
+        if (ApphudInternal.startedIdentityV1) return null
+        val repository = runCatching { ServiceLocator.instance.reinstallRepository }.getOrNull() ?: return null
+        // Called before start it waits for start, which may choose version 1.
+        val isReinstall = repository.awaitIsReinstall()
+        return if (ApphudInternal.startedIdentityV1) null else isReinstall
     }
 }

@@ -1,6 +1,7 @@
 package com.apphud.sdk.internal.domain
 
 import com.apphud.sdk.domain.ApphudPaywall
+import com.apphud.sdk.internal.domain.model.ApphudIdentity
 import com.apphud.sdk.domain.ApphudPlacement
 import com.apphud.sdk.domain.ApphudUser
 import com.apphud.sdk.internal.data.UserRepository
@@ -49,7 +50,7 @@ class GetPaywallByIdentifierUseCaseTest {
         val cached = paywall("main")
         every { userRepository.getCurrentUser() } returns userWithPaywall(cached)
 
-        val result = useCase("main", "device-id")
+        val result = useCase("main", IDENTITY)
 
         assertEquals(cached, result)
     }
@@ -59,7 +60,7 @@ class GetPaywallByIdentifierUseCaseTest {
         val cached = paywall("main")
         every { userRepository.getCurrentUser() } returns userWithPaywall(cached)
 
-        useCase("main", "device-id")
+        useCase("main", IDENTITY)
 
         coVerify(exactly = 0) { remoteRepository.getPaywall(any(), any()) }
     }
@@ -69,7 +70,7 @@ class GetPaywallByIdentifierUseCaseTest {
         val cached = paywall("main", id = "pw-internal-id")
         every { userRepository.getCurrentUser() } returns userWithPaywall(cached)
 
-        val result = useCase("pw-internal-id", "device-id")
+        val result = useCase("pw-internal-id", IDENTITY)
 
         assertEquals(cached, result)
     }
@@ -79,7 +80,7 @@ class GetPaywallByIdentifierUseCaseTest {
         val cached = paywall("main", id = "pw-internal-id")
         every { userRepository.getCurrentUser() } returns userWithPaywall(cached)
 
-        useCase("pw-internal-id", "device-id")
+        useCase("pw-internal-id", IDENTITY)
 
         coVerify(exactly = 0) { remoteRepository.getPaywall(any(), any()) }
     }
@@ -92,9 +93,9 @@ class GetPaywallByIdentifierUseCaseTest {
     fun `GIVEN no cached paywall EXPECT returns remote paywall`() = runTest {
         val remote = paywall("main")
         every { userRepository.getCurrentUser() } returns userWithPaywall(paywall("other"))
-        coEvery { remoteRepository.getPaywall("main", "device-id") } returns Result.success(remote)
+        coEvery { remoteRepository.getPaywall("main", IDENTITY) } returns Result.success(remote)
 
-        val result = useCase("main", "device-id")
+        val result = useCase("main", IDENTITY)
 
         assertEquals(remote, result)
     }
@@ -103,9 +104,9 @@ class GetPaywallByIdentifierUseCaseTest {
     fun `GIVEN no current user EXPECT fetches paywall remotely`() = runTest {
         val remote = paywall("main")
         every { userRepository.getCurrentUser() } returns null
-        coEvery { remoteRepository.getPaywall("main", "device-id") } returns Result.success(remote)
+        coEvery { remoteRepository.getPaywall("main", IDENTITY) } returns Result.success(remote)
 
-        val result = useCase("main", "device-id")
+        val result = useCase("main", IDENTITY)
 
         assertEquals(remote, result)
     }
@@ -113,13 +114,17 @@ class GetPaywallByIdentifierUseCaseTest {
     @Test
     fun `GIVEN cache miss and remote failure EXPECT returns null`() = runTest {
         every { userRepository.getCurrentUser() } returns null
-        coEvery { remoteRepository.getPaywall("main", "device-id") } returns
+        coEvery { remoteRepository.getPaywall("main", IDENTITY) } returns
             Result.failure(RuntimeException("network error"))
 
-        val result = useCase("main", "device-id")
+        val result = useCase("main", IDENTITY)
 
         assertNull(result)
     }
 
     // endregion
+
+    private companion object {
+        val IDENTITY = ApphudIdentity("installation-id", "anonymous-id", null).requestIds
+    }
 }
