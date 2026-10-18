@@ -77,15 +77,16 @@ internal class RemoteRepository(
         runCatchingCancellable {
             // A new install's first registration carries the reinstall flag once the check has decided.
             if (!isVersion1()) reinstallRepository.awaitBeforeRegistration()
+            val revision = if (isVersion1()) null else identityStore.pendingRevision
             val body = registrationBodyFactory.create(needPlacements, isNew, email, fromWeb2Web, userId)
             val request = buildPostRequest(urlProvider.customersUrl, body)
-            executeForResponse<CustomerDto>(okHttpClient, gson, request, dispatchers.io) to body
+            Triple(executeForResponse<CustomerDto>(okHttpClient, gson, request, dispatchers.io), body, revision)
         }
             .recoverCatchingCancellable { e ->
                 val message = e.message ?: "Registration failed"
                 throw ApphudError.from(message, originalCause = e)
             }
-            .mapCatchingCancellable { (response, body) ->
+            .mapCatchingCancellable { (response, body, revision) ->
                 urlProvider.updateConnectDomainUrl(response.data.meta)
                 val user = response.data.results?.let { customerDto ->
                     customerMapper.map(customerDto, previousUser)
@@ -95,8 +96,9 @@ internal class RemoteRepository(
                     reinstallRepository.onRegistered(
                         reinstallSent = body.reinstall == true,
                         legacyDeviceIdSent = body.legacyDeviceId != null,
+                        installationIdSent = body.installationId,
                     )
-                    markSyncedIfCurrent(body)
+                    markSyncedIfCurrent(body, checkNotNull(revision))
                 } else {
                     identityStore.markVersion1Registered()
                 }
@@ -109,14 +111,14 @@ internal class RemoteRepository(
      * The backend has seen the current ids: a registration in the new shape, sent with the ids
      * still current (they may change while it is out). A reinstall it reported counts as current.
      */
-    private fun markSyncedIfCurrent(body: RegistrationBody) {
-        val current = identityStore.current ?: return
-        if (body.installationId == current.installationId &&
-            body.anonymousId == current.anonymousId &&
-            body.userId == current.userId &&
+    private fun markSyncedIfCurrent(body: RegistrationBody, revision: Long) {
+        val expected = com.apphud.sdk.internal.domain.model.ApphudIdentity(
+            body.installationId ?: return, body.anonymousId ?: return, body.userId,
+        )
+        if (identityStore.current == expected &&
             (body.reinstall == true || body.reinstall == reinstallRepository.reinstallFlag())
         ) {
-            identityStore.markSynced()
+            identityStore.markSynced(expected, revision)
         }
     }
 

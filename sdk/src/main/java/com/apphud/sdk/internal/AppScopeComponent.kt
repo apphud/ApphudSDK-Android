@@ -107,4 +107,5 @@ internal class AppScopeComponent(val applicationContext: Context) {
     val lifecycleRepository: LifecycleRepository = LifecycleRepository(dispatchers)
 
     val billingWrapper: BillingWrapper by lazy { BillingWrapper(applicationContext) }
+    val purchaseRecovery = PurchaseRecovery()
 }

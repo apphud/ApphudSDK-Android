@@ -24,8 +24,387 @@ import org.junit.Test
 import com.apphud.sdk.ApphudIdentityVersion
 import com.apphud.sdk.storage.IdentityVersionStorage
 import java.io.IOException
+import com.apphud.sdk.ApphudInternal
+import com.apphud.sdk.internal.ApphudDispatchers
+import com.apphud.sdk.internal.ServiceLocator
+import com.apphud.sdk.internal.domain.EnrichPlacementProductsUseCase
+import com.apphud.sdk.internal.domain.RegisterUserUseCase
+import com.apphud.sdk.internal.domain.RegistrationInteractor
+import com.apphud.sdk.internal.domain.ResolveIdentityUseCase
+import com.apphud.sdk.managers.RequestManager
+import io.mockk.coEvery
+import io.mockk.every
+import io.mockk.just
+import io.mockk.mockk
+import io.mockk.mockkObject
+import io.mockk.runs
+import io.mockk.unmockkObject
+import kotlinx.coroutines.test.StandardTestDispatcher
+import kotlinx.coroutines.test.TestScope
+import kotlinx.coroutines.test.runTest
+import okhttp3.MediaType.Companion.toMediaType
+import okhttp3.ResponseBody.Companion.toResponseBody
 
 class IdentityStoreTest {
+
+    @Test
+    fun `GIVEN reinstall reported for a previous host installation EXPECT new host id not reported`() {
+        launch(ApphudSuppliedIds.of(anonymousId = "anon", installationId = "first"))
+        records.record = records.record!!.copy(reinstallReported = true)
+        launch(ApphudSuppliedIds.of(anonymousId = "anon", installationId = "second"))
+
+        assertFalse(records.record!!.reinstallReported)
+    }
+
+    @Test
+    fun `GIVEN reinstall reported for the same host installation EXPECT report acknowledgement kept`() {
+        launch(ApphudSuppliedIds.of(anonymousId = "anon", installationId = "first"))
+        records.record = records.record!!.copy(reinstallReported = true)
+        launch(ApphudSuppliedIds.of(anonymousId = "anon", installationId = "first"))
+
+        assertTrue(records.record!!.reinstallReported)
+    }
+
+    @Test
+    fun `GIVEN identify races with pending persistence EXPECT the newer identity stays pending`() {
+        val entered = java.util.concurrent.CountDownLatch(1)
+        val release = java.util.concurrent.CountDownLatch(1)
+        val failure = java.util.concurrent.atomic.AtomicReference<Throwable?>()
+        val backing = object : Storage by storage {
+            override var identitySyncPending: Boolean
+                get() = storage.identitySyncPending
+                set(value) {
+                    if (!value) {
+                        entered.countDown()
+                        check(release.await(5, java.util.concurrent.TimeUnit.SECONDS))
+                    }
+                    storage.identitySyncPending = value
+                }
+        }
+        val identity = store(backing)
+        val sent = identity.resolve(ApphudSuppliedIds(userId = "Alice")).identity
+        val revision = identity.pendingRevision
+        val response = kotlin.concurrent.thread(name = "identity-response") {
+            runCatching { identity.markSynced(sent, revision) }.exceptionOrNull()?.let { failure.set(it) }
+        }
+        try {
+            check(entered.await(5, java.util.concurrent.TimeUnit.SECONDS))
+            val identify = kotlin.concurrent.thread(name = "identity-switch") {
+                runCatching { identity.identify("Bob") }.exceptionOrNull()?.let { failure.set(it) }
+            }
+            try {
+                fun waitingForResponse(): Boolean = identify.state == Thread.State.BLOCKED &&
+                    identify.stackTrace.firstOrNull()?.let {
+                        it.className == IdentityStore::class.java.name && it.methodName == "identify"
+                    } == true
+                val deadline = System.nanoTime() + java.util.concurrent.TimeUnit.SECONDS.toNanos(5)
+                while (identify.isAlive && !waitingForResponse() && System.nanoTime() < deadline) Thread.yield()
+                check(!identify.isAlive || waitingForResponse())
+            } finally {
+                release.countDown()
+                identify.join(5_000)
+                check(!identify.isAlive)
+            }
+        } finally {
+            release.countDown()
+            response.join(5_000)
+        }
+        check(!response.isAlive && failure.get() == null) { failure.get().toString() }
+
+        assertTrue(identity.isSyncPending)
+    }
+
+    @Test
+    fun `GIVEN identify changes while a response is checked EXPECT the new identity remains pending`() = runTest {
+        val identity = store()
+        identity.resolve(ApphudSuppliedIds(userId = "Alice"))
+        registrationWithInterleavedChange(identity) { identity.identify("Bob") }
+
+        assertTrue(identity.isSyncPending)
+    }
+
+    @Test
+    fun `GIVEN reinstall becomes pending while a response is checked EXPECT pending remains`() = runTest {
+        val identity = store()
+        identity.resolve(ApphudSuppliedIds(userId = "Alice"))
+        registrationWithInterleavedChange(identity) { identity.markSyncPending() }
+
+        assertTrue(identity.isSyncPending)
+    }
+
+    @Test
+    fun `GIVEN full host ids after a pending restore EXPECT a late native verdict cannot change them`() {
+        val identity = hostAfterPendingRestore()
+        identity.dropRestoredPerson()
+
+        assertEquals(ApphudIdentity("host-installation", "restored-anonymous", "restored-user"), identity.current)
+    }
+
+    @Test
+    fun `GIVEN full host ids after a pending restore EXPECT the persisted restore hint cleared`() {
+        hostAfterPendingRestore()
+
+        assertFalse(records.record!!.restoredPerson)
+    }
+
+    private fun hostAfterPendingRestore(): IdentityStore {
+        storage.anonymousId = "restored-anonymous"
+        storage.identifiedUserId = "restored-user"
+        storage.idsIdentityVersion = ApphudIdentityVersion.V2.name
+        val identity = store()
+        identity.resolve(ApphudSuppliedIds())
+        identity.logout(null)
+        val supplied = ApphudSuppliedIds("restored-user", "restored-anonymous", "host-installation", false)
+        identity.resolve(supplied)
+        return identity
+    }
+
+    @Test
+    fun `GIVEN backed up V1 prefs and APK update before first V2 start EXPECT native restore check`() {
+        runVersion1("old-device", "Alice")
+        restoreBackupOntoAnotherPhone()
+        freshPackage = false
+
+        assertTrue(launch().restoredPersonPending)
+    }
+
+    @Test
+    fun `GIVEN V1 backup and APK update on this device EXPECT marker drops the restored person`() = runTest {
+        runVersion1("old-device", "Alice")
+        records.record = null
+        versions.version = null
+        freshPackage = false
+        val identity = store()
+        val marker = byteArrayOf(1, 2, 3)
+        val source = mockk<InstallMarkerSource> {
+            coEvery { read() } returns marker
+            coEvery { write(any()) } just runs
+        }
+        val reinstall = ReinstallRepository(records, source, { marker }, this,
+            onDecided = { identity.markSyncPending() }, dropRestoredPerson = { identity.dropRestoredPerson() })
+        ResolveIdentityUseCase(identity, reinstall)(ApphudSuppliedIds())
+        reinstall.awaitBeforeRegistration()
+
+        assertEquals(null, identity.current?.userId)
+    }
+
+    private suspend fun registrationWithInterleavedChange(identity: IdentityStore, change: () -> Unit) {
+        val sent = checkNotNull(identity.current)
+        val body = com.apphud.sdk.body.RegistrationBody(
+            locale = "en", sdkVersion = "test", appVersion = "1", deviceFamily = "Android",
+            deviceType = "test", platform = "android", osVersion = "35", startAppVersion = "1",
+            idfv = null, idfa = null, androidId = null, userId = sent.userId,
+            installationId = sent.installationId, anonymousId = sent.anonymousId,
+            timeZone = "UTC", isSandbox = true, isNew = false, needPlacements = false,
+            firstSeen = null, sdkLaunchedAt = 0, requestTime = 0, installSource = "test",
+            observerMode = true, fromWeb2web = null, email = null,
+        )
+        val request = okhttp3.Request.Builder().url("https://api.apphuddev.com/v4/customers").build()
+        val response = okhttp3.Response.Builder().request(request).protocol(okhttp3.Protocol.HTTP_1_1)
+            .code(201).message("Created").body(
+                """{"data":{"results":{"id":"customer-A","user_id":"Alice"},"meta":null}}"""
+                    .toResponseBody("application/json".toMediaType())
+            ).build()
+        val client = mockk<okhttp3.OkHttpClient> {
+            every { newCall(any()) } returns mockk<okhttp3.Call> { every { execute() } returns response }
+        }
+        val marker = mockk<ReinstallRepository> {
+            coEvery { awaitBeforeRegistration() } returns null
+            every { onRegistered(any(), any(), any()) } just runs
+            // This interleaves exactly between the response's identity check and pending clear.
+            every { reinstallFlag() } answers { change(); null }
+        }
+        val mapper = mockk<com.apphud.sdk.internal.data.mapper.CustomerMapper> {
+            every { map(any(), any()) } returns legacyUser("Alice")
+        }
+        val factory = mockk<com.apphud.sdk.internal.data.remote.RegistrationBodyFactory> {
+            every { create(any(), any(), any(), any()) } returns body
+        }
+        val urls = mockk<com.apphud.sdk.internal.data.network.UrlProvider> {
+            every { customersUrl } returns request.url
+            every { updateConnectDomainUrl(any()) } just runs
+        }
+        val repository = com.apphud.sdk.internal.data.remote.RemoteRepository(
+            okHttpClient = client, gson = com.google.gson.Gson(), customerMapper = mapper,
+            purchaseBodyFactory = mockk(), registrationBodyFactory = factory,
+            productMapper = mockk(), attributionMapper = mockk(), notificationMapper = mockk(), paywallsMapper = mockk(),
+            urlProvider = urls, dispatchers = ApphudDispatchers(), reinstallRepository = marker, identityStore = identity,
+        )
+        check(repository.getCustomers(false, false).isSuccess)
+    }
+
+    @Test
+    fun `GIVEN failed identify WHEN the same id is retried EXPECT a second registration`() = runTest {
+        assertEquals(2, identifyRegistrationAttempts(failFirst = true).attempts)
+    }
+
+    @Test
+    fun `GIVEN successful identify WHEN the same id is repeated EXPECT no second registration`() = runTest {
+        assertEquals(1, identifyRegistrationAttempts(failFirst = false).attempts)
+    }
+
+    @Test
+    fun `GIVEN a successful identify retry WHEN the same id repeats EXPECT no further registration`() = runTest {
+        assertEquals(2, identifyRegistrationAttempts(failFirst = true, repeats = 2).attempts)
+    }
+
+    @Test
+    fun `GIVEN a successful identify retry EXPECT the customer cache has the chosen user`() = runTest {
+        assertEquals("Alice", identifyRegistrationAttempts(failFirst = true).cachedUserId)
+    }
+
+    @Test
+    fun `GIVEN a successful identify retry EXPECT no pending synchronization`() = runTest {
+        assertFalse(identifyRegistrationAttempts(failFirst = true).syncPending)
+    }
+
+    @Test
+    fun `GIVEN failed identify WHEN the anonymous id is supplied EXPECT no retry for that id`() = runTest {
+        assertEquals(1, identifyRegistrationAttempts(failFirst = true, repeatUserId = null).attempts)
+    }
+
+    @Test
+    fun `GIVEN restored V2 ids and an APK update before start EXPECT the confirmed reinstall drops the user`() = runTest {
+        assertNull(resolveSameDeviceRestore(packageUpdatedBeforeStart = true).current?.userId)
+    }
+
+    @Test
+    fun `GIVEN restored V2 ids without an APK update EXPECT the confirmed reinstall drops the user`() = runTest {
+        assertNull(resolveSameDeviceRestore(packageUpdatedBeforeStart = false).current?.userId)
+    }
+
+    @Test
+    fun `GIVEN restored V2 ids after an APK update EXPECT the confirmed reinstall rotates the anonymous id`() = runTest {
+        assertNotEquals("id-2", resolveSameDeviceRestore(packageUpdatedBeforeStart = true).current?.anonymousId)
+    }
+
+    @Test
+    fun `GIVEN confirmed reinstall after an APK update WHEN the SDK restarts EXPECT the new person kept`() = runTest {
+        val reinstalled = resolveSameDeviceRestore(packageUpdatedBeforeStart = true).current
+
+        assertEquals(reinstalled?.copy(userId = null), launch().identity)
+    }
+
+    @Test
+    fun `GIVEN restored V2 ids after an APK update and no marker EXPECT the user kept`() = runTest {
+        assertEquals("Alice", resolveSameDeviceRestore(packageUpdatedBeforeStart = true, markerPresent = false).current?.userId)
+    }
+
+    @Test
+    fun `GIVEN restored V2 ids after an APK update and an unreadable marker EXPECT the user kept`() = runTest {
+        assertEquals("Alice", resolveSameDeviceRestore(packageUpdatedBeforeStart = true, markerReadFails = true).current?.userId)
+    }
+
+    @Test
+    fun `GIVEN restored V2 ids after an APK update and the app supplies the user EXPECT it kept`() = runTest {
+        assertEquals("Alice", resolveSameDeviceRestore(packageUpdatedBeforeStart = true, supplied = ApphudSuppliedIds(userId = "Alice")).current?.userId)
+    }
+
+    private data class IdentifyResult(val attempts: Int, val cachedUserId: String?, val syncPending: Boolean)
+
+    private suspend fun TestScope.identifyRegistrationAttempts(
+        failFirst: Boolean,
+        repeats: Int = 1,
+        repeatUserId: String? = "Alice",
+    ): IdentifyResult {
+        val identity = store()
+        val anonymous = identity.resolve(ApphudSuppliedIds()).identity
+        identity.markSynced()
+        storage.apphudUser = legacyUser(anonymous.anonymousId)
+        val dataSource = mockk<UserDataSource> {
+            every { getCachedUser() } answers { storage.apphudUser }
+            every { saveUser(any()) } answers {
+                storage.apphudUser = firstArg()
+                true
+            }
+            every { updateLastRegistrationTime(any()) } just runs
+        }
+        val users = UserRepository(dataSource, identity)
+        val enrichment = mockk<EnrichPlacementProductsUseCase>()
+        every { enrichment.invoke(any<ApphudUser>()) } just runs
+        val interactor = RegistrationInteractor(users, RegisterUserUseCase(users, dataSource, RequestManager), enrichment)
+        val locator = mockk<ServiceLocator> {
+            every { identityStore } returns identity
+            every { userRepository } returns users
+            every { registrationInteractor } returns interactor
+            every { coroutineScope } returns backgroundScope
+            every { dispatchers } returns ApphudDispatchers(main = StandardTestDispatcher(testScheduler))
+        }
+        val apiKeyField = ApphudInternal::class.java.getDeclaredField("apiKey").apply { isAccessible = true }
+        val contextField = ApphudInternal::class.java.getDeclaredField("context").apply { isAccessible = true }
+        val versionChosenField = ApphudInternal::class.java.getDeclaredField("identityVersionChosen").apply { isAccessible = true }
+        val previousApiKey = apiKeyField.get(ApphudInternal)
+        val previousContext = contextField.get(ApphudInternal)
+        val previousVersionChosen = versionChosenField.getBoolean(ApphudInternal)
+        val previousVersion = ApphudInternal.identityVersion
+        var attempts = 0
+        mockkObject(ServiceLocator.Companion, RequestManager)
+        try {
+            every { ServiceLocator.instance } returns locator
+            every { RequestManager.setParams(any(), any()) } just runs
+            coEvery { RequestManager.registration(any(), any(), any(), any(), any(), any()) } answers {
+                attempts += 1
+                if (failFirst && attempts == 1) throw IOException("controlled offline registration")
+                identity.markSynced()
+                legacyUser("Alice")
+            }
+            ApphudInternal.identityVersion = ApphudIdentityVersion.V2
+            ApphudInternal.context = mockk(relaxed = true)
+            apiKeyField.set(ApphudInternal, "local-test-key")
+
+            ApphudInternal.updateUserId("Alice")
+            check(identity.current?.userId == "Alice")
+            if (failFirst) {
+                check(identity.isSyncPending)
+                check(users.getCurrentUser()?.userId == anonymous.anonymousId)
+            }
+            repeat(repeats) { ApphudInternal.updateUserId(repeatUserId ?: anonymous.anonymousId) }
+            return IdentifyResult(attempts, users.getCurrentUser()?.userId, identity.isSyncPending)
+        } finally {
+            ApphudInternal.identityVersion = previousVersion
+            versionChosenField.setBoolean(ApphudInternal, previousVersionChosen)
+            apiKeyField.set(ApphudInternal, previousApiKey)
+            contextField.set(ApphudInternal, previousContext)
+            unmockkObject(ServiceLocator.Companion, RequestManager)
+        }
+    }
+
+    private suspend fun TestScope.resolveSameDeviceRestore(
+        packageUpdatedBeforeStart: Boolean,
+        markerPresent: Boolean = true,
+        markerReadFails: Boolean = false,
+        supplied: ApphudSuppliedIds = ApphudSuppliedIds(),
+    ): IdentityStore {
+        val original = store().apply { resolve(ApphudSuppliedIds()); identify("Alice") }
+        val previousInstallation = original.current?.installationId
+        storage.apphudUser = legacyUser("Alice")
+        // Preferences return with the backup; neither noBackup file returns.
+        records.record = null
+        versions.version = null
+        freshPackage = !packageUpdatedBeforeStart
+        val next = store()
+        val marker = byteArrayOf(1, 2, 3)
+        val markers = mockk<InstallMarkerSource> {
+            coEvery { read() } answers {
+                if (markerReadFails) throw IOException("controlled marker read failure")
+                marker.takeIf { markerPresent }
+            }
+            coEvery { write(any()) } just runs
+        }
+        val reinstall = ReinstallRepository(
+            storage = records,
+            markerSource = markers,
+            deviceMarker = { marker },
+            scope = this,
+            onDecided = { next.markSyncPending() },
+            dropRestoredPerson = { next.dropRestoredPerson() },
+        )
+
+        ResolveIdentityUseCase(next, reinstall)(supplied)
+        check(reinstall.awaitBeforeRegistration() == if (markerReadFails) null else markerPresent)
+        check(next.current?.installationId != previousInstallation)
+        return next
+    }
 
     private class FakeStorage : Storage {
         override var lastRegistration: Long = 0L
@@ -94,8 +473,8 @@ class IdentityStoreTest {
     private var nextId = 0
 
     /** A launch over the same device storage. */
-    private fun store() = IdentityStore(
-        storage = storage,
+    private fun store(backing: Storage = storage) = IdentityStore(
+        storage = backing,
         installRecords = records,
         versions = versions,
         isFreshPackageInstall = { freshPackage },
@@ -861,13 +1240,25 @@ class IdentityStoreTest {
     }
 
     @Test
-    fun `GIVEN restored ids on an updated package EXPECT no person waiting for the check`() {
+    fun `GIVEN restored ids on an updated package EXPECT the person waits for the check`() {
         storage.anonymousId = "RESTORED-ANON"
         freshPackage = false
 
         launch()
 
-        assertEquals(false, records.record?.restoredPerson)
+        assertEquals(true, records.record?.restoredPerson)
+    }
+
+    @Test
+    fun `GIVEN an updated package with its install record EXPECT the current person kept without clearing caches`() {
+        val original = store().apply { resolve(ApphudSuppliedIds()); identify("Alice") }.current
+        val cached = legacyUser("Alice")
+        storage.apphudUser = cached
+        freshPackage = false
+
+        val resolution = launch()
+
+        assertEquals(Triple(original, cached, 0), Triple(resolution.identity, storage.apphudUser, clearedUserData))
     }
 
     @Test
@@ -1024,14 +1415,15 @@ class IdentityStoreTest {
     }
 
     @Test
-    fun `GIVEN missing record on an updated package EXPECT no user data cleared`() {
+    fun `GIVEN missing record on an updated package EXPECT the restored customer cache cleared`() {
         store().also { it.resolve(ApphudSuppliedIds()) }.identify("Alice")
+        storage.apphudUser = legacyUser("Alice")
         records.record = null
         freshPackage = false
 
         launch()
 
-        assertEquals(0, clearedUserData)
+        assertNull(storage.apphudUser)
     }
 
     // endregion

@@ -256,6 +256,9 @@ internal class BillingWrapper(context: Context) : Closeable {
 
     private fun normalizeObfuscatedAccountId(value: String?): String? {
         value ?: return null
+        if (!ApphudInternal.isIdentityV1) {
+            return value.takeIf { it.isNotBlank() && it.length <= 64 }
+        }
         val regex = Regex("[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}")
         return if (regex.matches(value)) value else null
     }

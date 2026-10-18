@@ -30,6 +30,7 @@ internal class ServiceLocator private constructor() {
     val localRulesScreenRepository get() = appScope.localRulesScreenRepository
     val lifecycleRepository get() = appScope.lifecycleRepository
     val billingWrapper get() = appScope.billingWrapper
+    val purchaseRecovery get() = appScope.purchaseRecovery
     val dispatchers get() = appScope.dispatchers
 
     // Session-scoped passthrough properties

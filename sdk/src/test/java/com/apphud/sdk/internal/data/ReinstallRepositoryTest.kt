@@ -28,6 +28,178 @@ import java.util.concurrent.Executor
 
 class ReinstallRepositoryTest {
 
+    @Test
+    fun `GIVEN another installation acknowledgement arrives late EXPECT current reinstall still pending`() = runTest {
+        val repository = launch(start = false)
+        repository.useHostValue(true, "installation-1")
+        storage.record = InstallRecord(InstallState.EXISTING, "new-host")
+        repository.useHostValue(true, "new-host")
+
+        repository.onRegistered(true, false, "installation-1")
+
+        assertEquals(true, repository.reinstallFlag())
+    }
+
+    @Test
+    fun `GIVEN a host record is saved after acknowledgement EXPECT a later process does not repeat it`() = runTest {
+        val repository = launch(start = false)
+        storage.failWrites = true
+        repository.useHostValue(true, "volatile-host")
+        repository.onRegistered(true, false, "volatile-host")
+        storage.failWrites = false
+        storage.record = InstallRecord(InstallState.EXISTING, "volatile-host")
+        repository.useHostValue(null, "volatile-host")
+        val next = launch(start = false)
+
+        next.useHostValue(null, "volatile-host")
+
+        assertNull(next.reinstallFlag())
+    }
+
+    @Test
+    fun `GIVEN a host record is saved after a late answer EXPECT a later process retains the answer`() = runTest {
+        val repository = launch(start = false)
+        storage.failWrites = true
+        repository.useHostValue(false, "volatile-host")
+        repository.useLaterHostValue(true)
+        storage.failWrites = false
+        storage.record = InstallRecord(InstallState.EXISTING, "volatile-host")
+        repository.useHostValue(null, "volatile-host")
+        val next = launch(start = false)
+
+        next.useHostValue(null, "volatile-host")
+
+        assertEquals(true, next.reinstallFlag())
+    }
+
+    @Test
+    fun `GIVEN an unsaved late answer for the same host key EXPECT null at start keeps it`() = runTest {
+        val repository = launch(start = false)
+        storage.failWrites = true
+        repository.useHostValue(false, "volatile-host")
+        repository.useLaterHostValue(true)
+
+        repository.useHostValue(null, "volatile-host")
+
+        assertEquals(true, repository.isReinstall())
+    }
+
+    @Test
+    fun `GIVEN a new host key was not saved EXPECT its late answer leaves the old record untouched`() = runTest {
+        val repository = launch(start = false)
+        val oldRecord = storage.record
+        storage.failWrites = true
+        repository.useHostValue(false, "volatile-host")
+        storage.failWrites = false
+
+        repository.useLaterHostValue(true)
+
+        assertEquals(oldRecord, storage.record)
+    }
+
+    @Test
+    fun `GIVEN a new host key was not saved EXPECT its acknowledgement leaves the old record untouched`() = runTest {
+        val repository = launch(start = false)
+        val oldRecord = storage.record
+        storage.failWrites = true
+        repository.useHostValue(true, "volatile-host")
+        storage.failWrites = false
+
+        repository.onRegistered(reinstallSent = true, legacyDeviceIdSent = false)
+
+        assertEquals(oldRecord, storage.record)
+    }
+
+    @Test
+    fun `GIVEN a new host installation cannot be saved EXPECT its explicit reinstall answer still sent`() = runTest {
+        val repository = launch(start = false)
+        repository.useHostValue(true, "installation-1")
+        repository.onRegistered(reinstallSent = true, legacyDeviceIdSent = false)
+        storage.failWrites = true
+        repository.useHostValue(false, "volatile-host")
+        repository.useLaterHostValue(true)
+
+        assertEquals(true, repository.reinstallFlag())
+    }
+
+    @Test
+    fun `GIVEN a new host installation cannot be saved EXPECT no previous installation answer adopted`() = runTest {
+        val repository = launch(start = false)
+        repository.useHostValue(true, "installation-1")
+        repository.onRegistered(reinstallSent = true, legacyDeviceIdSent = false)
+        storage.failWrites = true
+        repository.useHostValue(null, "volatile-host")
+
+        assertNull(repository.isReinstall())
+    }
+
+    @Test
+    fun `GIVEN previous host installation reported EXPECT later true for new host installation sent`() = runTest {
+        val repository = launch(start = false)
+        repository.useHostValue(true)
+        repository.onRegistered(reinstallSent = true, legacyDeviceIdSent = false)
+        storage.record = storage.record!!.copy(installationId = "new-host", reinstallReported = false, hostReinstall = null)
+        repository.useHostValue(false)
+        repository.useLaterHostValue(true)
+
+        assertEquals(true, repository.reinstallFlag())
+    }
+
+    @Test
+    fun `GIVEN new host installation without a positive answer EXPECT no reinstall flag`() = runTest {
+        val repository = launch(start = false)
+        repository.useHostValue(true)
+        repository.onRegistered(reinstallSent = true, legacyDeviceIdSent = false)
+        storage.record = storage.record!!.copy(installationId = "new-host", reinstallReported = false, hostReinstall = null)
+        repository.useHostValue(null)
+
+        assertNull(repository.reinstallFlag())
+    }
+
+    @Test
+    fun `GIVEN an old native read then host ids EXPECT no late record overwrite`() = runTest {
+        val gate = CompletableDeferred<Unit>()
+        markers.gate = gate
+        markers.stored = THIS_DEVICE
+        val repository = launch(restoredPerson = true)
+        runCurrent()
+        repository.useHostValue(false)
+        val hostRecord = storage.record!!.copy(installationId = "host-installation")
+        storage.record = hostRecord
+        gate.complete(Unit)
+        advanceUntilIdle()
+
+        assertEquals(hostRecord, storage.record)
+    }
+
+    @Test
+    fun `GIVEN an old native read then host ids EXPECT no late marker write`() = runTest {
+        val gate = CompletableDeferred<Unit>()
+        markers.gate = gate
+        val repository = launch(restoredPerson = true)
+        runCurrent()
+        repository.useHostValue(false)
+        gate.complete(Unit)
+        advanceUntilIdle()
+
+        assertEquals(emptyList<ByteArray>(), markers.writes)
+    }
+
+    @Test
+    fun `GIVEN native detection superseded by host ids WHEN standalone starts again EXPECT a new native read`() = runTest {
+        val gate = CompletableDeferred<Unit>()
+        markers.gate = gate
+        val repository = launch(restoredPerson = true)
+        runCurrent()
+        repository.useHostValue(false)
+        gate.complete(Unit)
+        advanceUntilIdle()
+        repository.start()
+        advanceUntilIdle()
+
+        assertEquals(2, markers.reads)
+    }
+
     private class FakeStorage : InstallRecordStorage {
         var record: InstallRecord? = null
         var failWrites = false

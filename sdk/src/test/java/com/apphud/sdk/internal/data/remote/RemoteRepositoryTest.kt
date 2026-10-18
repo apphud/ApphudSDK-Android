@@ -69,11 +69,12 @@ class RemoteRepositoryTest {
     private val reinstallRepository: ReinstallRepository = mockk {
         coEvery { awaitBeforeRegistration() } returns null
         every { reinstallFlag() } returns null
-        every { onRegistered(any(), any()) } just Runs
+        every { onRegistered(any(), any(), any()) } just Runs
     }
 
     private val identityStore: IdentityStore = mockk(relaxUnitFun = true) {
         every { current } returns IDENTITY
+        every { pendingRevision } returns 0L
     }
 
     private val hold = com.apphud.sdk.internal.data.network.FirstRegistrationHold()
@@ -207,7 +208,7 @@ class RemoteRepositoryTest {
 
         remoteRepository.getCustomers(needPlacements = true, isNew = false, email = null)
 
-        verify { identityStore.markSynced() }
+        verify { identityStore.markSynced(IDENTITY, 0L) }
     }
 
     @Test
@@ -217,7 +218,7 @@ class RemoteRepositoryTest {
 
         remoteRepository.getCustomers(needPlacements = true, isNew = false, email = null)
 
-        verify(exactly = 0) { identityStore.markSynced() }
+        verify(exactly = 0) { identityStore.markSynced(any(), any()) }
     }
 
     @Test
@@ -228,7 +229,7 @@ class RemoteRepositoryTest {
 
         remoteRepository.getCustomers(needPlacements = true, isNew = false, email = null)
 
-        verify(exactly = 0) { identityStore.markSynced() }
+        verify(exactly = 0) { identityStore.markSynced(any(), any()) }
     }
 
     @Test
@@ -239,7 +240,7 @@ class RemoteRepositoryTest {
 
         remoteRepository.getCustomers(needPlacements = true, isNew = false, email = null)
 
-        verify { reinstallRepository.onRegistered(reinstallSent = true, legacyDeviceIdSent = false) }
+        verify { reinstallRepository.onRegistered(reinstallSent = true, legacyDeviceIdSent = false, installationIdSent = IDENTITY.installationId) }
     }
 
     @Test
@@ -266,8 +267,8 @@ class RemoteRepositoryTest {
         version1Repository.getCustomers(needPlacements = true, isNew = false, email = null)
 
         coVerify(exactly = 0) { reinstallRepository.awaitBeforeRegistration() }
-        verify(exactly = 0) { reinstallRepository.onRegistered(any(), any()) }
-        verify(exactly = 0) { identityStore.markSynced() }
+        verify(exactly = 0) { reinstallRepository.onRegistered(any(), any(), any()) }
+        verify(exactly = 0) { identityStore.markSynced(any(), any()) }
         verify { identityStore.markVersion1Registered() }
     }
 
@@ -279,7 +280,7 @@ class RemoteRepositoryTest {
 
         remoteRepository.getCustomers(needPlacements = true, isNew = false, email = null)
 
-        verify(exactly = 0) { reinstallRepository.onRegistered(any(), any()) }
+        verify(exactly = 0) { reinstallRepository.onRegistered(any(), any(), any()) }
     }
 
     @Test
@@ -289,7 +290,7 @@ class RemoteRepositoryTest {
 
         remoteRepository.getCustomers(needPlacements = true, isNew = false, email = null)
 
-        verify { reinstallRepository.onRegistered(reinstallSent = false, legacyDeviceIdSent = false) }
+        verify { reinstallRepository.onRegistered(reinstallSent = false, legacyDeviceIdSent = false, installationIdSent = IDENTITY.installationId) }
     }
 
     @Test
@@ -300,7 +301,7 @@ class RemoteRepositoryTest {
 
         remoteRepository.getCustomers(needPlacements = true, isNew = false, email = null)
 
-        verify { identityStore.markSynced() }
+        verify { identityStore.markSynced(IDENTITY, 0L) }
     }
 
     @Test
@@ -311,7 +312,7 @@ class RemoteRepositoryTest {
 
         remoteRepository.getCustomers(needPlacements = true, isNew = false, email = null)
 
-        verify { reinstallRepository.onRegistered(reinstallSent = false, legacyDeviceIdSent = true) }
+        verify { reinstallRepository.onRegistered(reinstallSent = false, legacyDeviceIdSent = true, installationIdSent = IDENTITY.installationId) }
     }
 
     // endregion

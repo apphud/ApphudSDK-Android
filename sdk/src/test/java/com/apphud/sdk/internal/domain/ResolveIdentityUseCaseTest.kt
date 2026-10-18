@@ -12,6 +12,7 @@ import io.mockk.just
 import io.mockk.mockk
 import io.mockk.runs
 import io.mockk.verify
+import io.mockk.verifyOrder
 import org.junit.Assert.assertFalse
 import org.junit.Test
 
@@ -19,13 +20,28 @@ class ResolveIdentityUseCaseTest {
 
     private val identityStore: IdentityStore = mockk()
     private val reinstallRepository: ReinstallRepository = mockk {
-        every { start(any(), any(), any()) } just runs
-        every { useHostValue(any()) } just runs
+        every { start(any(), any(), any(), any()) } just runs
+        every { useHostValue(any(), any()) } just runs
+        every { prepareForHostIds() } just runs
         every { legacyDeviceId() } returns null
         every { forgetLegacyDeviceId() } just runs
     }
     private val hold = FirstRegistrationHold()
     private val useCase = ResolveIdentityUseCase(identityStore, reinstallRepository, hold)
+
+    @Test
+    fun `GIVEN host ids EXPECT native detection superseded before host state is written`() {
+        resolvesTo(ApphudLaunchKind.NORMAL)
+        val supplied = ApphudSuppliedIds.of(anonymousId = "a", installationId = "i", isReinstall = false)
+
+        useCase(supplied)
+
+        verifyOrder {
+            reinstallRepository.prepareForHostIds()
+            identityStore.resolve(supplied)
+            reinstallRepository.useHostValue(false, IDENTITY.installationId)
+        }
+    }
 
     private fun resolvesTo(launch: ApphudLaunchKind, restoredPersonPending: Boolean = false) {
         every { identityStore.resolve(any()) } returns
@@ -38,7 +54,7 @@ class ResolveIdentityUseCaseTest {
 
         useCase(ApphudSuppliedIds.of(anonymousId = "a", installationId = "i", isReinstall = true))
 
-        verify { reinstallRepository.useHostValue(true) }
+        verify { reinstallRepository.useHostValue(true, IDENTITY.installationId) }
     }
 
     @Test
@@ -47,7 +63,7 @@ class ResolveIdentityUseCaseTest {
 
         useCase(ApphudSuppliedIds.of(anonymousId = "a", installationId = "i", isReinstall = true))
 
-        verify(exactly = 0) { reinstallRepository.start(any(), any(), any()) }
+        verify(exactly = 0) { reinstallRepository.start(any(), any(), any(), any()) }
     }
 
     @Test
@@ -56,7 +72,7 @@ class ResolveIdentityUseCaseTest {
 
         useCase(ApphudSuppliedIds())
 
-        verify { reinstallRepository.start(newInstall = true) }
+        verify { reinstallRepository.start(newInstall = true, installationId = IDENTITY.installationId) }
     }
 
     @Test
@@ -65,7 +81,7 @@ class ResolveIdentityUseCaseTest {
 
         useCase(ApphudSuppliedIds())
 
-        verify { reinstallRepository.start(newInstall = false) }
+        verify { reinstallRepository.start(newInstall = false, installationId = IDENTITY.installationId) }
     }
 
     @Test
@@ -74,7 +90,7 @@ class ResolveIdentityUseCaseTest {
 
         useCase(ApphudSuppliedIds())
 
-        verify { reinstallRepository.start(newInstall = true, restoredPerson = true) }
+        verify { reinstallRepository.start(newInstall = true, restoredPerson = true, installationId = IDENTITY.installationId) }
     }
 
     @Test
@@ -126,7 +142,7 @@ class ResolveIdentityUseCaseTest {
 
         useCase(ApphudSuppliedIds())
 
-        verify { reinstallRepository.start(newInstall = false, restoredPerson = false, unsavedLegacyDeviceId = "OLD") }
+        verify { reinstallRepository.start(newInstall = false, restoredPerson = false, unsavedLegacyDeviceId = "OLD", installationId = IDENTITY.installationId) }
     }
 
     private companion object {

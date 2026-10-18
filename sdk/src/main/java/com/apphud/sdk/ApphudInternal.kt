@@ -67,6 +67,7 @@ internal object ApphudInternal {
     internal var ignoreCache: Boolean = false
     internal val billing: BillingWrapper
         get() = ServiceLocator.instance.billingWrapper
+    internal val purchaseRecovery get() = ServiceLocator.instance.purchaseRecovery
     internal val userRepository
         get() = ServiceLocator.instance.userRepository
     internal val productRepository
@@ -673,8 +674,12 @@ internal object ApphudInternal {
             }
 
         if (!applyIdentify(userId)) {
-            ApphudLog.log("Will not update User ID to $userId, because current value is the same")
-            return userRepository.getCurrentUser()
+            val identityStore = ServiceLocator.instance.identityStore
+            // The id is already chosen, but a failed registration still has to reach the backend.
+            if (identityStore.current?.userId != userId || !identityStore.isSyncPending) {
+                ApphudLog.log("Will not update User ID to $userId, because current value is the same")
+                return userRepository.getCurrentUser()
+            }
         }
         RequestManager.setParams(this.context, this.apiKey)
 
@@ -1102,6 +1107,7 @@ internal object ApphudInternal {
 
         ServiceLocator.clearSession()
         RequestManager.cleanRegistration()
+        if (!isIdentityV1) purchaseRecovery.reset()
         purchaseCallbacks.clear()
         freshPurchase = null
         prevPurchases.clear()

@@ -54,11 +54,18 @@ internal class IdentityStore(
     /** The backend hasn't seen the current ids yet, so registration must not be skipped. */
     val isSyncPending: Boolean get() = storage.identitySyncPending
 
-    fun markSynced() {
-        storage.identitySyncPending = false
+    private var syncRevision = 0L
+    /** Includes pending changes, such as a late reinstall verdict, that keep the same ids. */
+    val pendingRevision: Long @Synchronized get() = syncRevision
+
+    @Synchronized
+    fun markSynced(expected: ApphudIdentity? = current, revision: Long = pendingRevision) {
+        if (current == expected && syncRevision == revision) storage.identitySyncPending = false
     }
 
+    @Synchronized
     fun markSyncPending() {
+        syncRevision += 1
         storage.identitySyncPending = true
     }
 
@@ -113,7 +120,7 @@ internal class IdentityStore(
             userId = user
         } else if (legacyDeviceId != null && (
                 lastVersion == ApphudIdentityVersion.V1 ||
-                    (storage.idsIdentityVersion != ApphudIdentityVersion.V2.name && isFreshPackageInstall() != true)
+                    (storage.idsIdentityVersion == null && isFreshPackageInstall() != true)
                 )
         ) {
             // In-place update: the old device_id stays as installation_id and goes as legacy_device_id,
@@ -144,9 +151,9 @@ internal class IdentityStore(
                 userId = null
             }
             val restoredData = legacyDeviceId != null || storedAnonymousId != null || storedUserId != null || storage.apphudUser != null
-            // Only a fresh package can carry data Auto Backup restored; an updated one keeps its person.
-            val fresh = isFreshPackageInstall() == true
-            if (restoredData && fresh) {
+            // An APK update can happen before the restored install first opens. With no install
+            // record, the marker must decide whether these preferences belong to a reinstall.
+            if (restoredData) {
                 // Auto Backup restored this data, after a reinstall on this device or onto a new one.
                 // Only the reinstall marker tells them apart: until it does, the person is kept, as on
                 // a new device. Data from an old version maps as an update does, but never gives the
@@ -314,6 +321,7 @@ internal class IdentityStore(
         storedAnonymousId: String?,
         storedUserId: String?,
     ): ApphudIdentityResolution {
+        restoredPerson = null
         val installationId = requireNotNull(supplied.installationId)
         val anonymousId = requireNotNull(supplied.anonymousId)
         // The host passes a user id when it has one: none means no user. Generated ids are never one.
@@ -322,9 +330,9 @@ internal class IdentityStore(
         // Not after a user switch or a logout (the host's new anonymous id): the old customer belongs to the
         // person before. Dropped in the record before the new person is saved.
         val personChanged = isSwitch(storedUserId, userId) || (storedAnonymousId != null && anonymousId != storedAnonymousId)
-        var record = (stored ?: InstallRecord(InstallState.EXISTING)).copy(installationId = installationId)
+        var record = (stored ?: InstallRecord(InstallState.EXISTING)).copy(installationId = installationId).personSettled()
         // The app's reinstall answer belongs to its installation.
-        if (stored?.installationId != installationId) record = record.copy(hostReinstall = null)
+        if (stored?.installationId != installationId) record = record.copy(hostReinstall = null, reinstallReported = false)
         if (personChanged) record = record.copy(legacyDeviceId = null)
         if (record != stored) write(record)
         persist(anonymousId, userId)

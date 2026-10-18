@@ -17,14 +17,16 @@ internal class ResolveIdentityUseCase(
     private val firstRegistrationHold: FirstRegistrationHold = FirstRegistrationHold(),
 ) {
     operator fun invoke(supplied: ApphudSuppliedIds): ApphudIdentityResolution {
+        if (supplied.suppliesAllIds) reinstallRepository.prepareForHostIds()
         val resolution = identityStore.resolve(supplied)
         if (supplied.suppliesAllIds) {
-            reinstallRepository.useHostValue(supplied.isReinstall)
+            reinstallRepository.useHostValue(supplied.isReinstall, resolution.identity.installationId)
         } else {
             reinstallRepository.start(
                 newInstall = resolution.launch == ApphudLaunchKind.NEW_INSTALL,
                 restoredPerson = resolution.restoredPersonPending,
                 unsavedLegacyDeviceId = resolution.unsavedLegacyDeviceId,
+                installationId = resolution.identity.installationId,
             )
         }
         // The person changed: the record dropped the old customer; the check's copy of it too.
