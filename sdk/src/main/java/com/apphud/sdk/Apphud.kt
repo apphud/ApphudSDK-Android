@@ -414,7 +414,9 @@ object Apphud {
      * Your app's answer whether this install is a reinstall when it arrives after [start],
      * [ApphudIdentityVersion.V2] only, when your app passes `installationId` and `anonymousId` itself.
      * True goes to Apphud with the next registration, on a later launch at the latest, until one
-     * carrying it succeeds; false sends nothing. Ignored before [start], with [ApphudIdentityVersion.V1],
+     * carrying it succeeds. Logout or switching users stops reporting it for this installation, so
+     * a late answer cannot mark the next person; [isReinstall] still returns the install's answer.
+     * False sends nothing. Ignored before [start], with [ApphudIdentityVersion.V1],
      * and when the SDK generates the ids.
      */
     fun setReinstall(isReinstall: Boolean) = ApphudInternal.setReinstall(isReinstall)

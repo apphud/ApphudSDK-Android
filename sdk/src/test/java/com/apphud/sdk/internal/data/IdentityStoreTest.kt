@@ -42,10 +42,416 @@ import io.mockk.unmockkObject
 import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.runTest
+import kotlinx.coroutines.test.runCurrent
+import kotlinx.coroutines.test.advanceUntilIdle
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.ResponseBody.Companion.toResponseBody
 
 class IdentityStoreTest {
+
+    private fun TestScope.reinstallReporter(
+        identity: IdentityStore,
+        readMarker: suspend () -> ByteArray? = { byteArrayOf(1) },
+    ): ReinstallRepository {
+        val markers = object : InstallMarkerSource {
+            override suspend fun read(): ByteArray? = readMarker()
+            override suspend fun write(marker: ByteArray) = Unit
+        }
+        return ReinstallRepository(
+            storage = records,
+            markerSource = markers,
+            deviceMarker = { byteArrayOf(1) },
+            scope = this,
+            onDecided = { identity.markSyncPending() },
+            dropRestoredPerson = { identity.dropRestoredPerson() },
+            isReportSuppressed = { identity.isReinstallReportSuppressed },
+        )
+    }
+
+    private fun TestScope.hostReporter(identity: IdentityStore, answer: Boolean? = null): ReinstallRepository =
+        reinstallReporter(identity).also { it.useHostValue(answer, identity.current!!.installationId) }
+
+    private fun registrationBody(identity: IdentityStore, reporter: ReinstallRepository): com.apphud.sdk.body.RegistrationBody {
+        val provider = mockk<com.apphud.sdk.internal.provider.RegistrationProvider> {
+            every { getRequestIds() } answers { identity.current?.requestIds }
+            every { getLocale() } returns "en_US"
+            every { getSdkVersion() } returns "test"
+            every { getAppVersion() } returns "1"
+            every { getDeviceFamily() } returns "test"
+            every { getPlatform() } returns "Android"
+            every { getDeviceType() } returns "test"
+            every { getOsVersion() } returns "16"
+            every { getStartAppVersion() } returns "1"
+            every { getIdfv() } returns null
+            every { getIdfa() } returns null
+            every { getAndroidId() } returns null
+            every { getLegacyDeviceId() } answers { reporter.legacyDeviceId() }
+            every { getTimeZone() } returns "UTC"
+            every { isSandbox() } returns true
+            every { getFirstSeen() } returns 1_792_000_000L
+            every { getSdkLaunchedAt() } returns 1_792_000_000_000L
+            every { getRequestTime() } returns 1_792_000_001_000L
+            every { getInstallSource() } returns "test"
+            every { getObserverMode() } returns false
+            every { getReinstall() } answers { reporter.reinstallFlag() }
+        }
+        return com.apphud.sdk.internal.data.remote.RegistrationBodyFactory(provider).create(false, false)
+    }
+
+    private fun TestScope.restoredSwitchThenRestart(failWrites: Boolean): Pair<ApphudIdentity?, ApphudIdentity?> {
+        storage.anonymousId = "restored-anonymous"
+        storage.identifiedUserId = "Alice"
+        storage.idsIdentityVersion = ApphudIdentityVersion.V2.name
+        val identity = store().also { it.resolve(ApphudSuppliedIds()) }
+        records.failWrites = failWrites
+        identity.identify("Bob")
+        val before = identity.current
+        val next = store()
+        val resolution = next.resolve(ApphudSuppliedIds())
+        val reporter = reinstallReporter(next)
+        reporter.start(restoredPerson = resolution.restoredPersonPending, installationId = resolution.identity.installationId)
+        advanceUntilIdle()
+        return before to next.current
+    }
+
+    @Test
+    fun `GIVEN switched restored person WHEN restarted before verdict EXPECT exact current ids retained`() = runTest {
+        val (before, after) = restoredSwitchThenRestart(failWrites = false)
+        assertEquals(before, after)
+    }
+
+    @Test
+    fun `GIVEN restored record writes fail after switch WHEN restarted EXPECT exact current ids retained`() = runTest {
+        val (before, after) = restoredSwitchThenRestart(failWrites = true)
+        assertEquals(before, after)
+    }
+
+    @Test
+    fun `GIVEN late reinstall after switch EXPECT serialized customer body has Bob but no reinstall`() = runTest {
+        val identity = store().also { it.resolve(embeddedIds(user = "Alice")) }
+        val reporter = hostReporter(identity)
+        identity.identify("Bob")
+        reporter.useLaterHostValue(true)
+        val json = RequestManager.gson.toJsonTree(registrationBody(identity, reporter)).asJsonObject
+        assertTrue(json["user_id"].asString == "Bob" && !json.has("reinstall"))
+    }
+
+    @Test
+    fun `GIVEN ordinary identify then late reinstall EXPECT serialized body keeps flag and installation date`() = runTest {
+        val identity = store().also { it.resolve(embeddedIds()) }
+        val reporter = hostReporter(identity)
+        identity.identify("Alice")
+        reporter.useLaterHostValue(true)
+        val json = RequestManager.gson.toJsonTree(registrationBody(identity, reporter)).asJsonObject
+        assertTrue(json["user_id"].asString == "Alice" && json["reinstall"].asBoolean &&
+            json["first_seen"].asLong == 1_792_000_000L && json["installation_id"].asString == "host-installation")
+    }
+
+    @Test
+    fun `GIVEN Bob ids published before switch returns EXPECT concurrent body cannot carry Alice reinstall`() = runTest {
+        val entered = java.util.concurrent.CountDownLatch(1)
+        val release = java.util.concurrent.CountDownLatch(1)
+        val failure = java.util.concurrent.atomic.AtomicReference<Throwable?>()
+        val backing = object : Storage by storage {
+            override var identifiedUserId: String?
+                get() = storage.identifiedUserId
+                set(value) {
+                    if (value == "Bob") {
+                        entered.countDown()
+                        check(release.await(5, java.util.concurrent.TimeUnit.SECONDS))
+                    }
+                    storage.identifiedUserId = value
+                }
+        }
+        val identity = store(backing).also { it.resolve(embeddedIds(user = "Alice")) }
+        val reporter = hostReporter(identity, true)
+        val switch = kotlin.concurrent.thread(name = "reinstall-person-switch") {
+            runCatching { identity.identify("Bob") }.exceptionOrNull()?.let(failure::set)
+        }
+        val body = try {
+            check(entered.await(5, java.util.concurrent.TimeUnit.SECONDS))
+            check(identity.current?.userId == "Bob")
+            registrationBody(identity, reporter)
+        } finally {
+            release.countDown()
+            switch.join(5_000)
+        }
+        check(!switch.isAlive && failure.get() == null) { failure.get().toString() }
+        assertNull(body.reinstall)
+    }
+
+    @Test
+    fun `GIVEN old registration acknowledged after user switch EXPECT suppression kept and no repeat`() = runTest {
+        val identity = store().also { it.resolve(embeddedIds(user = "Alice")) }
+        val reporter = hostReporter(identity, true)
+        val sent = registrationBody(identity, reporter)
+        identity.identify("Bob")
+        reporter.onRegistered(sent.reinstall == true, sent.legacyDeviceId != null, sent.installationId)
+        reporter.useLaterHostValue(true)
+        assertNull(reporter.reinstallFlag())
+    }
+
+    @Test
+    fun `GIVEN new installation pending WHEN old acknowledgement arrives EXPECT new report remains pending`() = runTest {
+        val identity = store().also { it.resolve(embeddedIds(user = "Alice")) }
+        val reporter = hostReporter(identity, true)
+        val sent = registrationBody(identity, reporter)
+        identity.logout("new-anonymous")
+        identity.resolve(ApphudSuppliedIds.of(anonymousId = "fresh-anonymous", installationId = "fresh-installation"))
+        reporter.useHostValue(true, "fresh-installation")
+        reporter.onRegistered(sent.reinstall == true, sent.legacyDeviceId != null, sent.installationId)
+        assertEquals(true, reporter.reinstallFlag())
+    }
+
+    // region reinstall report belongs to the original person
+
+    @Test
+    fun `GIVEN late host reinstall after user switch EXPECT no report for the new user`() = runTest {
+        val identity = store().also { it.resolve(embeddedIds(user = "Alice")) }
+        val reporter = hostReporter(identity)
+        identity.identify("Bob")
+        reporter.useLaterHostValue(true)
+        assertNull(reporter.reinstallFlag())
+    }
+
+    @Test
+    fun `GIVEN late host reinstall after logout EXPECT no report for the new anonymous person`() = runTest {
+        val identity = store().also { it.resolve(embeddedIds(user = "Alice")) }
+        val reporter = hostReporter(identity)
+        identity.logout("new-anonymous")
+        reporter.useLaterHostValue(true)
+        assertNull(reporter.reinstallFlag())
+    }
+
+    @Test
+    fun `GIVEN pending host reinstall then user switch EXPECT report not transferred`() = runTest {
+        val identity = store().also { it.resolve(embeddedIds(user = "Alice")) }
+        val reporter = hostReporter(identity, true)
+        identity.identify("Bob")
+        assertNull(reporter.reinstallFlag())
+    }
+
+    @Test
+    fun `GIVEN pending host reinstall then logout EXPECT report not transferred`() = runTest {
+        val identity = store().also { it.resolve(embeddedIds(user = "Alice")) }
+        val reporter = hostReporter(identity, true)
+        identity.logout("new-anonymous")
+        assertNull(reporter.reinstallFlag())
+    }
+
+    @Test
+    fun `GIVEN switched host person WHEN process restarts EXPECT late report still suppressed`() = runTest {
+        val identity = store().also { it.resolve(embeddedIds(user = "Alice")) }
+        hostReporter(identity)
+        identity.identify("Bob")
+        val next = store().also { it.resolve(embeddedIds(user = "Bob")) }
+        val reporter = hostReporter(next)
+        reporter.useLaterHostValue(true)
+        assertNull(reporter.reinstallFlag())
+    }
+
+    @Test
+    fun `GIVEN host starts with another user on same installation EXPECT no previous reinstall report`() = runTest {
+        val identity = store().also { it.resolve(embeddedIds(user = "Alice")) }
+        hostReporter(identity, true)
+        val next = store().also { it.resolve(embeddedIds(user = "Bob")) }
+        assertNull(hostReporter(next, true).reinstallFlag())
+    }
+
+    @Test
+    fun `GIVEN host starts with a new anonymous person on same installation EXPECT no previous report`() = runTest {
+        val identity = store().also { it.resolve(embeddedIds(user = "Alice")) }
+        hostReporter(identity, true)
+        val next = store().also {
+            it.resolve(ApphudSuppliedIds.of(anonymousId = "new-anonymous", installationId = "host-installation"))
+        }
+        assertNull(hostReporter(next, true).reinstallFlag())
+    }
+
+    @Test
+    fun `GIVEN first host launch reports reinstall EXPECT initial report preserved`() = runTest {
+        val identity = store().also { it.resolve(embeddedIds(reinstall = true)) }
+        assertEquals(true, hostReporter(identity, true).reinstallFlag())
+    }
+
+    @Test
+    fun `GIVEN ordinary anonymous identify then late host answer EXPECT reinstall report kept`() = runTest {
+        val identity = store().also { it.resolve(embeddedIds()) }
+        val reporter = hostReporter(identity)
+        identity.identify("Alice")
+        reporter.useLaterHostValue(true)
+        assertEquals(true, reporter.reinstallFlag())
+    }
+
+    @Test
+    fun `GIVEN switched host person then late answer EXPECT install getter still true`() = runTest {
+        val identity = store().also { it.resolve(embeddedIds(user = "Alice")) }
+        val reporter = hostReporter(identity)
+        identity.identify("Bob")
+        reporter.useLaterHostValue(true)
+        assertEquals(true, reporter.isReinstall())
+    }
+
+    @Test
+    fun `GIVEN switched person already synced then late answer EXPECT no redundant pending sync`() = runTest {
+        val identity = store().also { it.resolve(embeddedIds(user = "Alice")) }
+        val reporter = hostReporter(identity)
+        identity.identify("Bob")
+        identity.markSynced()
+        reporter.useLaterHostValue(true)
+        assertFalse(identity.isSyncPending)
+    }
+
+    @Test
+    fun `GIVEN suppressed installation then new host installation EXPECT its answer accepted`() = runTest {
+        val identity = store().also { it.resolve(embeddedIds(user = "Alice")) }
+        val reporter = hostReporter(identity)
+        identity.logout("new-anonymous")
+        identity.resolve(ApphudSuppliedIds.of(anonymousId = "fresh-anonymous", installationId = "fresh-installation", isReinstall = true))
+        reporter.useHostValue(true, identity.current!!.installationId)
+        assertEquals(true, reporter.reinstallFlag())
+    }
+
+    @Test
+    fun `GIVEN native verdict arrives after user switch EXPECT no report for Bob`() = runTest {
+        val gate = kotlinx.coroutines.CompletableDeferred<Unit>()
+        val identity = store().also { it.resolve(ApphudSuppliedIds(userId = "Alice")) }
+        val reporter = reinstallReporter(identity) { gate.await(); byteArrayOf(1) }
+        reporter.start(newInstall = true, installationId = identity.current!!.installationId)
+        runCurrent()
+        identity.identify("Bob")
+        gate.complete(Unit)
+        advanceUntilIdle()
+        assertNull(reporter.reinstallFlag())
+    }
+
+    @Test
+    fun `GIVEN native verdict after switch EXPECT install classification remains true`() = runTest {
+        val gate = kotlinx.coroutines.CompletableDeferred<Unit>()
+        val identity = store().also { it.resolve(ApphudSuppliedIds(userId = "Alice")) }
+        val reporter = reinstallReporter(identity) { gate.await(); byteArrayOf(1) }
+        reporter.start(newInstall = true, installationId = identity.current!!.installationId)
+        runCurrent()
+        identity.identify("Bob")
+        gate.complete(Unit)
+        advanceUntilIdle()
+        assertEquals(true, reporter.isReinstall())
+    }
+
+    @Test
+    fun `GIVEN restored person switched during native read EXPECT late verdict does not rotate current ids`() = runTest {
+        storage.anonymousId = "restored-anonymous"
+        storage.identifiedUserId = "Alice"
+        storage.idsIdentityVersion = ApphudIdentityVersion.V2.name
+        val identity = store()
+        val resolution = identity.resolve(ApphudSuppliedIds())
+        val gate = kotlinx.coroutines.CompletableDeferred<Unit>()
+        val reporter = reinstallReporter(identity) { gate.await(); byteArrayOf(1) }
+        reporter.start(newInstall = true, restoredPerson = true, installationId = resolution.identity.installationId)
+        runCurrent()
+        identity.identify("Bob")
+        val beforeVerdict = identity.current
+        gate.complete(Unit)
+        advanceUntilIdle()
+        assertEquals(beforeVerdict, identity.current)
+    }
+
+    @Test
+    fun `GIVEN switched person already synced WHEN native verdict arrives EXPECT no redundant sync`() = runTest {
+        val gate = kotlinx.coroutines.CompletableDeferred<Unit>()
+        val identity = store().also { it.resolve(ApphudSuppliedIds(userId = "Alice")) }
+        val reporter = reinstallReporter(identity) { gate.await(); byteArrayOf(1) }
+        reporter.start(newInstall = true, installationId = identity.current!!.installationId)
+        runCurrent()
+        identity.identify("Bob")
+        identity.markSynced()
+        gate.complete(Unit)
+        advanceUntilIdle()
+        assertFalse(identity.isSyncPending)
+    }
+
+    @Test
+    fun `GIVEN native read timed out then logout EXPECT successful next launch read not reported to new person`() = runTest {
+        val identity = store().also { it.resolve(ApphudSuppliedIds(userId = "Alice")) }
+        val initial = reinstallReporter(identity) { kotlinx.coroutines.awaitCancellation() }
+        initial.start(newInstall = true, installationId = identity.current!!.installationId)
+        initial.awaitBeforeRegistration()
+        identity.logout("new-anonymous")
+        val next = store().also { it.resolve(ApphudSuppliedIds()) }
+        val reporter = reinstallReporter(next)
+        reporter.start(installationId = next.current!!.installationId)
+        advanceUntilIdle()
+        assertNull(reporter.reinstallFlag())
+    }
+
+    @Test
+    fun `GIVEN native read failed then user switch EXPECT successful retry not reported to Bob`() = runTest {
+        val identity = store().also { it.resolve(ApphudSuppliedIds(userId = "Alice")) }
+        val initial = reinstallReporter(identity) { throw IOException("read failed") }
+        initial.start(newInstall = true, installationId = identity.current!!.installationId)
+        initial.awaitBeforeRegistration()
+        identity.identify("Bob")
+        val next = store().also { it.resolve(ApphudSuppliedIds()) }
+        val reporter = reinstallReporter(next)
+        reporter.start(installationId = next.current!!.installationId)
+        advanceUntilIdle()
+        assertNull(reporter.reinstallFlag())
+    }
+
+    @Test
+    fun `GIVEN V2 then V1 logout then V2 EXPECT previous reinstall report not transferred`() = runTest {
+        val identity = store().also { it.resolve(embeddedIds(user = "Alice")) }
+        hostReporter(identity, true)
+        runVersion1("host-installation", "Alice")
+        store().markVersion1LoggedOut()
+        runVersion1("new-V1-device", "Bob", tookOverVersion2 = false)
+        val next = store().also { it.resolve(embeddedIds(user = "Bob")) }
+        assertNull(hostReporter(next, true).reinstallFlag())
+    }
+
+    @Test
+    fun `GIVEN V2 then another user on V1 then V2 EXPECT previous reinstall report not transferred`() = runTest {
+        val identity = store().also { it.resolve(ApphudSuppliedIds(userId = "Alice")) }
+        hostReporter(identity, true)
+        runVersion1(identity.current!!.installationId, "Bob")
+        val next = store().also { it.resolve(ApphudSuppliedIds()) }
+        assertNull(hostReporter(next, true).reinstallFlag())
+    }
+
+    @Test
+    fun `GIVEN install record writes fail during switch EXPECT suppression survives recreation`() = runTest {
+        val identity = store().also { it.resolve(embeddedIds(user = "Alice")) }
+        hostReporter(identity, true)
+        records.failWrites = true
+        identity.identify("Bob")
+        records.failWrites = false
+        val next = store().also { it.resolve(embeddedIds(user = "Bob")) }
+        assertNull(hostReporter(next, true).reinstallFlag())
+    }
+
+    @Test
+    fun `GIVEN suppression without acknowledgement EXPECT report is not falsely marked acknowledged`() = runTest {
+        val identity = store().also { it.resolve(embeddedIds(user = "Alice")) }
+        val reporter = hostReporter(identity, true)
+        identity.identify("Bob")
+        reporter.useLaterHostValue(true)
+        assertFalse(records.record!!.reinstallReported)
+    }
+
+    @Test
+    fun `GIVEN suppression copied in backup EXPECT another installation can report reinstall`() = runTest {
+        val identity = store().also { it.resolve(ApphudSuppliedIds(userId = "Alice")) }
+        identity.logout("new-anonymous")
+        restoreBackupOntoAnotherPhone()
+        val next = store().also { it.resolve(ApphudSuppliedIds()) }
+        val reporter = reinstallReporter(next)
+        reporter.start(newInstall = true, installationId = next.current!!.installationId)
+        advanceUntilIdle()
+        assertEquals(true, reporter.reinstallFlag())
+    }
+
+    // endregion
+
 
     @Test
     fun `GIVEN identical legacy credentials on separate V1 installs EXPECT unique V2 installations and legacy adoption`() {
@@ -689,6 +1095,7 @@ class IdentityStoreTest {
         override var anonymousId: String? = null
         override var identifiedUserId: String? = null
         override var identitySyncPending: Boolean = false
+        override var reinstallReportSuppressedInstallationId: String? = null
         override var idsIdentityVersion: String? = null
         override var version1IdsReset: Boolean = false
         override var version1LoggedOut: Boolean = false

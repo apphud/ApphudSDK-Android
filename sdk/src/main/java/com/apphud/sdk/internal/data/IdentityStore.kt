@@ -56,6 +56,10 @@ internal class IdentityStore(
     /** The backend hasn't seen the current ids yet, so registration must not be skipped. */
     val isSyncPending: Boolean get() = storage.identitySyncPending
 
+    /** Read without the identity lock: a native check already holds its own lock when it calls us. */
+    val isReinstallReportSuppressed: Boolean
+        get() = current?.installationId?.let { it == storage.reinstallReportSuppressedInstallationId } == true
+
     private var syncRevision = 0L
     /** Includes pending changes, such as a late reinstall verdict, that keep the same ids. */
     val pendingRevision: Long @Synchronized get() = syncRevision
@@ -206,9 +210,16 @@ internal class IdentityStore(
         suppliedUserId?.let { userId = it }
         if (userId in generatedIds) userId = null
 
+        val switchedUser = isSwitch(userBeforeSupplied, userId)
+        val sameInstallation = stored != null && record.installationId == stored.installationId
+        val personChanged = switchedUser || (sameInstallation && (version1LoggedOut ||
+            (storedAnonymousId != null && storedAnonymousId != resolvedAnonymousId) || isSwitch(storedUserId, userId)))
+        if (sameInstallation && personChanged) suppressReinstallReport(record.installationId)
+
         // Only restored ids still in use wait for the check: an id the host supplied stays, even one
         // equal to the restored id.
         val restoredInUse = restored
+            ?.takeUnless { personChanged || record.installationId == storage.reinstallReportSuppressedInstallationId }
             ?.let {
                 RestoredPerson(
                     anonymousId = it.anonymousId?.takeIf { id -> supplied.anonymousId == null && id == resolvedAnonymousId },
@@ -219,7 +230,6 @@ internal class IdentityStore(
         // Restored ids no longer in use are forgotten, so an id set again later is never taken for one.
         record = record.copy(restoredAnonymousId = restoredInUse?.anonymousId, restoredUserId = restoredInUse?.userId)
         val clearRestoredData = launch == ApphudLaunchKind.NEW_INSTALL && restored != null
-        val switchedUser = isSwitch(userBeforeSupplied, userId)
         // Not after a user switch: the old customer belongs to the user before.
         if (switchedUser) record = record.copy(legacyDeviceId = null)
 
@@ -278,7 +288,10 @@ internal class IdentityStore(
         val outcome = if (identity.userId == null) ApphudIdentifyOutcome.IDENTIFIED else ApphudIdentifyOutcome.SWITCHED
         // Not after a user switch: the old customer is the user before's. Dropped before the new user is
         // saved, so a crash in between never leaves it to them.
-        if (outcome == ApphudIdentifyOutcome.SWITCHED) dropLegacyDeviceId()
+        if (outcome == ApphudIdentifyOutcome.SWITCHED) {
+            suppressReinstallReport(identity.installationId)
+            dropLegacyDeviceId()
+        }
         current = identity.copy(userId = userId)
         persist(identity.anonymousId, userId)
         markSyncPending()
@@ -288,6 +301,7 @@ internal class IdentityStore(
     /** Logout: a new anonymous id (the supplied one, or a fresh one), no user; the installation stays. */
     @Synchronized
     fun logout(anonymousId: String?) {
+        suppressReinstallReport(current?.installationId ?: runCatching { installRecords.read() }.getOrNull()?.installationId)
         // Version 1's device id belongs to the person logged out: version 1 starts a new one, as its own
         // logout does. Reset before the new person is saved: a crash in between must not leave the old
         // device id to the new person.
@@ -353,6 +367,11 @@ internal class IdentityStore(
             (storedUserId ?: storage.apphudUser?.userId.nonBlank())?.takeUnless { it in generatedIds }
         } else storedUserId
         val switchedUser = isSwitch(previousUserId, userId)
+        val sameInstallation = stored?.installationId == installationId
+        if (sameInstallation && (version1LoggedOut || isSwitch(storedUserId, userId) ||
+                (storedAnonymousId != null && anonymousId != storedAnonymousId))) {
+            suppressReinstallReport(installationId)
+        }
         val personChanged = switchedUser || (!version1LoggedOut && storedAnonymousId != null && anonymousId != storedAnonymousId) ||
             supplied.isReinstall == true
         var record = (stored ?: InstallRecord(InstallState.EXISTING)).copy(installationId = installationId).personSettled()
@@ -492,10 +511,16 @@ internal class IdentityStore(
             .onFailure { ApphudLog.logE("Failed to save the identity version: ${it.message}") }
     }
 
+    /** Persist before new ids become visible, including when the installation file cannot be saved. */
+    private fun suppressReinstallReport(installationId: String?) {
+        installationId?.let { storage.reinstallReportSuppressedInstallationId = it }
+        restoredPerson = null
+    }
+
     /** The old SDK's `device_id` is no longer sent: dropped from the saved record. */
     private fun dropLegacyDeviceId() {
         // In one step with the storage: the reinstall check may change the record meanwhile.
-        runCatching { installRecords.update(fallback = null) { it.copy(legacyDeviceId = null) } }
+        runCatching { installRecords.update(fallback = null) { it.copy(legacyDeviceId = null).personSettled() } }
             .onFailure { ApphudLog.logE("Failed to save the install record: ${it.message}") }
     }
 

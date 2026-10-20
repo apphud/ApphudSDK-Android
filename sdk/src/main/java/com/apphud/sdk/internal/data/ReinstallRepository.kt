@@ -34,8 +34,8 @@ import java.util.concurrent.TimeoutException
  * - A person Auto Backup restored onto a new install waits for this check, and registration waits
  *   with it: this device's marker means a reinstall, and the person is dropped before registration
  *   goes on. No marker, another device's, or no answer keeps the person, for good.
- * - A reinstall is reported until a registration carrying it succeeds, then never again for this
- *   install: a later customer of the same install (after logout, a switch) is not a reinstall.
+ * - A reinstall is reported until a registration carrying it succeeds or the original person leaves.
+ *   Logout and user switches suppress the report, not the install's classification or marker.
  */
 internal class ReinstallRepository(
     private val storage: InstallRecordStorage,
@@ -48,6 +48,8 @@ internal class ReinstallRepository(
     private val dropRestoredPerson: () -> Unit = {},
     /** How long a read, a write and a wait for the verdict may take. */
     private val timeoutMs: Long = TIMEOUT_MS,
+    /** The original person left this installation; classification still belongs to the install. */
+    private val isReportSuppressed: () -> Boolean = { false },
 ) {
     private val lock = Any()
 
@@ -168,7 +170,8 @@ internal class ReinstallRepository(
 
     /**
      * The app's reinstall answer that arrived after start: the next registration, on a later launch at
-     * the latest, carries a reinstall until one carrying it succeeds. False when the SDK runs its own
+     * the latest, carries a reinstall until one carrying it succeeds or the original person leaves.
+     * The answer itself is kept across logout and user switches. False when the SDK runs its own
      * check: the answer is ignored then.
      */
     fun useLaterHostValue(isReinstall: Boolean): Boolean {
@@ -226,10 +229,11 @@ internal class ReinstallRepository(
     }
 
     /**
-     * `reinstall: true` goes on a reinstalled install's registrations until one of them succeeds;
-     * otherwise no param. The backend records it on the customer that registration resolves to.
+     * `reinstall: true` goes on the original person's registrations until one carrying it succeeds.
+     * Logout and user switches stop the report without changing the install's verdict.
      */
     fun reinstallFlag(): Boolean? {
+        if (isReportSuppressed()) return null
         val reported = load()?.reinstallReported == true
         return if (isReinstall() == true && !reinstallReportedInProcess && !reported) true else null
     }
@@ -319,7 +323,7 @@ internal class ReinstallRepository(
                     if (matches) record = record?.copy(legacyDeviceId = null)
                 }
             }
-            synchronized(lock) { if (isCurrentCheck(generation)) onDecided() }
+            synchronized(lock) { if (isCurrentCheck(generation) && !isReportSuppressed()) onDecided() }
             verdict.complete(Unit)
             ApphudLog.log("Install classified: $state")
         }

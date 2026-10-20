@@ -116,6 +116,12 @@ internal class SharedPreferencesStorage(
             }
         }
 
+    override var reinstallReportSuppressedInstallationId: String?
+        get() = preferences.getString(REINSTALL_REPORT_SUPPRESSED_INSTALLATION_ID_KEY, null)
+        set(value) {
+            preferences.edit { putString(REINSTALL_REPORT_SUPPRESSED_INSTALLATION_ID_KEY, value) }
+        }
+
     override var idsIdentityVersion: String?
         get() = preferences.getString(IDS_IDENTITY_VERSION_KEY, null)
         set(value) {
@@ -523,6 +529,7 @@ internal class SharedPreferencesStorage(
         private const val ANONYMOUS_ID_KEY = "anonymousIdKey"
         private const val IDENTIFIED_USER_ID_KEY = "identifiedUserIdKey"
         private const val IDENTITY_SYNC_PENDING_KEY = "identitySyncPendingKey"
+        private const val REINSTALL_REPORT_SUPPRESSED_INSTALLATION_ID_KEY = "reinstallReportSuppressedInstallationIdKey"
         private const val VERSION1_IDS_RESET_KEY = "version1IdsResetKey"
         private const val IDS_IDENTITY_VERSION_KEY = "idsIdentityVersionKey"
         private const val VERSION1_LOGGED_OUT_KEY = "version1LoggedOutKey"

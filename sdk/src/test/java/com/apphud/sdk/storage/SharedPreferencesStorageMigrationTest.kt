@@ -85,6 +85,25 @@ class SharedPreferencesStorageMigrationTest {
     }
 
     @Test
+    fun `GIVEN old preferences without reinstall report boundary EXPECT no suppression`() {
+        assertNull(SharedPreferencesStorage(context).reinstallReportSuppressedInstallationId)
+    }
+
+    @Test
+    fun `GIVEN reinstall report boundary WHEN storage recreated EXPECT exact installation kept`() {
+        SharedPreferencesStorage(context).reinstallReportSuppressedInstallationId = "Opaque-Installation"
+        assertEquals("Opaque-Installation", SharedPreferencesStorage(context).reinstallReportSuppressedInstallationId)
+    }
+
+    @Test
+    fun `GIVEN reinstall report boundary WHEN user caches cleaned EXPECT boundary retained`() {
+        val storage = SharedPreferencesStorage(context)
+        storage.reinstallReportSuppressedInstallationId = "Opaque-Installation"
+        storage.clean()
+        assertEquals("Opaque-Installation", storage.reinstallReportSuppressedInstallationId)
+    }
+
+    @Test
     fun `GIVEN older preferences without generated id history EXPECT empty history`() {
         val storage = SharedPreferencesStorage(context)
         assertEquals(emptySet<String>(), storage.additionalOldDeviceIds)

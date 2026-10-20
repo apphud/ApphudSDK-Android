@@ -30,6 +30,11 @@ internal interface Storage {
     /** Set while the backend hasn't seen the current ids; cleared by a successful registration. */
     var identitySyncPending: Boolean
 
+    /** The original person left this installation before its reinstall report was acknowledged. */
+    var reinstallReportSuppressedInstallationId: String?
+        get() = null
+        set(@Suppress("UNUSED_PARAMETER") value) {}
+
     /**
      * The identity version that ran last on the ids these preferences hold, "V1" or "V2". Auto Backup
      * restores it with them, unlike the install's own version in `noBackupFilesDir`.
