@@ -48,6 +48,183 @@ import okhttp3.ResponseBody.Companion.toResponseBody
 class IdentityStoreTest {
 
     @Test
+    fun `GIVEN identical legacy credentials on separate V1 installs EXPECT unique V2 installations and legacy adoption`() {
+        fun migrate(): Pair<String, String?> {
+            val local = FakeStorage().apply {
+                deviceId = "shared-legacy-device"
+                userId = "legacy-user"
+                apphudUser = legacyUser("legacy-user")
+            }
+            val users = mockk<UserRepository> {
+                every { getDeviceId() } answers { local.deviceId }
+                every { getUserId() } answers { local.userId }
+            }
+            com.apphud.sdk.internal.domain.ResolveCredentialsUseCase(users)(null, null)
+            val localRecords = FakeInstallRecords()
+            val identity = IdentityStore(local, localRecords, FakeVersions(), { false }, {})
+            identity.markVersion1(tookOverVersion2 = false)
+            val resolved = identity.resolve(ApphudSuppliedIds()).identity
+            return resolved.installationId to localRecords.record?.legacyDeviceId
+        }
+        val first = migrate()
+        val second = migrate()
+        assertTrue(first.first != second.first && first.first != "shared-legacy-device" &&
+            second.first != "shared-legacy-device" && first.second == "shared-legacy-device" && second.second == first.second)
+    }
+
+    @Test
+    fun `GIVEN existing V2 installation through V1 rollback EXPECT installation retained`() {
+        val original = launch().identity
+        runVersion1(original.installationId, "Alice")
+        assertEquals(original.installationId, launch().identity.installationId)
+    }
+
+    private fun seedEmbeddedLegacy(user: String = "legacy-user") {
+        storage.deviceId = "legacy-device"
+        storage.apphudUser = legacyUser(user)
+        freshPackage = false
+    }
+
+    private fun embeddedIds(user: String? = null, reinstall: Boolean? = null) =
+        ApphudSuppliedIds.of(userId = user, anonymousId = "host-anonymous", installationId = "host-installation", isReinstall = reinstall)
+
+    @Test
+    fun `GIVEN embedded legacy upgrade EXPECT old device sent separately`() {
+        seedEmbeddedLegacy()
+        val resolution = launch(embeddedIds())
+        assertEquals("legacy-device" to ApphudLaunchKind.UPGRADE, records.record?.legacyDeviceId to resolution.launch)
+    }
+
+    @Test
+    fun `GIVEN embedded legacy upgrade without host user EXPECT anonymous host identity`() {
+        seedEmbeddedLegacy()
+        assertEquals(ApphudIdentity("host-installation", "host-anonymous", null), launch(embeddedIds()).identity)
+    }
+
+    @Test
+    fun `GIVEN embedded generated legacy user echoed EXPECT no identified user`() {
+        seedEmbeddedLegacy("legacy-device")
+        assertNull(launch(embeddedIds(user = "legacy-device")).identity.userId)
+    }
+
+    @Test
+    fun `GIVEN embedded generated legacy user WHEN identified after relaunch EXPECT no promotion`() {
+        seedEmbeddedLegacy("legacy-device")
+        launch(embeddedIds())
+        val identity = store().also { it.resolve(embeddedIds()) }
+        assertEquals(ApphudIdentifyOutcome.UNCHANGED, identity.identify("legacy-device"))
+    }
+
+    @Test
+    fun `GIVEN embedded current generated device after earlier migration EXPECT no promotion`() {
+        storage.oldDeviceId = "earlier-generated-device"
+        seedEmbeddedLegacy("legacy-device")
+        launch(embeddedIds())
+        val identity = store().also { it.resolve(embeddedIds()) }
+        assertEquals(ApphudIdentifyOutcome.UNCHANGED, identity.identify("legacy-device"))
+    }
+
+    @Test
+    fun `GIVEN embedded legacy real user WHEN first identified EXPECT adoption retained`() {
+        seedEmbeddedLegacy()
+        val identity = store().also { it.resolve(embeddedIds()) }
+        identity.identify("legacy-user")
+        assertEquals("legacy-device", records.record?.legacyDeviceId)
+    }
+
+    @Test
+    fun `GIVEN embedded migration registration acknowledged WHEN relaunched EXPECT no legacy resurrection`() {
+        seedEmbeddedLegacy()
+        launch(embeddedIds())
+        records.record = records.record!!.copy(legacyDeviceId = null)
+        launch(embeddedIds())
+        assertNull(records.record?.legacyDeviceId)
+    }
+
+    @Test
+    fun `GIVEN embedded legacy migration not acknowledged WHEN relaunched EXPECT legacy retained`() {
+        seedEmbeddedLegacy()
+        launch(embeddedIds())
+        launch(embeddedIds())
+        assertEquals("legacy-device", records.record?.legacyDeviceId)
+    }
+
+    @Test
+    fun `GIVEN embedded old real user and new host user EXPECT no old customer adoption`() {
+        seedEmbeddedLegacy()
+        val resolution = launch(embeddedIds(user = "another-user"))
+        assertEquals(null to true, records.record?.legacyDeviceId to resolution.dropsLegacyDeviceId)
+    }
+
+    @Test
+    fun `GIVEN embedded host reinstall EXPECT no old customer adoption`() {
+        seedEmbeddedLegacy()
+        val resolution = launch(embeddedIds(reinstall = true))
+        assertEquals(null to true, records.record?.legacyDeviceId to resolution.dropsLegacyDeviceId)
+    }
+
+    @Test
+    fun `GIVEN embedded migration and host logout EXPECT no old customer adoption`() {
+        seedEmbeddedLegacy()
+        launch(embeddedIds())
+        launch(ApphudSuppliedIds.of(anonymousId = "logged-out-anonymous", installationId = "host-installation"))
+        assertNull(records.record?.legacyDeviceId)
+    }
+
+    @Test
+    fun `GIVEN embedded legacy record write fails EXPECT live migration metadata`() {
+        seedEmbeddedLegacy()
+        records.failWrites = true
+        assertEquals("legacy-device", launch(embeddedIds()).unsavedLegacyDeviceId)
+    }
+
+    @Test
+    fun `GIVEN embedded legacy record write fails EXPECT old saved identity untouched`() {
+        seedEmbeddedLegacy()
+        records.failWrites = true
+        launch(embeddedIds())
+        assertEquals(Triple(null, null, null), Triple(storage.anonymousId, storage.identifiedUserId, storage.idsIdentityVersion))
+    }
+
+    @Test
+    fun `GIVEN embedded legacy record write fails WHEN restarted EXPECT migration retried`() {
+        seedEmbeddedLegacy()
+        records.failWrites = true
+        launch(embeddedIds())
+        records.failWrites = false
+        launch(embeddedIds())
+        assertEquals("legacy-device", records.record?.legacyDeviceId)
+    }
+
+    @Test
+    fun `GIVEN embedded V1 alias for real host user equal installation EXPECT real user preserved`() {
+        launch(ApphudSuppliedIds.of(userId = "host-installation", anonymousId = "host-anonymous", installationId = "host-installation"))
+        runVersion1("host-installation", "host-installation")
+        assertEquals("host-installation", launch(embeddedIds(user = "host-installation")).identity.userId)
+    }
+
+    @Test
+    fun `GIVEN embedded explicit host device and user equal EXPECT identified user`() {
+        seedEmbeddedLegacy("legacy-device")
+        assertEquals("legacy-device", launch(ApphudSuppliedIds.of(userId = "legacy-device", anonymousId = "host-anonymous", installationId = "legacy-device")).identity.userId)
+    }
+
+    @Test
+    fun `GIVEN ambiguous legacy upgrade without install marker EXPECT fresh installation and separate legacy id`() {
+        seedEmbeddedLegacy()
+        val resolution = launch()
+        assertTrue(resolution.identity.installationId != "legacy-device" && records.record?.legacyDeviceId == "legacy-device")
+    }
+
+    @Test
+    fun `GIVEN ambiguous legacy upgrade WHEN relaunched EXPECT generated installation kept`() {
+        seedEmbeddedLegacy()
+        val first = launch().identity
+        assertEquals(first.installationId, launch().identity.installationId)
+    }
+
+
+    @Test
     fun `GIVEN reinstall reported for a previous host installation EXPECT new host id not reported`() {
         launch(ApphudSuppliedIds.of(anonymousId = "anon", installationId = "first"))
         records.record = records.record!!.copy(reinstallReported = true)
@@ -300,17 +477,100 @@ class IdentityStoreTest {
         assertEquals("Alice", resolveSameDeviceRestore(packageUpdatedBeforeStart = true, supplied = ApphudSuppliedIds(userId = "Alice")).current?.userId)
     }
 
+    @Test
+    fun `GIVEN offline first registration WHEN identify EXPECT intent persisted and recovery followed by no-op`() = runTest {
+        val result = identifyRegistrationAttempts(failFirst = false, repeats = 2, withoutCachedCustomer = true)
+        assertEquals(1, result.attempts)
+        assertEquals("Alice", result.cachedUserId)
+        assertFalse(result.syncPending)
+    }
+
+    @Test
+    fun `GIVEN explicit host device and user equal WHEN first upgrade EXPECT an identified person`() {
+        storage.deviceId = "u42"
+        storage.apphudUser = legacyUser("u42")
+        freshPackage = false
+        val identity = store()
+        val first = identity.resolve(ApphudSuppliedIds.of(userId = "u42", installationId = "u42")).identity
+        assertEquals("u42", first.userId)
+        assertNotEquals("u42", first.anonymousId)
+        assertEquals("u42", storage.identifiedUserId)
+        assertNull(storage.oldDeviceId)
+        assertEquals(ApphudIdentifyOutcome.UNCHANGED, identity.identify("u42"))
+        val restarted = launch(ApphudSuppliedIds.of(userId = "u42", installationId = "u42")).identity
+        assertEquals(first, restarted)
+    }
+
+    @Test
+    fun `GIVEN restored legacy registration predates this package and APK updated EXPECT a new install`() {
+        storage.deviceId = "old-phone"
+        storage.apphudUser = legacyUser("Alice")
+        storage.lastRegistration = 1_700_000_000_000L
+        firstInstallMillis = 1_700_100_000_000L
+        freshPackage = false
+        val resolution = launch()
+        assertEquals(ApphudLaunchKind.NEW_INSTALL, resolution.launch)
+        assertNotEquals("old-phone", resolution.identity.installationId)
+        assertEquals("old-phone", records.record?.legacyDeviceId)
+        assertEquals(InstallState.PENDING, records.record?.state)
+        assertTrue(resolution.restoredPersonPending)
+    }
+
+    @Test
+    fun `GIVEN legacy registration at or after install EXPECT upgrade with separate legacy id`() {
+        for (registration in listOf(1_700_100_000_000L, 1_700_200_000_000L)) {
+            records.record = null
+            versions.version = null
+            storage.idsIdentityVersion = null
+            storage.deviceId = "old-phone"
+            storage.apphudUser = legacyUser("Alice")
+            storage.lastRegistration = registration
+            firstInstallMillis = 1_700_100_000_000L
+            freshPackage = false
+            val resolution = launch()
+            assertEquals(ApphudLaunchKind.UPGRADE, resolution.launch)
+            assertNotEquals("old-phone", resolution.identity.installationId)
+            assertEquals("old-phone", records.record?.legacyDeviceId)
+        }
+    }
+
+    @Test
+    fun `GIVEN install scoped V1 marker EXPECT upgrade even if registration date looks older`() {
+        storage.deviceId = "old-phone"
+        storage.apphudUser = legacyUser("Alice")
+        storage.lastRegistration = 100L
+        firstInstallMillis = 200L
+        freshPackage = false
+        versions.version = ApphudIdentityVersion.V1
+        assertEquals(ApphudLaunchKind.UPGRADE, launch().launch)
+    }
+
+    @Test
+    fun `GIVEN unknown registration or package date EXPECT existing upgrade fallback`() {
+        for ((registration, installed) in listOf(0L to 200L, 100L to 0L, 100L to null)) {
+            records.record = null
+            versions.version = null
+            storage.idsIdentityVersion = null
+            storage.deviceId = "old-phone"
+            storage.lastRegistration = registration
+            firstInstallMillis = installed
+            freshPackage = false
+            assertEquals(ApphudLaunchKind.UPGRADE, launch().launch)
+        }
+    }
+
     private data class IdentifyResult(val attempts: Int, val cachedUserId: String?, val syncPending: Boolean)
 
     private suspend fun TestScope.identifyRegistrationAttempts(
         failFirst: Boolean,
         repeats: Int = 1,
         repeatUserId: String? = "Alice",
+        withoutCachedCustomer: Boolean = false,
     ): IdentifyResult {
         val identity = store()
         val anonymous = identity.resolve(ApphudSuppliedIds()).identity
-        identity.markSynced()
-        storage.apphudUser = legacyUser(anonymous.anonymousId)
+        if (!withoutCachedCustomer) identity.markSynced()
+        storage.apphudUser = if (withoutCachedCustomer) null else legacyUser(anonymous.anonymousId)
         val dataSource = mockk<UserDataSource> {
             every { getCachedUser() } answers { storage.apphudUser }
             every { saveUser(any()) } answers {
@@ -339,6 +599,13 @@ class IdentityStoreTest {
         val previousVersion = ApphudInternal.identityVersion
         var attempts = 0
         mockkObject(ServiceLocator.Companion, RequestManager)
+        var registrationOffline = withoutCachedCustomer
+        if (withoutCachedCustomer) {
+            mockkObject(ApphudInternal)
+            coEvery { ApphudInternal.awaitUserRegistration() } coAnswers {
+                if (registrationOffline) throw IOException("first registration is offline")
+            }
+        }
         try {
             every { ServiceLocator.instance } returns locator
             every { RequestManager.setParams(any(), any()) } just runs
@@ -353,7 +620,13 @@ class IdentityStoreTest {
             apiKeyField.set(ApphudInternal, "local-test-key")
 
             ApphudInternal.updateUserId("Alice")
-            check(identity.current?.userId == "Alice")
+            check(identity.current?.userId == "Alice") { "Identify must be saved even when registration fails before a customer exists" }
+            if (withoutCachedCustomer) {
+                check(identity.isSyncPending)
+                check(storage.apphudUser == null)
+                check(store().resolve(ApphudSuppliedIds()).identity.userId == "Alice")
+                registrationOffline = false
+            }
             if (failFirst) {
                 check(identity.isSyncPending)
                 check(users.getCurrentUser()?.userId == anonymous.anonymousId)
@@ -366,6 +639,7 @@ class IdentityStoreTest {
             apiKeyField.set(ApphudInternal, previousApiKey)
             contextField.set(ApphudInternal, previousContext)
             unmockkObject(ServiceLocator.Companion, RequestManager)
+            if (withoutCachedCustomer) unmockkObject(ApphudInternal)
         }
     }
 
@@ -411,6 +685,7 @@ class IdentityStoreTest {
         override var userId: String? = null
         override var deviceId: String? = null
         override var oldDeviceId: String? = null
+        override var additionalOldDeviceIds: Set<String> = emptySet()
         override var anonymousId: String? = null
         override var identifiedUserId: String? = null
         override var identitySyncPending: Boolean = false
@@ -469,6 +744,7 @@ class IdentityStoreTest {
     private val records = FakeInstallRecords()
     private val versions = FakeVersions()
     private var freshPackage: Boolean? = true
+    private var firstInstallMillis: Long? = null
     private var clearedUserData = 0
     private var nextId = 0
 
@@ -484,6 +760,7 @@ class IdentityStoreTest {
             storage.deviceId = null
         },
         makeId = { "id-${++nextId}" },
+        firstInstallTimeMillis = { firstInstallMillis },
     )
 
     private fun launch(supplied: ApphudSuppliedIds = ApphudSuppliedIds()) = store().resolve(supplied)
@@ -659,14 +936,15 @@ class IdentityStoreTest {
     }
 
     @Test
-    fun `GIVEN old device id and an updated package EXPECT update in place keeps the device id as installation id`() {
+    fun `GIVEN old device id without install marker EXPECT fresh installation and legacy adoption`() {
         storage.deviceId = "OLD"
         storage.apphudUser = legacyUser("OLD")
         freshPackage = false
 
         val resolution = launch()
 
-        assertEquals(ApphudLaunchKind.UPGRADE to "OLD", resolution.launch to resolution.identity.installationId)
+        assertEquals(ApphudLaunchKind.UPGRADE to "OLD", resolution.launch to records.record?.legacyDeviceId)
+        assertNotEquals("OLD", resolution.identity.installationId)
     }
 
     @Test
@@ -688,7 +966,7 @@ class IdentityStoreTest {
 
         val identity = launch().identity
 
-        assertEquals("id-1" to "alice", identity.anonymousId to identity.userId)
+        assertEquals("id-2" to "alice", identity.anonymousId to identity.userId)
     }
 
     @Test
@@ -722,7 +1000,7 @@ class IdentityStoreTest {
     }
 
     @Test
-    fun `GIVEN update in place killed before the record was saved WHEN relaunch EXPECT still an update with the same ids`() {
+    fun `GIVEN update killed before the record was saved WHEN relaunch EXPECT same person and legacy adoption`() {
         storage.deviceId = "OLD"
         storage.apphudUser = legacyUser("OLD")
         freshPackage = false
@@ -732,7 +1010,8 @@ class IdentityStoreTest {
 
         val identity = launch().identity
 
-        assertEquals(Triple("OLD", "OLD", null), Triple(identity.installationId, identity.anonymousId, identity.userId))
+        assertEquals(Triple(true, "OLD", null), Triple(identity.installationId != "OLD", identity.anonymousId, identity.userId))
+        assertEquals("OLD", records.record?.legacyDeviceId)
     }
 
     @Test
@@ -1754,7 +2033,8 @@ class IdentityStoreTest {
         val resolution = launch()
 
         assertEquals(ApphudLaunchKind.UPGRADE, resolution.launch)
-        assertEquals(ApphudIdentity("V1-DEVICE", "V1-DEVICE", null), resolution.identity)
+        assertEquals("V1-DEVICE" to null, resolution.identity.anonymousId to resolution.identity.userId)
+        assertNotEquals("V1-DEVICE", resolution.identity.installationId)
         assertEquals(0, clearedUserData)
         assertEquals("V1-DEVICE", records.record?.legacyDeviceId)
     }

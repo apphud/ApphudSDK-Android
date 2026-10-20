@@ -5,7 +5,10 @@ package com.apphud.sdk
  * takes effect on the next launch.
  *
  * Switching keeps the customer:
- * - [V1] → [V2]: [V2] sends the old device ID until a registration succeeds, and the backend keeps the customer.
+ * - [V1] → [V2]: [V2] sends the saved old device ID as legacy_device_id until a registration
+ *   carrying it succeeds, including when the host supplies every new ID. Without an existing V2
+ *   installation record, a legacy upgrade uses a new installation ID: restored preferences must not make
+ *   two installs share one key. The separate legacy ID preserves the customer.
  * - [V2] → [V1]: [V1] sends the old device ID (or the installation ID when the install started on [V2])
  *   and the current user ID (or the anonymous ID), and the backend finds the customer by that user ID.
  *   This adds a device record to the customer; apps that disabled the search by user ID may get a new

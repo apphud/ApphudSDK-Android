@@ -17,9 +17,15 @@ import com.apphud.sdk.internal.domain.model.PurchaseContext
 import com.apphud.sdk.internal.domain.preferredOfferId
 import com.apphud.sdk.internal.util.runCatchingCancellable
 import com.apphud.sdk.managers.RequestManager
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.CoroutineStart
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeoutOrNull
+
+// A long Google Play checkout is valid; only bound a callback that never arrives.
+private const val CHECKOUT_TIMEOUT_MILLIS = 600_000L
 
 private fun ApphudInternal.findPaywallScreenId(paywallId: String?): String? {
     // Prefer paywall.screen.id — covers placements and rule-triggered paywalls registered
@@ -244,10 +250,20 @@ private fun ApphudInternal.purchaseInternal(
         purchasingProduct = apphudProduct
         purchaseStartedAt = System.currentTimeMillis()
         callback?.let { rememberCallback(callback) }
+        if (recoveryAttempt != null) {
+            val expiry = coroutineScope.launch(dispatchers.main, start = CoroutineStart.LAZY) {
+                delay(CHECKOUT_TIMEOUT_MILLIS)
+                finishRecoveredCheckout(recoveryAttempt, ApphudPurchaseResult(error = ApphudError(
+                    "Purchase confirmation timed out. A completed purchase will still be processed automatically.",
+                    errorCode = APPHUD_ERROR_TIMEOUT,
+                )), markNeedsSync = true)
+            }
+            if (purchaseRecovery.bindTimeout(recoveryAttempt, expiry)) expiry.start()
+        }
 
         scheduleLookupPurchase(25000L)
 
-        coroutineScope.launch {
+        val launchCheckout: suspend CoroutineScope.() -> Unit = checkout@{
             if (recoveryAttempt != null) {
                 // An unknown snapshot must never turn an already owned purchase into checkout success.
                 val existing = withTimeoutOrNull(5_000L) {
@@ -257,7 +273,7 @@ private fun ApphudInternal.purchaseInternal(
                     it.second == BillingClient.BillingResponseCode.OK
                 }?.first?.map { it.purchaseToken }?.toSet(),
                     existing?.first?.firstOrNull { it.purchaseToken == oldToken }?.products?.toSet().orEmpty())
-                if (!purchaseRecovery.isCurrent(recoveryAttempt)) return@launch
+                if (!purchaseRecovery.isCurrent(recoveryAttempt)) return@checkout
             }
             billing.purchasesCallback = { purchasesResult ->
                 coroutineScope.launch(dispatchers.main) {
@@ -308,6 +324,14 @@ private fun ApphudInternal.purchaseInternal(
                                 }
 
                             purchasesResult.purchases.forEach { purchase ->
+                                if (recoveryAttempt != null && !purchaseRecovery.matchesListener(recoveryAttempt, purchase)) {
+                                    // An unrelated/previous order is background delivery, not the active checkout.
+                                    storage.isNeedSync = true
+                                    if (purchase.purchaseState == Purchase.PurchaseState.PURCHASED) {
+                                        handleObservedPurchase(purchase, userInitiated = true)
+                                    }
+                                    return@forEach
+                                }
                                 when (purchase.purchaseState) {
                                     Purchase.PurchaseState.PENDING -> {
                                         val error = ApphudError(
@@ -403,6 +427,13 @@ private fun ApphudInternal.purchaseInternal(
             } else if (recoveryAttempt != null) {
                 purchaseRecovery.launched(recoveryAttempt)
             }
+        }
+        if (recoveryAttempt == null) {
+            coroutineScope.launch(block = launchCheckout)
+        } else {
+            // Launch and expiry run on main, so a canceled connection cannot open an old flow.
+            val launch = coroutineScope.launch(dispatchers.main, start = CoroutineStart.LAZY, block = launchCheckout)
+            if (purchaseRecovery.bindLaunch(recoveryAttempt, launch)) launch.start()
         }
     } ?: run {
         val message =
@@ -594,7 +625,13 @@ private suspend fun ApphudInternal.sendCheckToApphud(
 
     val localCurrentUser = userRepository.getCurrentUser()
     when {
-        localCurrentUser == null -> storage.isNeedSync = true
+        localCurrentUser == null -> {
+            storage.isNeedSync = true
+            if (recoveryAttempt != null) {
+                finishRecoveredCheckout(recoveryAttempt, ApphudPurchaseResult(purchase = purchase,
+                    error = ApphudError("Purchase verification is pending because the customer is unavailable")))
+            }
+        }
         fallbackMode -> {
             runCatchingCancellable {
                 RequestManager.purchased(
@@ -631,6 +668,9 @@ private suspend fun ApphudInternal.sendCheckToApphud(
                 val wasAdded = observedOrders.add(it)
                 if (!wasAdded && callback == null) {
                     ApphudLog.logI("Already observed order ${it}, skipping...")
+                    if (recoveryAttempt != null) {
+                        finishRecoveredCheckout(recoveryAttempt, ApphudPurchaseResult(purchase = purchase))
+                    }
                     return
                 }
             }
@@ -739,9 +779,10 @@ internal fun ApphudInternal.addTempPurchase(
     handleCheckSubmissionResult(apphudUser, purchase, newSubscription, newPurchase, true, recoveryAttempt)
 }
 
-private fun ApphudInternal.finishRecoveredCheckout(attempt: PurchaseRecovery.Attempt, result: ApphudPurchaseResult) {
+private fun ApphudInternal.finishRecoveredCheckout(attempt: PurchaseRecovery.Attempt, result: ApphudPurchaseResult, markNeedsSync: Boolean = false) {
     val callbacks = mutableListOf<(ApphudPurchaseResult) -> Unit>()
     if (!purchaseRecovery.finish(attempt) {
+        if (markNeedsSync) storage.isNeedSync = true
         synchronized(purchaseCallbacks) {
             callbacks.addAll(purchaseCallbacks)
             purchaseCallbacks.clear()

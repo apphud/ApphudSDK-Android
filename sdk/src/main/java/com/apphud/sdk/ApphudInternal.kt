@@ -278,7 +278,7 @@ internal object ApphudInternal {
         if (isIdentityV1) {
             val versionTwoIds = supplied.anonymousId != null || supplied.isReinstall != null ||
                 (supplied.installationId != null && supplied.installationId != supplied.deviceId)
-            if (versionTwoIds && this.context.isDebuggable()) {
+            if (versionTwoIds) {
                 ApphudLog.logE("anonymousId, installationId and isReinstall are used with identityVersion V2 only")
             }
         } else {
@@ -661,17 +661,15 @@ internal object ApphudInternal {
      */
     internal suspend fun updateUserId(userId: UserId): ApphudUser? {
         if (isIdentityV1) return updateUserIdV1(userId)
+        if (!isInitialized()) {
+            ApphudLog.logE(MUST_REGISTER_ERROR)
+            return runCatching { userRepository.getCurrentUser() }.getOrNull()
+        }
         if (userId.isBlank()) {
             ApphudLog.log("Invalid UserId=$userId")
             return userRepository.getCurrentUser()
         }
         ApphudLog.log("Start updateUserId userId=$userId")
-
-        runCatchingCancellable { awaitUserRegistration() }
-            .onFailure { error ->
-                ApphudLog.logE(error.message.orEmpty())
-                return userRepository.getCurrentUser()
-            }
 
         if (!applyIdentify(userId)) {
             val identityStore = ServiceLocator.instance.identityStore
@@ -682,7 +680,16 @@ internal object ApphudInternal {
             }
         }
         RequestManager.setParams(this.context, this.apiKey)
-
+        // Keep the host's identify even if the first registration has not succeeded yet.
+        runCatchingCancellable { awaitUserRegistration() }
+            .onFailure { error ->
+                ApphudLog.logE(error.message.orEmpty())
+                return userRepository.getCurrentUser()
+            }
+        // The awaited first registration may already have sent the chosen identity.
+        if (!ServiceLocator.instance.identityStore.isSyncPending && userRepository.getCurrentUser()?.userId == userId) {
+            return userRepository.getCurrentUser()
+        }
         registerWebOrIdentified()
         return userRepository.getCurrentUser()
     }

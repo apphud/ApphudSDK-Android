@@ -20,6 +20,8 @@ internal interface Storage {
      * user id pass it back, and it is never a user. Logout keeps it.
      */
     var oldDeviceId: String?
+    /** Further SDK-generated legacy ids from later V1 migrations; kept across logout. */
+    var additionalOldDeviceIds: Set<String>
     var anonymousId: String?
 
     /** Only a user id the app set by identify. */

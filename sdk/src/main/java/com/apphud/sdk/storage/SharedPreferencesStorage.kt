@@ -86,6 +86,12 @@ internal class SharedPreferencesStorage(
             }
         }
 
+    override var additionalOldDeviceIds: Set<String>
+        get() = preferences.getStringSet(ADDITIONAL_OLD_DEVICE_IDS_KEY, emptySet())?.toSet().orEmpty()
+        set(value) {
+            preferences.edit { putStringSet(ADDITIONAL_OLD_DEVICE_IDS_KEY, value.toSet()) }
+        }
+
     override var anonymousId: String?
         get() = preferences.getString(ANONYMOUS_ID_KEY, null)
         set(value) {
@@ -513,6 +519,7 @@ internal class SharedPreferencesStorage(
         private const val APPHUD_USER_KEY = "APPHUD_USER_KEY"
         private const val DEVICE_ID_KEY = "deviceIdKey"
         private const val OLD_DEVICE_ID_KEY = "oldDeviceIdKey"
+        private const val ADDITIONAL_OLD_DEVICE_IDS_KEY = "additionalOldDeviceIdsKey"
         private const val ANONYMOUS_ID_KEY = "anonymousIdKey"
         private const val IDENTIFIED_USER_ID_KEY = "identifiedUserIdKey"
         private const val IDENTITY_SYNC_PENDING_KEY = "identitySyncPendingKey"

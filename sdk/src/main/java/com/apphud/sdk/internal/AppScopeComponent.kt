@@ -63,6 +63,9 @@ internal class AppScopeComponent(val applicationContext: Context) {
             versions = FileIdentityVersionStorage { applicationContext.noBackupFilesDir },
             isFreshPackageInstall = { applicationContext.isFreshPackageInstall() },
             clearUserData = { storage.clean() },
+            firstInstallTimeMillis = {
+                applicationContext.packageManager.getPackageInfo(applicationContext.packageName, 0).firstInstallTime
+            },
         )
     }
 

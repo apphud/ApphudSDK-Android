@@ -20,7 +20,7 @@ internal class ResolveIdentityUseCase(
         if (supplied.suppliesAllIds) reinstallRepository.prepareForHostIds()
         val resolution = identityStore.resolve(supplied)
         if (supplied.suppliesAllIds) {
-            reinstallRepository.useHostValue(supplied.isReinstall, resolution.identity.installationId)
+            reinstallRepository.useHostValue(supplied.isReinstall, resolution.identity.installationId, resolution.unsavedLegacyDeviceId)
         } else {
             reinstallRepository.start(
                 newInstall = resolution.launch == ApphudLaunchKind.NEW_INSTALL,

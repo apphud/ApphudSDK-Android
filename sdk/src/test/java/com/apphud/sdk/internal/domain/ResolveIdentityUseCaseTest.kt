@@ -21,7 +21,7 @@ class ResolveIdentityUseCaseTest {
     private val identityStore: IdentityStore = mockk()
     private val reinstallRepository: ReinstallRepository = mockk {
         every { start(any(), any(), any(), any()) } just runs
-        every { useHostValue(any(), any()) } just runs
+        every { useHostValue(any(), any(), any()) } just runs
         every { prepareForHostIds() } just runs
         every { legacyDeviceId() } returns null
         every { forgetLegacyDeviceId() } just runs
@@ -41,6 +41,15 @@ class ResolveIdentityUseCaseTest {
             identityStore.resolve(supplied)
             reinstallRepository.useHostValue(false, IDENTITY.installationId)
         }
+    }
+
+    @Test
+    fun `GIVEN unsaved embedded migration EXPECT live legacy metadata passed to host mode`() {
+        every { identityStore.resolve(any()) } returns ApphudIdentityResolution(
+            IDENTITY, ApphudLaunchKind.UPGRADE, changed = true, unsavedLegacyDeviceId = "old-device",
+        )
+        useCase(ApphudSuppliedIds.of(anonymousId = "a", installationId = "i"))
+        verify { reinstallRepository.useHostValue(null, IDENTITY.installationId, "old-device") }
     }
 
     private fun resolvesTo(launch: ApphudLaunchKind, restoredPersonPending: Boolean = false) {

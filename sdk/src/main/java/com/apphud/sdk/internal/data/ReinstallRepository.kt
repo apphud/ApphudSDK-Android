@@ -129,9 +129,10 @@ internal class ReinstallRepository(
     }
 
     /** The app supplies the ids and the flag: the SDK runs no check of its own. */
-    fun useHostValue(isReinstall: Boolean?, installationId: String? = null) {
+    fun useHostValue(isReinstall: Boolean?, installationId: String? = null, unsavedLegacyDeviceId: String? = null) {
         prepareForHostIds()
         synchronized(lock) {
+            this.unsavedLegacyDeviceId = unsavedLegacyDeviceId
             val previousId = this.installationId ?: load()?.installationId
             // Identity has just attempted to write this start's record.
             record = null
@@ -238,7 +239,7 @@ internal class ReinstallRepository(
      * not after a logout or a user switch ([forgetLegacyDeviceId]).
      */
     fun legacyDeviceId(): String? =
-        if (legacyDeviceIdDroppedInProcess) null else load().let { if (it != null) it.legacyDeviceId else unsavedLegacyDeviceId }
+        if (legacyDeviceIdDroppedInProcess) null else load().let { if (hostDecides) it?.legacyDeviceId ?: unsavedLegacyDeviceId else if (it != null) it.legacyDeviceId else unsavedLegacyDeviceId }
 
     /** A logout or a user switch before a registration adopted the old customer: it is the person before's. */
     fun forgetLegacyDeviceId() {

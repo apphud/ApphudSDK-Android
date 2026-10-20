@@ -27,6 +27,22 @@ import kotlinx.coroutines.Dispatchers
 import java.util.concurrent.Executor
 
 class ReinstallRepositoryTest {
+    @Test
+    fun `GIVEN host migration record not saved EXPECT pending legacy device sent`() = runTest {
+        val repository = launch(state = InstallState.EXISTING, start = false)
+        repository.useHostValue(false, "installation-1", unsavedLegacyDeviceId = "old-device")
+        assertEquals("old-device", repository.legacyDeviceId())
+    }
+
+    @Test
+    fun `GIVEN unsaved host migration WHEN registration acknowledges legacy EXPECT no resend`() = runTest {
+        val repository = launch(state = InstallState.EXISTING, start = false)
+        repository.useHostValue(false, "installation-1", unsavedLegacyDeviceId = "old-device")
+        repository.onRegistered(reinstallSent = false, legacyDeviceIdSent = true)
+        assertNull(repository.legacyDeviceId())
+    }
+
+
 
     @Test
     fun `GIVEN another installation acknowledgement arrives late EXPECT current reinstall still pending`() = runTest {

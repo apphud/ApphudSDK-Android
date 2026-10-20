@@ -181,6 +181,7 @@ internal class BillingWrapper(context: Context) : Closeable {
                 } else {
                     billingFlowParamsBuilder(details, offerToken)
                 }
+            if (!ApphudInternal.isIdentityV1) currentCoroutineContext().ensureActive()
             billing.launchBillingFlow(activity, params).also {
                 return when (it.isSuccess()) {
                     true -> {

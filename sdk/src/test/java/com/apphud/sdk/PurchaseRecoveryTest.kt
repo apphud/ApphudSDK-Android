@@ -54,6 +54,7 @@ class PurchaseRecoveryTest {
         every { productDetails } returns details
         every { basePlanId } returns "plan"
     }
+    private val purchasing = java.util.concurrent.atomic.AtomicReference<ApphudProduct?>(product)
     private val oldPurchase: Purchase = mockk {
         every { products } returns listOf("subscription")
         every { purchaseToken } returns "old-token"
@@ -88,8 +89,8 @@ class PurchaseRecoveryTest {
         every { ServiceLocator.instance } returns locator
         every { ApphudInternal.coroutineScope } returns scope
         every { ApphudInternal.dispatchers } returns ApphudDispatchers(dispatcher, dispatcher, dispatcher)
-        every { ApphudInternal.purchasingProduct } returns product
-        every { ApphudInternal.purchasingProduct = any() } just runs
+        every { ApphudInternal.purchasingProduct } answers { purchasing.get() }
+        every { ApphudInternal.purchasingProduct = any() } answers { purchasing.set(firstArg()) }
         every { ApphudInternal.purchaseCallbacks } returns callbacks
         every { ApphudInternal.freshPurchase } returns null
         every { ApphudInternal.freshPurchase = any() } just runs
@@ -119,7 +120,7 @@ class PurchaseRecoveryTest {
     @Test
     fun `GIVEN V2 checkout still open and an old purchase EXPECT no success callback`() = scope.runTest {
         ApphudInternal.lookupFreshPurchase()
-        advanceUntilIdle()
+        runCurrent()
 
         assertEquals(emptyList<ApphudPurchaseResult>(), received)
     }
@@ -128,7 +129,7 @@ class PurchaseRecoveryTest {
     fun `GIVEN V1 checkout and an old purchase EXPECT legacy recovery`() = scope.runTest {
         every { ApphudInternal.isIdentityV1 } returns true
         ApphudInternal.lookupFreshPurchase()
-        advanceUntilIdle()
+        runCurrent()
 
         assertEquals(oldPurchase, received.single().purchase)
     }
@@ -137,7 +138,7 @@ class PurchaseRecoveryTest {
     fun `GIVEN V2 stale fresh purchase EXPECT no success callback`() = scope.runTest {
         every { ApphudInternal.freshPurchase } returns oldPurchase
         ApphudInternal.lookupFreshPurchase()
-        advanceUntilIdle()
+        runCurrent()
 
         assertEquals(emptyList<ApphudPurchaseResult>(), received)
     }
@@ -147,7 +148,7 @@ class PurchaseRecoveryTest {
         val newPurchase = newPurchase()
         coEvery { nativePurchases(false) } returns (listOf(oldPurchase, newPurchase) to 0)
         ApphudInternal.lookupFreshPurchase()
-        advanceUntilIdle()
+        runCurrent()
 
         assertEquals(newPurchase, received.single().purchase)
     }
@@ -157,7 +158,7 @@ class PurchaseRecoveryTest {
         val newPurchase = newPurchase()
         every { ApphudInternal.freshPurchase } returns newPurchase
         ApphudInternal.lookupFreshPurchase()
-        advanceUntilIdle()
+        runCurrent()
 
         assertEquals(newPurchase, received.single().purchase)
     }
@@ -167,7 +168,7 @@ class PurchaseRecoveryTest {
         recovery.prepare(attempt, null)
         coEvery { nativePurchases(false) } returns (listOf(newPurchase()) to 0)
         ApphudInternal.lookupFreshPurchase()
-        advanceUntilIdle()
+        runCurrent()
 
         assertEquals(emptyList<ApphudPurchaseResult>(), received)
     }
@@ -180,7 +181,7 @@ class PurchaseRecoveryTest {
             listOf(newPurchase()) to 0
         }
         ApphudInternal.lookupFreshPurchase()
-        advanceUntilIdle()
+        runCurrent()
 
         assertEquals(emptyList<ApphudPurchaseResult>(), received)
     }
@@ -194,7 +195,7 @@ class PurchaseRecoveryTest {
             customer
         }
         ApphudInternal.lookupFreshPurchase()
-        advanceUntilIdle()
+        runCurrent()
 
         assertEquals(emptyList<ApphudPurchaseResult>(), received)
     }
@@ -209,7 +210,7 @@ class PurchaseRecoveryTest {
         }
         coEvery { nativePurchases(false) } returns (listOf(newPurchase()) to 0)
         ApphudInternal.lookupFreshPurchase()
-        advanceUntilIdle()
+        runCurrent()
 
         assertEquals(listOf(next), callbacks)
     }
@@ -219,7 +220,7 @@ class PurchaseRecoveryTest {
         callbacks.clear()
         coEvery { nativePurchases(false) } returns (listOf(newPurchase()) to 0)
         ApphudInternal.lookupFreshPurchase()
-        advanceUntilIdle()
+        runCurrent()
 
         assertEquals(null, recovery.current)
     }
@@ -228,7 +229,7 @@ class PurchaseRecoveryTest {
     fun `GIVEN V2 background purchase and unknown checkout snapshot EXPECT no checkout callback`() = scope.runTest {
         recovery.prepare(attempt, null)
         ApphudInternal.handleObservedPurchase(newPurchase(), userInitiated = true)
-        advanceUntilIdle()
+        runCurrent()
 
         assertEquals(emptyList<ApphudPurchaseResult>(), received)
     }
@@ -242,7 +243,7 @@ class PurchaseRecoveryTest {
         every { customer.subscriptions } returns listOf(older, subscription)
         coEvery { nativePurchases(false) } returns (listOf(newPurchase()) to 0)
         ApphudInternal.lookupFreshPurchase()
-        advanceUntilIdle()
+        runCurrent()
 
         assertEquals(subscription, received.single().subscription)
     }
@@ -253,7 +254,7 @@ class PurchaseRecoveryTest {
         val pending = newPurchase()
         every { pending.purchaseState } returns Purchase.PurchaseState.PENDING
         listener.get()!!(PurchaseUpdatedCallbackStatus.Success(listOf(pending)))
-        advanceUntilIdle()
+        runCurrent()
 
         assertEquals(null, recovery.current)
     }
@@ -264,7 +265,7 @@ class PurchaseRecoveryTest {
         val unknown = newPurchase()
         every { unknown.purchaseState } returns Purchase.PurchaseState.UNSPECIFIED_STATE
         listener.get()!!(PurchaseUpdatedCallbackStatus.Success(listOf(unknown)))
-        advanceUntilIdle()
+        runCurrent()
 
         assertEquals(null, recovery.current)
     }
@@ -274,7 +275,7 @@ class PurchaseRecoveryTest {
         coEvery { billing.queryPurchasesSync() } throws IllegalStateException("Cannot read store history")
         beginListenerCheckout()
         listener.get()!!(PurchaseUpdatedCallbackStatus.Success(listOf(newPurchase())))
-        advanceUntilIdle()
+        runCurrent()
 
         assertEquals("new-token", received.single().purchase?.purchaseToken)
     }
@@ -283,6 +284,8 @@ class PurchaseRecoveryTest {
     fun `GIVEN V2 snapshot timeout EXPECT Google checkout still launched`() = scope.runTest {
         coEvery { billing.queryPurchasesSync() } coAnswers { awaitCancellation() }
         beginListenerCheckout()
+        advanceTimeBy(5_000L)
+        runCurrent()
 
         coVerify(exactly = 1) { billing.purchase(any(), any(), any(), any(), any(), any()) }
     }
@@ -301,7 +304,7 @@ class PurchaseRecoveryTest {
         val original = listener.get()
         purchaseStartedAt = 0
         ApphudInternal.purchase(activity, product, null, "offer", "old-token", 4, consumableInappProduct = false) { received.add(it) }
-        advanceUntilIdle()
+        runCurrent()
 
         assertEquals(original, listener.get())
     }
@@ -311,7 +314,7 @@ class PurchaseRecoveryTest {
         beginListenerCheckout()
         listener.get()!!(PurchaseUpdatedCallbackStatus.Error(com.android.billingclient.api.BillingResult.newBuilder()
             .setResponseCode(BillingClient.BillingResponseCode.USER_CANCELED).build()))
-        advanceUntilIdle()
+        runCurrent()
 
         assertEquals(listOf(BillingClient.BillingResponseCode.USER_CANCELED), received.map { it.error?.errorCode })
     }
@@ -325,7 +328,7 @@ class PurchaseRecoveryTest {
         val context = slot<com.apphud.sdk.internal.domain.model.PurchaseContext>()
         coEvery { RequestManager.purchased(capture(context)) } returns customer
         ApphudInternal.handleObservedPurchase(other, userInitiated = true)
-        advanceUntilIdle()
+        runCurrent()
 
         assertEquals("other" to null, context.captured.productDetails?.productId to context.captured.productBundleId)
     }
@@ -339,16 +342,151 @@ class PurchaseRecoveryTest {
         val deferred = newPurchase()
         every { deferred.products } returns listOf("old-product")
         listener.get()!!(PurchaseUpdatedCallbackStatus.Success(listOf(deferred)))
-        advanceUntilIdle()
+        runCurrent()
 
         assertEquals("new-token", received.single().purchase?.purchaseToken)
     }
 
-    private fun beginListenerCheckout(mode: Int = 4) {
+    @Test
+    fun `GIVEN V2 listener loses its customer EXPECT retry needed and checkout reservation released`() = scope.runTest {
+        beginListenerCheckout()
+        every { ApphudInternal.userRepository } returns mockk<UserRepository> { every { getCurrentUser() } returns null }
+        listener.get()!!(PurchaseUpdatedCallbackStatus.Success(listOf(newPurchase())))
+        runCurrent()
+        assertEquals(null, recovery.current)
+        assertEquals(1, received.size)
+        check(received.single().error != null)
+        verify { storage.isNeedSync = true }
+        check(recovery.begin("next-product", null) != null)
+    }
+
+    @Test
+    fun `GIVEN V2 no callback and an already observed checkout order EXPECT reservation released`() = scope.runTest {
+        val observed = java.util.concurrent.ConcurrentHashMap.newKeySet<String>().apply { add("new-order") }
+        every { ApphudInternal.observedOrders } returns observed
+        beginListenerCheckout(withCallback = false)
+        listener.get()!!(PurchaseUpdatedCallbackStatus.Success(listOf(newPurchase())))
+        runCurrent()
+        assertEquals(null, recovery.current)
+        assertEquals(emptyList<ApphudPurchaseResult>(), received)
+        coVerify(exactly = 0) { RequestManager.purchased(any()) }
+        check(recovery.begin("next-product", null) != null)
+    }
+
+    @Test
+    fun `GIVEN V2 listener reports another product without a customer EXPECT checkout remains reserved`() = scope.runTest {
+        beginListenerCheckout()
+        every { ApphudInternal.userRepository } returns mockk<UserRepository> { every { getCurrentUser() } returns null }
+        val background = newPurchase()
+        every { background.products } returns listOf("other-product")
+        listener.get()!!(PurchaseUpdatedCallbackStatus.Success(listOf(background)))
+        runCurrent()
+        check(recovery.current != null)
+        assertEquals(emptyList<ApphudPurchaseResult>(), received)
+        coVerify(exactly = 0) { RequestManager.purchased(any()) }
+    }
+
+    @Test
+    fun `GIVEN V2 listener reports an old token EXPECT it cannot complete the new checkout`() = scope.runTest {
+        beginListenerCheckout()
+        val old = newPurchase()
+        every { old.purchaseToken } returns "old-token"
+        listener.get()!!(PurchaseUpdatedCallbackStatus.Success(listOf(old)))
+        runCurrent()
+        check(recovery.current != null)
+        assertEquals(emptyList<ApphudPurchaseResult>(), received)
+    }
+
+    @Test
+    fun `GIVEN lost Google callback for ten minutes EXPECT timeout once and next checkout allowed`() = scope.runTest {
+        beginListenerCheckout()
+        advanceTimeBy(600_000L)
+        runCurrent()
+        assertEquals(APPHUD_ERROR_TIMEOUT, received.single().error?.errorCode)
+        check(recovery.current == null)
+        check(listener.get() == null)
+        check(recovery.begin("next-product", null) != null)
+    }
+
+    @Test
+    fun `GIVEN checkout open for several minutes EXPECT no premature timeout`() = scope.runTest {
+        beginListenerCheckout()
+        advanceTimeBy(599_999L)
+        runCurrent()
+        assertEquals(emptyList<ApphudPurchaseResult>(), received)
+        check(recovery.current != null)
+    }
+
+    @Test
+    fun `GIVEN timeout then late old callback EXPECT no second result`() = scope.runTest {
+        beginListenerCheckout()
+        val staleListener = listener.get()!!
+        advanceTimeBy(600_000L)
+        runCurrent()
+        staleListener(PurchaseUpdatedCallbackStatus.Success(listOf(newPurchase())))
+        runCurrent()
+        assertEquals(1, received.size)
+        coVerify(exactly = 0) { RequestManager.purchased(any()) }
+    }
+
+    @Test
+    fun `GIVEN successful checkout EXPECT its timeout cannot cancel the next one`() = scope.runTest {
+        beginListenerCheckout()
+        listener.get()!!(PurchaseUpdatedCallbackStatus.Success(listOf(newPurchase())))
+        runCurrent()
+        val next = recovery.begin("next-product", null)!!
+        advanceTimeBy(600_000L)
+        runCurrent()
+        check(recovery.isCurrent(next))
+        assertEquals(1, received.size)
+    }
+
+    @Test
+    fun `GIVEN timed out checkout WHEN late purchase observed EXPECT automatic tracking without another callback`() = scope.runTest {
+        beginListenerCheckout()
+        advanceTimeBy(600_000L)
+        runCurrent()
+        val context = slot<com.apphud.sdk.internal.domain.model.PurchaseContext>()
+        coEvery { RequestManager.purchased(capture(context)) } returns customer
+        ApphudInternal.handleObservedPurchase(newPurchase(), userInitiated = false)
+        runCurrent()
+        assertEquals("new-token", context.captured.purchase.purchaseToken)
+        assertEquals(null, context.captured.productBundleId)
+        assertEquals(1, received.size)
+    }
+
+    @Test
+    fun `GIVEN expired checkout waiting for billing WHEN next checkout starts EXPECT old flow never launched`() = scope.runTest {
+        val connection = kotlinx.coroutines.CompletableDeferred<Unit>()
+        val launched = mutableListOf<Int>()
+        var calls = 0
+        coEvery { billing.purchase(any(), any(), any(), any(), any(), any()) } coAnswers {
+            val call = ++calls
+            if (call == 1) connection.await()
+            launched.add(call)
+            null
+        }
+        beginListenerCheckout()
+        advanceTimeBy(600_000L)
+        runCurrent()
+        purchaseStartedAt = 0
+        ApphudInternal.purchase(activity, product, null, "offer", "old-token", 4, consumableInappProduct = false) { received.add(it) }
+        runCurrent()
+        val next = recovery.current!!
+        val nextListener = listener.get()
+        connection.complete(Unit)
+        runCurrent()
+        assertEquals(listOf(2), launched)
+        check(recovery.isCurrent(next))
+        check(listener.get() === nextListener)
+    }
+
+    private fun beginListenerCheckout(mode: Int = 4, withCallback: Boolean = true) {
         recovery.reset()
         callbacks.clear()
-        ApphudInternal.purchase(activity, product, null, "offer", "old-token", mode, consumableInappProduct = false) { received.add(it) }
-        scope.testScheduler.advanceUntilIdle()
+        ApphudInternal.purchase(activity, product, null, "offer", "old-token", mode, consumableInappProduct = false,
+            callback = if (withCallback) ({ received.add(it) }) else null)
+        scope.testScheduler.runCurrent()
     }
 
     private fun newPurchase(): Purchase = mockk {

@@ -23,8 +23,8 @@ import java.util.UUID
  *   backed-up preferences.
  * - `anonymous_id` and the identified `user_id` live in the preferences.
  * - Old versions kept one generated id as both `device_id` and the customer's `user_id`. An update
- *   in place adopts them: `device_id` becomes `installation_id` and goes as `legacy_device_id`, which
- *   has the backend adopt the old customer, and a `user_id` equal to it is the anonymous id, never a
+ *   in place adopts them: the old `device_id` goes as `legacy_device_id`, alongside an existing V2
+ *   installation id or a new one. This adopts the old customer; a `user_id` equal to it is the anonymous id, never a
  *   user. Identity version 1 keeps those ids, and they stay while version 2 runs, so version 1 can
  *   come back to the same customer. Every switch from version 1 adopts its ids again.
  * - Auto Backup can restore the preferences onto a new install: after a reinstall on this device, or
@@ -41,6 +41,8 @@ internal class IdentityStore(
     /** Drops the user data the preferences hold, e.g. ones Auto Backup restored onto a new install. */
     private val clearUserData: () -> Unit,
     private val makeId: () -> String = { UUID.randomUUID().toString() },
+    /** Package install time in milliseconds, not the backend's first_seen seconds. */
+    private val firstInstallTimeMillis: () -> Long? = { null },
 ) {
     @Volatile
     var current: ApphudIdentity? = null
@@ -94,6 +96,12 @@ internal class IdentityStore(
         var record: InstallRecord
         val launch: ApphudLaunchKind
         val legacyDeviceId = storage.deviceId.nonBlank()
+        val appsOwnDeviceId = legacyDeviceId == supplied.installationId &&
+            storage.apphudUser?.userId.nonBlank().let { it == null || it == legacyDeviceId }
+        val explicitDeviceUser = legacyDeviceId != null && appsOwnDeviceId && supplied.userId == legacyDeviceId
+        val installedAt = runCatching { firstInstallTimeMillis() }.getOrNull()
+        val legacyRegistrationPredatesInstall = storage.lastRegistration > 0 && installedAt != null &&
+            installedAt > 0 && storage.lastRegistration < installedAt
         val lastVersion = readVersion()
         var version1LoggedOut = false
         // The person Auto Backup brought back, still to be confirmed by the reinstall check.
@@ -115,23 +123,26 @@ internal class IdentityStore(
             adoptLegacyDeviceId = legacyDeviceId
             record = stored.copy(legacyDeviceId = legacyDeviceId)
             version1LoggedOut = storage.version1LoggedOut
-            val (anonymous, user) = version1Person(legacyDeviceId, anonymousId, userId, version1LoggedOut)
+            val (anonymous, user) = version1Person(legacyDeviceId, anonymousId, userId, version1LoggedOut, explicitDeviceUser)
             anonymousId = anonymous
             userId = user
         } else if (legacyDeviceId != null && (
                 lastVersion == ApphudIdentityVersion.V1 ||
-                    (storage.idsIdentityVersion == null && isFreshPackageInstall() != true)
+                    (storage.idsIdentityVersion == null && isFreshPackageInstall() != true && !legacyRegistrationPredatesInstall)
                 )
         ) {
-            // In-place update: the old device_id stays as installation_id and goes as legacy_device_id,
-            // which has the backend adopt the old customer. A fresh install never takes it as an update:
+            // A legacy transition keeps its customer through legacy_device_id. A fresh install
+            // never takes restored preferences as proof of an in-place update:
             // Auto Backup restores old preferences. Version 1 that ran on this install left its own ids,
             // a fresh package or not; ids version 2 used last came from a backup.
             launch = ApphudLaunchKind.UPGRADE
             adoptLegacyDeviceId = legacyDeviceId
-            record = InstallRecord(InstallState.EXISTING, legacyDeviceId, legacyDeviceId = legacyDeviceId)
+            // V1 may have run here using restored preferences: its marker proves a launch,
+            // not where the old device id originated. Only an existing V2 record can keep I.
+            // The separate legacy_device_id, not installation_id, adopts the customer.
+            record = InstallRecord(InstallState.EXISTING, makeId(), legacyDeviceId = legacyDeviceId)
             version1LoggedOut = storage.version1LoggedOut
-            val (anonymous, user) = version1Person(legacyDeviceId, anonymousId, userId, version1LoggedOut)
+            val (anonymous, user) = version1Person(legacyDeviceId, anonymousId, userId, version1LoggedOut, explicitDeviceUser)
             anonymousId = anonymous
             userId = user
         } else if (damaged) {
@@ -163,7 +174,7 @@ internal class IdentityStore(
                 if (legacyDeviceId != null && (anonymousId == null || version1Last)) {
                     adoptLegacyDeviceId = legacyDeviceId
                     version1LoggedOut = version1Last && storage.version1LoggedOut
-                    val (anonymous, user) = version1Person(legacyDeviceId, anonymousId, userId, version1LoggedOut)
+                    val (anonymous, user) = version1Person(legacyDeviceId, anonymousId, userId, version1LoggedOut, explicitDeviceUser)
                     anonymousId = anonymous
                     userId = user
                 }
@@ -183,14 +194,14 @@ internal class IdentityStore(
         val resolvedAnonymousId = anonymousId ?: makeId()
         // Old versions also kept a device id the app passed: one the app still passes as the installation id,
         // with no other user cached, is the app's own.
-        val appsOwnDeviceId = legacyDeviceId == supplied.installationId &&
-            storage.apphudUser?.userId.nonBlank().let { it == null || it == legacyDeviceId }
-        if (legacyDeviceId != null && !appsOwnDeviceId && storage.oldDeviceId.nonBlank() == null) {
-            storage.oldDeviceId = legacyDeviceId
+        val retainedVersion2Alias = lastVersion == ApphudIdentityVersion.V1 && !version1LoggedOut &&
+            stored?.installationId == legacyDeviceId
+        if (legacyDeviceId != null && !appsOwnDeviceId && !retainedVersion2Alias) {
+            rememberGeneratedDeviceId(legacyDeviceId)
         }
         // Generated ids are never a user: a supplied one is ignored (the stored user stays), a stored one
         // is dropped.
-        val generatedIds = setOfNotNull(resolvedAnonymousId, storage.oldDeviceId.nonBlank())
+        val generatedIds = generatedDeviceIds() + resolvedAnonymousId
         val suppliedUserId = supplied.userId?.takeIf { it !in generatedIds }
         suppliedUserId?.let { userId = it }
         if (userId in generatedIds) userId = null
@@ -261,7 +272,7 @@ internal class IdentityStore(
     @Synchronized
     fun identify(userId: String): ApphudIdentifyOutcome {
         val identity = current ?: return ApphudIdentifyOutcome.UNCHANGED
-        if (identity.userId == userId || userId == identity.anonymousId || userId == storage.oldDeviceId.nonBlank()) {
+        if (identity.userId == userId || userId == identity.anonymousId || userId in generatedDeviceIds()) {
             return ApphudIdentifyOutcome.UNCHANGED
         }
         val outcome = if (identity.userId == null) ApphudIdentifyOutcome.IDENTIFIED else ApphudIdentifyOutcome.SWITCHED
@@ -324,33 +335,59 @@ internal class IdentityStore(
         restoredPerson = null
         val installationId = requireNotNull(supplied.installationId)
         val anonymousId = requireNotNull(supplied.anonymousId)
-        // The host passes a user id when it has one: none means no user. Generated ids are never one.
-        val userId = supplied.userId?.takeIf { it != anonymousId && it != storage.oldDeviceId.nonBlank() }
-
-        // Not after a user switch or a logout (the host's new anonymous id): the old customer belongs to the
-        // person before. Dropped in the record before the new person is saved.
-        val personChanged = isSwitch(storedUserId, userId) || (storedAnonymousId != null && anonymousId != storedAnonymousId)
+        val legacyDeviceId = storage.deviceId.nonBlank()
+        val lastVersion = readVersion()
+        val upgrading = legacyDeviceId != null && (lastVersion == ApphudIdentityVersion.V1 ||
+            (lastVersion == null && stored == null && idsVersion() != ApphudIdentityVersion.V2))
+        val version1LoggedOut = lastVersion == ApphudIdentityVersion.V1 && storage.version1LoggedOut
+        val retainedVersion2Alias = lastVersion == ApphudIdentityVersion.V1 && !version1LoggedOut &&
+            stored?.installationId == legacyDeviceId
+        val appsOwnDeviceId = legacyDeviceId == installationId &&
+            storage.apphudUser?.userId.nonBlank().let { it == null || it == legacyDeviceId }
+        if (upgrading && !retainedVersion2Alias && !appsOwnDeviceId && legacyDeviceId != null) {
+            rememberGeneratedDeviceId(legacyDeviceId)
+        }
+        val generatedIds = generatedDeviceIds() + listOfNotNull(storedAnonymousId.takeIf { lastVersion == ApphudIdentityVersion.V1 })
+        val userId = supplied.userId?.takeUnless { it == anonymousId || it in generatedIds }
+        val previousUserId = if (upgrading) {
+            (storedUserId ?: storage.apphudUser?.userId.nonBlank())?.takeUnless { it in generatedIds }
+        } else storedUserId
+        val switchedUser = isSwitch(previousUserId, userId)
+        val personChanged = switchedUser || (!version1LoggedOut && storedAnonymousId != null && anonymousId != storedAnonymousId) ||
+            supplied.isReinstall == true
         var record = (stored ?: InstallRecord(InstallState.EXISTING)).copy(installationId = installationId).personSettled()
-        // The app's reinstall answer belongs to its installation.
+        if (upgrading) record = record.copy(legacyDeviceId = legacyDeviceId)
         if (stored?.installationId != installationId) record = record.copy(hostReinstall = null, reinstallReported = false)
         if (personChanged) record = record.copy(legacyDeviceId = null)
-        if (record != stored) write(record)
-        persist(anonymousId, userId)
-        writeVersion(ApphudIdentityVersion.V2)
-
-        val changed = installationId != stored?.installationId ||
-            anonymousId != storedAnonymousId || userId != storedUserId
-        if (changed) markSyncPending()
-
+        val saved = record == stored || write(record)
+        // A failed migration write must leave the old person and version available for retry.
+        if (saved) {
+            persist(anonymousId, userId)
+            writeVersion(ApphudIdentityVersion.V2)
+            if (version1LoggedOut) storage.version1LoggedOut = false
+        }
+        val changed = installationId != stored?.installationId || anonymousId != storedAnonymousId || userId != storedUserId ||
+            record.legacyDeviceId != stored?.legacyDeviceId
+        if (changed || record.legacyDeviceId != null) markSyncPending()
         val identity = ApphudIdentity(installationId, anonymousId, userId)
         current = identity
         return ApphudIdentityResolution(
             identity = identity,
-            launch = if (stored == null) ApphudLaunchKind.NEW_INSTALL else ApphudLaunchKind.NORMAL,
+            launch = if (upgrading) ApphudLaunchKind.UPGRADE else if (stored == null) ApphudLaunchKind.NEW_INSTALL else ApphudLaunchKind.NORMAL,
             changed = changed,
-            switchedUser = isSwitch(storedUserId, userId),
+            switchedUser = switchedUser,
+            unsavedLegacyDeviceId = record.legacyDeviceId.takeUnless { saved },
             dropsLegacyDeviceId = personChanged,
         )
+    }
+
+    private fun generatedDeviceIds(): Set<String> =
+        storage.additionalOldDeviceIds + setOfNotNull(storage.oldDeviceId.nonBlank())
+
+    private fun rememberGeneratedDeviceId(id: String) {
+        if (id in generatedDeviceIds()) return
+        if (storage.oldDeviceId.nonBlank() == null) storage.oldDeviceId = id
+        else storage.additionalOldDeviceIds = storage.additionalOldDeviceIds + id
     }
 
     /**
@@ -431,9 +468,12 @@ internal class IdentityStore(
         anonymousId: String?,
         userId: String?,
         loggedOut: Boolean,
+        explicitDeviceUser: Boolean,
     ): Pair<String?, String?> {
         val version1UserId = storage.apphudUser?.userId.nonBlank()
         return when {
+            // Explicit host provenance distinguishes this user from an SDK-minted anonymous id.
+            explicitDeviceUser && deviceId != null -> anonymousId?.takeUnless { it == deviceId } to deviceId
             deviceId != null && version1UserId == deviceId -> deviceId to null
             // Version 1 sent version 2's anonymous id as its user id: still the anonymous person.
             anonymousId != null && version1UserId == anonymousId -> anonymousId to null
