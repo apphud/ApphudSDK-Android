@@ -63,8 +63,8 @@ class RegistrationInteractorTest {
                 needPlacementsPaywalls = true,
                 isNew = false,
                 forceRegistration = false,
-                userId = null,
                 email = null,
+                fromWeb2Web = false,
                 cachedUser = temporaryUser,
             )
         }
@@ -79,8 +79,8 @@ class RegistrationInteractorTest {
             needPlacementsPaywalls = true,
             isNew = false,
             forceRegistration = true,
-            userId = "custom-id",
             email = "test@example.com",
+            fromWeb2Web = true,
         )
 
         coVerify {
@@ -88,8 +88,8 @@ class RegistrationInteractorTest {
                 needPlacementsPaywalls = true,
                 isNew = false,
                 forceRegistration = true,
-                userId = "custom-id",
                 email = "test@example.com",
+                fromWeb2Web = true,
                 cachedUser = cachedUser,
             )
         }
@@ -107,8 +107,8 @@ class RegistrationInteractorTest {
                 needPlacementsPaywalls = false,
                 isNew = true,
                 forceRegistration = false,
-                userId = null,
                 email = null,
+                fromWeb2Web = false,
                 cachedUser = null,
             )
         }

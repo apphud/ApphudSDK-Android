@@ -1,6 +1,7 @@
 package com.apphud.sdk.internal.domain
 
 import com.apphud.sdk.internal.data.UserRepository
+import com.apphud.sdk.internal.domain.model.ApphudIdentity
 import com.apphud.sdk.internal.data.dto.RuleEventDto
 import com.apphud.sdk.internal.data.remote.RemoteRepository
 import io.mockk.coEvery
@@ -18,19 +19,29 @@ class TrackRuleEventUseCaseTest {
         coEvery { trackRuleEvent(any()) } returns Result.success(Unit)
     }
     private val userRepository: UserRepository = mockk {
-        every { getDeviceId() } returns "device-id"
+        every { getRequestIds() } returns ApphudIdentity("installation-id", "anonymous-id", null).requestIds
     }
 
     private val useCase = TrackRuleEventUseCase(remoteRepository, userRepository)
 
     @Test
-    fun `GIVEN event EXPECT posts dto with device id`() = runTest {
+    fun `GIVEN event EXPECT posts dto with installation id`() = runTest {
         val captured = slot<RuleEventDto>()
         coEvery { remoteRepository.trackRuleEvent(capture(captured)) } returns Result.success(Unit)
 
         useCase("rule-1", "screen-1", "\$feedback", mapOf("question" to "q", "answer" to "a"))
 
-        assertEquals("device-id", captured.captured.deviceId)
+        assertEquals("installation-id", captured.captured.installationId)
+    }
+
+    @Test
+    fun `GIVEN event EXPECT posts dto with anonymous id`() = runTest {
+        val captured = slot<RuleEventDto>()
+        coEvery { remoteRepository.trackRuleEvent(capture(captured)) } returns Result.success(Unit)
+
+        useCase("rule-1", "screen-1", "\$feedback")
+
+        assertEquals("anonymous-id", captured.captured.anonymousId)
     }
 
     @Test
@@ -99,8 +110,8 @@ class TrackRuleEventUseCaseTest {
     }
 
     @Test
-    fun `GIVEN no device id EXPECT does not call remote`() = runTest {
-        every { userRepository.getDeviceId() } returns null
+    fun `GIVEN no ids EXPECT does not call remote`() = runTest {
+        every { userRepository.getRequestIds() } returns null
 
         useCase("rule-1", "screen-1", "\$feedback")
 

@@ -1,8 +1,11 @@
 package com.apphud.sdk.internal.data.remote
 
 import com.apphud.sdk.internal.ApphudDispatchers
+import com.apphud.sdk.internal.data.IdentityStore
+import com.apphud.sdk.internal.domain.model.ApphudIdentity
 import com.apphud.sdk.body.RegistrationBody
 import com.apphud.sdk.domain.ApphudUser
+import com.apphud.sdk.internal.data.ReinstallRepository
 import com.apphud.sdk.internal.data.dto.CustomerDto
 import com.apphud.sdk.internal.data.dto.DataDto
 import com.apphud.sdk.internal.data.dto.ResponseDto
@@ -10,9 +13,13 @@ import com.apphud.sdk.internal.data.mapper.CustomerMapper
 import com.apphud.sdk.internal.data.network.UrlProvider
 import com.google.gson.Gson
 import io.mockk.Runs
+import io.mockk.coEvery
+import io.mockk.coVerify
+import io.mockk.coVerifyOrder
 import io.mockk.every
 import io.mockk.just
 import io.mockk.mockk
+import io.mockk.verify
 import kotlinx.coroutines.test.runTest
 import okhttp3.Call
 import okhttp3.HttpUrl.Companion.toHttpUrl
@@ -22,6 +29,7 @@ import okhttp3.Request
 import okhttp3.Response
 import okhttp3.ResponseBody.Companion.toResponseBody
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
@@ -47,17 +55,35 @@ class RemoteRepositoryTest {
     }
 
     private val urlProvider: UrlProvider = mockk {
-        every { customersUrl } returns "https://api.apphud.com/v1/customers".toHttpUrl()
+        every { customersUrl } returns "https://api.apphud.com/v4/customers".toHttpUrl()
+        every { subscriptionsUrl } returns "https://api.apphud.com/v4/subscriptions".toHttpUrl()
         every { updateConnectDomainUrl(any()) } just Runs
     }
 
     private val okHttpClient: OkHttpClient = mockk()
 
+    private val purchaseBodyFactory: PurchaseBodyFactory = mockk {
+        every { create(any(), any(), any(), any()) } returns mockk(relaxed = true)
+    }
+
+    private val reinstallRepository: ReinstallRepository = mockk {
+        coEvery { awaitBeforeRegistration() } returns null
+        every { reinstallFlag() } returns null
+        every { onRegistered(any(), any(), any()) } just Runs
+    }
+
+    private val identityStore: IdentityStore = mockk(relaxUnitFun = true) {
+        every { current } returns IDENTITY
+        every { pendingRevision } returns 0L
+    }
+
+    private val hold = com.apphud.sdk.internal.data.network.FirstRegistrationHold()
+
     private val remoteRepository = RemoteRepository(
         okHttpClient = okHttpClient,
         gson = gson,
         customerMapper = customerMapper,
-        purchaseBodyFactory = mockk(),
+        purchaseBodyFactory = purchaseBodyFactory,
         registrationBodyFactory = registrationBodyFactory,
         productMapper = mockk(),
         attributionMapper = mockk(),
@@ -65,6 +91,9 @@ class RemoteRepositoryTest {
         paywallsMapper = mockk(),
         urlProvider = urlProvider,
         dispatchers = ApphudDispatchers(),
+        reinstallRepository = reinstallRepository,
+        identityStore = identityStore,
+        firstRegistrationHold = hold,
     )
 
     private fun createSuccessResponse(): String {
@@ -82,7 +111,7 @@ class RemoteRepositoryTest {
     private fun createMockResponse(
         code: Int,
         body: String,
-        request: Request = Request.Builder().url("https://api.apphud.com/v1/customers").build()
+        request: Request = Request.Builder().url("https://api.apphud.com/v4/customers").build()
     ): Response {
         return Response.Builder()
             .request(request)
@@ -114,13 +143,179 @@ class RemoteRepositoryTest {
         val result = remoteRepository.getCustomers(
             needPlacements = true,
             isNew = false,
-            userId = null,
             email = null
         )
 
         assertTrue("Result should be success", result.isSuccess)
         assertEquals("Returned user should match mocked user", mockApphudUser, result.getOrNull())
     }
+
+    // region identity sync
+
+    @Test
+    fun `GIVEN requests held for the first registration WHEN it succeeds EXPECT them released`() = runTest {
+        mockHttpCall(createMockResponse(200, createSuccessResponse()))
+        hold.close()
+
+        remoteRepository.getCustomers(needPlacements = true, isNew = false, email = null)
+
+        assertFalse(hold.isClosed)
+    }
+
+    @Test
+    fun `GIVEN requests held for the first registration WHEN it fails EXPECT them released too`() = runTest {
+        mockHttpCallWithException(java.io.IOException("offline"))
+        hold.close()
+
+        remoteRepository.getCustomers(needPlacements = true, isNew = false, email = null)
+
+        assertFalse(hold.isClosed)
+    }
+
+    @Test
+    fun `GIVEN the restore the user asked for EXPECT the purchases sent as a restore`() = runTest {
+        mockHttpCall(createMockResponse(200, createSuccessResponse()))
+
+        remoteRepository.restorePurchased(null, emptyList(), observerMode = false, restore = true)
+
+        verify { purchaseBodyFactory.create(null, emptyList(), false, true) }
+    }
+
+    @Test
+    fun `GIVEN registration EXPECT the body built after the reinstall wait`() = runTest {
+        mockHttpCall(createMockResponse(200, createSuccessResponse()))
+
+        remoteRepository.getCustomers(needPlacements = true, isNew = false, email = null)
+
+        coVerifyOrder {
+            reinstallRepository.awaitBeforeRegistration()
+            registrationBodyFactory.create(any(), any(), any(), any())
+        }
+    }
+
+    private fun bodyWithIds(installationId: String, anonymousId: String, userId: String?) {
+        every { mockRegistrationBody.installationId } returns installationId
+        every { mockRegistrationBody.anonymousId } returns anonymousId
+        every { mockRegistrationBody.userId } returns userId
+        every { mockRegistrationBody.reinstall } returns null
+        every { mockRegistrationBody.legacyDeviceId } returns null
+    }
+
+    @Test
+    fun `GIVEN registration sent with the current ids WHEN it succeeds EXPECT ids marked synced`() = runTest {
+        bodyWithIds(IDENTITY.installationId, IDENTITY.anonymousId, IDENTITY.userId)
+        mockHttpCall(createMockResponse(200, createSuccessResponse()))
+
+        remoteRepository.getCustomers(needPlacements = true, isNew = false, email = null)
+
+        verify { identityStore.markSynced(IDENTITY, 0L) }
+    }
+
+    @Test
+    fun `GIVEN ids changed while the registration was out WHEN it succeeds EXPECT not marked synced`() = runTest {
+        bodyWithIds(IDENTITY.installationId, "previous-anonymous-id", IDENTITY.userId)
+        mockHttpCall(createMockResponse(200, createSuccessResponse()))
+
+        remoteRepository.getCustomers(needPlacements = true, isNew = false, email = null)
+
+        verify(exactly = 0) { identityStore.markSynced(any(), any()) }
+    }
+
+    @Test
+    fun `GIVEN reinstall decided after the body was built WHEN it succeeds EXPECT not marked synced`() = runTest {
+        bodyWithIds(IDENTITY.installationId, IDENTITY.anonymousId, IDENTITY.userId)
+        every { reinstallRepository.reinstallFlag() } returns true
+        mockHttpCall(createMockResponse(200, createSuccessResponse()))
+
+        remoteRepository.getCustomers(needPlacements = true, isNew = false, email = null)
+
+        verify(exactly = 0) { identityStore.markSynced(any(), any()) }
+    }
+
+    @Test
+    fun `GIVEN registration with the reinstall flag WHEN it succeeds EXPECT the reinstall reported`() = runTest {
+        bodyWithIds(IDENTITY.installationId, IDENTITY.anonymousId, IDENTITY.userId)
+        every { mockRegistrationBody.reinstall } returns true
+        mockHttpCall(createMockResponse(200, createSuccessResponse()))
+
+        remoteRepository.getCustomers(needPlacements = true, isNew = false, email = null)
+
+        verify { reinstallRepository.onRegistered(reinstallSent = true, legacyDeviceIdSent = false, installationIdSent = IDENTITY.installationId) }
+    }
+
+    @Test
+    fun `GIVEN identity version 1 WHEN it registers EXPECT no reinstall wait, no report and no sync mark`() = runTest {
+        val version1Repository = RemoteRepository(
+            okHttpClient = okHttpClient,
+            gson = gson,
+            customerMapper = customerMapper,
+            purchaseBodyFactory = purchaseBodyFactory,
+            registrationBodyFactory = registrationBodyFactory,
+            productMapper = mockk(),
+            attributionMapper = mockk(),
+            notificationMapper = mockk(),
+            paywallsMapper = mockk(),
+            urlProvider = urlProvider,
+            dispatchers = ApphudDispatchers(),
+            reinstallRepository = reinstallRepository,
+            identityStore = identityStore,
+            firstRegistrationHold = hold,
+            isVersion1 = { true },
+        )
+        mockHttpCall(createMockResponse(200, createSuccessResponse()))
+
+        version1Repository.getCustomers(needPlacements = true, isNew = false, email = null)
+
+        coVerify(exactly = 0) { reinstallRepository.awaitBeforeRegistration() }
+        verify(exactly = 0) { reinstallRepository.onRegistered(any(), any(), any()) }
+        verify(exactly = 0) { identityStore.markSynced(any(), any()) }
+        verify { identityStore.markVersion1Registered() }
+    }
+
+    @Test
+    fun `GIVEN registration with the reinstall flag WHEN it fails EXPECT nothing reported`() = runTest {
+        bodyWithIds(IDENTITY.installationId, IDENTITY.anonymousId, IDENTITY.userId)
+        every { mockRegistrationBody.reinstall } returns true
+        mockHttpCall(createMockResponse(500, "Internal Server Error"))
+
+        remoteRepository.getCustomers(needPlacements = true, isNew = false, email = null)
+
+        verify(exactly = 0) { reinstallRepository.onRegistered(any(), any(), any()) }
+    }
+
+    @Test
+    fun `GIVEN registration without the reinstall flag WHEN it succeeds EXPECT no reinstall reported`() = runTest {
+        bodyWithIds(IDENTITY.installationId, IDENTITY.anonymousId, IDENTITY.userId)
+        mockHttpCall(createMockResponse(200, createSuccessResponse()))
+
+        remoteRepository.getCustomers(needPlacements = true, isNew = false, email = null)
+
+        verify { reinstallRepository.onRegistered(reinstallSent = false, legacyDeviceIdSent = false, installationIdSent = IDENTITY.installationId) }
+    }
+
+    @Test
+    fun `GIVEN registration that reported the reinstall WHEN it succeeds EXPECT ids marked synced`() = runTest {
+        bodyWithIds(IDENTITY.installationId, IDENTITY.anonymousId, IDENTITY.userId)
+        every { mockRegistrationBody.reinstall } returns true
+        mockHttpCall(createMockResponse(200, createSuccessResponse()))
+
+        remoteRepository.getCustomers(needPlacements = true, isNew = false, email = null)
+
+        verify { identityStore.markSynced(IDENTITY, 0L) }
+    }
+
+    @Test
+    fun `GIVEN registration with the old device id WHEN it succeeds EXPECT the old customer reported adopted`() = runTest {
+        bodyWithIds(IDENTITY.installationId, IDENTITY.anonymousId, IDENTITY.userId)
+        every { mockRegistrationBody.legacyDeviceId } returns "OLD"
+        mockHttpCall(createMockResponse(200, createSuccessResponse()))
+
+        remoteRepository.getCustomers(needPlacements = true, isNew = false, email = null)
+
+        verify { reinstallRepository.onRegistered(reinstallSent = false, legacyDeviceIdSent = true, installationIdSent = IDENTITY.installationId) }
+    }
+
+    // endregion
 
     @Test
     fun `should return failure when server returns 401 unauthorized - CURRENT BUG`() = runTest {
@@ -129,7 +324,6 @@ class RemoteRepositoryTest {
         val result = remoteRepository.getCustomers(
             needPlacements = true,
             isNew = false,
-            userId = null,
             email = null
         )
 
@@ -153,7 +347,6 @@ class RemoteRepositoryTest {
         val result = remoteRepository.getCustomers(
             needPlacements = true,
             isNew = false,
-            userId = null,
             email = null
         )
 
@@ -176,7 +369,6 @@ class RemoteRepositoryTest {
         val result = remoteRepository.getCustomers(
             needPlacements = true,
             isNew = false,
-            userId = null,
             email = null
         )
 
@@ -191,7 +383,6 @@ class RemoteRepositoryTest {
         val result = remoteRepository.getCustomers(
             needPlacements = true,
             isNew = false,
-            userId = null,
             email = null
         )
 
@@ -211,7 +402,6 @@ class RemoteRepositoryTest {
         val result = remoteRepository.getCustomers(
             needPlacements = true,
             isNew = false,
-            userId = null,
             email = null
         )
 
@@ -231,10 +421,13 @@ class RemoteRepositoryTest {
         val result = remoteRepository.getCustomers(
             needPlacements = true,
             isNew = false,
-            userId = null,
             email = null
         )
 
         assertTrue("Result should be failure", result.isFailure)
+    }
+
+    private companion object {
+        val IDENTITY = ApphudIdentity("installation-id", "anonymous-id", "user-id")
     }
 }

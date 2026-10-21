@@ -17,8 +17,10 @@ internal class RegistrationInteractor(
         needPlacementsPaywalls: Boolean,
         isNew: Boolean,
         forceRegistration: Boolean = false,
-        userId: String? = null,
         email: String? = null,
+        fromWeb2Web: Boolean = false,
+        /** Identity version 1: the user id this registration sends, as SDK 3.6 passed it. */
+        userId: String? = null,
     ): ApphudUser =
         mutex.withLock {
             val currentUser = userRepository.getCurrentUser()
@@ -32,8 +34,9 @@ internal class RegistrationInteractor(
                 needPlacementsPaywalls = needPlacementsPaywalls,
                 isNew = isNew,
                 forceRegistration = forceRegistration,
-                userId = userId,
                 email = email,
+                fromWeb2Web = fromWeb2Web,
+                userId = userId,
                 cachedUser = currentUser,
             )
             enrichPlacementProductsUseCase(finalUser)

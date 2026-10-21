@@ -60,6 +60,8 @@ internal class ApphudWebController {
         val url = Uri.parse(connectDomainUrl)
             .buildUpon()
             .appendQueryParameter("api_key", apiKey)
+            // The page reads only `device_id`; with identity version 2 it is the installation id, which the
+            // backend looks up among installation ids too.
             .appendQueryParameter("device_id", deviceId)
             .appendQueryParameter("host", connectHost)
             .build()

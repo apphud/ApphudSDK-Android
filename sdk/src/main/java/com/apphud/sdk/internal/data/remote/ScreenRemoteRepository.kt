@@ -1,5 +1,6 @@
 package com.apphud.sdk.internal.data.remote
 
+import com.apphud.sdk.internal.domain.model.RequestIds
 import com.apphud.sdk.APPHUD_ERROR_NO_INTERNET
 import com.apphud.sdk.ApphudError
 import com.apphud.sdk.ApphudLog
@@ -21,14 +22,14 @@ internal class ScreenRemoteRepository(
     private val dispatchers: ApphudDispatchers,
 ) {
 
-    suspend fun loadScreenHtmlData(screenId: String, deviceId: String): Result<String> =
+    suspend fun loadScreenHtmlData(screenId: String, identity: RequestIds): Result<String> =
         runCatchingCancellable {
-            val paramsMap = mapOf(
-                "api_key" to apiKey.value,
-                "locale" to Locale.getDefault().toLanguageTag(),
-                "device_id" to deviceId,
-                "v" to "2"
-            )
+            val paramsMap = buildMap {
+                put("api_key", apiKey.value)
+                put("locale", Locale.getDefault().toLanguageTag())
+                putAll(identity.requestParams)
+                put("v", "2")
+            }
             val request = buildGetRequest(
                 urlProvider.previewScreenUrl.newBuilder().addPathSegment(screenId).build(),
                 paramsMap,
