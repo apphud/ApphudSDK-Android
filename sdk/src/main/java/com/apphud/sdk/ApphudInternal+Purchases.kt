@@ -2,6 +2,7 @@ package com.apphud.sdk
 
 import android.app.Activity
 import com.android.billingclient.api.BillingClient
+import com.android.billingclient.api.BillingFlowParams
 import com.android.billingclient.api.ProductDetails
 import com.android.billingclient.api.Purchase
 import com.apphud.sdk.domain.ApphudNonRenewingPurchase
@@ -9,14 +10,22 @@ import com.apphud.sdk.domain.ApphudProduct
 import com.apphud.sdk.domain.ApphudSubscription
 import com.apphud.sdk.domain.ApphudUser
 import com.apphud.sdk.internal.ServiceLocator
+import com.apphud.sdk.internal.PurchaseRecovery
 import com.apphud.sdk.internal.callback_status.PurchaseCallbackStatus
 import com.apphud.sdk.internal.callback_status.PurchaseUpdatedCallbackStatus
 import com.apphud.sdk.internal.domain.model.PurchaseContext
 import com.apphud.sdk.internal.domain.preferredOfferId
 import com.apphud.sdk.internal.util.runCatchingCancellable
 import com.apphud.sdk.managers.RequestManager
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.CoroutineStart
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.withTimeoutOrNull
+
+// A long Google Play checkout is valid; only bound a callback that never arrives.
+private const val CHECKOUT_TIMEOUT_MILLIS = 600_000L
 
 private fun ApphudInternal.findPaywallScreenId(paywallId: String?): String? {
     // Prefer paywall.screen.id — covers placements and rule-triggered paywalls registered
@@ -153,14 +162,18 @@ private suspend fun ApphudInternal.fetchDetailsAndPurchase(
 
 var purchaseStartedAt: Long = 0
 
-private fun ApphudInternal.resolveObfuscatedAccountId(oldToken: String?): String? {
+internal fun ApphudInternal.resolveObfuscatedAccountId(oldToken: String?): String? {
     return if (oldToken != null) {
         userRepository.getCurrentUser()
             ?.subscriptions
             ?.firstOrNull { it.purchaseToken == oldToken }
             ?.obfuscatedDeviceId
-    } else {
+    } else if (isIdentityV1) {
         userRepository.getDeviceId()
+    } else {
+        // The installation id: the backend finds a Google purchase's owner by the installation key it
+        // carries, so every account of this installation shares it.
+        userRepository.getIdentity()?.installationId
     }
 }
 
@@ -208,6 +221,13 @@ private fun ApphudInternal.purchaseInternal(
     }
 
     apphudProduct.productDetails?.let {
+        val recoveryAttempt = if (isIdentityV1) null else {
+            purchaseRecovery.begin(apphudProduct.productId, oldToken,
+                replacementMode == BillingFlowParams.SubscriptionUpdateParams.ReplacementMode.DEFERRED) ?: run {
+                callback?.invoke(ApphudPurchaseResult(error = ApphudError("A purchase is already in progress.")))
+                return
+            }
+        }
 
         var token = offerIdToken
         if (it.productType == BillingClient.ProductType.SUBS && offerIdToken == null) {
@@ -230,12 +250,34 @@ private fun ApphudInternal.purchaseInternal(
         purchasingProduct = apphudProduct
         purchaseStartedAt = System.currentTimeMillis()
         callback?.let { rememberCallback(callback) }
+        if (recoveryAttempt != null) {
+            val expiry = coroutineScope.launch(dispatchers.main, start = CoroutineStart.LAZY) {
+                delay(CHECKOUT_TIMEOUT_MILLIS)
+                finishRecoveredCheckout(recoveryAttempt, ApphudPurchaseResult(error = ApphudError(
+                    "Purchase confirmation timed out. A completed purchase will still be processed automatically.",
+                    errorCode = APPHUD_ERROR_TIMEOUT,
+                )), markNeedsSync = true)
+            }
+            if (purchaseRecovery.bindTimeout(recoveryAttempt, expiry)) expiry.start()
+        }
 
         scheduleLookupPurchase(25000L)
 
-        coroutineScope.launch {
+        val launchCheckout: suspend CoroutineScope.() -> Unit = checkout@{
+            if (recoveryAttempt != null) {
+                // An unknown snapshot must never turn an already owned purchase into checkout success.
+                val existing = withTimeoutOrNull(5_000L) {
+                    runCatchingCancellable { billing.queryPurchasesSync() }.getOrNull()
+                }
+                purchaseRecovery.prepare(recoveryAttempt, existing?.takeIf {
+                    it.second == BillingClient.BillingResponseCode.OK
+                }?.first?.map { it.purchaseToken }?.toSet(),
+                    existing?.first?.firstOrNull { it.purchaseToken == oldToken }?.products?.toSet().orEmpty())
+                if (!purchaseRecovery.isCurrent(recoveryAttempt)) return@checkout
+            }
             billing.purchasesCallback = { purchasesResult ->
                 coroutineScope.launch(dispatchers.main) {
+                    if (recoveryAttempt != null && !purchaseRecovery.isCurrent(recoveryAttempt)) return@launch
                     when (purchasesResult) {
                         is PurchaseUpdatedCallbackStatus.Error -> {
                             val message =
@@ -260,13 +302,17 @@ private fun ApphudInternal.purchaseInternal(
                             )
 
                             ApphudLog.log(message = error.toString())
-                            callback?.invoke(ApphudPurchaseResult(null, null, null, error))
+                            if (recoveryAttempt != null) {
+                                finishRecoveredCheckout(recoveryAttempt, ApphudPurchaseResult(error = error))
+                            } else callback?.invoke(ApphudPurchaseResult(null, null, null, error))
                             processPurchaseError(purchasesResult)
-                            synchronized(purchaseCallbacks) {
+                            if (recoveryAttempt == null) synchronized(purchaseCallbacks) {
                                 purchaseCallbacks.clear()
                             }
-                            purchasingProduct = null
-                            freshPurchase = null
+                            if (recoveryAttempt == null) {
+                                purchasingProduct = null
+                                freshPurchase = null
+                            }
                         }
 
                         is PurchaseUpdatedCallbackStatus.Success -> {
@@ -278,6 +324,14 @@ private fun ApphudInternal.purchaseInternal(
                                 }
 
                             purchasesResult.purchases.forEach { purchase ->
+                                if (recoveryAttempt != null && !purchaseRecovery.matchesListener(recoveryAttempt, purchase)) {
+                                    // An unrelated/previous order is background delivery, not the active checkout.
+                                    storage.isNeedSync = true
+                                    if (purchase.purchaseState == Purchase.PurchaseState.PURCHASED) {
+                                        handleObservedPurchase(purchase, userInitiated = true)
+                                    }
+                                    return@forEach
+                                }
                                 when (purchase.purchaseState) {
                                     Purchase.PurchaseState.PENDING -> {
                                         val error = ApphudError(
@@ -286,8 +340,13 @@ private fun ApphudInternal.purchaseInternal(
                                             APPHUD_PURCHASE_PENDING
                                         )
                                         ApphudLog.log("Purchase Pending")
-                                        callback?.invoke(ApphudPurchaseResult(null, null, purchase, error))
-                                        storage.isNeedSync = true
+                                        if (recoveryAttempt != null) {
+                                            storage.isNeedSync = true
+                                            finishRecoveredCheckout(recoveryAttempt, ApphudPurchaseResult(purchase = purchase, error = error))
+                                        } else {
+                                            callback?.invoke(ApphudPurchaseResult(null, null, purchase, error))
+                                            storage.isNeedSync = true
+                                        }
                                     }
                                     Purchase.PurchaseState.PURCHASED -> {
                                         val product = apphudProduct.productDetails
@@ -301,7 +360,8 @@ private fun ApphudInternal.purchaseInternal(
                                             token,
                                             oldToken,
                                             fromScreen,
-                                            callback
+                                            callback,
+                                            recoveryAttempt,
                                         )
 
                                         when (detailsType) {
@@ -322,20 +382,22 @@ private fun ApphudInternal.purchaseInternal(
                                     else -> {
                                         val message = "Error: unknown purchase state. Please try again."
                                         ApphudLog.log(message = message)
-                                        callback?.invoke(
-                                            ApphudPurchaseResult(
+                                        val result = ApphudPurchaseResult(
                                                 null,
                                                 null,
                                                 purchase,
                                                 ApphudError(message)
                                             )
-                                        )
+                                        if (recoveryAttempt != null) finishRecoveredCheckout(recoveryAttempt, result)
+                                        else callback?.invoke(result)
                                     }
                                 }
                             }
                         }
                     }
-                    billing.purchasesCallback = null
+                    if (recoveryAttempt == null) {
+                        billing.purchasesCallback = null
+                    }
                 }
             }
             val obfuscatedAccountId = resolveObfuscatedAccountId(oldToken)
@@ -351,12 +413,27 @@ private fun ApphudInternal.purchaseInternal(
                 obfuscatedAccountId,
             )
             if (error != null) {
-                billing.purchasesCallback = null
-                purchasingProduct = null
-                coroutineScope.launch(dispatchers.main) {
-                    callback?.invoke(ApphudPurchaseResult(null, null, null, error))
+                if (recoveryAttempt != null) {
+                    coroutineScope.launch(dispatchers.main) {
+                        finishRecoveredCheckout(recoveryAttempt, ApphudPurchaseResult(error = error))
+                    }
+                } else {
+                    billing.purchasesCallback = null
+                    purchasingProduct = null
+                    coroutineScope.launch(dispatchers.main) {
+                        callback?.invoke(ApphudPurchaseResult(null, null, null, error))
+                    }
                 }
+            } else if (recoveryAttempt != null) {
+                purchaseRecovery.launched(recoveryAttempt)
             }
+        }
+        if (recoveryAttempt == null) {
+            coroutineScope.launch(block = launchCheckout)
+        } else {
+            // Launch and expiry run on main, so a canceled connection cannot open an old flow.
+            val launch = coroutineScope.launch(dispatchers.main, start = CoroutineStart.LAZY, block = launchCheckout)
+            if (purchaseRecovery.bindLaunch(recoveryAttempt, launch)) launch.start()
         }
     } ?: run {
         val message =
@@ -371,16 +448,22 @@ private fun ApphudInternal.purchaseInternal(
 internal fun ApphudInternal.lookupFreshPurchase(extraMessage: String = "resend_fresh_purchase") {
     coroutineScope.launch {
         runCatchingCancellable {
-            val purchase = freshPurchase ?: run {
+            val recoveryAttempt = if (isIdentityV1) null else purchaseRecovery.current
+            suspend fun nativePurchases(): List<Purchase> {
                 val purchases = ServiceLocator.instance
                     .fetchNativePurchasesUseCase(needSync = false)
                     .first
-                if (purchases.isEmpty()) return@runCatchingCancellable
-
-                ApphudLog.logE("recover_native_purchases")
-                purchases.first()
+                if (purchases.isNotEmpty()) ApphudLog.logE("recover_native_purchases")
+                return purchases
             }
-            if ((purchaseCallbacks.isNotEmpty() && purchasingProduct != null) || storage.isNeedSync) {
+            val purchase = if (recoveryAttempt != null) {
+                purchaseRecovery.select(recoveryAttempt, listOfNotNull(freshPurchase))
+                    ?: purchaseRecovery.select(recoveryAttempt, nativePurchases())
+                    ?: return@runCatchingCancellable
+            } else {
+                freshPurchase ?: nativePurchases().firstOrNull() ?: return@runCatchingCancellable
+            }
+            if (recoveryAttempt != null || (purchaseCallbacks.isNotEmpty() && purchasingProduct != null) || storage.isNeedSync) {
 
                 launch(dispatchers.main) { apphudListener?.apphudDidReceivePurchase(purchase) }
 
@@ -401,13 +484,18 @@ internal fun ApphudInternal.lookupFreshPurchase(extraMessage: String = "resend_f
                 )
 
                 withContext(dispatchers.main) {
+                    if (recoveryAttempt != null && !purchaseRecovery.isCurrent(recoveryAttempt)) return@withContext
                     val newSubscriptions =
-                        customer.subscriptions.firstOrNull { it.productId == purchase.products.first() }
+                        customer.subscriptions.firstOrNull {
+                            it.productId == purchase.products.first() && (isIdentityV1 || it.purchaseToken == purchase.purchaseToken)
+                        }
                     val newPurchases =
-                        customer.purchases.firstOrNull { it.productId == purchase.products.first() }
+                        customer.purchases.firstOrNull {
+                            it.productId == purchase.products.first() && (isIdentityV1 || it.purchaseToken == purchase.purchaseToken)
+                        }
 
                     storage.isNeedSync = false
-                    handleCheckSubmissionResult(customer, purchase, newSubscriptions, newPurchases, false)
+                    handleCheckSubmissionResult(customer, purchase, newSubscriptions, newPurchases, false, recoveryAttempt)
                 }
             }
         }.onFailure { error ->
@@ -466,25 +554,29 @@ internal fun ApphudInternal.handleObservedPurchase(
     val productId = purchase.products.first()
     ApphudLog.log("Observed Purchase: ${purchase.products} User Initiated: $userInitiated")
 
-    if (purchasingProduct?.productId != productId) {
+    if (purchasingProduct?.productId != productId && (isIdentityV1 || purchaseRecovery.current == null)) {
         purchasingProduct = null
     }
+    val observedProduct = purchasingProduct?.takeIf {
+        it.productId == productId && (isIdentityV1 || purchaseRecovery.current == null)
+    }
+    fun observedContext(): ApphudProduct? = if (isIdentityV1) purchasingProduct else observedProduct
 
     coroutineScope.launch {
         if (!userInitiated) {
             Thread.sleep(1000)
         }
-        var productDetails = purchasingProduct?.productDetails ?: getProductDetailsByProductId(productId)
+        var productDetails = observedContext()?.productDetails ?: getProductDetailsByProductId(productId)
         if (productDetails == null) {
             val response = fetchDetails(listOf(productId))
             productDetails = response.second?.find { it.productId == productId }
         }
         sendCheckToApphud(
             purchase,
-            purchasingProduct,
-            purchasingProduct?.productDetails ?: productDetails,
-            paywallIdentifier ?: purchasingProduct?.paywallId,
-            placementIdentifier ?: purchasingProduct?.placementId, offerIdToken, null, false,callback = null
+            observedContext(),
+            observedContext()?.productDetails ?: productDetails,
+            paywallIdentifier ?: observedContext()?.paywallId,
+            placementIdentifier ?: observedContext()?.placementId, offerIdToken, null, false,callback = null
         )
     }
 }
@@ -519,6 +611,7 @@ private suspend fun ApphudInternal.sendCheckToApphud(
     oldToken: String?,
     fromScreen: Boolean,
     callback: ((ApphudPurchaseResult) -> Unit)?,
+    recoveryAttempt: PurchaseRecovery.Attempt? = null,
 ) {
     val currentPaywallScreenId = if (fromScreen) findPaywallScreenId(paywallId) else null
     // TODO: activeRuleId() also returns a rule in the PendingRule state (fetched but deferred and
@@ -532,7 +625,13 @@ private suspend fun ApphudInternal.sendCheckToApphud(
 
     val localCurrentUser = userRepository.getCurrentUser()
     when {
-        localCurrentUser == null -> storage.isNeedSync = true
+        localCurrentUser == null -> {
+            storage.isNeedSync = true
+            if (recoveryAttempt != null) {
+                finishRecoveredCheckout(recoveryAttempt, ApphudPurchaseResult(purchase = purchase,
+                    error = ApphudError("Purchase verification is pending because the customer is unavailable")))
+            }
+        }
         fallbackMode -> {
             runCatchingCancellable {
                 RequestManager.purchased(
@@ -553,10 +652,12 @@ private suspend fun ApphudInternal.sendCheckToApphud(
                 ApphudLog.logE("Failed to send purchase in fallback mode: ${error.message}")
             }
             withContext(dispatchers.main) {
+                if (recoveryAttempt != null && !purchaseRecovery.isCurrent(recoveryAttempt)) return@withContext
                 addTempPurchase(
                     apphudUser = localCurrentUser, purchase = purchase,
                     type = apphudProduct?.productDetails?.productType ?: productDetails?.productType ?: "",
-                    productId = apphudProduct?.productId ?: productDetails?.productId ?: ""
+                    productId = apphudProduct?.productId ?: productDetails?.productId ?: "",
+                    recoveryAttempt = recoveryAttempt,
                 )
             }
         }
@@ -567,6 +668,9 @@ private suspend fun ApphudInternal.sendCheckToApphud(
                 val wasAdded = observedOrders.add(it)
                 if (!wasAdded && callback == null) {
                     ApphudLog.logI("Already observed order ${it}, skipping...")
+                    if (recoveryAttempt != null) {
+                        finishRecoveredCheckout(recoveryAttempt, ApphudPurchaseResult(purchase = purchase))
+                    }
                     return
                 }
             }
@@ -588,16 +692,22 @@ private suspend fun ApphudInternal.sendCheckToApphud(
             }
                 .onSuccess { customer ->
                     withContext(dispatchers.io) {
+                        if (recoveryAttempt != null && !purchaseRecovery.isCurrent(recoveryAttempt)) return@withContext
                         val newSubscriptions =
-                            customer.subscriptions.firstOrNull { it.productId == purchase.products.first() }
+                            customer.subscriptions.firstOrNull {
+                                it.productId == purchase.products.first() && (isIdentityV1 || it.purchaseToken == purchase.purchaseToken)
+                            }
                         val newPurchases =
-                            customer.purchases.firstOrNull { it.productId == purchase.products.first() }
+                            customer.purchases.firstOrNull {
+                                it.productId == purchase.products.first() && (isIdentityV1 || it.purchaseToken == purchase.purchaseToken)
+                            }
 
                         storage.isNeedSync = false
-                        handleCheckSubmissionResult(customer, purchase, newSubscriptions, newPurchases, false)
+                        handleCheckSubmissionResult(customer, purchase, newSubscriptions, newPurchases, false, recoveryAttempt)
                     }
                 }
                 .onFailure { error ->
+                    if (recoveryAttempt != null && !purchaseRecovery.isCurrent(recoveryAttempt)) return@onFailure
                     if (fallbackMode && error is ApphudError) {
                         error.errorCode?.let { code ->
                             if (code in FALLBACK_ERRORS) {
@@ -606,7 +716,8 @@ private suspend fun ApphudInternal.sendCheckToApphud(
                                         localCurrentUser,
                                         purchase,
                                         product.productDetails?.productType ?: "",
-                                        product.productId
+                                        product.productId,
+                                        recoveryAttempt,
                                     )
                                 } ?: run {
                                     productDetails?.let { details ->
@@ -614,7 +725,8 @@ private suspend fun ApphudInternal.sendCheckToApphud(
                                             localCurrentUser,
                                             purchase,
                                             details.productType,
-                                            details.productId
+                                            details.productId,
+                                            recoveryAttempt,
                                         )
                                     }
                                 }
@@ -624,7 +736,7 @@ private suspend fun ApphudInternal.sendCheckToApphud(
                     }
                     storage.isNeedSync = true
 
-                    handleCheckSubmissionResult(null, purchase, null, null, false)
+                    handleCheckSubmissionResult(null, purchase, null, null, false, recoveryAttempt)
                 }
         }
     }
@@ -635,6 +747,7 @@ internal fun ApphudInternal.addTempPurchase(
     purchase: Purchase,
     type: String,
     productId: String,
+    recoveryAttempt: PurchaseRecovery.Attempt? = if (isIdentityV1) null else purchaseRecovery.current,
 ) {
     var newSubscription: ApphudSubscription? = null
     var newPurchase: ApphudNonRenewingPurchase? = null
@@ -663,7 +776,22 @@ internal fun ApphudInternal.addTempPurchase(
         }
     }
     storage.isNeedSync = true
-    handleCheckSubmissionResult(apphudUser, purchase, newSubscription, newPurchase, true)
+    handleCheckSubmissionResult(apphudUser, purchase, newSubscription, newPurchase, true, recoveryAttempt)
+}
+
+private fun ApphudInternal.finishRecoveredCheckout(attempt: PurchaseRecovery.Attempt, result: ApphudPurchaseResult, markNeedsSync: Boolean = false) {
+    val callbacks = mutableListOf<(ApphudPurchaseResult) -> Unit>()
+    if (!purchaseRecovery.finish(attempt) {
+        if (markNeedsSync) storage.isNeedSync = true
+        synchronized(purchaseCallbacks) {
+            callbacks.addAll(purchaseCallbacks)
+            purchaseCallbacks.clear()
+        }
+        purchasingProduct = null
+        freshPurchase = null
+        billing.purchasesCallback = null
+    }) return
+    callbacks.forEach { it(result) }
 }
 
 private fun handleCheckSubmissionResult(
@@ -672,7 +800,11 @@ private fun handleCheckSubmissionResult(
     newSubscription: ApphudSubscription?,
     newPurchase: ApphudNonRenewingPurchase?,
     fromFallback: Boolean,
+    recoveryAttempt: PurchaseRecovery.Attempt? = null,
 ) {
+    if (!ApphudInternal.isIdentityV1 && recoveryAttempt != null &&
+        !ApphudInternal.purchaseRecovery.isCurrent(recoveryAttempt)
+    ) return
     if (apphudUser != null) {
         ApphudInternal.notifyLoadingCompleted(
             customerLoaded = apphudUser,
@@ -680,7 +812,8 @@ private fun handleCheckSubmissionResult(
         )
     }
 
-    ApphudInternal.purchasingProduct = null
+    if (!ApphudInternal.isIdentityV1 && recoveryAttempt == null) return
+    if (ApphudInternal.isIdentityV1) ApphudInternal.purchasingProduct = null
     var error: ApphudError? = null
     if (newSubscription == null && newPurchase == null) {
         val productId = purchase.products.first() ?: "unknown"
@@ -694,6 +827,10 @@ private fun handleCheckSubmissionResult(
     }
 
     val result = ApphudPurchaseResult(newSubscription, newPurchase, purchase, error)
+    if (recoveryAttempt != null) {
+        ApphudInternal.finishRecoveredCheckout(recoveryAttempt, result)
+        return
+    }
 
     val callbacksCopy = ApphudInternal.purchaseCallbacks.toMutableList()
 

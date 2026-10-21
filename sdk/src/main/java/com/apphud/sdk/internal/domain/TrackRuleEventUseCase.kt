@@ -7,7 +7,7 @@ import com.apphud.sdk.internal.data.remote.RemoteRepository
 import com.apphud.sdk.internal.util.runCatchingCancellable
 
 /**
- * Tracks a rule-related analytics event on the shared `v2/events` endpoint.
+ * Tracks a rule-related analytics event on the shared `v4/events` endpoint.
  *
  * Mirrors iOS `ApphudInternal.trackEvent(params:)`, used for `$screen_presented`,
  * `$purchase`, `$survey_answer`, `$feedback`, `$billing_issue` and `$push_opened`.
@@ -24,8 +24,8 @@ internal class TrackRuleEventUseCase(
         properties: Map<String, Any>? = null,
         paywallId: String? = null,
     ) {
-        val deviceId = userRepository.getDeviceId()
-        if (deviceId == null) {
+        val ids = userRepository.getRequestIds()
+        if (ids == null) {
             ApphudLog.logE("Cannot track rule event '$name': SDK not initialized")
             return
         }
@@ -33,7 +33,9 @@ internal class TrackRuleEventUseCase(
         runCatchingCancellable {
             remoteRepository.trackRuleEvent(
                 RuleEventDto(
-                    deviceId = deviceId,
+                    deviceId = ids.deviceId,
+                    installationId = ids.installationId,
+                    anonymousId = ids.anonymousId,
                     ruleId = ruleId,
                     screenId = screenId,
                     paywallId = paywallId,

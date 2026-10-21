@@ -15,11 +15,32 @@ import com.apphud.sdk.managers.subscriptionPeriod
 
 internal class PurchaseBodyFactory(
     private val userRepository: UserRepository,
+    private val legacyDeviceId: () -> String? = { null },
 ) {
 
+    private fun ids() = userRepository.getRequestIds() ?: throw ApphudError("SDK not initialized")
+
+    /**
+     * The ids of a purchase body. Identity version 1 sends `device_id` only, as SDK 3.6 did; version 2
+     * sends [restore] and the old SDK's device id too.
+     */
+    private fun body(restore: Boolean, purchases: List<PurchaseItemBody>): PurchaseBody {
+        val ids = ids()
+        return PurchaseBody(
+            deviceId = ids.deviceId,
+            installationId = ids.installationId,
+            anonymousId = ids.anonymousId,
+            userId = ids.identifiedUserId,
+            restore = restore.takeUnless { ids.isVersion1 },
+            legacyDeviceId = legacyDeviceId().takeUnless { ids.isVersion1 },
+            purchases = purchases,
+        )
+    }
+
+    /** A purchase the app just made: never a restore. */
     fun create(purchaseContext: PurchaseContext): PurchaseBody =
-        PurchaseBody(
-            deviceId = userRepository.getDeviceId() ?: throw ApphudError("SDK not initialized"),
+        body(
+            restore = false,
             purchases = listOf(
                 with(purchaseContext) {
                     PurchaseItemBody(
@@ -47,13 +68,15 @@ internal class PurchaseBodyFactory(
             )
         )
 
+    /** The device's purchases: [restore] when the user asked for a restore, otherwise an automatic sync. */
     fun create(
         apphudProduct: ApphudProduct?,
         purchases: List<PurchaseRecordDetails>,
         observerMode: Boolean,
+        restore: Boolean = false,
     ): PurchaseBody =
-        PurchaseBody(
-            deviceId = userRepository.getDeviceId() ?: throw ApphudError("SDK not initialized"),
+        body(
+            restore = restore,
             purchases =
                 purchases.map { item ->
                     val matchesApphudProduct =

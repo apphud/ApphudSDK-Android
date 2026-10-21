@@ -48,6 +48,10 @@ class SharedPreferencesStorageMigrationTest {
                 prefsMap[firstArg()] = secondArg<String?>()
                 this@mockk
             }
+            every { putStringSet(any(), any()) } answers {
+                prefsMap[firstArg()] = secondArg<Set<String>?>()?.toSet()
+                this@mockk
+            }
             every { putLong(any(), any()) } answers {
                 prefsMap[firstArg()] = secondArg<Long>()
                 this@mockk
@@ -64,6 +68,10 @@ class SharedPreferencesStorageMigrationTest {
             every { getString(any(), any()) } answers {
                 prefsMap[firstArg()] as? String ?: secondArg()
             }
+            every { getStringSet(any(), any()) } answers {
+                @Suppress("UNCHECKED_CAST")
+                ((prefsMap[firstArg()] as? Set<String>) ?: secondArg<Set<String>?>())?.toMutableSet()
+            }
             every { getLong(any(), any()) } answers {
                 prefsMap[firstArg()] as? Long ?: secondArg()
             }
@@ -74,6 +82,46 @@ class SharedPreferencesStorageMigrationTest {
             every { getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE) } returns preferences
             every { applicationInfo } returns mockk(relaxed = true)
         }
+    }
+
+    @Test
+    fun `GIVEN old preferences without reinstall report boundary EXPECT no suppression`() {
+        assertNull(SharedPreferencesStorage(context).reinstallReportSuppressedInstallationId)
+    }
+
+    @Test
+    fun `GIVEN reinstall report boundary WHEN storage recreated EXPECT exact installation kept`() {
+        SharedPreferencesStorage(context).reinstallReportSuppressedInstallationId = "Opaque-Installation"
+        assertEquals("Opaque-Installation", SharedPreferencesStorage(context).reinstallReportSuppressedInstallationId)
+    }
+
+    @Test
+    fun `GIVEN reinstall report boundary WHEN user caches cleaned EXPECT boundary retained`() {
+        val storage = SharedPreferencesStorage(context)
+        storage.reinstallReportSuppressedInstallationId = "Opaque-Installation"
+        storage.clean()
+        assertEquals("Opaque-Installation", storage.reinstallReportSuppressedInstallationId)
+    }
+
+    @Test
+    fun `GIVEN older preferences without generated id history EXPECT empty history`() {
+        val storage = SharedPreferencesStorage(context)
+        assertEquals(emptySet<String>(), storage.additionalOldDeviceIds)
+    }
+
+    @Test
+    fun `GIVEN generated id history WHEN storage recreated EXPECT exact history`() {
+        val storage = SharedPreferencesStorage(context)
+        storage.additionalOldDeviceIds = setOf("Legacy-A", "Legacy-B")
+        assertEquals(setOf("Legacy-A", "Legacy-B"), SharedPreferencesStorage(context).additionalOldDeviceIds)
+    }
+
+    @Test
+    fun `GIVEN generated id history WHEN user cache cleaned EXPECT history retained`() {
+        val storage = SharedPreferencesStorage(context)
+        storage.additionalOldDeviceIds = setOf("Legacy-A", "Legacy-B")
+        storage.clean()
+        assertEquals(setOf("Legacy-A", "Legacy-B"), storage.additionalOldDeviceIds)
     }
 
     @Test

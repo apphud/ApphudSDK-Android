@@ -1,6 +1,7 @@
 package com.apphud.sdk.internal.data.remote
 
 import com.android.billingclient.api.ProductDetails
+import com.apphud.sdk.internal.domain.model.ApphudIdentity
 import com.android.billingclient.api.Purchase
 import com.apphud.sdk.domain.ApphudPlacement
 import com.apphud.sdk.domain.ApphudPaywall
@@ -13,14 +14,68 @@ import io.mockk.every
 import io.mockk.mockk
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
+import org.junit.Assert.assertFalse
+import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class PurchaseBodyFactoryTest {
 
     private val userRepository: UserRepository = mockk {
-        every { getDeviceId() } returns "device-id"
+        every { getRequestIds() } returns ApphudIdentity("installation-id", "anonymous-id", null).requestIds
     }
     private val factory = PurchaseBodyFactory(userRepository)
+
+    @Test
+    fun `GIVEN an identified user EXPECT the user id in a purchase`() {
+        every { userRepository.getRequestIds() } returns ApphudIdentity("installation-id", "anonymous-id", "alice").requestIds
+
+        assertEquals("alice", factory.create(null, emptyList(), observerMode = false).userId)
+    }
+
+    @Test
+    fun `GIVEN an identified user EXPECT the user id in a purchase made in the app`() {
+        every { userRepository.getRequestIds() } returns ApphudIdentity("installation-id", "anonymous-id", "alice").requestIds
+        every { userRepository.getCurrentUser() } returns null
+        val context = mockk<PurchaseContext>(relaxed = true) {
+            every { purchase } returns mockk(relaxed = true) { every { products } returns listOf("product") }
+            every { productDetails } returns null
+        }
+
+        assertEquals("alice", factory.create(context).userId)
+    }
+
+    @Test
+    fun `GIVEN the restore the user asked for EXPECT restore true`() {
+        assertEquals(true, factory.create(null, emptyList(), observerMode = false, restore = true).restore)
+    }
+
+    @Test
+    fun `GIVEN an automatic sync EXPECT restore false`() {
+        assertEquals(false, factory.create(null, emptyList(), observerMode = true).restore)
+    }
+
+    @Test
+    fun `GIVEN a purchase made in the app EXPECT restore false`() {
+        every { userRepository.getCurrentUser() } returns null
+        val context = mockk<PurchaseContext>(relaxed = true) {
+            every { purchase } returns mockk(relaxed = true) { every { products } returns listOf("product") }
+            every { productDetails } returns null
+        }
+
+        assertEquals(false, factory.create(context).restore)
+    }
+
+    @Test
+    fun `GIVEN an old device id to adopt EXPECT it sent with purchases`() {
+        val factory = PurchaseBodyFactory(userRepository) { "OLD" }
+
+        assertEquals("OLD", factory.create(null, emptyList(), observerMode = false).legacyDeviceId)
+    }
+
+    @Test
+    fun `GIVEN an anonymous person EXPECT no user id in a purchase`() {
+        assertNull(factory.create(null, emptyList(), observerMode = false).userId)
+    }
 
     @Test
     fun `GIVEN placementId with paywall variation EXPECT variation_identifier in purchase body`() {

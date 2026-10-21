@@ -1,6 +1,7 @@
 package com.apphud.sdk.internal
 
 import androidx.annotation.VisibleForTesting
+import com.apphud.sdk.ApphudInternal
 import com.apphud.sdk.ApphudRuleCallback
 import com.apphud.sdk.internal.data.AnalyticsTracker
 import com.apphud.sdk.internal.data.ProductRepository
@@ -12,6 +13,7 @@ import com.apphud.sdk.internal.data.mapper.PaywallsMapper
 import com.apphud.sdk.internal.data.mapper.ProductMapper
 import com.apphud.sdk.internal.data.mapper.RenderResultMapper
 import com.apphud.sdk.internal.data.network.CustomerIdInterceptor
+import com.apphud.sdk.internal.data.network.FirstRegistrationHoldInterceptor
 import com.apphud.sdk.internal.data.network.HeadersInterceptor
 import com.apphud.sdk.internal.data.network.HttpRetryInterceptor
 import com.apphud.sdk.internal.data.network.SessionIdInterceptor
@@ -34,6 +36,7 @@ import com.apphud.sdk.internal.domain.RegisterUserUseCase
 import com.apphud.sdk.internal.domain.RegistrationInteractor
 import com.apphud.sdk.internal.domain.RenderPaywallPropertiesUseCase
 import com.apphud.sdk.internal.domain.ResolveCredentialsUseCase
+import com.apphud.sdk.internal.domain.ResolveIdentityUseCase
 import com.apphud.sdk.internal.domain.SubmitPushTokenUseCase
 import com.apphud.sdk.internal.domain.TrackRuleEventUseCase
 import com.apphud.sdk.internal.domain.mapper.DateTimeMapper
@@ -67,7 +70,8 @@ internal class SessionComponent(
 
     val userDataSource: UserDataSource = UserDataSource(appScope.storage)
 
-    val userRepository: UserRepository = UserRepository(userDataSource)
+    val userRepository: UserRepository =
+        UserRepository(userDataSource, appScope.identityStore, isVersion1 = { ApphudInternal.isIdentityV1 })
 
     val analyticsTracker: AnalyticsTracker = AnalyticsTracker(
         coroutineScope = coroutineScope,
@@ -80,11 +84,13 @@ internal class SessionComponent(
             appScope.deviceIdentifiersRepository,
             userRepository,
             analyticsTracker = analyticsTracker,
+            reinstallRepository = appScope.reinstallRepository,
         )
 
     @VisibleForTesting
     internal val okHttpClient: OkHttpClient =
         OkHttpClient.Builder()
+            .addInterceptor(FirstRegistrationHoldInterceptor(appScope.firstRegistrationHold))
             .addInterceptor(
                 HttpLoggingInterceptor().apply {
                     level =
@@ -107,6 +113,7 @@ internal class SessionComponent(
     @VisibleForTesting
     internal val okHttpClientWithoutHeaders: OkHttpClient =
         OkHttpClient.Builder()
+            .addInterceptor(FirstRegistrationHoldInterceptor(appScope.firstRegistrationHold))
             .addInterceptor(
                 HttpLoggingInterceptor().apply {
                     level =
@@ -132,7 +139,7 @@ internal class SessionComponent(
             okHttpClient = okHttpClient,
             gson = appScope.gson,
             customerMapper = appScope.customerMapper,
-            purchaseBodyFactory = PurchaseBodyFactory(userRepository),
+            purchaseBodyFactory = PurchaseBodyFactory(userRepository) { appScope.reinstallRepository.legacyDeviceId() },
             registrationBodyFactory = RegistrationBodyFactory(registrationProvider),
             productMapper = ProductMapper(),
             attributionMapper = AttributionMapper(),
@@ -140,6 +147,10 @@ internal class SessionComponent(
             paywallsMapper = PaywallsMapper(appScope.gson),
             urlProvider = appScope.urlProvider,
             dispatchers = appScope.dispatchers,
+            reinstallRepository = appScope.reinstallRepository,
+            identityStore = appScope.identityStore,
+            firstRegistrationHold = appScope.firstRegistrationHold,
+            isVersion1 = { ApphudInternal.isIdentityV1 },
         )
 
     private val screenRemoteRepository: ScreenRemoteRepository =
@@ -250,6 +261,13 @@ internal class SessionComponent(
 
     val resolveCredentialsUseCase: ResolveCredentialsUseCase =
         ResolveCredentialsUseCase(userRepository = userRepository)
+
+    val resolveIdentityUseCase: ResolveIdentityUseCase =
+        ResolveIdentityUseCase(
+            identityStore = appScope.identityStore,
+            reinstallRepository = appScope.reinstallRepository,
+            firstRegistrationHold = appScope.firstRegistrationHold,
+        )
 
     val enrichPlacementProductsUseCase: EnrichPlacementProductsUseCase =
         EnrichPlacementProductsUseCase(

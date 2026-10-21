@@ -15,6 +15,7 @@ import android.app.Activity
 import android.net.Uri
 import com.apphud.sdk.domain.AdjustInfo
 import com.apphud.sdk.domain.ApphudUser
+import com.apphud.sdk.internal.domain.model.ApphudIdentity
 import com.apphud.sdk.domain.AppsflyerInfo
 import com.apphud.sdk.domain.FacebookInfo
 import com.apphud.sdk.internal.ServiceLocator
@@ -92,8 +93,11 @@ internal fun ApphudInternal.setAttribution(
                 providerIdPair?.let { (key, value) -> put(key, value) }
             }
 
+            val ids = userRepository.getRequestIds() ?: throw ApphudError("SDK not initialized")
             val requestBody = AttributionRequestDto(
-                deviceId = userRepository.getDeviceId() ?: throw ApphudError("deviceId is null"),
+                deviceId = ids.deviceId,
+                installationId = ids.installationId,
+                anonymousId = ids.anonymousId,
                 packageName = context.packageName,
                 provider = provider.value,
                 rawData = mergedRawData,
@@ -172,7 +176,8 @@ internal fun ApphudInternal.requestDeferredDeeplinkAttribution(activity: Activit
     }
 
     coroutineScope.launch(dispatchers.main) {
-        val deviceId = userRepository.getDeviceId().orEmpty()
+        // Version 2 sends its installation id as `device_id`.
+        val deviceId = if (isIdentityV1) userRepository.getDeviceId().orEmpty() else userRepository.getIdentity()?.installationId.orEmpty()
         val urlProvider = ServiceLocator.instance.urlProvider
         ApphudWebController().present(
             activity,
@@ -205,6 +210,43 @@ private suspend fun ApphudInternal.startDeeplinkAttributionRequest(
 internal suspend fun ApphudInternal.tryWebAttribution(
     data: Map<String, Any>,
 ): Pair<Boolean, ApphudUser?> {
+    if (isIdentityV1) return tryWebAttributionV1(data)
+    val userId = (data["aph_user_id"] as? String) ?: (data["apphud_user_id"] as? String)
+    val email = (data["email"] as? String) ?: (data["apphud_user_email"] as? String)
+
+    if (userId.isNullOrEmpty() && email.isNullOrEmpty()) {
+        return false to userRepository.getCurrentUser()
+    }
+
+    runCatchingCancellable { awaitUserRegistration() }
+
+    val user = userRepository.getCurrentUser() ?: return false to null
+
+    return when {
+        !userId.isNullOrEmpty() -> {
+            if (userRepository.getIdentifiedUserId() == userId) {
+                ApphudLog.logI("Already web2web user, skipping")
+                true to user
+            } else {
+                // The web user's id is known: a plain identify, no from_web2web.
+                ApphudLog.logI("Trying to attribute from web by User ID: $userId")
+                true to updateUserId(userId)
+            }
+        }
+
+        !email.isNullOrEmpty() -> {
+            ApphudLog.logI("Trying to attribute from web by email: $email")
+            true to attributeFromWebByEmail(email)
+        }
+
+        else -> false to null
+    }
+}
+
+/** Identity version 1: the web user as SDK 3.6 attributed it. */
+private suspend fun ApphudInternal.tryWebAttributionV1(
+    data: Map<String, Any>,
+): Pair<Boolean, ApphudUser?> {
     val userId = (data["aph_user_id"] as? String) ?: (data["apphud_user_id"] as? String)
     val email = (data["email"] as? String) ?: (data["apphud_user_email"] as? String)
 
@@ -225,15 +267,52 @@ internal suspend fun ApphudInternal.tryWebAttribution(
                 true to user
             } else {
                 ApphudLog.logI("Trying to attribute from web by User ID: $userId")
-                true to updateUserId(userId, web2Web = true)
+                true to updateUserIdV1(userId, web2Web = true)
             }
         }
 
         !email.isNullOrEmpty() -> {
             ApphudLog.logI("Trying to attribute from web by email: $email")
-            true to updateUserId(currentUserId, email = email, web2Web = true)
+            true to updateUserIdV1(currentUserId, email = email, web2Web = true)
         }
 
         else -> false to null
     }
+}
+
+/**
+ * Email only: a registration with the email and the usual ids; the response names the web user, who
+ * becomes the SDK's user as an identify would. The anonymous customer merges into it on the next request.
+ */
+private suspend fun ApphudInternal.attributeFromWebByEmail(email: String): ApphudUser? {
+    // In fallback mode the local user is made up: no customer id to compare against.
+    val adoptFrom = if (fallbackMode) null else userRepository.getCurrentUser()?.internalId to userRepository.getIdentity()
+    val response = registerWebOrIdentified(email = email) ?: return userRepository.getCurrentUser()
+    if (adoptFrom != null) {
+        webUserToAdopt(
+            customerBefore = adoptFrom.first,
+            sent = adoptFrom.second,
+            current = userRepository.getIdentity(),
+            response = response,
+        )?.let { applyIdentify(it) }
+    }
+    return userRepository.getCurrentUser()
+}
+
+/**
+ * The web user an email-only web-to-web request found: the response is another customer than
+ * before. Without a match the backend returns the same customer, possibly with another install's id
+ * as its user_id, which is no user to adopt. Only while the ids are those the request was sent with
+ * (no logout or identify in between).
+ */
+internal fun webUserToAdopt(
+    customerBefore: String?,
+    sent: ApphudIdentity?,
+    current: ApphudIdentity?,
+    response: ApphudUser,
+): String? {
+    if (sent == null || sent != current) return null
+    val userId = response.userId.takeUnless { it.isEmpty() || it == current.anonymousId } ?: return null
+    val customerId = response.internalId?.takeUnless { it.isEmpty() || it == customerBefore } ?: return null
+    return userId.takeIf { customerId.isNotEmpty() }
 }
