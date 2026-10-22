@@ -21,7 +21,7 @@ import android.widget.FrameLayout
 import android.widget.Toast
 import androidx.activity.OnBackPressedCallback
 import androidx.appcompat.app.AlertDialog
-import androidx.appcompat.app.AppCompatActivity
+import com.apphud.sdk.internal.presentation.SessionBoundActivity
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.lifecycleScope
@@ -34,7 +34,7 @@ import com.apphud.sdk.domain.ApphudProduct
 import kotlinx.coroutines.launch
 
 @Suppress("TooGenericExceptionCaught")
-internal class RuleWebViewActivity : AppCompatActivity() {
+internal class RuleWebViewActivity : SessionBoundActivity() {
 
     private lateinit var viewModel: RuleViewModel
     private lateinit var webView: WebView
@@ -42,6 +42,7 @@ internal class RuleWebViewActivity : AppCompatActivity() {
 
     private val timeoutHandler = Handler(Looper.getMainLooper())
     private val timeoutRunnable = Runnable {
+        if (!ensureActiveScreenSession()) return@Runnable
         ApphudLog.logE("[RuleWebViewActivity] Screen load timed out")
         runCatching { webView.stopLoading() }
         viewModel.onLoadTimeout()
@@ -55,14 +56,14 @@ internal class RuleWebViewActivity : AppCompatActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        val session = bindScreenSession() ?: return
         setContentView(R.layout.apphud_rule_webview_activity_layout)
 
         webView = findViewById(R.id.webView)
         purchaseLoaderOverlay = findViewById(R.id.purchaseLoaderOverlay)
 
+        viewModel = ViewModelProvider(this, RuleViewModel.factory(session))[RuleViewModel::class.java]
         setupWebView()
-
-        viewModel = ViewModelProvider(this, RuleViewModel.factory)[RuleViewModel::class.java]
         setupObservers()
 
         processIntent(intent)
@@ -71,6 +72,7 @@ internal class RuleWebViewActivity : AppCompatActivity() {
             this,
             object : OnBackPressedCallback(true) {
                 override fun handleOnBackPressed() {
+                    if (!ensureActiveScreenSession()) return
                     viewModel.processBackPressed()
                 }
             },
@@ -79,7 +81,7 @@ internal class RuleWebViewActivity : AppCompatActivity() {
 
     override fun onNewIntent(intent: Intent?) {
         super.onNewIntent(intent)
-        if (intent != null) {
+        if (intent != null && acceptScreenIntent(intent)) {
             setIntent(intent)
             processIntent(intent)
         }
@@ -134,6 +136,7 @@ internal class RuleWebViewActivity : AppCompatActivity() {
 
             override fun onPageFinished(view: WebView?, url: String?) {
                 super.onPageFinished(view, url)
+                if (!ensureActiveScreenSession()) return
                 ApphudLog.log("[RuleWebViewActivity] Page loaded: $url")
                 cancelLoadTimeout()
                 if (!hasLoadedOnce) {
@@ -170,12 +173,13 @@ internal class RuleWebViewActivity : AppCompatActivity() {
         queryParameterNames.associateWith { getQueryParameter(it) }
 
     private fun handleAction(action: RuleAction, isUserGesture: Boolean) {
+        if (!ensureActiveScreenSession()) return
         ApphudLog.log("[RuleWebViewActivity] Handling action: $action, isUserGesture=$isUserGesture")
         when (action) {
             is RuleAction.Survey -> viewModel.processSurveyAnswer(action.question, action.answer)
             RuleAction.Dismiss -> viewModel.processDismiss()
             is RuleAction.Feedback -> readFeedbackText { text ->
-                viewModel.processFeedback(action.question, text)
+                if (ensureActiveScreenSession()) viewModel.processFeedback(action.question, text)
             }
             RuleAction.BillingIssue -> viewModel.processBillingIssue()
             is RuleAction.Purchase -> viewModel.processPurchase(action.productId, action.offerId)
@@ -244,6 +248,7 @@ internal class RuleWebViewActivity : AppCompatActivity() {
     }
 
     private fun sendResultBroadcast(resultCode: Int) {
+        if (!ensureActiveScreenSession()) return
         val intent = Intent(RuleController.ACTION_RULE_SCREEN_RESULT).apply {
             putExtra(RuleController.EXTRA_RESULT_CODE, resultCode)
             setPackage(packageName)
@@ -255,6 +260,7 @@ internal class RuleWebViewActivity : AppCompatActivity() {
         lifecycleScope.launch {
             repeatOnLifecycle(Lifecycle.State.STARTED) {
                 viewModel.state.collect { state ->
+                    if (!ensureActiveScreenSession()) return@collect
                     when (state) {
                         is WebViewState.Loading -> {
                             hidePurchaseLoader()
@@ -278,6 +284,7 @@ internal class RuleWebViewActivity : AppCompatActivity() {
 
         lifecycleScope.launch {
             viewModel.events.collect { event ->
+                if (!ensureActiveScreenSession()) return@collect
                 when (event) {
                     is WebViewEvent.CloseScreen -> {
                         sendResultBroadcast(RESULT_DISMISSED)
@@ -313,22 +320,23 @@ internal class RuleWebViewActivity : AppCompatActivity() {
                 .setCancelable(false)
                 .setPositiveButton("OK") { dialog, _ ->
                     dialog.dismiss()
-                    viewModel.onThankYouDialogClosed()
+                    if (ensureActiveScreenSession()) viewModel.onThankYouDialogClosed()
                 }
                 .show()
         }.onFailure {
             ApphudLog.logE("[RuleWebViewActivity] Failed to show dialog: ${it.message}")
-            viewModel.onThankYouDialogClosed()
+            if (ensureActiveScreenSession()) viewModel.onThankYouDialogClosed()
         }
     }
 
     private fun startPurchase(product: ApphudProduct, offerToken: String?) {
+        if (!ensureActiveScreenSession()) return
         Apphud.purchase(
             activity = this,
             apphudProduct = product,
             offerIdToken = offerToken
         ) { result ->
-            viewModel.onPurchaseResult(result)
+            if (ensureActiveScreenSession()) viewModel.onPurchaseResult(result)
         }
     }
 
@@ -419,12 +427,14 @@ internal class RuleWebViewActivity : AppCompatActivity() {
 
         internal fun getIntent(
             context: Context,
+            screenSessionId: String,
             ruleId: String,
         ): Intent = Intent(
             context,
             RuleWebViewActivity::class.java,
         ).apply {
             putExtra(EXTRA_RULE_ID, ruleId)
+            bindIntent(this, screenSessionId)
             flags = Intent.FLAG_ACTIVITY_SINGLE_TOP
             if (context !is Activity) {
                 flags = flags or Intent.FLAG_ACTIVITY_NEW_TASK

@@ -1,5 +1,7 @@
 package com.apphud.sdk.internal
 
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import android.content.Context
 import com.apphud.sdk.ApphudRuleCallback
 import com.apphud.sdk.internal.domain.model.ApiKey
@@ -9,14 +11,14 @@ internal class ServiceLocator private constructor() {
     @Volatile
     private var _appScope: AppScopeComponent? = null
 
-    @Volatile
-    private var _session: SessionComponent? = null
+    private val _sessions = MutableStateFlow<SessionComponent?>(null)
+    val sessions = _sessions.asStateFlow()
 
     val appScope: AppScopeComponent
         get() = _appScope ?: error("App scope not initialized. ApphudInitProvider may have failed to register.")
 
     val session: SessionComponent
-        get() = _session ?: error("Session not initialized. Call Apphud.start() first.")
+        get() = _sessions.value ?: error("Session not initialized. Call Apphud.start() first.")
 
     // App-scoped passthrough properties
     val gson get() = appScope.gson
@@ -67,6 +69,8 @@ internal class ServiceLocator private constructor() {
         @Volatile
         private var _instance: ServiceLocator? = null
 
+        val currentOrNull: ServiceLocator? get() = _instance
+
         val instance: ServiceLocator
             get() = _instance
                 ?: throw IllegalStateException(
@@ -88,8 +92,8 @@ internal class ServiceLocator private constructor() {
             awaitUserRegistration: suspend () -> Unit,
         ) {
             val locator = instance
-            check(locator._session == null) { "Session already initialized" }
-            locator._session = SessionComponent(
+            check(locator._sessions.value == null) { "Session already initialized" }
+            locator._sessions.value = SessionComponent(
                 appScope = locator.appScope,
                 apiKey = apiKey,
                 ruleCallback = ruleCallback,
@@ -97,9 +101,10 @@ internal class ServiceLocator private constructor() {
             )
         }
 
+        @Synchronized
         fun clearSession() {
-            _instance?._session?.cancel()
-            _instance?._session = null
+            _instance?._sessions?.value?.cancel()
+            _instance?._sessions?.value = null
         }
 
         internal fun clearInstance() {
