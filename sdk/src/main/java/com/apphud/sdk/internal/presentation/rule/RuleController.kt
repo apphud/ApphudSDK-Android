@@ -45,6 +45,7 @@ import kotlinx.coroutines.withContext
 
 internal class RuleController(
     private val context: Context,
+    private val screenSessionId: String,
     private val fetchRulesScreenUseCase: FetchRulesScreenUseCase,
     private val fetchMostActualRuleScreenUseCase: FetchMostActualRuleScreenUseCase,
     private val getPaywallByIdentifierUseCase: GetPaywallByIdentifierUseCase,
@@ -346,7 +347,7 @@ internal class RuleController(
             }
             presentPaywallScreen(pendingRule, paywallConfigId)
         } else if (ApphudInternal.legacyRuleScreensEnabled) {
-            val intent = RuleWebViewActivity.getIntent(context, pendingRule.id)
+            val intent = RuleWebViewActivity.getIntent(context, screenSessionId, pendingRule.id)
             context.startActivity(intent)
             shownRuleIds.add(pendingRule.id)
             state.value = RuleState.RuleActivityAlreadyOpen(pendingRule)
@@ -400,6 +401,7 @@ internal class RuleController(
                 paywall = paywall,
                 callbacks = callbacks,
                 maxTimeout = APPHUD_PAYWALL_SCREEN_LOAD_TIMEOUT,
+                expectedScreenSessionId = screenSessionId,
             )
         }
     }
