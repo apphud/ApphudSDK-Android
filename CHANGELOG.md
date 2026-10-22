@@ -1,5 +1,10 @@
 # Changelog
 
+## 3.7.1 — 2026-10-22
+
+- Fix crashes when Android restores Rules or Figma screens without an active SDK session. Screens from an ended session close safely, preserving the host task.
+- Restored Rules and Figma screens now close after process death, even if the host has already called `Apphud.start()` in `Application.onCreate`.
+
 ## 3.7.0 — 2026-10-21
 
 - Add opt-in Identity V2 with separate installation, anonymous and user IDs on API v4. V1 remains the default, preserving existing integrations and upgrade behavior.
