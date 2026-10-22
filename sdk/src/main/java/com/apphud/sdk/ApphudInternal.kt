@@ -31,6 +31,7 @@ import com.apphud.sdk.internal.util.runCatchingCancellable
 import com.apphud.sdk.managers.RequestManager
 import com.apphud.sdk.storage.SharedPreferencesStorage
 import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -798,16 +799,25 @@ internal object ApphudInternal {
         paywall: ApphudPaywall,
         callbacks: Apphud.ApphudPaywallScreenCallbacks,
         maxTimeout: Long,
+        expectedScreenSessionId: String? = null,
     ) {
+        val session = ServiceLocator.currentOrNull?.sessions?.value
+            ?: throw CancellationException("Paywall session ended")
+        if (expectedScreenSessionId != null && expectedScreenSessionId != session.screenSessionId) {
+            throw CancellationException("Paywall belongs to an ended session")
+        }
+        session.coroutineScope.coroutineContext.ensureActive()
+
         ApphudLog.logI("Starting to show paywall screen for paywall: ${paywall.identifier}")
 
-        ServiceLocator.instance.enrichPlacementProductsUseCase.enrichPaywall(paywall)
+        session.enrichPlacementProductsUseCase.enrichPaywall(paywall)
 
         coroutineScope {
             val eventsJob = launch {
                 try {
-                    ServiceLocator.instance.paywallEventManager.events.collect { event ->
+                    session.paywallEventManager.events.collect { event ->
                         withContext(dispatchers.main) {
+                            session.coroutineScope.coroutineContext.ensureActive()
                             when (event) {
                                 is PaywallEvent.ScreenShown -> {
                                     ApphudLog.logI("[ApphudInternal] Paywall screen shown via event bus")
@@ -854,14 +864,15 @@ internal object ApphudInternal {
 
             try {
                 withTimeout(maxTimeout) {
-                    val renderResult = ServiceLocator.instance.renderPaywallPropertiesUseCase(paywall).getOrThrow()
+                    val renderResult = session.renderPaywallPropertiesUseCase(paywall).getOrThrow()
 
-                    ServiceLocator.instance.renderItemsSerializer
+                    session.renderItemsSerializer
                         .logFinalPropertiesForFigmaPaywall(renderResult)
 
-                    val renderItemsJson = ServiceLocator.instance.renderResultMapperWithSerializer.toJson(renderResult)
+                    val renderItemsJson = session.renderResultMapperWithSerializer.toJson(renderResult)
 
-                    val intent = FigmaWebViewActivity.getIntent(context, paywall.id, renderItemsJson)
+                    val intent = FigmaWebViewActivity.getIntent(context, session.screenSessionId, paywall.id, renderItemsJson)
+                    session.coroutineScope.coroutineContext.ensureActive()
                     context.startActivity(intent)
 
                     ApphudLog.logI("Paywall screen shown successfully for paywall: ${paywall.identifier}")

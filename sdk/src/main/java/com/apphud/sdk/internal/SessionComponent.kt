@@ -1,5 +1,6 @@
 package com.apphud.sdk.internal
 
+import java.util.UUID
 import androidx.annotation.VisibleForTesting
 import com.apphud.sdk.ApphudInternal
 import com.apphud.sdk.ApphudRuleCallback
@@ -58,6 +59,9 @@ internal class SessionComponent(
     val ruleCallback: ApphudRuleCallback,
     awaitUserRegistration: suspend () -> Unit,
 ) {
+
+    // A screen belongs to one in-memory SDK session, never to a persisted identity.
+    val screenSessionId: String = UUID.randomUUID().toString()
 
     val coroutineScope: CoroutineScope = CoroutineScope(SupervisorJob() + appScope.dispatchers.io)
 
@@ -225,6 +229,7 @@ internal class SessionComponent(
 
     val ruleController: RuleController =
         RuleController(
+            screenSessionId = screenSessionId,
             context = appScope.applicationContext,
             fetchRulesScreenUseCase = fetchRulesScreenUseCase,
             fetchMostActualRuleScreenUseCase = fetchMostActualRuleScreenUseCase,

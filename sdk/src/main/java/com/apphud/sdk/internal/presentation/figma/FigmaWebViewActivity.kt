@@ -24,7 +24,7 @@ import android.webkit.WebView
 import android.webkit.WebViewClient
 import android.widget.FrameLayout
 import androidx.activity.OnBackPressedCallback
-import androidx.appcompat.app.AppCompatActivity
+import com.apphud.sdk.internal.presentation.SessionBoundActivity
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.lifecycleScope
@@ -86,7 +86,7 @@ private class WebViewWrapper(private val webView: WebView) {
 }
 
 @Suppress("TooGenericExceptionCaught")
-internal class FigmaWebViewActivity : AppCompatActivity() {
+internal class FigmaWebViewActivity : SessionBoundActivity() {
 
     private lateinit var viewModel: FigmaViewViewModel
     private lateinit var webView: WebView
@@ -102,6 +102,7 @@ internal class FigmaWebViewActivity : AppCompatActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        val session = bindScreenSession() ?: return
         ApphudLog.log("[FigmaWebViewActivity] onCreate, savedInstanceState: ${if (savedInstanceState != null) "exists" else "null"}")
         setContentView(R.layout.apphud_rule_webview_activity_layout)
 
@@ -111,9 +112,8 @@ internal class FigmaWebViewActivity : AppCompatActivity() {
         purchaseLoaderOverlay = findViewById(R.id.purchaseLoaderOverlay)
         webViewWrapper = WebViewWrapper(webView)
 
+        viewModel = ViewModelProvider(this, FigmaViewViewModel.factory(session))[FigmaViewViewModel::class.java]
         setupWebView()
-
-        viewModel = ViewModelProvider(this, FigmaViewViewModel.factory)[FigmaViewViewModel::class.java]
 
         setupObservers()
 
@@ -123,6 +123,7 @@ internal class FigmaWebViewActivity : AppCompatActivity() {
             this,
             object : OnBackPressedCallback(true) {
                 override fun handleOnBackPressed() {
+                    if (!ensureActiveScreenSession()) return
                     viewModel.processBackPressed()
                 }
             },
@@ -132,7 +133,7 @@ internal class FigmaWebViewActivity : AppCompatActivity() {
     override fun onNewIntent(intent: Intent?) {
         super.onNewIntent(intent)
         ApphudLog.log("[FigmaWebViewActivity] onNewIntent")
-        if (intent != null) {
+        if (intent != null && acceptScreenIntent(intent)) {
             setIntent(intent)
             processIntent(intent)
         }
@@ -163,7 +164,7 @@ internal class FigmaWebViewActivity : AppCompatActivity() {
         super.onDestroy()
         ApphudLog.log("[FigmaWebViewActivity] onDestroy")
         cancelPendingPageReadyWork()
-        webViewWrapper.reset()
+        if (::webViewWrapper.isInitialized) webViewWrapper.reset()
     }
 
 
@@ -221,6 +222,7 @@ internal class FigmaWebViewActivity : AppCompatActivity() {
 
             override fun onPageStarted(view: WebView?, url: String?, favicon: android.graphics.Bitmap?) {
                 super.onPageStarted(view, url, favicon)
+                if (!ensureActiveScreenSession()) return
                 ApphudLog.log("[WebViewClient] onPageStarted: $url")
                 webViewWrapper.onPageStarted(url)
                 pageLoadId++
@@ -238,6 +240,7 @@ internal class FigmaWebViewActivity : AppCompatActivity() {
                 error: WebResourceError?,
             ) {
                 super.onReceivedError(view, request, error)
+                if (!ensureActiveScreenSession()) return
                 val errorMessage = "WebView error: ${error?.description}, URL: ${request?.url}"
                 ApphudLog.logE("[WebViewClient] $errorMessage")
                 webViewWrapper.onLoadError()
@@ -246,6 +249,7 @@ internal class FigmaWebViewActivity : AppCompatActivity() {
 
             override fun onPageFinished(view: WebView?, url: String?) {
                 super.onPageFinished(view, url)
+                if (!ensureActiveScreenSession()) return
                 ApphudLog.log("[WebViewClient] onPageFinished: $url")
                 webViewWrapper.onPageFinished(url)
 
@@ -261,6 +265,7 @@ internal class FigmaWebViewActivity : AppCompatActivity() {
                 errorResponse: WebResourceResponse?,
             ) {
                 super.onReceivedHttpError(view, request, errorResponse)
+                if (!ensureActiveScreenSession()) return
                 val errorMessage =
                     "HTTP Error: ${errorResponse?.statusCode} - ${errorResponse?.reasonPhrase} for URL: ${request?.url}"
                 ApphudLog.logE("[WebViewClient] $errorMessage")
@@ -277,6 +282,7 @@ internal class FigmaWebViewActivity : AppCompatActivity() {
         lifecycleScope.launch {
             repeatOnLifecycle(Lifecycle.State.STARTED) {
                 viewModel.state.collect { state ->
+                    if (!ensureActiveScreenSession()) return@collect
                     when (state) {
                         is WebViewState.Loading -> {
                             ApphudLog.log("[RuleWebViewActivity] Loading state")
@@ -311,6 +317,7 @@ internal class FigmaWebViewActivity : AppCompatActivity() {
 
         lifecycleScope.launch {
             viewModel.events.collect { event ->
+                if (!ensureActiveScreenSession()) return@collect
                 when (event) {
                     is WebViewEvent.CloseScreen,
                     WebViewEvent.PurchaseCompleted,
@@ -331,6 +338,7 @@ internal class FigmaWebViewActivity : AppCompatActivity() {
     }
 
     private fun startPurchase(product: ApphudProduct) {
+        if (!ensureActiveScreenSession()) return
         ApphudInternal.purchase(
             activity = this,
             apphudProduct = product,
@@ -341,7 +349,7 @@ internal class FigmaWebViewActivity : AppCompatActivity() {
             consumableInappProduct = false,
             fromScreen = true,
             callback = { result ->
-                viewModel.onPurchaseResult(result)
+                if (ensureActiveScreenSession()) viewModel.onPurchaseResult(result)
             }
         )
     }
@@ -355,6 +363,7 @@ internal class FigmaWebViewActivity : AppCompatActivity() {
     }
 
     private fun revealPaywallWebView() {
+        if (!ensureActiveScreenSession()) return
         if (isPaywallWebViewRevealed) return
         isPaywallWebViewRevealed = true
         purchaseLoaderOverlay.visibility = View.GONE
@@ -368,6 +377,7 @@ internal class FigmaWebViewActivity : AppCompatActivity() {
      * Delay reveal so [processDomMacros] DOM updates are visible before showing the WebView.
      */
     private fun scheduleRevealPaywallWebView() {
+        if (!ensureActiveScreenSession()) return
         cancelPendingReveal()
         val runnable = Runnable {
             pendingRevealRunnable = null
@@ -400,6 +410,7 @@ internal class FigmaWebViewActivity : AppCompatActivity() {
         ApphudLog.log("[WebViewClient] Waiting for PaywallSDK before applying macros")
 
         fun poll() {
+            if (!ensureActiveScreenSession()) return
             if (loadId != pageLoadId || macrosAppliedForCurrentLoad) return
 
             if (view == null) {
@@ -408,7 +419,7 @@ internal class FigmaWebViewActivity : AppCompatActivity() {
             }
 
             view.evaluateJavascript(PAYWALL_SDK_READY_CHECK_JS) { result ->
-                if (loadId != pageLoadId || macrosAppliedForCurrentLoad) return@evaluateJavascript
+                if (!ensureActiveScreenSession() || loadId != pageLoadId || macrosAppliedForCurrentLoad) return@evaluateJavascript
 
                 val sdkReady = result == "true"
                 val timedOut = SystemClock.elapsedRealtime() >= deadline
@@ -435,6 +446,7 @@ internal class FigmaWebViewActivity : AppCompatActivity() {
     }
 
     private fun applyDomMacrosAndReveal(view: WebView?, loadId: Int) {
+        if (!ensureActiveScreenSession()) return
         if (loadId != pageLoadId || macrosAppliedForCurrentLoad) return
         macrosAppliedForCurrentLoad = true
         cancelPendingSdkReadyPoll()
@@ -472,6 +484,7 @@ internal class FigmaWebViewActivity : AppCompatActivity() {
     }
 
     private fun handleSpecialUrl(url: Uri): Boolean {
+        if (!ensureActiveScreenSession()) return true
         val lastPathComponent = url.lastPathSegment
         val urlString = url.toString()
 
@@ -562,6 +575,7 @@ internal class FigmaWebViewActivity : AppCompatActivity() {
 
         internal fun getIntent(
             context: Context,
+            screenSessionId: String,
             paywallId: String,
             renderItemsJson: String? = null,
         ): Intent = Intent(
@@ -570,6 +584,7 @@ internal class FigmaWebViewActivity : AppCompatActivity() {
         ).apply {
             putExtra(EXTRA_PAYWALL_ID, paywallId)
             renderItemsJson?.let { putExtra(EXTRA_RENDER_ITEMS, it) }
+            bindIntent(this, screenSessionId)
             flags = Intent.FLAG_ACTIVITY_SINGLE_TOP
             if (context !is Activity) {
                 flags = flags or Intent.FLAG_ACTIVITY_NEW_TASK

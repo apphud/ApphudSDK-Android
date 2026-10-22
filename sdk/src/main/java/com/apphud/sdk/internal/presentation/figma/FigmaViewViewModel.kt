@@ -14,7 +14,7 @@ import com.apphud.sdk.domain.ApphudPaywallScreenShowResult
 import com.apphud.sdk.domain.ApphudProduct
 import com.apphud.sdk.domain.PaywallEvent
 import com.apphud.sdk.internal.PaywallEventManager
-import com.apphud.sdk.internal.ServiceLocator
+import com.apphud.sdk.internal.SessionComponent
 import com.apphud.sdk.internal.data.local.PaywallRepository
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -364,14 +364,13 @@ internal class FigmaViewViewModel(
     }
 
     companion object {
-        val factory = object : ViewModelProvider.Factory {
+        fun factory(session: SessionComponent) = object : ViewModelProvider.Factory {
             override fun <T : ViewModel> create(modelClass: Class<T>): T {
-                val serviceLocator = ServiceLocator.instance
                 @Suppress("UNCHECKED_CAST")
                 return FigmaViewViewModel(
-                    serviceLocator.paywallRepository,
-                    serviceLocator.ruleCallback,
-                    serviceLocator.paywallEventManager
+                    session.paywallRepository,
+                    session.ruleCallback,
+                    session.paywallEventManager
                 ) as T
             }
         }

@@ -10,7 +10,7 @@ import com.apphud.sdk.ApphudRuleCallback
 import com.apphud.sdk.ApphudScreenDismissAction
 import com.apphud.sdk.domain.ApphudProduct
 import com.apphud.sdk.domain.Rule
-import com.apphud.sdk.internal.ServiceLocator
+import com.apphud.sdk.internal.SessionComponent
 import com.apphud.sdk.internal.data.local.LocalRulesScreenRepository
 import com.apphud.sdk.internal.domain.TrackRuleEventUseCase
 import com.apphud.sdk.internal.domain.model.RuleScreen
@@ -327,14 +327,13 @@ internal class RuleViewModel(
         private const val EVENT_FEEDBACK = "\$feedback"
         private const val EVENT_BILLING_ISSUE = "\$billing_issue"
 
-        val factory = object : ViewModelProvider.Factory {
+        fun factory(session: SessionComponent) = object : ViewModelProvider.Factory {
             override fun <T : ViewModel> create(modelClass: Class<T>): T {
-                val serviceLocator = ServiceLocator.instance
                 @Suppress("UNCHECKED_CAST")
                 return RuleViewModel(
-                    serviceLocator.localRulesScreenRepository,
-                    serviceLocator.ruleCallback,
-                    serviceLocator.trackRuleEventUseCase,
+                    session.appScope.localRulesScreenRepository,
+                    session.ruleCallback,
+                    session.trackRuleEventUseCase,
                 ) as T
             }
         }
