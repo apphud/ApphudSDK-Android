@@ -990,6 +990,42 @@ object Apphud {
             Pair(emptyList(), -1)
         }
 
+    /**
+     * Consumes a one-time (in-app) purchase on Google Play so the user can buy the product again.
+     *
+     * Use it for consumable products that were acknowledged but not consumed, for example
+     * when the app was killed before consumption or the purchase completed while the app
+     * was not running. Google Play returns `ITEM_ALREADY_OWNED` for such products.
+     *
+     * Recommended usage on app launch:
+     * ```
+     * val (purchases, _) = Apphud.nativePurchases()
+     * purchases
+     *     .filter { it.products.any { id -> id in myConsumableProductIds } }
+     *     .forEach { purchase ->
+     *         // Grant the content if not granted yet (deduplicate by orderId or purchaseToken)
+     *         Apphud.consumePurchase(purchase.purchaseToken)
+     *     }
+     * ```
+     *
+     * __NOTE__: Consumption cannot be undone. Grant the content to the user before calling this method.
+     *
+     * @param purchaseToken Google Play purchase token, e.g. `Purchase.purchaseToken`
+     * or `ApphudNonRenewingPurchase.purchaseToken`.
+     * @return `null` on success, otherwise [ApphudError].
+     * For Google Play errors, use [ApphudError.billingResponseCode] to get the `BillingResponseCode`.
+     */
+    suspend fun consumePurchase(purchaseToken: String): ApphudError? =
+        runCatchingCancellable {
+            ServiceLocator.instance.consumePurchaseUseCase(purchaseToken)
+        }.fold(
+            onSuccess = { null },
+            onFailure = { error ->
+                ApphudLog.logE("Error in consumePurchase: ${error.message}")
+                error.toApphudError()
+            },
+        )
+
     //endregion
     //region === Attribution ===
 

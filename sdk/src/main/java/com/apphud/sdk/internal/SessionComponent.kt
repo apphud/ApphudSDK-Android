@@ -27,6 +27,7 @@ import com.apphud.sdk.internal.data.remote.ScreenRemoteRepository
 import com.apphud.sdk.internal.data.remote.UserRemoteRepository
 import com.apphud.sdk.internal.data.serializer.RenderItemsSerializer
 import com.apphud.sdk.internal.domain.CollectDeviceIdentifiersUseCase
+import com.apphud.sdk.internal.domain.ConsumePurchaseUseCase
 import com.apphud.sdk.internal.domain.DeviceIdentifiersInteractor
 import com.apphud.sdk.internal.domain.FetchMostActualRuleScreenUseCase
 import com.apphud.sdk.internal.domain.FetchNativePurchasesUseCase
@@ -309,6 +310,12 @@ internal class SessionComponent(
         FetchNativePurchasesUseCase(
             billingWrapper = appScope.billingWrapper,
             userRepository = userRepository,
+        )
+    }
+
+    val consumePurchaseUseCase: ConsumePurchaseUseCase by lazy {
+        ConsumePurchaseUseCase(
+            billingWrapper = appScope.billingWrapper,
         )
     }
 }
