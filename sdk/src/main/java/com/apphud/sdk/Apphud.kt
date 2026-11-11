@@ -997,16 +997,21 @@ object Apphud {
      * when the app was killed before consumption or the purchase completed while the app
      * was not running. Google Play returns `ITEM_ALREADY_OWNED` for such products.
      *
-     * Recommended usage on app launch:
+     * Recommended usage on app launch. Consume only purchases Apphud already has: once consumed,
+     * Google Play no longer returns the purchase, so the SDK can't send it to Apphud later.
      * ```
      * val (purchases, _) = Apphud.nativePurchases()
+     * val known = Apphud.nonRenewingPurchases().map { it.purchaseToken }.toSet()
      * purchases
-     *     .filter { it.products.any { id -> id in myConsumableProductIds } }
+     *     .filter { it.purchaseToken in known && it.products.any { id -> id in myConsumableProductIds } }
      *     .forEach { purchase ->
      *         // Grant the content if not granted yet (deduplicate by orderId or purchaseToken)
      *         Apphud.consumePurchase(purchase.purchaseToken)
      *     }
      * ```
+     *
+     * A purchase that is already consumed, for example by `Apphud.purchase(..., consumableInappProduct = true)`,
+     * returns an error with `ITEM_NOT_OWNED`, which is safe to ignore.
      *
      * __NOTE__: Consumption cannot be undone. Grant the content to the user before calling this method.
      *
