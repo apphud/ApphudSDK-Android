@@ -64,7 +64,7 @@ class MainFragment : Fragment() {
         }
 
         binding.buttonRequestDeeplinkAttribution.setOnClickListener {
-            activity?.let { Apphud.requestDeferredDeeplinkAttribution(it) }
+            Apphud.requestDeferredDeeplinkAttribution()
         }
 
         return root

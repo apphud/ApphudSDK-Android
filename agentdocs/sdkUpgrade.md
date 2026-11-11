@@ -9,7 +9,7 @@ When changing the SDK, assume users upgrade from an older published version with
    - Never add a **non-nullable** field without a default to a cached Gson model.
    - Prefer **new preference keys** over reshaping existing JSON blobs.
 
-2. **Network DTOs vs cache** — DTOs used only for live API parsing (`ResponseDto`, `DataDto`, `MetaDto`) are not upgrade risks unless their JSON is also persisted.
+2. **Network DTOs vs cache** — DTOs used only for live API parsing (`ResponseDto`, `DataDto`) are not upgrade risks unless their JSON is also persisted.
 
 3. **Missing JSON fields** — Gson leaves absent keys as `null` for nullable Kotlin properties. Verify with a unit test or sample JSON **without** the new field.
 
@@ -19,6 +19,8 @@ When changing the SDK, assume users upgrade from an older published version with
 
 6. **Public API** — Deprecated APIs should still work; don't remove or change behavior that existing apps rely on without a major version.
 
+7. **Removed preference keys** — Stop reading the key, leave its name in a comment in `SharedPreferencesStorage`, and never reuse the name: installs upgraded from an older version still hold the old value (for example `ApphudConnectDomainUrl`, unused since 3.7.2).
+
 ## Examples
 
 ### Safe: new optional API field + separate pref key
@@ -27,16 +29,16 @@ When changing the SDK, assume users upgrade from an older published version with
 // DTO — network only, optional
 internal data class DataDto<T>(
     val results: T?,
-    val meta: MetaDto? = null,
+    val meta: ExampleMetaDto? = null,
 )
 
 // Storage — new key, null on first read after upgrade
-override var connectDomainUrl: String?
-    get() = preferences.getString(CONNECT_DOMAIN_URL_KEY, null)
+override var exampleUrl: String?
+    get() = preferences.getString(EXAMPLE_URL_KEY, null)
 
 // Reader — non-null with fallback
-val connectDomainUrl: String
-    get() = storage.connectDomainUrl ?: DEFAULT_CONNECT_DOMAIN_URL
+val exampleUrl: String
+    get() = storage.exampleUrl ?: DEFAULT_EXAMPLE_URL
 ```
 
 ### Unsafe: non-nullable field on cached model
@@ -45,7 +47,7 @@ val connectDomainUrl: String
 // ❌ Old cached JSON has no `meta` → Gson/deserialization can fail or crash
 data class ApphudUser(
     val userId: String,
-    val meta: MetaDto,  // non-nullable, persisted in APPHUD_USER_KEY
+    val meta: ExampleMetaDto,  // non-nullable, persisted in APPHUD_USER_KEY
 )
 ```
 

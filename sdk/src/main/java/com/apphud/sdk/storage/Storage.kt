@@ -68,6 +68,5 @@ internal interface Storage {
     var syncedDeviceIdentifiersUserId: String?
     var syncedDeviceIdentifiers: Array<String>?
     var cacheVersion: String?
-    var connectDomainUrl: String?
     var submittedPushToken: String?
 }

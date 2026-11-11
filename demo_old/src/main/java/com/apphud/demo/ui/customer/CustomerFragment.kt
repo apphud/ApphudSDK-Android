@@ -76,7 +76,7 @@ class CustomerFragment : Fragment() {
 
                 override fun onMenuItemSelected(menuItem: MenuItem): Boolean {
                     if (menuItem.itemId != R.id.action_request_deeplink) return false
-                    Apphud.requestDeferredDeeplinkAttribution(requireActivity())
+                    Apphud.requestDeferredDeeplinkAttribution()
                     return true
                 }
             },

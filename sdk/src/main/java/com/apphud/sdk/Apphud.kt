@@ -1097,18 +1097,29 @@ object Apphud {
     /**
      * Requests deferred deep link attribution for the current app installation.
      *
-     * The SDK loads a hidden web page using a 1x1 WebView attached to the provided [activity] to
-     * resolve a visitor identifier, then submits it to Apphud. The result is delivered through the
-     * `deeplinkHandler` (set in `start(...)` or via [setDeeplinkHandler]) with kind
-     * `ApphudDeeplinkAttributionKind.DEFERRED`. When no match is found, the handler receives an
-     * empty map.
+     * The SDK sends the request as soon as the user is registered. The result is delivered through
+     * the `deeplinkHandler` (set in `start(...)` or via [setDeeplinkHandler]) with kind
+     * `ApphudDeeplinkAttributionKind.DEFERRED`, so set the handler before calling this method.
+     * When no match is found, the handler receives an empty map.
      *
-     * Call this from a visible Activity after SDK initialization, typically once on first launch.
-     *
-     * @param activity A started Activity used to host the temporary WebView.
+     * Call this after SDK initialization, typically once on first launch. It needs no Activity and
+     * works in the background.
      */
+    fun requestDeferredDeeplinkAttribution() {
+        ApphudInternal.requestDeferredDeeplinkAttribution()
+    }
+
+    /**
+     * Requests deferred deep link attribution. The [activity] is no longer used: deferred
+     * attribution doesn't load a web page any more.
+     */
+    @Deprecated(
+        "The activity is no longer used. Use \"requestDeferredDeeplinkAttribution()\" instead.",
+        ReplaceWith("this.requestDeferredDeeplinkAttribution()"),
+    )
+    @Suppress("UNUSED_PARAMETER")
     fun requestDeferredDeeplinkAttribution(activity: Activity) {
-        ApphudInternal.requestDeferredDeeplinkAttribution(activity)
+        requestDeferredDeeplinkAttribution()
     }
 
     //endregion
