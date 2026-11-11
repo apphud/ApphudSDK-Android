@@ -379,18 +379,6 @@ internal class SharedPreferencesStorage(
             }
         }
 
-    override var connectDomainUrl: String?
-        get() = preferences.getString(CONNECT_DOMAIN_URL_KEY, null)
-        set(value) {
-            preferences.edit {
-                if (value == null) {
-                    remove(CONNECT_DOMAIN_URL_KEY)
-                } else {
-                    putString(CONNECT_DOMAIN_URL_KEY, value)
-                }
-            }
-        }
-
     override var submittedPushToken: String?
         get() = preferences.getString(SUBMITTED_PUSH_TOKEN_KEY, null)
         set(value) {
@@ -553,7 +541,8 @@ internal class SharedPreferencesStorage(
         private const val SYNCED_DEVICE_IDENTIFIERS_USER_ID_KEY = "SYNCED_DEVICE_IDENTIFIERS_USER_ID_KEY"
         private const val SYNCED_DEVICE_IDENTIFIERS_KEY = "SYNCED_DEVICE_IDENTIFIERS_KEY"
         private const val CURRENT_CACHE_VERSION = "3"
-        private const val CONNECT_DOMAIN_URL_KEY = "ApphudConnectDomainUrl"
+        // "ApphudConnectDomainUrl" held the deferred deep link web page URL until 3.7.1. It is no longer
+        // read; never reuse the key name, older installs still have the value.
         private const val SUBMITTED_PUSH_TOKEN_KEY = "submittedPushTokenKey"
         private const val CLIENT_SESSION_ID_KEY = "clientSessionIdKey"
         private const val CLIENT_SESSION_LAST_BACKGROUND_AT_KEY = "clientSessionLastBackgroundAtKey"

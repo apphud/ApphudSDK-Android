@@ -248,6 +248,7 @@ private fun ApphudInternal.purchaseInternal(
 
         paywallCheckoutInitiated(apphudProduct.paywallId, apphudProduct.placementId, apphudProduct.productId, currentPaywallScreenId)
         purchasingProduct = apphudProduct
+        rememberPurchasingConsumable(consumableInappProduct)
         purchaseStartedAt = System.currentTimeMillis()
         callback?.let { rememberCallback(callback) }
         if (recoveryAttempt != null) {
@@ -362,6 +363,7 @@ private fun ApphudInternal.purchaseInternal(
                                             fromScreen,
                                             callback,
                                             recoveryAttempt,
+                                            isConsumable = consumableInappProduct,
                                         )
 
                                         when (detailsType) {
@@ -445,6 +447,13 @@ private fun ApphudInternal.purchaseInternal(
     }
 }
 
+/**
+ * The `consumableInappProduct` flag of a purchase flow, for a purchase of the product that flow was started for.
+ * Any other purchase delivered meanwhile gets null, so its request omits `is_consumable`.
+ */
+internal fun consumableFlagFor(purchase: Purchase, product: ApphudProduct?, consumable: Boolean): Boolean? =
+    consumable.takeIf { product != null && product.productId in purchase.products }
+
 internal fun ApphudInternal.lookupFreshPurchase(extraMessage: String = "resend_fresh_purchase") {
     coroutineScope.launch {
         runCatchingCancellable {
@@ -480,6 +489,7 @@ internal fun ApphudInternal.lookupFreshPurchase(extraMessage: String = "resend_f
                         null,
                         extraMessage,
                         screenId = null,
+                        isConsumable = consumableFlagFor(purchase, purchasingProduct, isPurchasingConsumable),
                     )
                 )
 
@@ -612,6 +622,7 @@ private suspend fun ApphudInternal.sendCheckToApphud(
     fromScreen: Boolean,
     callback: ((ApphudPurchaseResult) -> Unit)?,
     recoveryAttempt: PurchaseRecovery.Attempt? = null,
+    isConsumable: Boolean? = null,
 ) {
     val currentPaywallScreenId = if (fromScreen) findPaywallScreenId(paywallId) else null
     // TODO: activeRuleId() also returns a rule in the PendingRule state (fetched but deferred and
@@ -646,6 +657,7 @@ private suspend fun ApphudInternal.sendCheckToApphud(
                         "fallback_mode",
                         screenId = currentPaywallScreenId,
                         ruleId = currentRuleId,
+                        isConsumable = isConsumable,
                     )
                 )
             }.onFailure { error ->
@@ -687,6 +699,7 @@ private suspend fun ApphudInternal.sendCheckToApphud(
                         null,
                         currentPaywallScreenId,
                         currentRuleId,
+                        isConsumable,
                     )
                 )
             }

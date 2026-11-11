@@ -191,6 +191,70 @@ class PurchaseBodyFactoryTest {
         )
     }
 
+    // region is_consumable
+
+    @Test
+    fun `GIVEN purchase made with consumable flag EXPECT isConsumable true in purchase body`() {
+        every { userRepository.getCurrentUser() } returns null
+
+        val body = factory.create(createPurchaseContext(isConsumable = true))
+
+        assertEquals(true, body.purchases.first().isConsumable)
+    }
+
+    @Test
+    fun `GIVEN purchase made without consumable flag EXPECT isConsumable false in purchase body`() {
+        every { userRepository.getCurrentUser() } returns null
+
+        val body = factory.create(createPurchaseContext(isConsumable = false))
+
+        assertEquals(false, body.purchases.first().isConsumable)
+    }
+
+    @Test
+    fun `GIVEN purchase not made with Apphud purchase EXPECT no isConsumable in purchase body`() {
+        every { userRepository.getCurrentUser() } returns null
+
+        val body = factory.create(createPurchaseContext(isConsumable = null))
+
+        assertNull(body.purchases.first().isConsumable)
+    }
+
+    @Test
+    fun `GIVEN synced purchases EXPECT no isConsumable in purchase body`() {
+        val productDetails: ProductDetails = mockk {
+            every { productId } returns "play-product-id"
+            every { productType } returns "inapp"
+            every { oneTimePurchaseOfferDetails } returns null
+            every { subscriptionOfferDetails } returns null
+        }
+        val purchase: Purchase = createPurchase()
+
+        val body = factory.create(
+            apphudProduct = null,
+            purchases = listOf(PurchaseRecordDetails(purchase, productDetails)),
+            observerMode = true,
+        )
+
+        assertNull(body.purchases.first().isConsumable)
+    }
+
+    // endregion
+
+    private fun createPurchaseContext(isConsumable: Boolean?) =
+        PurchaseContext(
+            purchase = createPurchase(),
+            productDetails = null,
+            productBundleId = null,
+            paywallId = null,
+            placementId = null,
+            offerToken = null,
+            oldToken = null,
+            extraMessage = null,
+            screenId = null,
+            isConsumable = isConsumable,
+        )
+
     private fun createUser(placements: List<ApphudPlacement>) =
         ApphudUser(
             userId = "user-id",

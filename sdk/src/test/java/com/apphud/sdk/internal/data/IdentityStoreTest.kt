@@ -805,7 +805,6 @@ class IdentityStoreTest {
         }
         val urls = mockk<com.apphud.sdk.internal.data.network.UrlProvider> {
             every { customersUrl } returns request.url
-            every { updateConnectDomainUrl(any()) } just runs
         }
         val repository = com.apphud.sdk.internal.data.remote.RemoteRepository(
             okHttpClient = client, gson = com.google.gson.Gson(), customerMapper = mapper,
@@ -1113,7 +1112,6 @@ class IdentityStoreTest {
         override var syncedDeviceIdentifiersUserId: String? = null
         override var syncedDeviceIdentifiers: Array<String>? = null
         override var cacheVersion: String? = null
-        override var connectDomainUrl: String? = null
         override var submittedPushToken: String? = null
     }
 

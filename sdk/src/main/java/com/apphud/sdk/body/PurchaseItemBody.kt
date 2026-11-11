@@ -1,6 +1,7 @@
 package com.apphud.sdk.body
 
 import com.apphud.sdk.domain.ProductInfo
+import com.google.gson.annotations.JsonAdapter
 import com.google.gson.annotations.SerializedName
 
 internal data class PurchaseItemBody(
@@ -41,4 +42,8 @@ internal data class PurchaseItemBody(
     val screenId: String? = null,
     @SerializedName("rule_id")
     val ruleId: String? = null,
+    /** Only for a purchase made with `Apphud.purchase`, where the developer states it. */
+    @SerializedName("is_consumable")
+    @JsonAdapter(OmitWhenNull::class, nullSafe = false)
+    val isConsumable: Boolean? = null,
 )

@@ -990,6 +990,47 @@ object Apphud {
             Pair(emptyList(), -1)
         }
 
+    /**
+     * Consumes a one-time (in-app) purchase on Google Play so the user can buy the product again.
+     *
+     * Use it for consumable products that were acknowledged but not consumed, for example
+     * when the app was killed before consumption or the purchase completed while the app
+     * was not running. Google Play returns `ITEM_ALREADY_OWNED` for such products.
+     *
+     * Recommended usage on app launch. Consume only purchases Apphud already has: once consumed,
+     * Google Play no longer returns the purchase, so the SDK can't send it to Apphud later.
+     * ```
+     * val (purchases, _) = Apphud.nativePurchases()
+     * val known = Apphud.nonRenewingPurchases().map { it.purchaseToken }.toSet()
+     * purchases
+     *     .filter { it.purchaseToken in known && it.products.any { id -> id in myConsumableProductIds } }
+     *     .forEach { purchase ->
+     *         // Grant the content if not granted yet (deduplicate by orderId or purchaseToken)
+     *         Apphud.consumePurchase(purchase.purchaseToken)
+     *     }
+     * ```
+     *
+     * A purchase that is already consumed, for example by `Apphud.purchase(..., consumableInappProduct = true)`,
+     * returns an error with `ITEM_NOT_OWNED`, which is safe to ignore.
+     *
+     * __NOTE__: Consumption cannot be undone. Grant the content to the user before calling this method.
+     *
+     * @param purchaseToken Google Play purchase token, e.g. `Purchase.purchaseToken`
+     * or `ApphudNonRenewingPurchase.purchaseToken`.
+     * @return `null` on success, otherwise [ApphudError].
+     * For Google Play errors, use [ApphudError.billingResponseCode] to get the `BillingResponseCode`.
+     */
+    suspend fun consumePurchase(purchaseToken: String): ApphudError? =
+        runCatchingCancellable {
+            ServiceLocator.instance.consumePurchaseUseCase(purchaseToken)
+        }.fold(
+            onSuccess = { null },
+            onFailure = { error ->
+                ApphudLog.logE("Error in consumePurchase: ${error.message}")
+                error.toApphudError()
+            },
+        )
+
     //endregion
     //region === Attribution ===
 
@@ -1097,18 +1138,29 @@ object Apphud {
     /**
      * Requests deferred deep link attribution for the current app installation.
      *
-     * The SDK loads a hidden web page using a 1x1 WebView attached to the provided [activity] to
-     * resolve a visitor identifier, then submits it to Apphud. The result is delivered through the
-     * `deeplinkHandler` (set in `start(...)` or via [setDeeplinkHandler]) with kind
-     * `ApphudDeeplinkAttributionKind.DEFERRED`. When no match is found, the handler receives an
-     * empty map.
+     * The SDK sends the request as soon as the user is registered. The result is delivered through
+     * the `deeplinkHandler` (set in `start(...)` or via [setDeeplinkHandler]) with kind
+     * `ApphudDeeplinkAttributionKind.DEFERRED`, so set the handler before calling this method.
+     * When no match is found, the handler receives an empty map.
      *
-     * Call this from a visible Activity after SDK initialization, typically once on first launch.
-     *
-     * @param activity A started Activity used to host the temporary WebView.
+     * Call this after SDK initialization, typically once on first launch. It needs no Activity and
+     * works in the background.
      */
+    fun requestDeferredDeeplinkAttribution() {
+        ApphudInternal.requestDeferredDeeplinkAttribution()
+    }
+
+    /**
+     * Requests deferred deep link attribution. The [activity] is no longer used: deferred
+     * attribution doesn't load a web page any more.
+     */
+    @Deprecated(
+        "The activity is no longer used. Use \"requestDeferredDeeplinkAttribution()\" instead.",
+        ReplaceWith("this.requestDeferredDeeplinkAttribution()"),
+    )
+    @Suppress("UNUSED_PARAMETER")
     fun requestDeferredDeeplinkAttribution(activity: Activity) {
-        ApphudInternal.requestDeferredDeeplinkAttribution(activity)
+        requestDeferredDeeplinkAttribution()
     }
 
     //endregion

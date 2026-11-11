@@ -7,6 +7,10 @@ import io.mockk.coVerify
 import io.mockk.every
 import io.mockk.mockk
 import io.mockk.verify
+import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.async
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
@@ -48,6 +52,26 @@ class RegistrationInteractorTest {
         assertEquals(cachedUser, result)
         coVerify(exactly = 0) { registerUserUseCase(any(), any(), any(), any(), any(), any()) }
         verify { enrichPlacementProductsUseCase(cachedUser) }
+    }
+
+    @Test
+    fun `GIVEN registration in flight WHEN a non-forced call arrives EXPECT one registration`() = runTest {
+        var current: ApphudUser? = null
+        val firstRegistration = CompletableDeferred<ApphudUser>()
+        every { userRepository.getCurrentUser() } answers { current }
+        coEvery { registerUserUseCase(any(), any(), any(), any(), any(), any()) } coAnswers {
+            firstRegistration.await().also { current = it }
+        }
+
+        // start() registers; deep link attribution then asks for a user without forcing.
+        val start = launch { interactor(needPlacementsPaywalls = true, isNew = true, forceRegistration = true) }
+        val deeplink = async { interactor(needPlacementsPaywalls = false, isNew = true, forceRegistration = false) }
+        runCurrent()
+        firstRegistration.complete(finalUser)
+        start.join()
+        deeplink.await()
+
+        coVerify(exactly = 1) { registerUserUseCase(any(), any(), any(), any(), any(), any()) }
     }
 
     @Test

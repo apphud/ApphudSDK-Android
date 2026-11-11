@@ -255,6 +255,27 @@ internal class BillingWrapper(context: Context) : Closeable {
         }
     }
 
+    suspend fun consumeSync(purchaseToken: String): BillingResult {
+        if (!connectIfNeeded()) {
+            // connectIfNeeded() turns a cancelled connection into false; stay cancelled instead.
+            currentCoroutineContext().ensureActive()
+            val code = connectionResponse.takeIf { it != BillingClient.BillingResponseCode.OK }
+                ?: BillingClient.BillingResponseCode.SERVICE_DISCONNECTED
+            return BillingResult.newBuilder()
+                .setResponseCode(code)
+                .setDebugMessage("No connection to Google Play Billing")
+                .build()
+        }
+        val params = ConsumeParams.newBuilder()
+            .setPurchaseToken(purchaseToken)
+            .build()
+        return suspendCancellableCoroutine { continuation ->
+            billing.consumeAsync(params) { result, _ ->
+                if (continuation.isActive) continuation.resume(result)
+            }
+        }
+    }
+
     private fun normalizeObfuscatedAccountId(value: String?): String? {
         value ?: return null
         if (!ApphudInternal.isIdentityV1) {

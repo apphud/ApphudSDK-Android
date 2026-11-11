@@ -62,7 +62,8 @@ internal class PurchaseBodyFactory(
                         productInfo = productDetails?.let { ProductInfo(productDetails, offerToken) },
                         productType = productDetails?.productType,
                         timestamp = System.currentTimeMillis(),
-                        extraMessage = extraMessage
+                        extraMessage = extraMessage,
+                        isConsumable = isConsumable,
                     )
                 },
             )
