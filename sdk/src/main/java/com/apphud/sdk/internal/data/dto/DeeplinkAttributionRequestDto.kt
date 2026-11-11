@@ -23,7 +23,4 @@ internal data class DeeplinkAttributionRequestDto(
 
     @SerializedName("url")
     val url: String? = null,
-
-    @SerializedName("visitor_id")
-    val visitorId: String? = null,
 )

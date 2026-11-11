@@ -1,14 +1,12 @@
 package com.apphud.sdk.internal.data.network
 
-import com.apphud.sdk.storage.Storage
-import io.mockk.mockk
 import org.junit.Assert.assertEquals
 import org.junit.Test
 
 /** The SDK sends the anonymous identity, which only the `/v4` API accepts. */
 class UrlProviderTest {
 
-    private val urls = UrlProvider(mockk<Storage>(relaxed = true)).apply { updateBaseUrl("https://api.test") }
+    private val urls = UrlProvider().apply { updateBaseUrl("https://api.test") }
 
     @Test
     fun `GIVEN every SDK endpoint EXPECT the v4 API`() {

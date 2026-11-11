@@ -12,6 +12,7 @@ import com.apphud.sdk.internal.data.dto.ResponseDto
 import com.apphud.sdk.internal.data.mapper.CustomerMapper
 import com.apphud.sdk.internal.data.network.UrlProvider
 import com.google.gson.Gson
+import com.google.gson.JsonObject
 import io.mockk.Runs
 import io.mockk.coEvery
 import io.mockk.coVerify
@@ -57,7 +58,6 @@ class RemoteRepositoryTest {
     private val urlProvider: UrlProvider = mockk {
         every { customersUrl } returns "https://api.apphud.com/v4/customers".toHttpUrl()
         every { subscriptionsUrl } returns "https://api.apphud.com/v4/subscriptions".toHttpUrl()
-        every { updateConnectDomainUrl(any()) } just Runs
     }
 
     private val okHttpClient: OkHttpClient = mockk()
@@ -98,10 +98,17 @@ class RemoteRepositoryTest {
 
     private fun createSuccessResponse(): String {
         val response = ResponseDto(
-            data = DataDto(results = mockCustomerDto, meta = null),
+            data = DataDto(results = mockCustomerDto),
             errors = null
         )
         return gson.toJson(response)
+    }
+
+    /** The backend still sends `meta.connect_url`, which the SDK no longer reads since 3.7.2. */
+    private fun createSuccessResponseWithConnectUrl(): String {
+        val json = gson.fromJson(createSuccessResponse(), JsonObject::class.java)
+        json.getAsJsonObject("data").add("meta", JsonObject().apply { addProperty("connect_url", "https://connect.aphd.cc") })
+        return gson.toJson(json)
     }
 
     private fun create401ErrorResponse(): String {
@@ -148,6 +155,15 @@ class RemoteRepositoryTest {
 
         assertTrue("Result should be success", result.isSuccess)
         assertEquals("Returned user should match mocked user", mockApphudUser, result.getOrNull())
+    }
+
+    @Test
+    fun `GIVEN response meta with connect_url EXPECT success`() = runTest {
+        mockHttpCall(createMockResponse(200, createSuccessResponseWithConnectUrl()))
+
+        val result = remoteRepository.getCustomers(needPlacements = true, isNew = false, email = null)
+
+        assertTrue(result.isSuccess)
     }
 
     // region identity sync

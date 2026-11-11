@@ -11,7 +11,6 @@ import com.apphud.sdk.internal.domain.model.GetProductsParams
 import com.apphud.sdk.internal.domain.model.RequestIds
 import com.apphud.sdk.internal.provider.RegistrationProvider
 import com.apphud.sdk.managers.RequestManager
-import com.apphud.sdk.storage.Storage
 import io.mockk.every
 import io.mockk.mockk
 import org.junit.Assert.assertEquals
@@ -42,12 +41,12 @@ class IdentityVersion1RequestTest {
     }
 
     @Test
-    fun `GIVEN version 1 deeplink attribution EXPECT the keys of SDK 3_6`() {
+    fun `GIVEN version 1 deeplink attribution EXPECT the keys of SDK 3_6 without visitor_id`() {
         val body = DeeplinkAttributionRequestDto(
             deviceId = V1.deviceId, installationId = V1.installationId, anonymousId = V1.anonymousId, bundleId = "b",
         )
 
-        assertEquals(setOf("device_id", "bundle_id", "url", "visitor_id"), keys(body))
+        assertEquals(setOf("device_id", "bundle_id", "url"), keys(body))
     }
 
     @Test
@@ -211,7 +210,7 @@ class IdentityVersion1RequestTest {
 
     @Test
     fun `GIVEN version 1 EXPECT the API versions of SDK 3_6`() {
-        val urls = UrlProvider(mockk<Storage>(relaxed = true)) { true }.apply { updateBaseUrl("https://api.test") }
+        val urls = UrlProvider { true }.apply { updateBaseUrl("https://api.test") }
 
         assertEquals("/v1/customers", urls.customersUrl.encodedPath)
         assertEquals("/v1/customers/properties", urls.customerPropertiesUrl.encodedPath)

@@ -50,7 +50,7 @@ internal class AppScopeComponent(val applicationContext: Context) {
     val deviceIdentifiersRepository: DeviceIdentifiersRepository =
         DeviceIdentifiersRepository(deviceIdentifiersDataSource)
 
-    val urlProvider = UrlProvider(storage) { ApphudInternal.isIdentityV1 }
+    val urlProvider = UrlProvider { ApphudInternal.isIdentityV1 }
 
     val clientSessionRepository: ClientSessionRepository = ClientSessionRepository(storage)
 

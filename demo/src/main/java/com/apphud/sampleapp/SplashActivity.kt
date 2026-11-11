@@ -37,7 +37,7 @@ class SplashActivity : BaseActivity() {
 
         Apphud.handleIntent(intent)
         if (PreferencesManager.firstStart) {
-            Apphud.requestDeferredDeeplinkAttribution(this)
+            Apphud.requestDeferredDeeplinkAttribution()
         }
 
         CoroutineScope(Dispatchers.IO).launch {

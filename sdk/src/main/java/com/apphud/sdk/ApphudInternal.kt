@@ -200,6 +200,11 @@ internal object ApphudInternal {
     private val version1Registration = Version1RegistrationGate {
         isIdentityV1 && ServiceLocator.instance.identityStore.isVersion1RegistrationPending
     }
+
+    /** Ends when this launch's registration in `start()` ends, however it ends; see [awaitUserRegistration]. */
+    @Volatile
+    private var launchRegistration: CompletableDeferred<Unit>? = null
+
     internal var deferPlacements = false
     internal var legacyRuleScreensEnabled = true
     internal var isActive = false
@@ -338,17 +343,23 @@ internal object ApphudInternal {
 
         ApphudLog.log("Need to register user: $needRegistration")
 
+        // Set before the launch below, so a call right after start() always finds it.
+        val launchRegistrationEnded = CompletableDeferred<Unit>().also { launchRegistration = it }
         coroutineScope.launch {
-            version1Registration.runLaunchRegistration(closedVersion1Registration) {
-                if (needRegistration) {
-                    runCatchingCancellable { registration() }
-                        .onFailure { ApphudLog.logE("Registration failed in initialize: ${it.message}") }
-                } else {
-                    coroutineScope.launch(dispatchers.main) { notifyLoadingCompleted(customerLoaded = userRepository.getCurrentUser()) }
+            try {
+                version1Registration.runLaunchRegistration(closedVersion1Registration) {
+                    if (needRegistration) {
+                        runCatchingCancellable { registration() }
+                            .onFailure { ApphudLog.logE("Registration failed in initialize: ${it.message}") }
+                    } else {
+                        coroutineScope.launch(dispatchers.main) { notifyLoadingCompleted(customerLoaded = userRepository.getCurrentUser()) }
+                    }
                 }
+            } finally {
+                launchRegistrationEnded.complete(Unit)
             }
             postInitSetup()
-        }
+        }.invokeOnCompletion { launchRegistrationEnded.complete(Unit) } // also when cancelled before it ran
     }
 
     private suspend fun postInitSetup() {
@@ -999,15 +1010,22 @@ internal object ApphudInternal {
         version1Registration.awaitLaunchRegistration()
     }
 
-    internal suspend fun awaitUserRegistration() {
+    /**
+     * Makes sure a registered user exists.
+     *
+     * @param forceRegistration false first waits for the registration `start()` launched and reuses
+     * its user instead of sending a second registration; it registers only when there is still no user.
+     */
+    internal suspend fun awaitUserRegistration(forceRegistration: Boolean = true) {
         if (!isInitialized()) {
             throw ApphudError(MUST_REGISTER_ERROR)
         }
+        if (!forceRegistration) launchRegistration?.await()
 
         val mCurrentUser = version1Registration.afterLaunchRegistration { userRepository.getCurrentUser() }
         when {
             mCurrentUser == null -> {
-                registration()
+                if (forceRegistration) registration() else performRegistration(forceRegistration = false)
             }
             mCurrentUser.isTemporary != false -> {
                 refreshPaywallsIfNeeded()
@@ -1107,6 +1125,7 @@ internal object ApphudInternal {
 
     private fun clear() {
         version1Registration.open()
+        launchRegistration?.complete(Unit)
         // Detach the process lifecycle observer before cancelling the session scope so that
         // ON_START/ON_STOP callbacks don't fire against a torn-down session.
         // ProcessLifecycleOwner.removeObserver requires the main thread.
