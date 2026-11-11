@@ -362,6 +362,7 @@ private fun ApphudInternal.purchaseInternal(
                                             fromScreen,
                                             callback,
                                             recoveryAttempt,
+                                            isConsumable = consumableInappProduct,
                                         )
 
                                         when (detailsType) {
@@ -612,6 +613,7 @@ private suspend fun ApphudInternal.sendCheckToApphud(
     fromScreen: Boolean,
     callback: ((ApphudPurchaseResult) -> Unit)?,
     recoveryAttempt: PurchaseRecovery.Attempt? = null,
+    isConsumable: Boolean? = null,
 ) {
     val currentPaywallScreenId = if (fromScreen) findPaywallScreenId(paywallId) else null
     // TODO: activeRuleId() also returns a rule in the PendingRule state (fetched but deferred and
@@ -646,6 +648,7 @@ private suspend fun ApphudInternal.sendCheckToApphud(
                         "fallback_mode",
                         screenId = currentPaywallScreenId,
                         ruleId = currentRuleId,
+                        isConsumable = isConsumable,
                     )
                 )
             }.onFailure { error ->
@@ -687,6 +690,7 @@ private suspend fun ApphudInternal.sendCheckToApphud(
                         null,
                         currentPaywallScreenId,
                         currentRuleId,
+                        isConsumable,
                     )
                 )
             }
