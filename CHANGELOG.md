@@ -1,5 +1,12 @@
 # Changelog
 
+## 3.7.2 — 2026-11-11
+
+- Add `Apphud.consumePurchase(purchaseToken)`. It consumes a one-time Google Play purchase that was acknowledged but not consumed, so the product can be bought again. Returns `null` on success, or `ApphudError` with the Google Play `BillingResponseCode` in `errorCode`.
+- Purchases made with `Apphud.purchase` now report whether the product was marked consumable.
+- Deferred deep link attribution no longer loads a hidden WebView or sends `visitor_id`, and no longer needs an Activity. The result arrives right after registration: set the deep link handler (in `start(...)` or with `setDeeplinkHandler`) before calling `requestDeferredDeeplinkAttribution()`, because a result that arrives while no handler is set is not delivered.
+- `requestDeferredDeeplinkAttribution(activity)` is deprecated; call `requestDeferredDeeplinkAttribution()` without arguments.
+
 ## 3.7.1 — 2026-10-22
 
 - Fix crashes when Android restores Rules or Figma screens without an active SDK session. Screens from an ended session close safely, preserving the host task.
