@@ -179,7 +179,8 @@ internal fun ApphudInternal.requestDeferredDeeplinkAttribution() {
 
 private suspend fun ApphudInternal.startDeeplinkAttributionRequest(url: String?): Map<String, Any> {
     return runCatchingCancellable {
-        awaitUserRegistration()
+        // Usually called right after start(): reuse its registration instead of sending a second one.
+        awaitUserRegistration(forceRegistration = false)
         RequestManager.deeplinkAttribution(url = url)
     }.getOrElse { error ->
         ApphudLog.logE("Error in deeplink attribution: ${error.message}")
