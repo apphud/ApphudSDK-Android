@@ -13,14 +13,12 @@ import com.apphud.sdk.internal.BillingWrapper
 internal class ConsumePurchaseUseCase(
     private val billingWrapper: BillingWrapper,
 ) {
-    suspend operator fun invoke(purchaseToken: String) {
+    suspend operator fun invoke(purchaseToken: String) = consume(purchaseToken)
+
+    private suspend fun consume(purchaseToken: String) {
         if (purchaseToken.isBlank()) {
             throw ApphudError("Purchase token is empty")
         }
-        consume(purchaseToken)
-    }
-
-    private suspend fun consume(purchaseToken: String) {
         val result = billingWrapper.consumeSync(purchaseToken)
         if (result.responseCode != BillingClient.BillingResponseCode.OK) {
             throw ApphudError(
