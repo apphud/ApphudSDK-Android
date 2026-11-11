@@ -248,6 +248,7 @@ private fun ApphudInternal.purchaseInternal(
 
         paywallCheckoutInitiated(apphudProduct.paywallId, apphudProduct.placementId, apphudProduct.productId, currentPaywallScreenId)
         purchasingProduct = apphudProduct
+        rememberPurchasingConsumable(consumableInappProduct)
         purchaseStartedAt = System.currentTimeMillis()
         callback?.let { rememberCallback(callback) }
         if (recoveryAttempt != null) {
@@ -446,6 +447,13 @@ private fun ApphudInternal.purchaseInternal(
     }
 }
 
+/**
+ * The `consumableInappProduct` flag of a purchase flow, for a purchase of the product that flow was started for.
+ * Any other purchase delivered meanwhile gets null, so its request omits `is_consumable`.
+ */
+internal fun consumableFlagFor(purchase: Purchase, product: ApphudProduct?, consumable: Boolean): Boolean? =
+    consumable.takeIf { product != null && product.productId in purchase.products }
+
 internal fun ApphudInternal.lookupFreshPurchase(extraMessage: String = "resend_fresh_purchase") {
     coroutineScope.launch {
         runCatchingCancellable {
@@ -481,6 +489,7 @@ internal fun ApphudInternal.lookupFreshPurchase(extraMessage: String = "resend_f
                         null,
                         extraMessage,
                         screenId = null,
+                        isConsumable = consumableFlagFor(purchase, purchasingProduct, isPurchasingConsumable),
                     )
                 )
 
