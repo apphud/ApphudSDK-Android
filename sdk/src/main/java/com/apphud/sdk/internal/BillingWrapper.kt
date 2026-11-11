@@ -257,6 +257,8 @@ internal class BillingWrapper(context: Context) : Closeable {
 
     suspend fun consumeSync(purchaseToken: String): BillingResult {
         if (!connectIfNeeded()) {
+            // connectIfNeeded() turns a cancelled connection into false; stay cancelled instead.
+            currentCoroutineContext().ensureActive()
             val code = connectionResponse.takeIf { it != BillingClient.BillingResponseCode.OK }
                 ?: BillingClient.BillingResponseCode.SERVICE_DISCONNECTED
             return BillingResult.newBuilder()
