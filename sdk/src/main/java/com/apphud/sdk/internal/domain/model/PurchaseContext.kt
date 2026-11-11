@@ -14,4 +14,6 @@ data class PurchaseContext(
     val extraMessage: String?,
     val screenId: String?,
     val ruleId: String? = null,
+    /** The `consumableInAppProduct` flag of `Apphud.purchase`; null when the purchase didn't come from it. */
+    val isConsumable: Boolean? = null,
 )

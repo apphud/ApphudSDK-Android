@@ -64,6 +64,7 @@ internal class ServiceLocator private constructor() {
     val collectDeviceIdentifiersUseCase get() = session.collectDeviceIdentifiersUseCase
     val deviceIdentifiersInteractor get() = session.deviceIdentifiersInteractor
     val fetchNativePurchasesUseCase get() = session.fetchNativePurchasesUseCase
+    val consumePurchaseUseCase get() = session.consumePurchaseUseCase
 
     companion object {
         @Volatile

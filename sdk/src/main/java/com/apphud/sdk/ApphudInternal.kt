@@ -166,6 +166,15 @@ internal object ApphudInternal {
 
     internal var userLoadRetryCount: Int = 1
     internal var purchasingProduct: ApphudProduct? = null
+
+    /** The `consumableInappProduct` flag of the purchase flow in progress; read it only together with [purchasingProduct]. */
+    @Volatile
+    private var purchasingConsumable: Boolean = false
+    internal val isPurchasingConsumable: Boolean get() = purchasingConsumable
+
+    internal fun rememberPurchasingConsumable(consumable: Boolean) {
+        purchasingConsumable = consumable
+    }
     internal var preferredTimeout: Double = 999_999.0
 
     internal var purchaseCallbacks = mutableListOf<((ApphudPurchaseResult) -> Unit)>()
