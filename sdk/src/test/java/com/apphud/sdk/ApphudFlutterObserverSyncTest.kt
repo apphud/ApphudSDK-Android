@@ -147,6 +147,21 @@ class ApphudFlutterObserverSyncTest {
     }
 
     @Test
+    fun `GIVEN a callback before start WHEN start follows at once EXPECT an error`() = runTest(dispatcher) {
+        startedSession()
+        answer.complete(success)
+        every { ApphudInternal.coroutineScope } returns CoroutineScope(dispatcher).also { it.cancel() }
+        val results = mutableListOf<ApphudPurchasesRestoreResult>()
+        ApphudFlutter.syncPurchasesInObserverMode { results.add(it) }
+
+        // start() runs before the main thread gets to the callback's coroutine.
+        every { ApphudInternal.coroutineScope } returns session
+        advanceUntilIdle()
+
+        assertError(results.single())
+    }
+
+    @Test
     fun `GIVEN no start EXPECT no identity version`() {
         assertNull(ApphudFlutter.identityVersion())
     }

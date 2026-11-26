@@ -14,6 +14,7 @@ import com.apphud.sdk.syncPurchasesReportingFailures
 import com.apphud.sdk.toApphudError
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Deferred
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.async
@@ -36,10 +37,27 @@ object ApphudFlutter {
      * backend failed, when a logout canceled the sync and before `Apphud.start`. It throws only when
      * the calling coroutine is canceled.
      */
-    suspend fun syncPurchasesInObserverMode(): ApphudPurchasesRestoreResult =
+    suspend fun syncPurchasesInObserverMode(): ApphudPurchasesRestoreResult = startObserverSync().result()
+
+    /**
+     * [syncPurchasesInObserverMode] with a callback, which is called once, on the main thread.
+     */
+    @kotlin.jvm.JvmStatic
+    fun syncPurchasesInObserverMode(callback: (ApphudPurchasesRestoreResult) -> Unit) {
+        // Started now, not when the main thread gets to the callback: a call before start stays one.
+        val sync = startObserverSync()
+        callbackScope.launch {
+            callback(sync.result())
+        }
+    }
+
+    /** The session owns the sync, so a logout cancels it. Without a session it starts canceled. */
+    private fun startObserverSync(): Deferred<ApphudPurchasesRestoreResult> =
+        ApphudInternal.coroutineScope.async { ApphudInternal.syncPurchasesReportingFailures() }
+
+    private suspend fun Deferred<ApphudPurchasesRestoreResult>.result(): ApphudPurchasesRestoreResult =
         try {
-            // The session owns the sync, so a logout cancels it.
-            ApphudInternal.coroutineScope.async { ApphudInternal.syncPurchasesReportingFailures() }.await()
+            await()
         } catch (error: CancellationException) {
             currentCoroutineContext().ensureActive()
             ApphudPurchasesRestoreResult.Error(
@@ -49,16 +67,6 @@ object ApphudFlutter {
             ApphudLog.logE("Error syncing purchases: ${error.message}")
             ApphudPurchasesRestoreResult.Error(error.toApphudError())
         }
-
-    /**
-     * [syncPurchasesInObserverMode] with a callback, which is called once, on the main thread.
-     */
-    @kotlin.jvm.JvmStatic
-    fun syncPurchasesInObserverMode(callback: (ApphudPurchasesRestoreResult) -> Unit) {
-        callbackScope.launch {
-            callback(syncPurchasesInObserverMode())
-        }
-    }
 
     /**
      * The identity version this launch runs, `null` until `Apphud.start` has chosen it.
