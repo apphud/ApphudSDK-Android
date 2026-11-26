@@ -1,15 +1,15 @@
-package com.apphud.sdk
+package com.apphud.sdk.managers
 
 import android.content.Context
 import android.content.pm.ApplicationInfo
 import com.android.billingclient.api.BillingClient
+import com.apphud.sdk.ApphudInternal
 import com.apphud.sdk.internal.ServiceLocator
 import com.apphud.sdk.internal.data.UserRepository
 import com.apphud.sdk.internal.data.dto.PaywallEventDto
 import com.apphud.sdk.internal.data.remote.RemoteRepository
 import com.apphud.sdk.internal.domain.model.PurchasedPlan
 import com.apphud.sdk.internal.domain.model.RequestIds
-import com.apphud.sdk.managers.RequestManager
 import io.mockk.coEvery
 import io.mockk.every
 import io.mockk.mockk
@@ -22,7 +22,7 @@ import org.junit.Assert.assertEquals
 import org.junit.Test
 
 /** The properties of the three purchase paywall events, as they reach the events request. */
-class PaywallPurchaseEventTest {
+class RequestManagerPurchaseEventTest {
 
     private val sent = slot<PaywallEventDto>()
     private val repository: RemoteRepository = mockk {
@@ -41,7 +41,7 @@ class PaywallPurchaseEventTest {
         mockkObject(ServiceLocator.Companion, ApphudInternal)
         every { ServiceLocator.instance } returns mockk {
             every { remoteRepository } returns repository
-            every { this@mockk.userRepository } returns this@PaywallPurchaseEventTest.userRepository
+            every { this@mockk.userRepository } returns this@RequestManagerPurchaseEventTest.userRepository
         }
         every { ApphudInternal.userRepository } returns userRepository
         RequestManager.setParams(context, "key")

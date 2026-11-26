@@ -1,9 +1,8 @@
-package com.apphud.sdk
+package com.apphud.sdk.internal.domain.model
 
 import com.android.billingclient.api.BillingClient
 import com.android.billingclient.api.ProductDetails
 import com.apphud.sdk.domain.ApphudProduct
-import com.apphud.sdk.internal.domain.model.PurchasedPlan
 import io.mockk.every
 import io.mockk.mockk
 import org.junit.Assert.assertEquals
