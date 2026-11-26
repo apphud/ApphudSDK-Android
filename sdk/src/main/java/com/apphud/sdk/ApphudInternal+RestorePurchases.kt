@@ -81,7 +81,7 @@ private suspend fun ApphudInternal.performSync(
 
         if (purchases.isEmpty()) {
             ApphudLog.log(message = "SyncPurchases: Nothing to restore")
-            billingError?.takeIf { reportFailures }?.let { return ApphudPurchasesRestoreResult.Error(it) }
+            billingError?.takeIf { reportFailures }?.let { return missedPurchases(it) }
             return refreshedPurchases(reportFailures)
         } else {
             ApphudLog.log("SyncPurchases: Products to restore: ${purchases.map { it.products.firstOrNull() ?: "" }} ")
@@ -126,9 +126,8 @@ private suspend fun ApphudInternal.performSync(
             ApphudLog.log("Start syncing ${restoredPurchases.count()} in-app purchases: ${restoredPurchases.map { it.details.productId }}")
 
             val reportedError = billingError?.takeIf { reportFailures }
-            // Nothing resolved: return before the sync counts as done.
             if (restoredPurchases.isEmpty() && reportedError != null) {
-                return ApphudPurchasesRestoreResult.Error(reportedError)
+                return missedPurchases(reportedError)
             }
 
             val result = if (skipsSync(restore, prevPurchases, restoredPurchases, identityVersion1 = isIdentityV1)) {
@@ -143,13 +142,19 @@ private suspend fun ApphudInternal.performSync(
                     restore = restore,
                 )
             }
-            if (result is ApphudPurchasesRestoreResult.Success && reportedError != null) {
-                ApphudPurchasesRestoreResult.Error(reportedError)
-            } else {
-                result
+            when {
+                reportedError == null -> result
+                result is ApphudPurchasesRestoreResult.Success -> missedPurchases(reportedError)
+                else -> result.also { storage.isNeedSync = true }
             }
         }
     }
+}
+
+/** Some purchase didn't reach the backend: the sync stays needed, so a later one picks it up. */
+private fun ApphudInternal.missedPurchases(error: ApphudError): ApphudPurchasesRestoreResult {
+    storage.isNeedSync = true
+    return ApphudPurchasesRestoreResult.Error(error)
 }
 
 /** Nothing to send: the answer is the user, refreshed from the backend. */

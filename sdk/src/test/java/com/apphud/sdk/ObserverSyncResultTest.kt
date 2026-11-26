@@ -20,10 +20,10 @@ import io.mockk.mockk
 import io.mockk.mockkObject
 import io.mockk.runs
 import io.mockk.unmockkAll
-import io.mockk.verify
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.test.runTest
 import org.junit.After
+import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import java.io.IOException
@@ -59,8 +59,9 @@ class ObserverSyncResultTest {
         coEvery { restoreSync(BillingClient.ProductType.INAPP, any()) } returns
             PurchaseRestoredCallbackStatus.Error(BillingClient.ProductType.INAPP)
     }
+    private val needSync = mutableListOf<Boolean>()
     private val storage: SharedPreferencesStorage = mockk {
-        every { isNeedSync = any() } just runs
+        every { isNeedSync = capture(needSync) } just runs
     }
 
     init {
@@ -182,7 +183,7 @@ class ObserverSyncResultTest {
 
         sync()
 
-        verify(exactly = 0) { storage.isNeedSync = false }
+        assertEquals(listOf(true), needSync)
     }
 
     @Test
@@ -243,7 +244,33 @@ class ObserverSyncResultTest {
 
         sync()
 
-        verify(exactly = 0) { storage.isNeedSync = false }
+        assertEquals(listOf(true), needSync)
+    }
+
+    @Test
+    fun `GIVEN product details missing for one purchase EXPECT the sync still needed after sending the other`() = runTest {
+        queryAnswers(listOf(weekly, coins), BillingResponseCode.OK)
+
+        sync()
+
+        assertEquals(true, needSync.last())
+    }
+
+    @Test
+    fun `GIVEN one purchase query failed and nothing new EXPECT the sync still needed`() = runTest {
+        queryAnswers(listOf(weekly), BillingResponseCode.SERVICE_UNAVAILABLE)
+        ApphudInternal.prevPurchases.add(weeklyRecord)
+
+        sync()
+
+        assertEquals(true, needSync.last())
+    }
+
+    @Test
+    fun `GIVEN a sync with nothing missing EXPECT it no longer needed`() = runTest {
+        sync()
+
+        assertEquals(false, needSync.last())
     }
 
     // syncPurchases() stays as in 3.7.2: it passes over what the reporting sync fails on.
