@@ -104,6 +104,10 @@ internal object ApphudInternal {
 
     internal val isIdentityV1: Boolean get() = identityVersion == ApphudIdentityVersion.V1
 
+    /** The version this launch runs, `null` until a start has chosen it. */
+    internal val chosenIdentityVersion: ApphudIdentityVersion?
+        get() = if (identityVersionChosen) identityVersion else null
+
     /** Version 1 is known to run: chosen by a start of this launch, or, before one, the version that ran last here. */
     internal val runsIdentityV1: Boolean
         get() = if (identityVersionChosen) {
@@ -118,7 +122,6 @@ internal object ApphudInternal {
     /** Read once per launch: a later start (after logout) keeps the first choice. */
     internal fun chooseIdentityVersion(version: ApphudIdentityVersion) = synchronized(this) {
         if (!identityVersionChosen) {
-            identityVersionChosen = true
             identityVersion = version
         } else if (version != identityVersion) {
             ApphudLog.logE("identityVersion is read once per launch: $identityVersion stays until the next launch")
