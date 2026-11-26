@@ -29,7 +29,7 @@ class PaywallPurchaseEventTest {
         coEvery { trackEvent(capture(sent)) } returns Result.success(Unit)
     }
     private val userRepository: UserRepository = mockk {
-        every { getRequestIds() } returns mockk<RequestIds>(relaxed = true)
+        every { getRequestIds() } returns RequestIds(userId = "user", installationId = "installation", anonymousId = "anon")
         every { getCurrentUser() } returns mockk()
     }
     private val context: Context = mockk {
