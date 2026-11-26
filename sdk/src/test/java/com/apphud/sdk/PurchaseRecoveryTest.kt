@@ -13,6 +13,7 @@ import com.apphud.sdk.internal.PurchaseRecovery
 import com.apphud.sdk.internal.ServiceLocator
 import com.apphud.sdk.internal.data.UserRepository
 import com.apphud.sdk.internal.domain.FetchNativePurchasesUseCase
+import com.apphud.sdk.internal.domain.model.PurchasedPlan
 import com.apphud.sdk.internal.PurchasesUpdatedCallback
 import com.apphud.sdk.internal.callback_status.PurchaseUpdatedCallbackStatus
 import com.apphud.sdk.managers.RequestManager
@@ -45,6 +46,7 @@ class PurchaseRecoveryTest {
     private val details: ProductDetails = mockk {
         every { productId } returns "subscription"
         every { productType } returns BillingClient.ProductType.SUBS
+        every { subscriptionOfferDetails } returns null
     }
     private val product: ApphudProduct = mockk {
         every { productId } returns "subscription"
@@ -104,8 +106,8 @@ class PurchaseRecoveryTest {
         every { ApphudInternal.getProductDetailsByProductId(any()) } returns details
         every { ApphudInternal.notifyLoadingCompleted(any(), any()) } just runs
         every { ApphudInternal.scheduleLookupPurchase(any()) } just runs
-        every { ApphudInternal.paywallCheckoutInitiated(any(), any(), any(), any()) } just runs
-        every { ApphudInternal.paywallPaymentCancelled(any(), any(), any(), any()) } just runs
+        every { ApphudInternal.paywallCheckoutInitiated(any(), any(), any(), any(), any()) } just runs
+        every { ApphudInternal.paywallPaymentCancelled(any(), any(), any(), any(), any()) } just runs
         coEvery { RequestManager.purchased(any()) } returns customer
         recovery.prepare(attempt, setOf("old-token"))
         recovery.launched(attempt)
@@ -307,6 +309,24 @@ class PurchaseRecoveryTest {
         runCurrent()
 
         assertEquals(original, listener.get())
+    }
+
+    @Test
+    fun `GIVEN a checkout EXPECT its event told the base plan and bundle`() = scope.runTest {
+        beginListenerCheckout()
+
+        verify { ApphudInternal.paywallCheckoutInitiated(any(), any(), any(), any(), PurchasedPlan("plan", "bundle")) }
+    }
+
+    @Test
+    fun `GIVEN a canceled checkout EXPECT its event told the plan the checkout started with`() = scope.runTest {
+        beginListenerCheckout()
+        every { product.basePlanId } returns "changed"
+        listener.get()!!(PurchaseUpdatedCallbackStatus.Error(com.android.billingclient.api.BillingResult.newBuilder()
+            .setResponseCode(BillingClient.BillingResponseCode.USER_CANCELED).build()))
+        runCurrent()
+
+        verify { ApphudInternal.paywallPaymentCancelled(any(), any(), any(), any(), PurchasedPlan("plan", "bundle")) }
     }
 
     @Test
