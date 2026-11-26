@@ -61,6 +61,7 @@ class ObserverSyncResultTest {
     }
     private val needSync = mutableListOf<Boolean>()
     private val storage: SharedPreferencesStorage = mockk {
+        every { isNeedSync } returns false
         every { isNeedSync = capture(needSync) } just runs
     }
 
@@ -178,12 +179,12 @@ class ObserverSyncResultTest {
     }
 
     @Test
-    fun `GIVEN Google Play unavailable EXPECT the sync still needed`() = runTest {
+    fun `GIVEN Google Play unavailable EXPECT the sync flag untouched`() = runTest {
         queryAnswers(null, BillingResponseCode.BILLING_UNAVAILABLE)
 
         sync()
 
-        assertEquals(listOf(true), needSync)
+        assertEquals(emptyList<Boolean>(), needSync)
     }
 
     @Test
@@ -237,18 +238,29 @@ class ObserverSyncResultTest {
     }
 
     @Test
-    fun `GIVEN no product details at all EXPECT the sync still needed`() = runTest {
+    fun `GIVEN no product details at all EXPECT the sync flag untouched`() = runTest {
         queryAnswers(listOf(coins), BillingResponseCode.OK)
         coEvery { billing.restoreSync(BillingClient.ProductType.SUBS, any()) } returns
             PurchaseRestoredCallbackStatus.Error(BillingClient.ProductType.SUBS)
 
         sync()
 
-        assertEquals(listOf(true), needSync)
+        assertEquals(emptyList<Boolean>(), needSync)
+    }
+
+    // The flag starts an upload outside observer mode on the next foreground: a partial sync must not raise it.
+    @Test
+    fun `GIVEN no sync needed and a purchase missed EXPECT none requested`() = runTest {
+        queryAnswers(listOf(weekly, coins), BillingResponseCode.OK)
+
+        sync()
+
+        assertEquals(listOf(false), needSync)
     }
 
     @Test
-    fun `GIVEN product details missing for one purchase EXPECT the sync still needed after sending the other`() = runTest {
+    fun `GIVEN a sync needed and a purchase missed EXPECT it still needed`() = runTest {
+        every { storage.isNeedSync } returns true
         queryAnswers(listOf(weekly, coins), BillingResponseCode.OK)
 
         sync()
@@ -257,7 +269,8 @@ class ObserverSyncResultTest {
     }
 
     @Test
-    fun `GIVEN one purchase query failed and nothing new EXPECT the sync still needed`() = runTest {
+    fun `GIVEN a sync needed and a failed query with nothing new EXPECT it still needed`() = runTest {
+        every { storage.isNeedSync } returns true
         queryAnswers(listOf(weekly), BillingResponseCode.SERVICE_UNAVAILABLE)
         ApphudInternal.prevPurchases.add(weeklyRecord)
 
@@ -267,7 +280,9 @@ class ObserverSyncResultTest {
     }
 
     @Test
-    fun `GIVEN a sync with nothing missing EXPECT it no longer needed`() = runTest {
+    fun `GIVEN a sync needed and nothing missing EXPECT it no longer needed`() = runTest {
+        every { storage.isNeedSync } returns true
+
         sync()
 
         assertEquals(false, needSync.last())

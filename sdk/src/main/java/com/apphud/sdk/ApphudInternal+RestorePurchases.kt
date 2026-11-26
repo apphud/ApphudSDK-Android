@@ -68,6 +68,7 @@ private suspend fun ApphudInternal.performSync(
 
         // What kept a purchase from being read from Google Play. The rest is still sent.
         var billingError: ApphudError? = null
+        val neededSync = reportFailures && storage.isNeedSync
 
         val purchases: List<Purchase> = if (!unvalidatedPurchs.isNullOrEmpty()) {
             unvalidatedPurchs
@@ -81,7 +82,7 @@ private suspend fun ApphudInternal.performSync(
 
         if (purchases.isEmpty()) {
             ApphudLog.log(message = "SyncPurchases: Nothing to restore")
-            billingError?.takeIf { reportFailures }?.let { return missedPurchases(it) }
+            billingError?.takeIf { reportFailures }?.let { return ApphudPurchasesRestoreResult.Error(it) }
             return refreshedPurchases(reportFailures)
         } else {
             ApphudLog.log("SyncPurchases: Products to restore: ${purchases.map { it.products.firstOrNull() ?: "" }} ")
@@ -127,7 +128,7 @@ private suspend fun ApphudInternal.performSync(
 
             val reportedError = billingError?.takeIf { reportFailures }
             if (restoredPurchases.isEmpty() && reportedError != null) {
-                return missedPurchases(reportedError)
+                return ApphudPurchasesRestoreResult.Error(reportedError)
             }
 
             val result = if (skipsSync(restore, prevPurchases, restoredPurchases, identityVersion1 = isIdentityV1)) {
@@ -142,19 +143,14 @@ private suspend fun ApphudInternal.performSync(
                     restore = restore,
                 )
             }
-            when {
-                reportedError == null -> result
-                result is ApphudPurchasesRestoreResult.Success -> missedPurchases(reportedError)
-                else -> result.also { storage.isNeedSync = true }
-            }
+            if (reportedError == null) return@withLock result
+
+            // Sending the rest cleared the flag: a sync that was needed still is. Never raise it here, as
+            // the recovery it starts uploads outside observer mode.
+            if (neededSync) storage.isNeedSync = true
+            if (result is ApphudPurchasesRestoreResult.Success) ApphudPurchasesRestoreResult.Error(reportedError) else result
         }
     }
-}
-
-/** Some purchase didn't reach the backend: the sync stays needed, so a later one picks it up. */
-private fun ApphudInternal.missedPurchases(error: ApphudError): ApphudPurchasesRestoreResult {
-    storage.isNeedSync = true
-    return ApphudPurchasesRestoreResult.Error(error)
 }
 
 /** Nothing to send: the answer is the user, refreshed from the backend. */

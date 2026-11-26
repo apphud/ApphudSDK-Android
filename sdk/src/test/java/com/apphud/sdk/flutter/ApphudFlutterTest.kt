@@ -1,6 +1,10 @@
-package com.apphud.sdk
+package com.apphud.sdk.flutter
 
-import com.apphud.sdk.flutter.ApphudFlutter
+import com.apphud.sdk.ApphudError
+import com.apphud.sdk.ApphudIdentityVersion
+import com.apphud.sdk.ApphudInternal
+import com.apphud.sdk.ApphudPurchasesRestoreResult
+import com.apphud.sdk.syncPurchasesReportingFailures
 import io.mockk.coEvery
 import io.mockk.every
 import io.mockk.mockkObject
@@ -27,7 +31,7 @@ import org.junit.Test
 
 /** The wrapper-facing surface: one answer for every way a sync can end, and the identity version. */
 @OptIn(ExperimentalCoroutinesApi::class)
-class ApphudFlutterObserverSyncTest {
+class ApphudFlutterTest {
 
     private val chosen = ApphudInternal::class.java.getDeclaredField("identityVersionChosen").apply { isAccessible = true }
     private val dispatcher = StandardTestDispatcher()
