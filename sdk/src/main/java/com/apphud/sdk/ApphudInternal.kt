@@ -26,6 +26,7 @@ import com.apphud.sdk.internal.domain.Version1RegistrationGate
 import com.apphud.sdk.internal.domain.model.ApiKey as ApiKeyModel
 import com.apphud.sdk.internal.domain.model.ApphudIdentifyOutcome
 import com.apphud.sdk.internal.domain.model.ApphudSuppliedIds
+import com.apphud.sdk.internal.domain.model.PurchasedPlan
 import com.apphud.sdk.internal.presentation.figma.FigmaWebViewActivity
 import com.apphud.sdk.internal.util.runCatchingCancellable
 import com.apphud.sdk.managers.RequestManager
@@ -104,6 +105,10 @@ internal object ApphudInternal {
 
     internal val isIdentityV1: Boolean get() = identityVersion == ApphudIdentityVersion.V1
 
+    /** The version this launch runs, `null` until a start has chosen it. */
+    internal val chosenIdentityVersion: ApphudIdentityVersion?
+        get() = if (identityVersionChosen) identityVersion else null
+
     /** Version 1 is known to run: chosen by a start of this launch, or, before one, the version that ran last here. */
     internal val runsIdentityV1: Boolean
         get() = if (identityVersionChosen) {
@@ -118,7 +123,6 @@ internal object ApphudInternal {
     /** Read once per launch: a later start (after logout) keeps the first choice. */
     internal fun chooseIdentityVersion(version: ApphudIdentityVersion) = synchronized(this) {
         if (!identityVersionChosen) {
-            identityVersionChosen = true
             identityVersion = version
         } else if (version != identityVersion) {
             ApphudLog.logE("identityVersion is read once per launch: $identityVersion stays until the next launch")
@@ -926,10 +930,11 @@ internal object ApphudInternal {
         placementId: String?,
         productId: String?,
         screenId: String?,
+        purchasedPlan: PurchasedPlan? = null,
     ) {
         coroutineScope.launch {
             runCatchingCancellable {
-                paywallCheckoutInitiatedSuspend(paywallId, placementId, productId, screenId)
+                paywallCheckoutInitiatedSuspend(paywallId, placementId, productId, screenId, purchasedPlan)
             }.onFailure { error -> ApphudLog.logI(error.message ?: "Unknown error") }
         }
     }
@@ -939,10 +944,11 @@ internal object ApphudInternal {
         placementId: String?,
         productId: String?,
         errorCode: Int,
+        purchasedPlan: PurchasedPlan? = null,
     ) {
         coroutineScope.launch {
             runCatchingCancellable {
-                paywallPaymentCancelledSuspend(paywallId, placementId, productId, errorCode)
+                paywallPaymentCancelledSuspend(paywallId, placementId, productId, errorCode, purchasedPlan)
             }.onFailure { error -> ApphudLog.logI(error.message ?: "Unknown error") }
         }
     }
@@ -976,9 +982,10 @@ internal object ApphudInternal {
         placementId: String?,
         productId: String?,
         screenId: String?,
+        purchasedPlan: PurchasedPlan?,
     ) {
         awaitUserRegistration()
-        RequestManager.paywallCheckoutInitiated(paywallId, placementId, productId, screenId)
+        RequestManager.paywallCheckoutInitiated(paywallId, placementId, productId, screenId, purchasedPlan)
     }
 
     private suspend fun paywallPaymentCancelledSuspend(
@@ -986,13 +993,14 @@ internal object ApphudInternal {
         placementId: String?,
         productId: String?,
         errorCode: Int,
+        purchasedPlan: PurchasedPlan?,
     ) {
         awaitUserRegistration()
         if (errorCode == BillingClient.BillingResponseCode.USER_CANCELED) {
-            RequestManager.paywallPaymentCancelled(paywallId, placementId, productId)
+            RequestManager.paywallPaymentCancelled(paywallId, placementId, productId, purchasedPlan)
         } else {
             val errorMessage = ApphudBillingResponseCodes.getName(errorCode)
-            RequestManager.paywallPaymentError(paywallId, placementId, productId, errorMessage)
+            RequestManager.paywallPaymentError(paywallId, placementId, productId, errorMessage, purchasedPlan)
         }
     }
 

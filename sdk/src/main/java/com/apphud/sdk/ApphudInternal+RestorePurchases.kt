@@ -39,6 +39,23 @@ internal suspend fun ApphudInternal.syncPurchases(
     unvalidatedPurchs: List<Purchase>? = null,
     // Only the restore the user asked for; it moves a purchase another customer owns.
     restore: Boolean = false,
+): ApphudPurchasesRestoreResult =
+    performSync(paywallIdentifier, placementIdentifier, observerMode, unvalidatedPurchs, restore, reportFailures = false)
+
+/**
+ * The observer-mode sync with a result that tells whether the backend answered for the purchases:
+ * Google Play, network and backend failures are errors, which [syncPurchases] logs and passes over.
+ */
+internal suspend fun ApphudInternal.syncPurchasesReportingFailures(): ApphudPurchasesRestoreResult =
+    performSync(null, null, observerMode = true, unvalidatedPurchs = null, restore = false, reportFailures = true)
+
+private suspend fun ApphudInternal.performSync(
+    paywallIdentifier: String?,
+    placementIdentifier: String?,
+    observerMode: Boolean,
+    unvalidatedPurchs: List<Purchase>?,
+    restore: Boolean,
+    reportFailures: Boolean,
 ): ApphudPurchasesRestoreResult {
     runCatchingCancellable { awaitUserRegistration() }
         .onFailure { error ->
@@ -49,23 +66,24 @@ internal suspend fun ApphudInternal.syncPurchases(
     return mutexSync.withLock {
         ApphudLog.log("SyncPurchases: start")
 
+        // What kept a purchase from being read from Google Play. The rest is still sent.
+        var billingError: ApphudError? = null
+        val neededSync = reportFailures && storage.isNeedSync
+
         val purchases: List<Purchase> = if (!unvalidatedPurchs.isNullOrEmpty()) {
             unvalidatedPurchs
         } else {
             val result = billing.queryPurchasesSync()
+            if (result.first == null || result.second != BillingClient.BillingResponseCode.OK) {
+                billingError = ApphudError("Unable to read the purchases from Google Play", errorCode = result.second)
+            }
             result.first ?: emptyList()
         }
 
         if (purchases.isEmpty()) {
             ApphudLog.log(message = "SyncPurchases: Nothing to restore")
-            storage.isNeedSync = false
-            refreshEntitlements(true)
-            val user = userRepository.getCurrentUser()
-            return if (user != null) {
-                ApphudPurchasesRestoreResult.Success(user.subscriptions.toList(), user.purchases.toList())
-            } else {
-                ApphudPurchasesRestoreResult.Error(ApphudError("User not found."))
-            }
+            billingError?.takeIf { reportFailures }?.let { return ApphudPurchasesRestoreResult.Error(it) }
+            return refreshedPurchases(reportFailures)
         } else {
             ApphudLog.log("SyncPurchases: Products to restore: ${purchases.map { it.products.firstOrNull() ?: "" }} ")
 
@@ -95,22 +113,27 @@ internal suspend fun ApphudInternal.syncPurchases(
 
                 restoredPurchases.addAll(processRestoreCallbackStatus(subsRestored))
                 restoredPurchases.addAll(processRestoreCallbackStatus(inapsRestored))
+
+                // Each type's query fails for products of the other one: only a product neither found is missing.
+                val unresolved = purchasesToLoadDetails.flatMap { it.products }.distinct() -
+                    restoredPurchases.map { it.details.productId }.toSet()
+                if (unresolved.isNotEmpty() && billingError == null) {
+                    billingError = ApphudError("Unable to load product details from Google Play for: ${unresolved.joinToString()}")
+                }
             } else {
                 ApphudLog.log("SyncPurchases: All products details already loaded.")
             }
 
             ApphudLog.log("Start syncing ${restoredPurchases.count()} in-app purchases: ${restoredPurchases.map { it.details.productId }}")
 
-            if (skipsSync(restore, prevPurchases, restoredPurchases, identityVersion1 = isIdentityV1)) {
+            val reportedError = billingError?.takeIf { reportFailures }
+            if (restoredPurchases.isEmpty() && reportedError != null) {
+                return ApphudPurchasesRestoreResult.Error(reportedError)
+            }
+
+            val result = if (skipsSync(restore, prevPurchases, restoredPurchases, identityVersion1 = isIdentityV1)) {
                 ApphudLog.log("SyncPurchases: Don't send equal purchases from prev state")
-                storage.isNeedSync = false
-                refreshEntitlements(true)
-                val user = userRepository.getCurrentUser()
-                return if (user != null) {
-                    ApphudPurchasesRestoreResult.Success(user.subscriptions.toList(), user.purchases.toList())
-                } else {
-                    ApphudPurchasesRestoreResult.Error(ApphudError("User not found."))
-                }
+                refreshedPurchases(reportFailures)
             } else {
                 sendPurchasesToApphud(
                     paywallIdentifier = paywallIdentifier,
@@ -120,7 +143,27 @@ internal suspend fun ApphudInternal.syncPurchases(
                     restore = restore,
                 )
             }
+            if (reportedError == null) return@withLock result
+
+            // Sending the rest cleared the flag: a sync that was needed still is. Never raise it here, as
+            // the recovery it starts uploads outside observer mode.
+            if (neededSync) storage.isNeedSync = true
+            if (result is ApphudPurchasesRestoreResult.Success) ApphudPurchasesRestoreResult.Error(reportedError) else result
         }
+    }
+}
+
+/** Nothing to send: the answer is the user, refreshed from the backend. */
+private suspend fun ApphudInternal.refreshedPurchases(reportFailures: Boolean): ApphudPurchasesRestoreResult {
+    storage.isNeedSync = false
+    if (refreshEntitlements(true) == null && reportFailures) {
+        return ApphudPurchasesRestoreResult.Error(ApphudError("Unable to refresh the user from Apphud"))
+    }
+    val user = userRepository.getCurrentUser()
+    return if (user != null) {
+        ApphudPurchasesRestoreResult.Success(user.subscriptions.toList(), user.purchases.toList())
+    } else {
+        ApphudPurchasesRestoreResult.Error(ApphudError("User not found."))
     }
 }
 
