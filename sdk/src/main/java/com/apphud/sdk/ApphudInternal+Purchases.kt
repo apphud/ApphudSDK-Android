@@ -14,6 +14,7 @@ import com.apphud.sdk.internal.PurchaseRecovery
 import com.apphud.sdk.internal.callback_status.PurchaseCallbackStatus
 import com.apphud.sdk.internal.callback_status.PurchaseUpdatedCallbackStatus
 import com.apphud.sdk.internal.domain.model.PurchaseContext
+import com.apphud.sdk.internal.domain.model.PurchasedPlan
 import com.apphud.sdk.internal.domain.preferredOfferId
 import com.apphud.sdk.internal.util.runCatchingCancellable
 import com.apphud.sdk.managers.RequestManager
@@ -246,7 +247,15 @@ private fun ApphudInternal.purchaseInternal(
 
         val currentPaywallScreenId = if (fromScreen) findPaywallScreenId(apphudProduct.paywallId) else null
 
-        paywallCheckoutInitiated(apphudProduct.paywallId, apphudProduct.placementId, apphudProduct.productId, currentPaywallScreenId)
+        // Read now: the product is mutable and the events are sent later.
+        val purchasedPlan = PurchasedPlan.of(apphudProduct, it, token)
+        paywallCheckoutInitiated(
+            apphudProduct.paywallId,
+            apphudProduct.placementId,
+            apphudProduct.productId,
+            currentPaywallScreenId,
+            purchasedPlan,
+        )
         purchasingProduct = apphudProduct
         rememberPurchasingConsumable(consumableInappProduct)
         purchaseStartedAt = System.currentTimeMillis()
@@ -300,6 +309,7 @@ private fun ApphudInternal.purchaseInternal(
                                 apphudProduct.placementId,
                                 apphudProduct.productId,
                                 purchasesResult.result.responseCode,
+                                purchasedPlan,
                             )
 
                             ApphudLog.log(message = error.toString())

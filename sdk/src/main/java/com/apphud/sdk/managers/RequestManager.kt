@@ -21,6 +21,7 @@ import com.apphud.sdk.internal.data.dto.GrantPromotionalDto
 import com.apphud.sdk.internal.data.dto.PaywallEventDto
 import com.apphud.sdk.internal.domain.model.GetProductsParams
 import com.apphud.sdk.internal.domain.model.PurchaseContext
+import com.apphud.sdk.internal.domain.model.PurchasedPlan
 import com.apphud.sdk.internal.util.runCatchingCancellable
 import com.apphud.sdk.isDebuggable
 import com.apphud.sdk.parser.GsonParser
@@ -280,6 +281,7 @@ internal object RequestManager {
         placementId: String?,
         productId: String?,
         screenId: String?,
+        purchasedPlan: PurchasedPlan? = null,
     ) {
         trackPaywallEvent(
             makePaywallEventBody(
@@ -288,7 +290,8 @@ internal object RequestManager {
                 placementId = placementId,
                 variationIdentifier = variationIdentifierForPlacement(placementId),
                 productId = productId,
-                screenId = screenId
+                screenId = screenId,
+                purchasedPlan = purchasedPlan,
             ),
         )
     }
@@ -297,6 +300,7 @@ internal object RequestManager {
         paywallId: String?,
         placementId: String?,
         productId: String?,
+        purchasedPlan: PurchasedPlan? = null,
     ) {
         trackPaywallEvent(
             makePaywallEventBody(
@@ -304,6 +308,7 @@ internal object RequestManager {
                 paywallId = paywallId,
                 placementId = placementId,
                 productId = productId,
+                purchasedPlan = purchasedPlan,
             ),
         )
     }
@@ -313,6 +318,7 @@ internal object RequestManager {
         placementId: String?,
         productId: String?,
         errorMessage: String?,
+        purchasedPlan: PurchasedPlan? = null,
     ) {
         trackPaywallEvent(
             makePaywallEventBody(
@@ -321,6 +327,7 @@ internal object RequestManager {
                 placementId = placementId,
                 productId = productId,
                 errorMessage = errorMessage,
+                purchasedPlan = purchasedPlan,
             ),
         )
     }
@@ -363,6 +370,7 @@ internal object RequestManager {
         productId: String? = null,
         screenId: String? = null,
         errorMessage: String? = null,
+        purchasedPlan: PurchasedPlan? = null,
     ): PaywallEventDto {
         val ids = ServiceLocator.instance.userRepository.getRequestIds()
         if (ids == null) {
@@ -377,6 +385,8 @@ internal object RequestManager {
         variationIdentifier?.let { properties.put("variation_identifier", it) }
         errorMessage?.let { properties.put("error_message", it) }
         screenId?.let { properties.put("screen_id", it) }
+        purchasedPlan?.basePlanId?.let { properties.put("base_plan_id", it) }
+        purchasedPlan?.productBundleId?.let { properties.put("product_bundle_id", it) }
 
         return PaywallEventDto(
             name = name,
