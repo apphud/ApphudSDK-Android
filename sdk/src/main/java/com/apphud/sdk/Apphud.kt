@@ -1198,7 +1198,8 @@ object Apphud {
         }
     }
 
-    internal val platform: PlatformProtocol
+    @ApphudPlatformApi
+    val platform: PlatformProtocol
         get() = ApphudPlatform
 
     /**

@@ -11,6 +11,7 @@ import org.junit.Assert.assertSame
 import org.junit.Before
 import org.junit.Test
 
+@OptIn(ApphudPlatformApi::class)
 class ApphudPlatformTest {
 
     private val userPropertiesManager: UserPropertiesManager = mockk(relaxed = true)

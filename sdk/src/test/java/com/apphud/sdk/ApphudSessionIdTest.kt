@@ -18,6 +18,7 @@ import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
 
+@OptIn(ApphudPlatformApi::class)
 class ApphudSessionIdTest {
 
     private val prefsMap = mutableMapOf<String, Any?>()
