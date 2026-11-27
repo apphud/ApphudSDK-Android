@@ -3,13 +3,9 @@ package com.apphud.sdk
 import com.apphud.sdk.internal.ServiceLocator
 
 /**
- * Marks the platform facade ([Apphud.platform]): API for SDKs built on top of Apphud, not for apps.
- * It may change in any release without notice.
+ * Marks the platform facade ([Apphud.platform]). It may change in any release without notice.
  */
-@RequiresOptIn(
-    message = "Platform API for SDKs built on top of Apphud, not for apps. It may change in any release.",
-    level = RequiresOptIn.Level.WARNING,
-)
+@RequiresOptIn(level = RequiresOptIn.Level.WARNING)
 @Retention(AnnotationRetention.BINARY)
 @Target(AnnotationTarget.CLASS, AnnotationTarget.PROPERTY)
 annotation class ApphudPlatformApi

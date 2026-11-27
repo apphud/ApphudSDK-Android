@@ -2,7 +2,7 @@
 
 ## 3.8.0
 
-- `Apphud.platform`, `PlatformProtocol` and `PlatformUserPropertyKeyDescribing` are now public behind the `@ApphudPlatformApi` opt-in, for SDKs built on top of Apphud. Apps see no change; using them without `@OptIn(ApphudPlatformApi::class)` gives a compiler warning.
+- `Apphud.platform`, `PlatformProtocol` and `PlatformUserPropertyKeyDescribing` are now public behind the `@ApphudPlatformApi` opt-in. Apps see no change; using them without `@OptIn(ApphudPlatformApi::class)` gives a compiler warning.
 
 ## 3.7.2 — 2026-11-11
 
