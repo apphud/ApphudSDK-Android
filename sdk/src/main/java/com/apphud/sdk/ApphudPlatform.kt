@@ -2,9 +2,6 @@ package com.apphud.sdk
 
 import com.apphud.sdk.internal.ServiceLocator
 
-/**
- * Marks the platform facade ([Apphud.platform]). It may change in any release without notice.
- */
 @RequiresOptIn(level = RequiresOptIn.Level.WARNING)
 @Retention(AnnotationRetention.BINARY)
 @Target(AnnotationTarget.CLASS, AnnotationTarget.PROPERTY)
