@@ -3,14 +3,28 @@ package com.apphud.sdk
 import com.apphud.sdk.internal.ServiceLocator
 
 /**
+ * Marks the platform facade ([Apphud.platform]): API for SDKs built on top of Apphud, not for apps.
+ * It may change in any release without notice.
+ */
+@RequiresOptIn(
+    message = "Platform API for SDKs built on top of Apphud, not for apps. It may change in any release.",
+    level = RequiresOptIn.Level.WARNING,
+)
+@Retention(AnnotationRetention.BINARY)
+@Target(AnnotationTarget.CLASS, AnnotationTarget.PROPERTY)
+annotation class ApphudPlatformApi
+
+/**
  * A user property key with extra attributes sent alongside the property.
  */
-internal interface PlatformUserPropertyKeyDescribing {
+@ApphudPlatformApi
+interface PlatformUserPropertyKeyDescribing {
     val name: String
     val attributes: Map<String, String>
 }
 
-internal interface PlatformProtocol {
+@ApphudPlatformApi
+interface PlatformProtocol {
     /**
      * Sets a user property whose key carries extra attributes. Otherwise behaves like
      * [Apphud.setUserProperty].
@@ -43,6 +57,7 @@ internal interface PlatformProtocol {
     suspend fun awaitIsReinstall(): Boolean?
 }
 
+@OptIn(ApphudPlatformApi::class)
 internal object ApphudPlatform : PlatformProtocol {
     override fun setUserProperty(key: PlatformUserPropertyKeyDescribing, value: Any?, setOnce: Boolean) {
         runCatching {

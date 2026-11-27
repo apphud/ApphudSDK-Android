@@ -1,5 +1,9 @@
 # Changelog
 
+## 3.8.0
+
+- `Apphud.platform`, `PlatformProtocol` and `PlatformUserPropertyKeyDescribing` are now public behind the `@ApphudPlatformApi` opt-in, for SDKs built on top of Apphud. Apps see no change; using them without `@OptIn(ApphudPlatformApi::class)` gives a compiler warning.
+
 ## 3.7.2 — 2026-11-11
 
 - Add `Apphud.consumePurchase(purchaseToken)`. It consumes a one-time Google Play purchase that was acknowledged but not consumed, so the product can be bought again. Returns `null` on success, or `ApphudError` with the Google Play `BillingResponseCode` in `errorCode`.
